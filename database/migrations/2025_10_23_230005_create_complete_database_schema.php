@@ -11,6 +11,20 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Create branches table if it doesn't exist
+        if (!Schema::hasTable('branches')) {
+            Schema::create('branches', function (Blueprint $table) {
+                $table->id();
+                $table->string('name');
+                $table->string('address')->nullable();
+                $table->string('phone')->nullable();
+                $table->string('email')->nullable();
+                $table->boolean('is_active')->default(true);
+                $table->timestamps();
+                $table->softDeletes();
+            });
+        }
+
         // Create users table if it doesn't exist
         if (!Schema::hasTable('users')) {
             Schema::create('users', function (Blueprint $table) {
@@ -34,20 +48,6 @@ return new class extends Migration
             });
         }
 
-        // Create branches table if it doesn't exist
-        if (!Schema::hasTable('branches')) {
-            Schema::create('branches', function (Blueprint $table) {
-                $table->id();
-                $table->string('name');
-                $table->string('address')->nullable();
-                $table->string('phone')->nullable();
-                $table->string('email')->nullable();
-                $table->boolean('is_active')->default(true);
-                $table->timestamps();
-                $table->softDeletes();
-            });
-        }
-
         // Create facilities table
         Schema::create('facilities', function (Blueprint $table) {
             $table->id();
@@ -64,6 +64,20 @@ return new class extends Migration
             $table->boolean('is_active')->default(true);
             $table->timestamps();
             $table->softDeletes();
+        });
+
+        // Create drugs table
+        Schema::create('drugs', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->string('generic_name')->nullable();
+            $table->string('dosage_form')->nullable();
+            $table->string('strength')->nullable();
+            $table->text('indications')->nullable();
+            $table->text('contraindications')->nullable();
+            $table->text('side_effects')->nullable();
+            $table->boolean('is_active')->default(true);
+            $table->timestamps();
         });
 
         // Create residents table
@@ -84,20 +98,6 @@ return new class extends Migration
             $table->boolean('is_active')->default(true);
             $table->timestamps();
             $table->softDeletes();
-        });
-
-        // Create drugs table
-        Schema::create('drugs', function (Blueprint $table) {
-            $table->id();
-            $table->string('name');
-            $table->string('generic_name')->nullable();
-            $table->string('dosage_form')->nullable();
-            $table->string('strength')->nullable();
-            $table->text('indications')->nullable();
-            $table->text('contraindications')->nullable();
-            $table->text('side_effects')->nullable();
-            $table->boolean('is_active')->default(true);
-            $table->timestamps();
         });
 
         // Create medications table
@@ -152,27 +152,6 @@ return new class extends Migration
             $table->index('taken_by');
         });
 
-        // Create appointments table
-        Schema::create('appointments', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('resident_id')->constrained()->onDelete('cascade');
-            $table->foreignId('branch_id')->constrained()->onDelete('cascade');
-            $table->foreignId('appointment_type_id')->constrained()->onDelete('cascade');
-            $table->foreignId('healthcare_provider_id')->nullable()->constrained()->onDelete('set null');
-            $table->date('appointment_date');
-            $table->time('appointment_time')->nullable();
-            $table->string('provider_name')->nullable();
-            $table->string('location')->nullable();
-            $table->text('description')->nullable();
-            $table->enum('status', ['scheduled', 'confirmed', 'in_progress', 'completed', 'cancelled', 'no_show', 'rescheduled'])->default('scheduled');
-            $table->date('next_appointment_date')->nullable();
-            $table->string('recurrence_pattern')->nullable();
-            $table->text('notes')->nullable();
-            $table->foreignId('created_by')->constrained('users')->onDelete('cascade');
-            $table->timestamps();
-            $table->softDeletes();
-        });
-
         // Create appointment_types table
         Schema::create('appointment_types', function (Blueprint $table) {
             $table->id();
@@ -193,6 +172,27 @@ return new class extends Migration
             $table->string('email')->nullable();
             $table->string('address')->nullable();
             $table->boolean('is_active')->default(true);
+            $table->timestamps();
+            $table->softDeletes();
+        });
+
+        // Create appointments table
+        Schema::create('appointments', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('resident_id')->constrained()->onDelete('cascade');
+            $table->foreignId('branch_id')->constrained()->onDelete('cascade');
+            $table->foreignId('appointment_type_id')->constrained()->onDelete('cascade');
+            $table->foreignId('healthcare_provider_id')->nullable()->constrained()->onDelete('set null');
+            $table->date('appointment_date');
+            $table->time('appointment_time')->nullable();
+            $table->string('provider_name')->nullable();
+            $table->string('location')->nullable();
+            $table->text('description')->nullable();
+            $table->enum('status', ['scheduled', 'confirmed', 'in_progress', 'completed', 'cancelled', 'no_show', 'rescheduled'])->default('scheduled');
+            $table->date('next_appointment_date')->nullable();
+            $table->string('recurrence_pattern')->nullable();
+            $table->text('notes')->nullable();
+            $table->foreignId('created_by')->constrained('users')->onDelete('cascade');
             $table->timestamps();
             $table->softDeletes();
         });
