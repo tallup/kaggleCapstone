@@ -49,59 +49,66 @@ return new class extends Migration
         }
 
         // Create facilities table
-        Schema::create('facilities', function (Blueprint $table) {
-            $table->id();
-            $table->string('name');
-            $table->string('address')->nullable();
-            $table->string('phone')->nullable();
-            $table->string('email')->nullable();
-            $table->text('description')->nullable();
-            $table->string('license_number')->nullable();
-            $table->string('location')->nullable();
-            $table->string('brochure_title')->nullable();
-            $table->text('brochure_description')->nullable();
-            $table->string('brochure_image')->nullable();
-            $table->boolean('is_active')->default(true);
-            $table->timestamps();
-            $table->softDeletes();
-        });
+        if (!Schema::hasTable('facilities')) {
+            Schema::create('facilities', function (Blueprint $table) {
+                $table->id();
+                $table->string('name');
+                $table->string('address')->nullable();
+                $table->string('phone')->nullable();
+                $table->string('email')->nullable();
+                $table->text('description')->nullable();
+                $table->string('license_number')->nullable();
+                $table->string('location')->nullable();
+                $table->string('brochure_title')->nullable();
+                $table->text('brochure_description')->nullable();
+                $table->string('brochure_image')->nullable();
+                $table->boolean('is_active')->default(true);
+                $table->timestamps();
+                $table->softDeletes();
+            });
+        }
 
         // Create drugs table
-        Schema::create('drugs', function (Blueprint $table) {
-            $table->id();
-            $table->string('name');
-            $table->string('generic_name')->nullable();
-            $table->string('dosage_form')->nullable();
-            $table->string('strength')->nullable();
-            $table->text('indications')->nullable();
-            $table->text('contraindications')->nullable();
-            $table->text('side_effects')->nullable();
-            $table->boolean('is_active')->default(true);
-            $table->timestamps();
-        });
+        if (!Schema::hasTable('drugs')) {
+            Schema::create('drugs', function (Blueprint $table) {
+                $table->id();
+                $table->string('name');
+                $table->string('generic_name')->nullable();
+                $table->string('dosage_form')->nullable();
+                $table->string('strength')->nullable();
+                $table->text('indications')->nullable();
+                $table->text('contraindications')->nullable();
+                $table->text('side_effects')->nullable();
+                $table->boolean('is_active')->default(true);
+                $table->timestamps();
+            });
+        }
 
         // Create residents table
-        Schema::create('residents', function (Blueprint $table) {
-            $table->id();
-            $table->string('name');
-            $table->string('first_name')->nullable();
-            $table->string('middle_names')->nullable();
-            $table->date('date_of_birth');
-            $table->text('diagnosis')->nullable();
-            $table->text('allergies')->nullable();
-            $table->string('physician_name')->nullable();
-            $table->string('pep_or_doctor')->nullable();
-            $table->foreignId('branch_id')->constrained()->onDelete('cascade');
-            $table->string('room')->nullable();
-            $table->string('cart')->nullable();
-            $table->string('profile_image')->nullable();
-            $table->boolean('is_active')->default(true);
-            $table->timestamps();
-            $table->softDeletes();
-        });
+        if (!Schema::hasTable('residents')) {
+            Schema::create('residents', function (Blueprint $table) {
+                $table->id();
+                $table->string('name');
+                $table->string('first_name')->nullable();
+                $table->string('middle_names')->nullable();
+                $table->date('date_of_birth');
+                $table->text('diagnosis')->nullable();
+                $table->text('allergies')->nullable();
+                $table->string('physician_name')->nullable();
+                $table->string('pep_or_doctor')->nullable();
+                $table->foreignId('branch_id')->constrained()->onDelete('cascade');
+                $table->string('room')->nullable();
+                $table->string('cart')->nullable();
+                $table->string('profile_image')->nullable();
+                $table->boolean('is_active')->default(true);
+                $table->timestamps();
+                $table->softDeletes();
+            });
+        }
 
         // Create medications table
-        Schema::create('medications', function (Blueprint $table) {
+        if (!Schema::hasTable('medications')) {
+            Schema::create('medications', function (Blueprint $table) {
             $table->id();
             $table->foreignId('resident_id')->constrained()->onDelete('cascade');
             $table->foreignId('branch_id')->constrained()->onDelete('cascade');
@@ -121,10 +128,12 @@ return new class extends Migration
             $table->time('time_4')->nullable();
             $table->foreignId('created_by')->constrained('users')->onDelete('cascade');
             $table->timestamps();
-        });
+            });
+        }
 
         // Create vital_signs table
-        Schema::create('vital_signs', function (Blueprint $table) {
+        if (!Schema::hasTable('vital_signs')) {
+            Schema::create('vital_signs', function (Blueprint $table) {
             $table->id();
             $table->date('measurement_date');
             $table->integer('systolic')->nullable();
@@ -150,10 +159,12 @@ return new class extends Migration
             $table->index(['branch_id', 'resident_id']);
             $table->index('status');
             $table->index('taken_by');
-        });
+            });
+        }
 
         // Create appointment_types table
-        Schema::create('appointment_types', function (Blueprint $table) {
+        if (!Schema::hasTable('appointment_types')) {
+            Schema::create('appointment_types', function (Blueprint $table) {
             $table->id();
             $table->string('name');
             $table->text('description')->nullable();
@@ -161,10 +172,12 @@ return new class extends Migration
             $table->boolean('is_active')->default(true);
             $table->timestamps();
             $table->softDeletes();
-        });
+            });
+        }
 
         // Create healthcare_providers table
-        Schema::create('healthcare_providers', function (Blueprint $table) {
+        if (!Schema::hasTable('healthcare_providers')) {
+            Schema::create('healthcare_providers', function (Blueprint $table) {
             $table->id();
             $table->string('name');
             $table->string('specialty')->nullable();
@@ -174,10 +187,12 @@ return new class extends Migration
             $table->boolean('is_active')->default(true);
             $table->timestamps();
             $table->softDeletes();
-        });
+            });
+        }
 
         // Create appointments table
-        Schema::create('appointments', function (Blueprint $table) {
+        if (!Schema::hasTable('appointments')) {
+            Schema::create('appointments', function (Blueprint $table) {
             $table->id();
             $table->foreignId('resident_id')->constrained()->onDelete('cascade');
             $table->foreignId('branch_id')->constrained()->onDelete('cascade');
@@ -195,10 +210,12 @@ return new class extends Migration
             $table->foreignId('created_by')->constrained('users')->onDelete('cascade');
             $table->timestamps();
             $table->softDeletes();
-        });
+            });
+        }
 
         // Create medication_administrations table
-        Schema::create('medication_administrations', function (Blueprint $table) {
+        if (!Schema::hasTable('medication_administrations')) {
+            Schema::create('medication_administrations', function (Blueprint $table) {
             $table->id();
             $table->foreignId('medication_id')->constrained()->onDelete('cascade');
             $table->foreignId('resident_id')->constrained()->onDelete('cascade');
@@ -209,10 +226,12 @@ return new class extends Migration
             $table->enum('status', ['completed', 'missed', 'refused'])->default('completed');
             $table->text('notes')->nullable();
             $table->timestamps();
-        });
+            });
+        }
 
         // Create incidents table
-        Schema::create('incidents', function (Blueprint $table) {
+        if (!Schema::hasTable('incidents')) {
+            Schema::create('incidents', function (Blueprint $table) {
             $table->id();
             $table->foreignId('resident_id')->constrained()->onDelete('cascade');
             $table->foreignId('branch_id')->constrained()->onDelete('cascade');
@@ -224,19 +243,23 @@ return new class extends Migration
             $table->text('follow_up')->nullable();
             $table->foreignId('reported_by')->constrained('users')->onDelete('cascade');
             $table->timestamps();
-        });
+            });
+        }
 
         // Create behavior_categories table
-        Schema::create('behavior_categories', function (Blueprint $table) {
+        if (!Schema::hasTable('behavior_categories')) {
+            Schema::create('behavior_categories', function (Blueprint $table) {
             $table->id();
             $table->string('name');
             $table->text('description')->nullable();
             $table->boolean('is_active')->default(true);
             $table->timestamps();
-        });
+            });
+        }
 
         // Create behaviors table
-        Schema::create('behaviors', function (Blueprint $table) {
+        if (!Schema::hasTable('behaviors')) {
+            Schema::create('behaviors', function (Blueprint $table) {
             $table->id();
             $table->foreignId('resident_id')->constrained()->onDelete('cascade');
             $table->foreignId('branch_id')->constrained()->onDelete('cascade');
@@ -249,45 +272,54 @@ return new class extends Migration
             $table->text('outcome')->nullable();
             $table->foreignId('reported_by')->constrained('users')->onDelete('cascade');
             $table->timestamps();
-        });
+            });
+        }
 
         // Create roles table
-        Schema::create('roles', function (Blueprint $table) {
+        if (!Schema::hasTable('roles')) {
+            Schema::create('roles', function (Blueprint $table) {
             $table->id();
             $table->string('name')->unique();
             $table->string('display_name');
             $table->text('description')->nullable();
             $table->timestamps();
-        });
+            });
+        }
 
         // Create permissions table
-        Schema::create('permissions', function (Blueprint $table) {
+        if (!Schema::hasTable('permissions')) {
+            Schema::create('permissions', function (Blueprint $table) {
             $table->id();
             $table->string('name')->unique();
             $table->string('display_name');
             $table->text('description')->nullable();
             $table->timestamps();
-        });
+            });
+        }
 
         // Create role_permissions table
-        Schema::create('role_permissions', function (Blueprint $table) {
+        if (!Schema::hasTable('role_permissions')) {
+            Schema::create('role_permissions', function (Blueprint $table) {
             $table->id();
             $table->foreignId('role_id')->constrained()->onDelete('cascade');
             $table->foreignId('permission_id')->constrained()->onDelete('cascade');
             $table->timestamps();
             
             $table->unique(['role_id', 'permission_id']);
-        });
+            });
+        }
 
         // Create user_roles table
-        Schema::create('user_roles', function (Blueprint $table) {
+        if (!Schema::hasTable('user_roles')) {
+            Schema::create('user_roles', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->foreignId('role_id')->constrained()->onDelete('cascade');
             $table->timestamps();
             
             $table->unique(['user_id', 'role_id']);
-        });
+            });
+        }
     }
 
     /**
