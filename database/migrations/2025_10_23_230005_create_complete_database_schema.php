@@ -36,16 +36,17 @@ return new class extends Migration
 
         // Create branches table if it doesn't exist
         if (!Schema::hasTable('branches')) {
-        Schema::create('branches', function (Blueprint $table) {
-            $table->id();
-            $table->string('name');
-            $table->string('address')->nullable();
-            $table->string('phone')->nullable();
-            $table->string('email')->nullable();
-            $table->boolean('is_active')->default(true);
-            $table->timestamps();
-            $table->softDeletes();
-        });
+            Schema::create('branches', function (Blueprint $table) {
+                $table->id();
+                $table->string('name');
+                $table->string('address')->nullable();
+                $table->string('phone')->nullable();
+                $table->string('email')->nullable();
+                $table->boolean('is_active')->default(true);
+                $table->timestamps();
+                $table->softDeletes();
+            });
+        }
 
         // Create facilities table
         Schema::create('facilities', function (Blueprint $table) {
