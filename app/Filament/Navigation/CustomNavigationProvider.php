@@ -62,21 +62,20 @@ class CustomNavigationProvider
                     ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.pages.*reports*'))
                     ->sort(-400)
                     ->childItems([
-                        NavigationItem::make('Resident Reports')
-                            ->url(route('filament.admin.pages.resident-reports'))
-                            ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.pages.resident-reports')),
+                        NavigationItem::make('Medication History')
+                            ->icon('heroicon-o-cube')
+                            ->url(route('filament.admin.pages.medication-history'))
+                            ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.pages.medication-history')),
                         
-                        NavigationItem::make('Medication Reports')
-                            ->url(route('filament.admin.pages.medication-reports'))
-                            ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.pages.medication-reports')),
+                        NavigationItem::make('Vitals History')
+                            ->icon('heroicon-o-heart')
+                            ->url(route('filament.admin.pages.vitals-history'))
+                            ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.pages.vitals-history')),
                         
-                        NavigationItem::make('Assessment Reports')
-                            ->url(route('filament.admin.pages.assessment-reports'))
-                            ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.pages.assessment-reports')),
-                        
-                        NavigationItem::make('Staff Reports')
-                            ->url(route('filament.admin.pages.staff-reports'))
-                            ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.pages.staff-reports')),
+                        NavigationItem::make('Reports')
+                            ->icon('heroicon-o-document-text')
+                            ->url(route('filament.admin.pages.reports'))
+                            ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.pages.reports')),
                     ]),
 
                 // Staff (with dropdown)
