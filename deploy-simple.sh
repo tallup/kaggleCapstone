@@ -1,8 +1,6 @@
 #!/bin/bash
 
 # Laravel Forge Deployment Script for Edmond Serenity AFH
-# This script will be run automatically by Forge on each deployment
-
 echo "🚀 Starting deployment for Edmond Serenity AFH..."
 
 # Exit on any error
@@ -18,10 +16,6 @@ git pull origin master
 # Install/update Composer dependencies
 echo "📦 Installing Composer dependencies..."
 composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev
-
-# Run Filament upgrade after Composer install
-echo "🔧 Running Filament upgrade..."
-php artisan filament:upgrade --force
 
 # Install/update NPM dependencies and build assets
 echo "🎨 Building frontend assets..."
