@@ -22,6 +22,7 @@ class LeaveRequestResource extends Resource
     protected static ?string $modelLabel = 'Leave Request';
     protected static ?string $pluralModelLabel = 'Leave Requests';
     protected static ?string $navigationGroup = 'Staff Management';
+    protected static bool $shouldRegisterNavigation = false;
 
     public static function getEloquentQuery(): Builder
     {

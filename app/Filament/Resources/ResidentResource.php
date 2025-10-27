@@ -23,6 +23,7 @@ class ResidentResource extends Resource
     protected static ?string $modelLabel = 'Resident';
     protected static ?string $pluralModelLabel = 'Residents';
     protected static ?string $navigationGroup = 'Resident Care';
+    protected static bool $shouldRegisterNavigation = false;
 
     public static function canViewAny(): bool
     {

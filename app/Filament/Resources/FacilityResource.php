@@ -22,6 +22,7 @@ class FacilityResource extends Resource
     protected static ?string $modelLabel = 'Facility';
     protected static ?string $pluralModelLabel = 'Facilities';
     protected static ?string $navigationGroup = 'Administration';
+    protected static bool $shouldRegisterNavigation = false;
 
     public static function canViewAny(): bool
     {

@@ -20,6 +20,7 @@ class VitalRangeResource extends Resource
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
     protected static ?string $navigationGroup = 'Administration';
     protected static ?int $navigationSort = 100;
+    protected static bool $shouldRegisterNavigation = false;
 
     public static function form(Form $form): Form
     {

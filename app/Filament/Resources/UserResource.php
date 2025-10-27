@@ -23,6 +23,7 @@ class UserResource extends Resource
     protected static ?string $modelLabel = 'User';
     protected static ?string $pluralModelLabel = 'Users';
     protected static ?string $navigationGroup = 'Staff Management';
+    protected static bool $shouldRegisterNavigation = false;
 
     public static function canViewAny(): bool
     {
