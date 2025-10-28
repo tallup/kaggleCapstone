@@ -46,6 +46,7 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
         });
+        }
 
         // Create facilities table
         Schema::create('facilities', function (Blueprint $table) {
