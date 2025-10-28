@@ -34,18 +34,20 @@ class CustomNavigationProvider
                     ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.resources.assessments.*'))
                     ->sort(-800),
 
-                // Vitals
+                // Vitals (force visible and defer URL resolution)
                 NavigationItem::make('Vitals')
                     ->icon('heroicon-o-heart')
-                    ->url(route('filament.admin.pages.view-vitals'))
+                    ->url(fn () => route('filament.admin.pages.view-vitals'))
                     ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.pages.view-vitals'))
+                    ->hidden(false)
                     ->sort(-700),
 
-                // Sleep
+                // Sleep (force visible and defer URL resolution)
                 NavigationItem::make('Sleep')
                     ->icon('heroicon-o-moon')
-                    ->url(route('filament.admin.resources.sleep-records.index'))
+                    ->url(fn () => route('filament.admin.resources.sleep-records.index'))
                     ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.resources.sleep-records.*'))
+                    ->hidden(false)
                     ->sort(-600),
 
                 // Reports (with dropdown)
