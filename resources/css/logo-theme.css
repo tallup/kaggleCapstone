@@ -1,0 +1,66 @@
+/* Evergreen Oasis Care Home - Logo Theme Colors */
+/* Background color extracted from logo */
+:root {
+    --logo-bg: #F5F5DC; /* Light beige/cream from logo background */
+    --logo-green: #2D5016; /* Dark green from logo tree */
+    --logo-brown: #8B4513; /* Dark brown/sepia from logo text */
+}
+
+/* Apply logo background to the main app */
+body {
+    background-color: var(--logo-bg) !important;
+}
+
+/* Filament panel background */
+.filament-app {
+    background-color: var(--logo-bg) !important;
+}
+
+/* Login page styling */
+.filament-login-page {
+    background-color: var(--logo-bg) !important;
+}
+
+.filament-login-page .filament-login-page-card {
+    background-color: white;
+    border: 2px solid var(--logo-green);
+    box-shadow: 0 4px 6px rgba(45, 80, 22, 0.1);
+}
+
+/* Customize button colors to match logo */
+.btn-primary {
+    background-color: var(--logo-green) !important;
+    border-color: var(--logo-green) !important;
+}
+
+.btn-primary:hover {
+    background-color: #1a3009 !important;
+    border-color: #1a3009 !important;
+}
+
+/* Customize text colors */
+.text-primary {
+    color: var(--logo-green) !important;
+}
+
+.text-secondary {
+    color: var(--logo-brown) !important;
+}
+
+/* Navigation styling */
+.filament-topbar {
+    background-color: var(--logo-green) !important;
+}
+
+.filament-topbar .text-white {
+    color: white !important;
+}
+
+/* Sidebar styling */
+.filament-sidebar {
+    background-color: var(--logo-brown) !important;
+}
+
+.filament-sidebar .text-white {
+    color: white !important;
+}

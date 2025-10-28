@@ -17,16 +17,20 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('/admin')
             ->login()
+            ->loginPageView('filament.pages.auth.login')
             ->colors([
-                'primary' => '#3B82F6',
-                'gray' => '#6B7280',
+                'primary' => '#2D5016', // Dark green from logo tree
+                'gray' => '#8B4513', // Dark brown/sepia from logo text
+                'success' => '#2D5016',
+                'warning' => '#8B4513',
+                'danger' => '#8B4513',
             ])
             ->navigationBuilder(CustomNavigationProvider::class)
             ->topNavigation()
             ->sidebarCollapsibleOnDesktop()
             ->brandName('Edmond Serenity AFH')
             ->brandLogo(asset('images/logo.png'))
-            ->favicon(asset('images/favicon.ico'))
+            ->favicon(asset('favicon.ico'))
             ->maxContentWidth('full')
             ->renderHook(
                 'panels::topbar.end',
