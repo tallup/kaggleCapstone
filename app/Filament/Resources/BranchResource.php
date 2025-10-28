@@ -22,7 +22,7 @@ class BranchResource extends Resource
     protected static ?string $modelLabel = 'Branch';
     protected static ?string $pluralModelLabel = 'Branches';
     protected static ?string $navigationGroup = 'Administration';
-    protected static bool $shouldRegisterNavigation = false;
+    protected static bool $shouldRegisterNavigation = true;
 
     public static function canViewAny(): bool
     {
