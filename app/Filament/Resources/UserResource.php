@@ -189,7 +189,6 @@ class UserResource extends Resource
                             ->password()
                             ->required(fn (string $context): bool => $context === 'create')
                             ->dehydrated(fn ($state) => filled($state))
-                            ->dehydrateStateUsing(fn ($state) => bcrypt($state))
                             ->placeholder('Enter secure password')
                             ->helperText('Minimum 8 characters, include numbers and special characters'),
                     ]),
