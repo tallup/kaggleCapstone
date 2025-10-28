@@ -21,7 +21,8 @@ class AdminPanelProvider extends PanelProvider
                 'primary' => '#3B82F6',
                 'gray' => '#6B7280',
             ])
-            ->navigationBuilder(CustomNavigationProvider::class)
+            ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
+            ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
             ->topNavigation()
             ->sidebarCollapsibleOnDesktop()
             ->brandName('Edmond Serenity AFH')

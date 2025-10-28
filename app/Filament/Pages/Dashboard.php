@@ -16,7 +16,7 @@ class Dashboard extends Page
 
     public static function shouldRegisterNavigation(): bool
     {
-        return false; // We handle navigation via CustomNavigationProvider
+        return true; // Enable navigation for Dashboard
     }
 
     public function mount(): void
