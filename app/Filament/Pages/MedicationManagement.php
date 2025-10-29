@@ -12,7 +12,7 @@ class MedicationManagement extends Page
     protected static ?string $navigationIcon = 'heroicon-o-cube';
     protected static string $view = 'filament.pages.medication-management';
     protected static ?string $title = 'Medication Management';
-    protected static ?string $navigationLabel = 'Medication Management';
+    protected static ?string $navigationLabel = 'Medication';
     protected static ?int $navigationSort = 4;
     protected static bool $shouldRegisterNavigation = true;
     protected static ?string $navigationGroup = null;

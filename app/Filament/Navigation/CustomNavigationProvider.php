@@ -42,8 +42,8 @@ class CustomNavigationProvider
                         request()->is('admin/vital-signs*'))
                     ->sort(40),
 
-                // Medication Management - Fifth item
-                NavigationItem::make('Medication Management')
+                // Medication - Fifth item
+                NavigationItem::make('Medication')
                     ->icon('heroicon-o-cube')
                     ->url(route('filament.admin.pages.medication-management'))
                     ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.pages.medication-management'))
