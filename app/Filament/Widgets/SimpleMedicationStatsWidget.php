@@ -8,19 +8,21 @@ use App\Models\MedicationAdministration;
 
 class SimpleMedicationStatsWidget extends BaseWidget
 {
+    public ?int $selectedResident = null;
+    
+    public function selectedResident(?int $residentId): static
+    {
+        $this->selectedResident = $residentId;
+        return $this;
+    }
+    
     protected function getStats(): array
     {
         try {
-            // Get the selected resident from the parent page (MedicationHistory)
-            $selectedResident = null;
-            $parentPage = $this->getParent();
+            // Use the selectedResident property or fallback to request parameter
+            $selectedResident = $this->selectedResident;
             
-            // Try to get selectedResident from the page
-            if ($parentPage && property_exists($parentPage, 'selectedResident')) {
-                $selectedResident = $parentPage->selectedResident;
-            }
-            
-            // Also check request parameter as fallback
+            // Fallback to request parameter if not set
             if (!$selectedResident && request()->has('resident')) {
                 $selectedResident = request('resident');
             }
