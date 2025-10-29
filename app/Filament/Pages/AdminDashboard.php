@@ -42,4 +42,9 @@ class AdminDashboard extends BaseDashboard
             BranchChartWidget::class,
         ];
     }
+
+    public function getColumns(): int
+    {
+        return 2;
+    }
 }
