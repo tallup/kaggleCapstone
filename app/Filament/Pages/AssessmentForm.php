@@ -37,6 +37,14 @@ class AssessmentForm extends Page
         
         if ($assessmentId) {
             $this->assessment = Assessment::with(['resident', 'branch', 'assessor', 'sections.questions'])->findOrFail($assessmentId);
+            
+            // If assessment has no sections, create them
+            if ($this->assessment->sections()->count() === 0) {
+                $this->createAssessmentSections();
+                // Reload assessment with sections and questions
+                $this->assessment->load(['sections.questions']);
+            }
+            
             $this->data = $this->assessment->toArray();
             
             // Pre-fill medical history information from resident data
@@ -127,7 +135,15 @@ class AssessmentForm extends Page
             return $form->schema([]);
         }
 
+        // Reload sections with questions to ensure we have the latest data
         $sections = $this->assessment->sections()->with('questions')->get();
+        
+        // If still no sections, try to create them
+        if ($sections->isEmpty()) {
+            $this->createAssessmentSections();
+            $sections = $this->assessment->sections()->with('questions')->get();
+        }
+        
         $schema = [];
 
         foreach ($sections as $section) {
@@ -138,6 +154,11 @@ class AssessmentForm extends Page
             
             $sectionSchema = [];
             
+            // If section has no questions, skip it
+            if ($section->questions->isEmpty()) {
+                continue;
+            }
+            
             foreach ($section->questions as $question) {
                 $field = match ($question->response_type) {
                     'text' => Forms\Components\TextInput::make("sections.{$section->id}.questions.{$question->id}")
@@ -147,13 +168,13 @@ class AssessmentForm extends Page
                         ->numeric(),
                     'select' => Forms\Components\Select::make("sections.{$section->id}.questions.{$question->id}")
                         ->label($question->question_text)
-                        ->options($question->response_options ?? []),
+                        ->options(is_array($question->response_options) ? $question->response_options : (is_string($question->response_options) ? json_decode($question->response_options, true) : [])),
                     'radio' => Forms\Components\Radio::make("sections.{$section->id}.questions.{$question->id}")
                         ->label($question->question_text)
-                        ->options($question->response_options ?? []),
+                        ->options(is_array($question->response_options) ? $question->response_options : (is_string($question->response_options) ? json_decode($question->response_options, true) : [])),
                     'checkbox' => Forms\Components\CheckboxList::make("sections.{$section->id}.questions.{$question->id}")
                         ->label($question->question_text)
-                        ->options($question->response_options ?? []),
+                        ->options(is_array($question->response_options) ? $question->response_options : (is_string($question->response_options) ? json_decode($question->response_options, true) : [])),
                     'date' => Forms\Components\DatePicker::make("sections.{$section->id}.questions.{$question->id}")
                         ->label($question->question_text),
                     default => Forms\Components\TextInput::make("sections.{$section->id}.questions.{$question->id}")
@@ -162,16 +183,130 @@ class AssessmentForm extends Page
 
                 $sectionSchema[] = $field;
             }
-
-            $schema[] = Forms\Components\Section::make($section->section_title)
-                ->description($section->notes)
-                ->schema($sectionSchema)
-                ->collapsible();
+            
+            // Only add section if it has fields
+            if (!empty($sectionSchema)) {
+                $schema[] = Forms\Components\Section::make($section->section_title)
+                    ->description($section->notes ?? '')
+                    ->schema($sectionSchema)
+                    ->collapsible();
+            }
         }
 
         return $form
             ->schema($schema)
             ->statePath('data');
+    }
+    
+    protected function createAssessmentSections(): void
+    {
+        if (!$this->assessment) {
+            return;
+        }
+
+        // Use the same section creation logic from AssessmentPage
+        $sections = [
+            'demographic' => [
+                'title' => 'Demographic Information',
+                'questions' => [
+                    ['text' => 'What is the resident\'s full name?', 'type' => 'text'],
+                    ['text' => 'Date of birth?', 'type' => 'date'],
+                    ['text' => 'Gender', 'type' => 'radio', 'options' => ['Male', 'Female', 'Other']],
+                    ['text' => 'Marital status', 'type' => 'select', 'options' => ['Single', 'Married', 'Divorced', 'Widowed']],
+                    ['text' => 'Emergency contact name', 'type' => 'text'],
+                    ['text' => 'Emergency contact phone', 'type' => 'text'],
+                ]
+            ],
+            'medical_history' => [
+                'title' => 'Medical History',
+                'questions' => [
+                    ['text' => 'Primary diagnosis', 'type' => 'text'],
+                    ['text' => 'Secondary diagnoses', 'type' => 'text'],
+                    ['text' => 'Current medications', 'type' => 'text'],
+                    ['text' => 'Known allergies', 'type' => 'text'],
+                    ['text' => 'Physician name', 'type' => 'text'],
+                    ['text' => 'Physician phone', 'type' => 'text'],
+                    ['text' => 'Last physical exam date', 'type' => 'date'],
+                ]
+            ],
+            'functional' => [
+                'title' => 'Functional Assessment',
+                'questions' => [
+                    ['text' => 'Can the resident walk independently?', 'type' => 'radio', 'options' => ['Yes', 'No', 'With assistance']],
+                    ['text' => 'Can the resident feed themselves?', 'type' => 'radio', 'options' => ['Yes', 'No', 'With assistance']],
+                    ['text' => 'Can the resident bathe independently?', 'type' => 'radio', 'options' => ['Yes', 'No', 'With assistance']],
+                    ['text' => 'Can the resident dress independently?', 'type' => 'radio', 'options' => ['Yes', 'No', 'With assistance']],
+                    ['text' => 'Can the resident use the toilet independently?', 'type' => 'radio', 'options' => ['Yes', 'No', 'With assistance']],
+                ]
+            ],
+            'cognitive' => [
+                'title' => 'Cognitive Assessment',
+                'questions' => [
+                    ['text' => 'Is the resident oriented to person?', 'type' => 'radio', 'options' => ['Yes', 'No']],
+                    ['text' => 'Is the resident oriented to place?', 'type' => 'radio', 'options' => ['Yes', 'No']],
+                    ['text' => 'Is the resident oriented to time?', 'type' => 'radio', 'options' => ['Yes', 'No']],
+                    ['text' => 'Any signs of confusion?', 'type' => 'radio', 'options' => ['Yes', 'No', 'Occasionally']],
+                    ['text' => 'Memory concerns?', 'type' => 'text'],
+                ]
+            ],
+            'behavioral' => [
+                'title' => 'Behavioral Assessment',
+                'questions' => [
+                    ['text' => 'Any aggressive behaviors?', 'type' => 'radio', 'options' => ['Yes', 'No', 'Occasionally']],
+                    ['text' => 'Any wandering behaviors?', 'type' => 'radio', 'options' => ['Yes', 'No', 'Occasionally']],
+                    ['text' => 'Any signs of depression?', 'type' => 'radio', 'options' => ['Yes', 'No', 'Occasionally']],
+                    ['text' => 'Sleep patterns?', 'type' => 'text'],
+                    ['text' => 'Social interaction level?', 'type' => 'select', 'options' => ['Very Social', 'Moderate', 'Minimal', 'Isolated']],
+                ]
+            ],
+            'nutritional' => [
+                'title' => 'Nutritional Assessment',
+                'questions' => [
+                    ['text' => 'Current weight', 'type' => 'number'],
+                    ['text' => 'Appetite level', 'type' => 'select', 'options' => ['Excellent', 'Good', 'Fair', 'Poor']],
+                    ['text' => 'Any dietary restrictions?', 'type' => 'text'],
+                    ['text' => 'Any swallowing difficulties?', 'type' => 'radio', 'options' => ['Yes', 'No']],
+                    ['text' => 'Fluid intake adequate?', 'type' => 'radio', 'options' => ['Yes', 'No', 'Unknown']],
+                ]
+            ],
+            'environmental' => [
+                'title' => 'Environmental Assessment',
+                'questions' => [
+                    ['text' => 'Room cleanliness', 'type' => 'select', 'options' => ['Excellent', 'Good', 'Fair', 'Poor']],
+                    ['text' => 'Safety concerns?', 'type' => 'text'],
+                    ['text' => 'Any fall risks?', 'type' => 'radio', 'options' => ['Yes', 'No']],
+                    ['text' => 'Adequate lighting?', 'type' => 'radio', 'options' => ['Yes', 'No']],
+                ]
+            ],
+            'risk' => [
+                'title' => 'Risk Assessment',
+                'questions' => [
+                    ['text' => 'Fall risk level', 'type' => 'select', 'options' => ['Low', 'Moderate', 'High', 'Very High']],
+                    ['text' => 'Skin integrity concerns?', 'type' => 'radio', 'options' => ['Yes', 'No']],
+                    ['text' => 'Any pressure ulcers?', 'type' => 'radio', 'options' => ['Yes', 'No']],
+                    ['text' => 'Medication compliance?', 'type' => 'select', 'options' => ['Excellent', 'Good', 'Fair', 'Poor']],
+                    ['text' => 'Overall risk level', 'type' => 'select', 'options' => ['Low', 'Moderate', 'High']],
+                ]
+            ],
+        ];
+
+        foreach ($sections as $type => $sectionData) {
+            $section = $this->assessment->sections()->create([
+                'section_type' => $type,
+                'is_completed' => false,
+            ]);
+
+            // Create questions for this section
+            foreach ($sectionData['questions'] as $questionData) {
+                $section->questions()->create([
+                    'question_text' => $questionData['text'],
+                    'response_type' => $questionData['type'],
+                    'response_options' => isset($questionData['options']) ? json_encode($questionData['options']) : null,
+                    'response_value' => null,
+                    'weight' => 1,
+                ]);
+            }
+        }
     }
 
     public function saveAction(): Action
