@@ -411,6 +411,35 @@ class AssessmentForm extends Page implements HasForms
             ->label('Save Progress')
             ->color('primary')
             ->action(function () {
+                // Get the current form state - this captures all current form values
+                try {
+                    $formData = $this->form->getState();
+                    
+                    // Merge form data into our data array (form data takes precedence)
+                    if (isset($formData['sections']) && is_array($formData['sections'])) {
+                        if (!isset($this->data['sections'])) {
+                            $this->data['sections'] = [];
+                        }
+                        foreach ($formData['sections'] as $sectionId => $sectionData) {
+                            if (isset($sectionData['questions'])) {
+                                if (!isset($this->data['sections'][$sectionId])) {
+                                    $this->data['sections'][$sectionId] = ['questions' => []];
+                                }
+                                if (!isset($this->data['sections'][$sectionId]['questions'])) {
+                                    $this->data['sections'][$sectionId]['questions'] = [];
+                                }
+                                // Merge questions, form data takes precedence
+                                $this->data['sections'][$sectionId]['questions'] = array_merge(
+                                    $this->data['sections'][$sectionId]['questions'],
+                                    $sectionData['questions']
+                                );
+                            }
+                        }
+                    }
+                } catch (\Exception $e) {
+                    \Log::error('Error getting form state: ' . $e->getMessage());
+                }
+                
                 $this->saveAssessment();
                 
                 Notification::make()
