@@ -195,8 +195,10 @@ class MedicationHistory extends Page implements HasTable
 
     protected function getHeaderWidgets(): array
     {
+        // Pass selectedResident to the widget so it can filter stats
         return [
-            SimpleMedicationStatsWidget::class,
+            SimpleMedicationStatsWidget::make()
+                ->selectedResident($this->selectedResident),
         ];
     }
 }
