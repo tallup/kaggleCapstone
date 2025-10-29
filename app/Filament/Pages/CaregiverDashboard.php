@@ -56,7 +56,7 @@ class CaregiverDashboard extends Page
         // Pending assessments for assigned residents
         $pendingAssessments = Assessment::whereHas('resident.assignments', function($q) use ($userId) {
             $q->where('caregiver_id', $userId)->where('is_active', true);
-        })->where('completion_percentage', '<', 100)->count();
+        })->whereNotIn('status', ['approved', 'archived'])->count();
         
         // Vitals recorded today
         $todayVitals = VitalSign::whereHas('resident.assignments', function($q) use ($userId) {

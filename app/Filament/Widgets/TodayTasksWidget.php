@@ -30,7 +30,7 @@ class TodayTasksWidget extends Widget
         // Get pending assessments
         $assessments = Assessment::whereHas('resident.assignments', function($q) use ($userId) {
             $q->where('caregiver_id', $userId)->where('is_active', true);
-        })->where('completion_percentage', '<', 100)
+        })->whereNotIn('status', ['approved', 'archived'])
         ->with('resident')
         ->get();
 

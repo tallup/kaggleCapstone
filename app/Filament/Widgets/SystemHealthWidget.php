@@ -54,7 +54,7 @@ class SystemHealthWidget extends BaseWidget
                     ->formatStateUsing(function ($record) {
                         return Assessment::whereHas('resident', function($query) use ($record) {
                             $query->where('branch_id', $record->id);
-                        })->where('completion_percentage', 100)->count();
+                        })->where('status', 'approved')->count();
                     })
                     ->numeric()
                     ->color('success'),

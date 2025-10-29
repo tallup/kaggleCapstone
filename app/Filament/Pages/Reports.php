@@ -54,7 +54,7 @@ class Reports extends Page
             'total_caregivers' => User::where('role', 'caregiver')->count(),
             'total_branches' => Branch::count(),
             'active_assignments' => Assignment::where('is_active', true)->count(),
-            'pending_assessments' => Assessment::where('completion_percentage', '<', 100)->count(),
+            'pending_assessments' => Assessment::whereNotIn('status', ['approved', 'archived'])->count(),
             'today_vitals' => VitalSign::whereDate('measurement_date', today())->count(),
             'upcoming_appointments' => Appointment::whereDate('appointment_date', '>=', today())->count(),
             'pending_leave_requests' => LeaveRequest::where('status', 'pending')->count(),
