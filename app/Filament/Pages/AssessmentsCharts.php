@@ -30,8 +30,8 @@ class AssessmentsCharts extends Page
     public function getAssessmentStats(): array
     {
         $totalAssessments = Assessment::count();
-        $completedAssessments = Assessment::where('completion_percentage', 100)->count();
-        $pendingAssessments = Assessment::where('completion_percentage', '<', 100)->count();
+        $completedAssessments = Assessment::where('status', 'approved')->count();
+        $pendingAssessments = Assessment::whereNotIn('status', ['approved', 'archived'])->count();
         $thisMonthAssessments = Assessment::whereMonth('created_at', Carbon::now()->month)->count();
 
         return [
