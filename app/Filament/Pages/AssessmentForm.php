@@ -53,8 +53,11 @@ class AssessmentForm extends Page
             // Pre-fill medical history information from resident data (priority 2 - only if not already saved)
             $this->prefillMedicalHistoryData();
             
-            // Fill the form with the data
+            // Fill the form with the data (after all data is loaded)
             $this->form->fill($this->data);
+            
+            // Also set default values on form fields to ensure they're populated
+            $this->setDefaultValuesOnFormFields();
         }
     }
 
@@ -88,9 +91,23 @@ class AssessmentForm extends Page
             };
 
             if ($value !== null) {
-                // Set the value using the exact form field name format
+                // Initialize nested structure if needed
+                if (!isset($this->data['sections'])) {
+                    $this->data['sections'] = [];
+                }
+                if (!isset($this->data['sections'][$demographicSection->id])) {
+                    $this->data['sections'][$demographicSection->id] = ['questions' => []];
+                }
+                if (!isset($this->data['sections'][$demographicSection->id]['questions'])) {
+                    $this->data['sections'][$demographicSection->id]['questions'] = [];
+                }
+                
+                // Set in nested structure
                 $fieldName = "sections.{$demographicSection->id}.questions.{$question->id}";
-                $this->data[$fieldName] = $value;
+                // Only set if not already populated from saved answers
+                if (!isset($this->data['sections'][$demographicSection->id]['questions'][$question->id])) {
+                    $this->data['sections'][$demographicSection->id]['questions'][$question->id] = $value;
+                }
             }
         }
     }
@@ -101,15 +118,26 @@ class AssessmentForm extends Page
             return;
         }
 
+        // Initialize nested structure for Filament form data
+        if (!isset($this->data['sections'])) {
+            $this->data['sections'] = [];
+        }
+
         // Load all sections with their questions
         $sections = $this->assessment->sections()->with('questions')->get();
 
         foreach ($sections as $section) {
+            if (!isset($this->data['sections'][$section->id])) {
+                $this->data['sections'][$section->id] = ['questions' => []];
+            }
+            
+            if (!isset($this->data['sections'][$section->id]['questions'])) {
+                $this->data['sections'][$section->id]['questions'] = [];
+            }
+            
             foreach ($section->questions as $question) {
-                // Only load if there's a saved value
+                // Load saved value if it exists
                 if (!empty($question->response_value)) {
-                    $fieldName = "sections.{$section->id}.questions.{$question->id}";
-                    
                     // Decode JSON if it's a JSON string (for checkbox/arrays)
                     $value = $question->response_value;
                     if (is_string($value)) {
@@ -119,7 +147,8 @@ class AssessmentForm extends Page
                         }
                     }
                     
-                    $this->data[$fieldName] = $value;
+                    // Set in nested structure for Filament (this matches the form field names)
+                    $this->data['sections'][$section->id]['questions'][$question->id] = $value;
                 }
             }
         }
@@ -156,10 +185,21 @@ class AssessmentForm extends Page
 
             // Only pre-fill if there's no saved value already
             if ($value !== null) {
-                $fieldName = "sections.{$medicalSection->id}.questions.{$question->id}";
+                // Initialize nested structure if needed
+                if (!isset($this->data['sections'])) {
+                    $this->data['sections'] = [];
+                }
+                if (!isset($this->data['sections'][$medicalSection->id])) {
+                    $this->data['sections'][$medicalSection->id] = ['questions' => []];
+                }
+                if (!isset($this->data['sections'][$medicalSection->id]['questions'])) {
+                    $this->data['sections'][$medicalSection->id]['questions'] = [];
+                }
+                
                 // Only set if not already populated from saved answers
-                if (!isset($this->data[$fieldName]) || empty($this->data[$fieldName])) {
-                    $this->data[$fieldName] = $value;
+                if (!isset($this->data['sections'][$medicalSection->id]['questions'][$question->id]) || 
+                    empty($this->data['sections'][$medicalSection->id]['questions'][$question->id])) {
+                    $this->data['sections'][$medicalSection->id]['questions'][$question->id] = $value;
                 }
             }
         }
@@ -437,23 +477,46 @@ class AssessmentForm extends Page
                 $question = AssessmentQuestion::find($questionId);
                 if (!$question) continue;
 
-                // Only update if there's a response
-                if (!empty($response)) {
-                    $question->update([
-                        'response_value' => is_array($response) ? json_encode($response) : $response,
-                    ]);
+                // Update response value (save even if empty to clear previously saved values)
+                $responseValue = null;
+                if (!empty($response) || $response === 0 || $response === '0') {
+                    // Handle different response types
+                    if (is_array($response)) {
+                        $responseValue = json_encode($response);
+                    } else {
+                        $responseValue = $response;
+                    }
                     $completedQuestions++;
                 }
+                
+                $question->update([
+                    'response_value' => $responseValue,
+                ]);
             }
 
             $section->update([
-                'is_completed' => $completedQuestions === $totalQuestions,
-                'completed_at' => $completedQuestions === $totalQuestions ? now() : null,
+                'is_completed' => $completedQuestions === $totalQuestions && $totalQuestions > 0,
+                'completed_at' => $completedQuestions === $totalQuestions && $totalQuestions > 0 ? now() : null,
             ]);
         }
 
-        // Update assessment completion percentage
-        $totalQuestions = $this->assessment->sections()->withCount('questions')->get()->sum('questions_count');
+        // Update completion percentage based on answered questions
+        $this->assessment->refresh();
+        $this->updateCompletionPercentage();
+    }
+    
+    protected function updateCompletionPercentage(): void
+    {
+        if (!$this->assessment) {
+            return;
+        }
+
+        $totalQuestions = $this->assessment->sections()
+            ->with('questions')
+            ->get()
+            ->flatMap(fn($section) => $section->questions)
+            ->count();
+            
         $answeredQuestions = $this->assessment->sections()
             ->with('questions')
             ->get()
@@ -462,11 +525,8 @@ class AssessmentForm extends Page
             ->where('response_value', '!=', '')
             ->count();
 
-        $completionPercentage = $totalQuestions > 0 ? round(($answeredQuestions / $totalQuestions) * 100) : 0;
-
-        $this->assessment->update([
-            'completion_percentage' => $completionPercentage,
-        ]);
+        // Note: completion_percentage is an accessor, so we can't directly update it
+        // But we can update section completion which affects the accessor calculation
     }
 
     public function getAssessment(): ?Assessment
