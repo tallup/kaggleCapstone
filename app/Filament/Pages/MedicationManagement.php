@@ -14,7 +14,8 @@ class MedicationManagement extends Page
     protected static ?string $title = 'Medication Management';
     protected static ?string $navigationLabel = 'Medication Management';
     protected static ?int $navigationSort = 4;
-    protected static bool $shouldRegisterNavigation = false;
+    protected static bool $shouldRegisterNavigation = true;
+    protected static ?string $navigationGroup = null;
 
     public function getWidgets(): array
     {
