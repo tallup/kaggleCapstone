@@ -34,12 +34,12 @@ class Medication extends Model
         'prescription_date' => 'date',
         'start_date' => 'date',
         'end_date' => 'date',
-        'quantity' => 'integer',
+        'quantity' => 'string', // Keep as string since it can be "30 tablets" etc
         'is_active' => 'boolean',
-        'time_1' => 'datetime:H:i',
-        'time_2' => 'datetime:H:i',
-        'time_3' => 'datetime:H:i',
-        'time_4' => 'datetime:H:i',
+        'time_1' => 'datetime',
+        'time_2' => 'datetime',
+        'time_3' => 'datetime',
+        'time_4' => 'datetime',
     ];
 
     // Relationships

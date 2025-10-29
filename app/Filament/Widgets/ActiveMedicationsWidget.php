@@ -43,12 +43,28 @@ class ActiveMedicationsWidget extends TableWidget
                 TextColumn::make('medication_times')
                     ->label('Times')
                     ->formatStateUsing(function ($record) {
-                        $times = [];
-                        if ($record->time_1) $times[] = \Carbon\Carbon::parse($record->time_1)->format('g:i A');
-                        if ($record->time_2) $times[] = \Carbon\Carbon::parse($record->time_2)->format('g:i A');
-                        if ($record->time_3) $times[] = \Carbon\Carbon::parse($record->time_3)->format('g:i A');
-                        if ($record->time_4) $times[] = \Carbon\Carbon::parse($record->time_4)->format('g:i A');
-                        return implode(', ', $times);
+                        try {
+                            $times = [];
+                            if ($record->time_1) {
+                                $time = is_string($record->time_1) ? $record->time_1 : $record->time_1->format('H:i:s');
+                                $times[] = \Carbon\Carbon::parse($time)->format('g:i A');
+                            }
+                            if ($record->time_2) {
+                                $time = is_string($record->time_2) ? $record->time_2 : $record->time_2->format('H:i:s');
+                                $times[] = \Carbon\Carbon::parse($time)->format('g:i A');
+                            }
+                            if ($record->time_3) {
+                                $time = is_string($record->time_3) ? $record->time_3 : $record->time_3->format('H:i:s');
+                                $times[] = \Carbon\Carbon::parse($time)->format('g:i A');
+                            }
+                            if ($record->time_4) {
+                                $time = is_string($record->time_4) ? $record->time_4 : $record->time_4->format('H:i:s');
+                                $times[] = \Carbon\Carbon::parse($time)->format('g:i A');
+                            }
+                            return implode(', ', $times);
+                        } catch (\Exception $e) {
+                            return 'N/A';
+                        }
                     })
                     ->limit(30)
                     ->tooltip(function (TextColumn $column): ?string {
