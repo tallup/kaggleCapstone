@@ -200,6 +200,92 @@ class CaregiverDashboard extends Page
         ];
     }
 
+    public function getDueMedicationsToday(): array
+    {
+        $userId = auth()->id();
+        $today = Carbon::today();
+
+        // Medications for residents assigned to this caregiver that are active today
+        $medications = \App\Models\Medication::with(['resident', 'drug'])
+            ->whereHas('resident.assignments', function ($q) use ($userId) {
+                $q->where('caregiver_id', $userId)->where('is_active', true);
+            })
+            ->where('is_active', true)
+            ->where(function ($q) use ($today) {
+                $q->whereDate('start_date', '<=', $today)
+                  ->where(function ($qq) use ($today) {
+                      $qq->whereNull('end_date')->orWhereDate('end_date', '>=', $today);
+                  });
+            })
+            ->limit(20)
+            ->get();
+
+        return $medications->map(function ($m) {
+            return [
+                'id' => $m->id,
+                'resident' => $m->resident?->name ?? 'Unknown',
+                'name' => $m->name,
+                'drug' => $m->drug?->name,
+                'times' => collect([$m->time_1, $m->time_2, $m->time_3, $m->time_4])
+                    ->filter()
+                    ->map(fn ($t) => \Carbon\Carbon::parse(is_string($t) ? $t : $t->format('H:i:s'))->format('g:i A'))
+                    ->implode(', '),
+            ];
+        })->toArray();
+    }
+
+    public function getMissedDosesToday(): array
+    {
+        $userId = auth()->id();
+        $today = Carbon::today();
+
+        $missed = \App\Models\MedicationAdministration::with(['resident', 'medication'])
+            ->whereDate('administered_at', $today)
+            ->where('status', 'missed')
+            ->whereHas('resident.assignments', function ($q) use ($userId) {
+                $q->where('caregiver_id', $userId)->where('is_active', true);
+            })
+            ->latest('administered_at')
+            ->limit(10)
+            ->get();
+
+        return $missed->map(function ($a) {
+            return [
+                'resident' => $a->resident?->name ?? 'Unknown',
+                'medication' => $a->medication?->name ?? 'Medication',
+                'time' => optional($a->administered_at)->format('g:i A') ?? '',
+            ];
+        })->toArray();
+    }
+
+    public function getUpcomingAppointmentsList(): array
+    {
+        $userId = auth()->id();
+        $now = Carbon::now();
+        $limit = 10;
+
+        $apps = Appointment::with('resident')
+            ->whereHas('resident.assignments', function($q) use ($userId) {
+                $q->where('caregiver_id', $userId)->where('is_active', true);
+            })
+            ->where(function ($q) use ($now) {
+                $q->whereDate('appointment_date', '>=', $now->toDateString());
+            })
+            ->orderBy('appointment_date')
+            ->orderBy('appointment_time')
+            ->limit($limit)
+            ->get();
+
+        return $apps->map(function ($a) {
+            return [
+                'resident' => $a->resident?->name ?? 'Unknown',
+                'date' => optional($a->appointment_date)->format('M j') ?? '',
+                'time' => optional($a->appointment_time)->format('g:i A') ?? 'Anytime',
+                'status' => $a->status ?? 'Scheduled',
+            ];
+        })->toArray();
+    }
+
     public function getTasks(): array
     {
         $userId = auth()->id();

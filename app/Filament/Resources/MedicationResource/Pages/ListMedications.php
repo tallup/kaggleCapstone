@@ -14,6 +14,11 @@ class ListMedications extends ListRecords
     {
         return [
             Actions\CreateAction::make(),
+            Actions\Action::make('open_medication_management')
+                ->label('Medication Management')
+                ->icon('heroicon-o-cube')
+                ->color('primary')
+                ->url(route('filament.admin.pages.medication-management')),
         ];
     }
 }

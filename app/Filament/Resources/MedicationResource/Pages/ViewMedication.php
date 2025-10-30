@@ -17,6 +17,11 @@ class ViewMedication extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
+            Actions\Action::make('open_medication_management')
+                ->label('Medication Management')
+                ->icon('heroicon-o-cube')
+                ->color('primary')
+                ->url(route('filament.admin.pages.medication-management')),
             Actions\Action::make('medication_history')
                 ->label('Medication History')
                 ->icon('heroicon-o-cube')

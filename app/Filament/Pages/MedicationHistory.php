@@ -15,6 +15,7 @@ use App\Models\MedicationAdministration;
 use App\Models\Resident;
 use App\Filament\Widgets\SimpleMedicationStatsWidget;
 use Carbon\Carbon;
+use Filament\Actions; 
 
 class MedicationHistory extends Page implements HasTable
 {
@@ -198,6 +199,17 @@ class MedicationHistory extends Page implements HasTable
         // The widget reads the resident from the request; no custom configuration needed
         return [
             SimpleMedicationStatsWidget::class,
+        ];
+    }
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            Actions\Action::make('open_medication_management')
+                ->label('Medication Management')
+                ->icon('heroicon-o-cube')
+                ->color('primary')
+                ->url(route('filament.admin.pages.medication-management')),
         ];
     }
 }

@@ -46,7 +46,12 @@ class CustomNavigationProvider
                 NavigationItem::make('Medication')
                     ->icon('heroicon-o-cube')
                     ->url(route('filament.admin.pages.medication-management'))
-                    ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.pages.medication-management'))
+                    ->isActiveWhen(fn (): bool =>
+                        request()->routeIs('filament.admin.pages.medication-*') ||
+                        request()->routeIs('filament.admin.resources.medications.*') ||
+                        request()->routeIs('filament.admin.resources.medication-administrations.*') ||
+                        request()->routeIs('filament.admin.pages.medication*')
+                    )
                     ->sort(50),
 
                 // Sleep - Sixth item

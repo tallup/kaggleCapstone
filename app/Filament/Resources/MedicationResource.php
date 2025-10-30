@@ -267,19 +267,49 @@ class MedicationResource extends Resource
                 Tables\Columns\TextColumn::make('medication_times')
                     ->label('Times')
                     ->formatStateUsing(function ($record) {
-                        $times = [];
-                        if ($record->time_1) $times[] = \Carbon\Carbon::parse($record->time_1)->format('g:i A');
-                        if ($record->time_2) $times[] = \Carbon\Carbon::parse($record->time_2)->format('g:i A');
-                        if ($record->time_3) $times[] = \Carbon\Carbon::parse($record->time_3)->format('g:i A');
-                        if ($record->time_4) $times[] = \Carbon\Carbon::parse($record->time_4)->format('g:i A');
-                        return implode(', ', $times);
+                        try {
+                            $times = [];
+                            if ($record->time_1) {
+                                $t = is_string($record->time_1) ? $record->time_1 : $record->time_1->format('H:i:s');
+                                $times[] = \Carbon\Carbon::parse($t)->format('g:i A');
+                            }
+                            if ($record->time_2) {
+                                $t = is_string($record->time_2) ? $record->time_2 : $record->time_2->format('H:i:s');
+                                $times[] = \Carbon\Carbon::parse($t)->format('g:i A');
+                            }
+                            if ($record->time_3) {
+                                $t = is_string($record->time_3) ? $record->time_3 : $record->time_3->format('H:i:s');
+                                $times[] = \Carbon\Carbon::parse($t)->format('g:i A');
+                            }
+                            if ($record->time_4) {
+                                $t = is_string($record->time_4) ? $record->time_4 : $record->time_4->format('H:i:s');
+                                $times[] = \Carbon\Carbon::parse($t)->format('g:i A');
+                            }
+                            if (empty($times) && $record->instructions) {
+                                $defaults = [
+                                    'a.m' => ['08:00'],
+                                    'p.m' => ['20:00'],
+                                    'h.s' => ['22:00'],
+                                    'b.i.d' => ['08:00', '20:00'],
+                                    't.i.d' => ['08:00', '14:00', '20:00'],
+                                    'q.i.d' => ['08:00', '12:00', '16:00', '20:00'],
+                                ];
+                                $key = strtolower(trim($record->instructions));
+                                if (isset($defaults[$key])) {
+                                    $times = array_map(fn($s) => \Carbon\Carbon::parse($s)->format('g:i A'), $defaults[$key]);
+                                }
+                            }
+                            return implode(', ', $times);
+                        } catch (\Exception $e) {
+                            return '';
+                        }
                     })
                     ->limit(30)
                     ->tooltip(function (Tables\Columns\TextColumn $column): ?string {
                         $state = $column->getState();
                         return strlen($state) > 30 ? $state : null;
                     })
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->toggleable(isToggledHiddenByDefault: false),
                 Tables\Columns\TextColumn::make('quantity')
                     ->label('Quantity')
                     ->sortable()

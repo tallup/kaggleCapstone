@@ -254,7 +254,11 @@ class MedicationCalendar extends Page
     protected function getHeaderActions(): array
     {
         return [
-            // intentionally empty
+            Action::make('open_medication_management')
+                ->label('Medication Management')
+                ->icon('heroicon-o-cube')
+                ->color('primary')
+                ->url(route('filament.admin.pages.medication-management')),
         ];
     }
 }

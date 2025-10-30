@@ -1,10 +1,20 @@
 <x-filament-panels::page>
-    <div class="space-y-6">
-        <!-- Simple Header -->
-        <div class="flex items-center justify-between">
-            <div>
-                <h1 class="text-2xl font-semibold text-gray-900 dark:text-white">Dashboard</h1>
-                <p class="text-sm text-gray-600 dark:text-gray-400">Welcome back, {{ auth()->user()->name }}! Here's your care overview.</p>
+    <div class="space-y-8">
+        <!-- Hero -->
+        <div class="relative overflow-hidden rounded-xl bg-gradient-to-r from-[#2D5016] via-[#3b6a1f] to-[#5a8f30] p-6">
+            <div class="relative z-10 flex items-center justify-between">
+                <div>
+                    <h1 class="text-2xl md:text-3xl font-semibold text-white">Caregiver Dashboard</h1>
+                    <p class="mt-1 text-white/80 text-sm">Welcome back, {{ auth()->user()->name }} · {{ now()->format('D, M j') }}</p>
+                </div>
+                <div class="hidden md:flex items-center gap-3">
+                    <a href="{{ route('filament.admin.resources.vital-signs.create') }}" class="inline-flex items-center gap-2 rounded-lg bg-white/10 hover:bg-white/20 text-white px-4 py-2 text-sm transition">
+                        <x-heroicon-o-plus class="w-4 h-4"/> Record Vitals
+                    </a>
+                    <a href="{{ route('filament.admin.resources.medication-administrations.create') }}" class="inline-flex items-center gap-2 rounded-lg bg-white/10 hover:bg-white/20 text-white px-4 py-2 text-sm transition">
+                        <x-heroicon-o-cube class="w-4 h-4"/> Log Medication
+                    </a>
+                </div>
             </div>
         </div>
 
@@ -50,10 +60,10 @@
             </div>
         </div>
 
-        <!-- Stats Overview -->
+        <!-- KPI Stats -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <!-- My Residents -->
-            <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+            <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-sm">
                 <div class="flex items-center justify-between">
                     <div>
                         <p class="text-sm text-gray-600 dark:text-gray-400">My Residents</p>
@@ -64,7 +74,7 @@
             </div>
 
             <!-- Today's Appointments -->
-            <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+            <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-sm">
                 <div class="flex items-center justify-between">
                     <div>
                         <p class="text-sm text-gray-600 dark:text-gray-400">Today's Appointments</p>
@@ -75,7 +85,7 @@
             </div>
 
             <!-- Pending Assessments -->
-            <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+            <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-sm">
                 <div class="flex items-center justify-between">
                     <div>
                         <p class="text-sm text-gray-600 dark:text-gray-400">Pending Assessments</p>
@@ -86,7 +96,7 @@
             </div>
 
             <!-- Vitals Recorded Today -->
-            <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+            <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-sm">
                 <div class="flex items-center justify-between">
                     <div>
                         <p class="text-sm text-gray-600 dark:text-gray-400">Vitals Recorded Today</p>
@@ -97,10 +107,10 @@
             </div>
         </div>
 
-        <!-- Charts Section -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Workboard -->
+        <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
             <!-- Weekly Activity Chart -->
-            <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+            <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 xl:col-span-2 shadow-sm">
                 <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Weekly Activity</h3>
                 <div class="h-64">
                     <canvas id="weeklyActivityChart"></canvas>
@@ -108,7 +118,7 @@
             </div>
 
             <!-- Resident Health Status -->
-            <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+            <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
                 <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Resident Health Status</h3>
                 <div class="h-64">
                     <canvas id="residentHealthChart"></canvas>
@@ -116,10 +126,48 @@
             </div>
         </div>
 
-        <!-- Today's Tasks -->
-        <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-            <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Today's Tasks</h3>
-            <div class="space-y-3">
+        <!-- Workflow Columns -->
+        <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+            <!-- Due Medications Today -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
+                <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Due Medications Today</h3>
+                <div class="space-y-3">
+                    @forelse($this->getDueMedicationsToday() as $m)
+                        <div class="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-lg">
+                            <div class="min-w-0">
+                                <p class="font-medium text-gray-900 dark:text-white truncate">{{ $m['resident'] }}</p>
+                                <p class="text-sm text-gray-600 dark:text-gray-400 truncate">{{ $m['name'] }} — {{ $m['times'] }}</p>
+                            </div>
+                            <a href="{{ route('filament.admin.resources.medication-administrations.create') }}?medication={{ $m['id'] }}" class="text-sm text-[#2D5016] hover:underline">Log</a>
+                        </div>
+                    @empty
+                        <p class="text-gray-600 dark:text-gray-400 text-center py-4">No medications due.</p>
+                    @endforelse
+                </div>
+            </div>
+
+            <!-- Upcoming Appointments -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
+                <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Upcoming Appointments</h3>
+                <div class="space-y-3">
+                    @forelse($this->getUpcomingAppointmentsList() as $a)
+                        <div class="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-lg">
+                            <div>
+                                <p class="font-medium text-gray-900 dark:text-white">{{ $a['resident'] }}</p>
+                                <p class="text-sm text-gray-600 dark:text-gray-400">{{ $a['date'] }} • {{ $a['time'] }}</p>
+                            </div>
+                            <span class="text-xs rounded-full px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200">{{ $a['status'] }}</span>
+                        </div>
+                    @empty
+                        <p class="text-gray-600 dark:text-gray-400 text-center py-4">No upcoming appointments.</p>
+                    @endforelse
+                </div>
+            </div>
+
+            <!-- Today's Tasks -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
+                <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Today's Tasks</h3>
+                <div class="space-y-3">
                 @forelse($this->getTasks()['appointments'] as $appointment)
                     <div class="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-lg">
                         <div class="flex items-center gap-3">
@@ -134,11 +182,12 @@
                 @empty
                     <p class="text-gray-600 dark:text-gray-400 text-center py-4">No appointments scheduled for today.</p>
                 @endforelse
+                </div>
             </div>
         </div>
 
         <!-- My Residents List -->
-        <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+        <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
             <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">My Residents</h3>
             <div class="space-y-3">
                 @forelse($this->getResidents() as $resident)

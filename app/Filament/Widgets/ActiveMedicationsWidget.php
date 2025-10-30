@@ -61,6 +61,20 @@ class ActiveMedicationsWidget extends TableWidget
                                 $time = is_string($record->time_4) ? $record->time_4 : $record->time_4->format('H:i:s');
                                 $times[] = \Carbon\Carbon::parse($time)->format('g:i A');
                             }
+                            if (empty($times) && $record->instructions) {
+                                $defaults = [
+                                    'a.m' => ['08:00'],
+                                    'p.m' => ['20:00'],
+                                    'h.s' => ['22:00'],
+                                    'b.i.d' => ['08:00', '20:00'],
+                                    't.i.d' => ['08:00', '14:00', '20:00'],
+                                    'q.i.d' => ['08:00', '12:00', '16:00', '20:00'],
+                                ];
+                                $key = strtolower(trim($record->instructions));
+                                if (isset($defaults[$key])) {
+                                    $times = array_map(fn($s) => \Carbon\Carbon::parse($s)->format('g:i A'), $defaults[$key]);
+                                }
+                            }
                             return implode(', ', $times);
                         } catch (\Exception $e) {
                             return 'N/A';

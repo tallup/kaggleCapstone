@@ -39,4 +39,30 @@ class CreateMedication extends CreateRecord
     {
         return $this->getResource()::getUrl('index');
     }
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            Actions\Action::make('open_medication_management')
+                ->label('Medication Management')
+                ->icon('heroicon-o-cube')
+                ->color('primary')
+                ->url(route('filament.admin.pages.medication-management')),
+        ];
+    }
+
+    protected function getFormActions(): array
+    {
+        // Show the default create/cancel actions plus a back-to-management button in the footer
+        return array_merge(
+            parent::getFormActions(),
+            [
+                Actions\Action::make('back_to_management')
+                    ->label('Back to Medication Management')
+                    ->icon('heroicon-o-arrow-uturn-left')
+                    ->color('gray')
+                    ->url(route('filament.admin.pages.medication-management')),
+            ]
+        );
+    }
 }
