@@ -11,6 +11,7 @@ use App\Models\LeaveRequest;
 use App\Models\Assignment;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 
 class CaregiverDashboard extends Page
 {
@@ -278,7 +279,10 @@ class CaregiverDashboard extends Page
                 $q->whereDate('appointment_date', '>=', $now->toDateString());
             })
             ->orderBy('appointment_date')
-            ->orderBy('appointment_time')
+            // Some databases may not have an appointment_time column; order by time only when present
+            ->when(Schema::hasColumn('appointments', 'appointment_time'), function ($q) {
+                $q->orderBy('appointment_time');
+            })
             ->limit($limit)
             ->get();
 
