@@ -187,15 +187,6 @@ export default function Layout() {
                 <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between shadow-sm">
                     <h1 className="text-xl font-semibold text-gray-900">Healthcare Management System</h1>
                     <div className="flex items-center space-x-4">
-                        <button className="p-2 hover:bg-gray-100 rounded-lg">
-                            <Monitor className="w-5 h-5 text-gray-600" />
-                        </button>
-                        <button className="p-2 hover:bg-gray-100 rounded-lg">
-                            <RefreshCw className="w-5 h-5 text-gray-600" />
-                        </button>
-                        <button className="p-2 hover:bg-gray-100 rounded-lg">
-                            <Maximize2 className="w-5 h-5 text-gray-600" />
-                        </button>
                         <button className="relative p-2 hover:bg-gray-100 rounded-lg">
                             <Bell className="w-5 h-5 text-gray-600" />
                             <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
