@@ -270,5 +270,15 @@ class UserProfile extends Page implements HasForms
     {
         return [];
     }
+
+    protected function getFormActions(): array
+    {
+        return [
+            \Filament\Actions\Action::make('save')
+                ->label('Save Profile')
+                ->submit('save')
+                ->color('primary'),
+        ];
+    }
 }
 
