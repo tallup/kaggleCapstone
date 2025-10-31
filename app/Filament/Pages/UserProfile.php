@@ -31,7 +31,6 @@ class UserProfile extends Page implements HasForms
     protected static string $view = 'filament.pages.user-profile';
 
     public ?array $data = [];
-    public ?array $passwordData = [];
 
     public function mount(): void
     {
@@ -192,6 +191,36 @@ class UserProfile extends Page implements HasForms
                             ->helperText('Internal notes about your profile'),
                     ])
                     ->columns(1),
+
+                Section::make('Change Password')
+                    ->description('Update your account password')
+                    ->collapsible()
+                    ->collapsed()
+                    ->schema([
+                        TextInput::make('current_password')
+                            ->label('Current Password')
+                            ->password()
+                            ->currentPassword()
+                            ->revealable()
+                            ->dehydrated(false)
+                            ->required(fn ($get) => filled($get('new_password'))),
+                        
+                        TextInput::make('new_password')
+                            ->label('New Password')
+                            ->password()
+                            ->minLength(8)
+                            ->confirmed()
+                            ->revealable()
+                            ->dehydrated(false),
+                        
+                        TextInput::make('new_password_confirmation')
+                            ->label('Confirm New Password')
+                            ->password()
+                            ->revealable()
+                            ->dehydrated(false)
+                            ->required(fn ($get) => filled($get('new_password'))),
+                    ])
+                    ->columns(1),
             ])
             ->statePath('data')
             ->model(Auth::user());
@@ -202,70 +231,34 @@ class UserProfile extends Page implements HasForms
         $user = Auth::user();
         $data = $this->form->getState();
         
-        $user->update($data);
-        
-        Notification::make()
-            ->title('Profile updated successfully')
-            ->success()
-            ->send();
-    }
-
-    public function passwordForm(Form $form): Form
-    {
-        return $form
-            ->schema([
-                Section::make('Change Password')
-                    ->description('Update your account password')
-                    ->schema([
-                        TextInput::make('current_password')
-                            ->label('Current Password')
-                            ->password()
-                            ->required()
-                            ->currentPassword()
-                            ->revealable(),
-                        
-                        TextInput::make('new_password')
-                            ->label('New Password')
-                            ->password()
-                            ->required()
-                            ->minLength(8)
-                            ->confirmed()
-                            ->revealable(),
-                        
-                        TextInput::make('new_password_confirmation')
-                            ->label('Confirm New Password')
-                            ->password()
-                            ->required()
-                            ->revealable(),
-                    ])
-                    ->columns(1),
-            ])
-            ->statePath('passwordData');
-    }
-
-    public function changePassword(): void
-    {
-        $data = $this->passwordForm->getState();
-        $user = Auth::user();
-        
-        if (!Hash::check($data['current_password'], $user->password)) {
-            Notification::make()
-                ->title('Current password is incorrect')
-                ->danger()
-                ->send();
-            return;
+        // Handle password change if new password is provided
+        if (!empty($data['new_password'])) {
+            // Validate current password
+            if (!Hash::check($data['current_password'], $user->password)) {
+                Notification::make()
+                    ->title('Current password is incorrect')
+                    ->danger()
+                    ->send();
+                return;
+            }
+            
+            // Update password
+            $data['password'] = Hash::make($data['new_password']);
         }
         
-        $user->update([
-            'password' => Hash::make($data['new_password'])
-        ]);
+        // Remove password fields from data array before update
+        unset($data['current_password'], $data['new_password'], $data['new_password_confirmation']);
+        
+        // Update user
+        $user->update($data);
+        
+        // Show appropriate notification
+        $message = !empty($data['password']) ? 'Profile and password updated successfully' : 'Profile updated successfully';
         
         Notification::make()
-            ->title('Password changed successfully')
+            ->title($message)
             ->success()
             ->send();
-        
-        $this->reset('passwordData');
     }
 
     public static function canAccess(): bool
