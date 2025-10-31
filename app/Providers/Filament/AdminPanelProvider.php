@@ -42,7 +42,6 @@ class AdminPanelProvider extends PanelProvider
                 \App\Filament\Widgets\HeroSectionWidget::class,
                 \App\Filament\Widgets\StatsOverviewWidget::class,
                 \App\Filament\Widgets\QuickActionsWidget::class,
-                Widgets\AccountWidget::class,
                 Widgets\FilamentInfoWidget::class,
             ])
             ->navigationGroups([
