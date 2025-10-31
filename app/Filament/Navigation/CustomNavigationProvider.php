@@ -154,13 +154,6 @@ class CustomNavigationProvider
                             ->url(route('filament.admin.resources.roles.index'))
                             ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.resources.roles.*')),
                     ]),
-
-                // User Profile - Last item
-                NavigationItem::make('My Profile')
-                    ->icon('heroicon-o-user-circle')
-                    ->url(route('filament.admin.pages.user-profile'))
-                    ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.pages.user-profile'))
-                    ->sort(1000),
             ]);
     }
 }

@@ -27,7 +27,7 @@ class UserProfile extends Page implements HasForms
     protected static ?string $title = 'My Profile';
     protected static ?string $navigationGroup = null;
     protected static ?int $navigationSort = 1000;
-    protected static bool $shouldRegisterNavigation = true;
+    protected static bool $shouldRegisterNavigation = false;
     protected static string $view = 'filament.pages.user-profile';
 
     public ?array $data = [];
