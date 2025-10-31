@@ -149,7 +149,6 @@ class MedicationResource extends Resource
                                     ->placeholder('Click to select time')
                                     ->seconds(false)
                                     ->minutesStep(15)
-                                    ->extraInputAttributes(['readonly' => true])
                                     ->visible(fn (Forms\Get $get) => in_array($get('instructions'), ['t.i.d', 'q.i.d', 'b.i.d', 'a.m', 'p.m']))
                                     ->required(fn (Forms\Get $get) => in_array($get('instructions'), ['t.i.d', 'q.i.d', 'b.i.d', 'a.m', 'p.m'])),
                                 
@@ -163,7 +162,6 @@ class MedicationResource extends Resource
                                     ->placeholder('Click to select time')
                                     ->seconds(false)
                                     ->minutesStep(15)
-                                    ->extraInputAttributes(['readonly' => true])
                                     ->visible(fn (Forms\Get $get) => in_array($get('instructions'), ['t.i.d', 'q.i.d', 'b.i.d']))
                                     ->required(fn (Forms\Get $get) => in_array($get('instructions'), ['t.i.d', 'q.i.d', 'b.i.d'])),
                                 
@@ -177,7 +175,6 @@ class MedicationResource extends Resource
                                     ->placeholder('Click to select time')
                                     ->seconds(false)
                                     ->minutesStep(15)
-                                    ->extraInputAttributes(['readonly' => true])
                                     ->visible(fn (Forms\Get $get) => in_array($get('instructions'), ['t.i.d', 'q.i.d']))
                                     ->required(fn (Forms\Get $get) => in_array($get('instructions'), ['t.i.d', 'q.i.d'])),
                                 
@@ -191,7 +188,6 @@ class MedicationResource extends Resource
                                     ->placeholder('Click to select time')
                                     ->seconds(false)
                                     ->minutesStep(15)
-                                    ->extraInputAttributes(['readonly' => true])
                                     ->visible(fn (Forms\Get $get) => $get('instructions') === 'q.i.d')
                                     ->required(fn (Forms\Get $get) => $get('instructions') === 'q.i.d'),
                             ])
