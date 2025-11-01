@@ -161,22 +161,11 @@ export default function Appointments() {
                         {data.data.map((appointment) => (
                             <Card
                                 key={appointment.id}
-                                gradient={
-                                    appointment.status === 'scheduled' ? 'from-blue-500 to-blue-600' :
-                                    appointment.status === 'completed' ? 'from-green-500 to-green-600' :
-                                    'from-red-500 to-red-600'
+                                borderColor={
+                                    appointment.status === 'scheduled' ? 'border-blue-500' :
+                                    appointment.status === 'completed' ? 'border-green-500' :
+                                    'border-red-500'
                                 }
-                                iconBg={
-                                    appointment.status === 'scheduled' ? 'bg-blue-100' :
-                                    appointment.status === 'completed' ? 'bg-green-100' :
-                                    'bg-red-100'
-                                }
-                                iconColor={
-                                    appointment.status === 'scheduled' ? 'text-blue-600' :
-                                    appointment.status === 'completed' ? 'text-green-600' :
-                                    'text-red-600'
-                                }
-                                icon={<Calendar />}
                             >
                                 <div className="flex items-center justify-between mb-3">
                                     <h3 className="text-lg font-semibold text-gray-900">

@@ -185,10 +185,7 @@ export default function Assessments() {
                         data.data.map((assessment) => (
                             <Card 
                                 key={assessment.id} 
-                                gradient="from-blue-500 to-blue-600"
-                                iconBg="bg-blue-100"
-                                iconColor="text-blue-600"
-                                icon={<ClipboardList />}
+                                borderColor="border-blue-500"
                             >
                                 <div className="flex items-start justify-between">
                                     <div className="flex-1">
