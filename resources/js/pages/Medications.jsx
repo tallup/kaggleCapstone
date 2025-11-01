@@ -193,8 +193,8 @@ export default function Medications() {
                                 <div className="flex items-start justify-between">
                                     <div className="flex-1">
                                         <div className="flex items-center space-x-3 mb-3">
-                                            <div className="p-2 bg-blue-100 rounded-lg">
-                                                <Pill className="w-5 h-5 text-blue-600" />
+                                            <div className="p-2 bg-green-50 rounded-lg">
+                                                <Pill className="w-5 h-5 text-[#2D5016]" />
                                             </div>
                                             <div>
                                                 <h3 className="text-lg font-semibold text-gray-900">
@@ -270,25 +270,25 @@ export default function Medications() {
                                                 </div>
                                                 <div className="flex flex-wrap gap-2">
                                                     {medication.time_1 && formatTime(medication.time_1) && (
-                                                        <span className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
+                                                        <span className="inline-flex items-center px-2 py-1 bg-green-100 text-[#2D5016] rounded text-xs">
                                                             <Clock className="w-3 h-3 mr-1" />
                                                             {formatTime(medication.time_1)}
                                                         </span>
                                                     )}
                                                     {medication.time_2 && formatTime(medication.time_2) && (
-                                                        <span className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
+                                                        <span className="inline-flex items-center px-2 py-1 bg-green-100 text-[#2D5016] rounded text-xs">
                                                             <Clock className="w-3 h-3 mr-1" />
                                                             {formatTime(medication.time_2)}
                                                         </span>
                                                     )}
                                                     {medication.time_3 && formatTime(medication.time_3) && (
-                                                        <span className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
+                                                        <span className="inline-flex items-center px-2 py-1 bg-green-100 text-[#2D5016] rounded text-xs">
                                                             <Clock className="w-3 h-3 mr-1" />
                                                             {formatTime(medication.time_3)}
                                                         </span>
                                                     )}
                                                     {medication.time_4 && formatTime(medication.time_4) && (
-                                                        <span className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
+                                                        <span className="inline-flex items-center px-2 py-1 bg-green-100 text-[#2D5016] rounded text-xs">
                                                             <Clock className="w-3 h-3 mr-1" />
                                                             {formatTime(medication.time_4)}
                                                         </span>

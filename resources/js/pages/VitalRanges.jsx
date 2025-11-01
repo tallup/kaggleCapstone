@@ -53,8 +53,8 @@ export default function VitalRanges() {
                   <td className="px-6 py-4 whitespace-nowrap">{r.max_normal ?? '-'}</td>
                   <td className="px-6 py-4 whitespace-nowrap">{r.unit ?? '-'}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
-                    <button onClick={() => { setEditing(r); setShowForm(true); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg mr-2"><Edit className="w-4 h-4" /></button>
-                    <button onClick={() => window.confirm('Delete range?') && deleteMutation.mutate(r.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg"><Trash2 className="w-4 h-4" /></button>
+                    <button onClick={() => { setEditing(r); setShowForm(true); }} className="p-2 text-[#2D5016] hover:bg-green-50 rounded-lg mr-2"><Edit className="w-4 h-4" /></button>
+                    <button onClick={() => window.confirm('Delete range?') && deleteMutation.mutate(r.id)} className="p-2 text-[#8B4513] hover:bg-amber-50 rounded-lg"><Trash2 className="w-4 h-4" /></button>
                   </td>
                 </tr>
               ))}

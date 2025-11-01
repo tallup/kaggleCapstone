@@ -178,8 +178,8 @@ export default function Sleep() {
                                 <div className="flex items-start justify-between">
                                     <div className="flex-1">
                                         <div className="flex items-center space-x-3 mb-3">
-                                            <div className="p-2 bg-purple-100 rounded-lg">
-                                                <Moon className="w-5 h-5 text-purple-600" />
+                                            <div className="p-2 bg-green-50 rounded-lg">
+                                                <Moon className="w-5 h-5 text-[#2D5016]" />
                                             </div>
                                             <div>
                                                 <h3 className="text-lg font-semibold text-gray-900">
@@ -276,14 +276,14 @@ export default function Sleep() {
                                     <div className="flex space-x-2 ml-4">
                                         <button
                                             onClick={() => handleEdit(record)}
-                                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                            className="p-2 text-[#2D5016] hover:bg-green-50 rounded-lg transition-colors"
                                             title="Edit"
                                         >
                                             <Edit className="w-4 h-4" />
                                         </button>
                                         <button
                                             onClick={() => handleDelete(record.id)}
-                                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                            className="p-2 text-[#8B4513] hover:bg-amber-50 rounded-lg transition-colors"
                                             title="Delete"
                                         >
                                             <Trash2 className="w-4 h-4" />

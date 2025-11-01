@@ -49,8 +49,8 @@ export default function Roles() {
                     </div>
                   </div>
                   <div className="flex space-x-2">
-                    <button onClick={() => { setEditing(role); setShowForm(true); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg" title="Edit"><Edit className="w-4 h-4" /></button>
-                    <button onClick={() => window.confirm('Delete role?') && deleteMutation.mutate(role.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg" title="Delete"><Trash2 className="w-4 h-4" /></button>
+                    <button onClick={() => { setEditing(role); setShowForm(true); }} className="p-2 text-[#2D5016] hover:bg-green-50 rounded-lg" title="Edit"><Edit className="w-4 h-4" /></button>
+                    <button onClick={() => window.confirm('Delete role?') && deleteMutation.mutate(role.id)} className="p-2 text-[#8B4513] hover:bg-amber-50 rounded-lg" title="Delete"><Trash2 className="w-4 h-4" /></button>
                   </div>
                 </div>
               </div>

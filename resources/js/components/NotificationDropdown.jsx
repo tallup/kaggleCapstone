@@ -61,21 +61,21 @@ export default function NotificationDropdown() {
     const getNotificationIcon = (type) => {
         switch (type) {
             case 'appointment_reminder':
-                return { Icon: Calendar, color: 'text-blue-600' };
+                return { Icon: Calendar, color: 'text-[#2D5016]' };
             case 'appointment_upcoming':
-                return { Icon: Calendar, color: 'text-green-600' };
+                return { Icon: Calendar, color: 'text-[#2D5016]' };
             case 'vital_due':
-                return { Icon: Activity, color: 'text-purple-600' };
+                return { Icon: Activity, color: 'text-[#2D5016]' };
             case 'assessment_due':
-                return { Icon: ClipboardList, color: 'text-yellow-600' };
+                return { Icon: ClipboardList, color: 'text-[#8B4513]' };
             case 'medication_due':
-                return { Icon: Pill, color: 'text-red-600' };
+                return { Icon: Pill, color: 'text-[#8B4513]' };
             case 'sleep_record':
-                return { Icon: Moon, color: 'text-indigo-600' };
+                return { Icon: Moon, color: 'text-[#2D5016]' };
             case 'leave_request':
-                return { Icon: UserCheck, color: 'text-orange-600' };
+                return { Icon: UserCheck, color: 'text-[#8B4513]' };
             case 'leave_approved':
-                return { Icon: Check, color: 'text-green-600' };
+                return { Icon: Check, color: 'text-[#2D5016]' };
             case 'leave_rejected':
                 return { Icon: X, color: 'text-red-600' };
             default:
@@ -147,11 +147,11 @@ export default function NotificationDropdown() {
                                                 key={notification.id}
                                                 onClick={() => handleNotificationClick(notification)}
                                                 className={`p-4 hover:bg-gray-50 cursor-pointer transition-colors ${
-                                                    !notification.is_read ? 'bg-blue-50' : ''
+                                                    !notification.is_read ? 'bg-green-50' : ''
                                                 }`}
                                             >
                                                 <div className="flex items-start space-x-3">
-                                                    <div className={`p-2 rounded-lg ${color} bg-opacity-10`}>
+                                                    <div className={`p-2 rounded-lg ${color.includes('text-[#2D5016]') ? 'bg-green-50' : 'bg-amber-50'}`}>
                                                         <Icon className={`w-5 h-5 ${color}`} />
                                                     </div>
                                                     <div className="flex-1 min-w-0">
@@ -162,7 +162,7 @@ export default function NotificationDropdown() {
                                                                 {notification.title}
                                                             </p>
                                                             {!notification.is_read && (
-                                                                <span className="ml-2 w-2 h-2 bg-blue-500 rounded-full flex-shrink-0"></span>
+                                                                <span className="ml-2 w-2 h-2 bg-[#2D5016] rounded-full flex-shrink-0"></span>
                                                             )}
                                                         </div>
                                                         <p className="mt-1 text-sm text-gray-600 truncate">

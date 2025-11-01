@@ -154,7 +154,7 @@ export default function AssessmentDetail() {
                     <div
                         className={`h-3 rounded-full transition-all duration-300 ${
                             overallProgress === 100 ? 'bg-green-500' :
-                            overallProgress >= 75 ? 'bg-blue-500' :
+                            overallProgress >= 75 ? 'bg-[#2D5016]' :
                             overallProgress >= 50 ? 'bg-yellow-500' :
                             'bg-orange-500'
                         }`}
@@ -169,7 +169,7 @@ export default function AssessmentDetail() {
             <div className="bg-white rounded-lg shadow p-6 mb-6">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="flex items-center space-x-3">
-                        <ClipboardList className="w-5 h-5 text-blue-600" />
+                        <ClipboardList className="w-5 h-5 text-[#2D5016]" />
                         <div>
                             <p className="text-xs text-gray-500">Type</p>
                             <p className="text-sm font-medium text-gray-900">{assessment.assessment_type || 'Assessment'}</p>
@@ -221,7 +221,7 @@ export default function AssessmentDetail() {
                                     <div
                                         className={`h-2 rounded-full transition-all duration-300 ${
                                             sectionProgress === 100 ? 'bg-green-500' :
-                                            sectionProgress >= 75 ? 'bg-blue-500' :
+                                            sectionProgress >= 75 ? 'bg-[#2D5016]' :
                                             sectionProgress >= 50 ? 'bg-yellow-500' :
                                             'bg-red-500'
                                         }`}

@@ -129,8 +129,8 @@ export default function Vitals() {
                                 <div key={vital.id} className="bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow">
                                     <div className="flex items-start justify-between mb-4">
                                         <div className="flex items-center space-x-3">
-                                            <div className="p-2 bg-purple-100 rounded-lg">
-                                                <Activity className="w-5 h-5 text-purple-600" />
+                                            <div className="p-2 bg-green-50 rounded-lg">
+                                                <Activity className="w-5 h-5 text-[#2D5016]" />
                                             </div>
                                             <div>
                                                 <h3 className="text-lg font-semibold text-gray-900">
@@ -150,7 +150,7 @@ export default function Vitals() {
                                                     setEditing(vital);
                                                     setShowForm(true);
                                                 }}
-                                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                                className="p-2 text-[#2D5016] hover:bg-green-50 rounded-lg transition-colors"
                                                 title="Edit"
                                             >
                                                 <Edit className="w-4 h-4" />
@@ -161,7 +161,7 @@ export default function Vitals() {
                                                         deleteMutation.mutate(vital.id);
                                                     }
                                                 }}
-                                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                className="p-2 text-[#8B4513] hover:bg-amber-50 rounded-lg transition-colors"
                                                 title="Delete"
                                             >
                                                 <Trash2 className="w-4 h-4" />
@@ -171,8 +171,8 @@ export default function Vitals() {
                                     
                                     <div className="grid grid-cols-2 gap-4">
                                         {vital.systolic && vital.diastolic && (
-                                            <div className="flex items-center space-x-2 p-2 bg-red-50 rounded-lg">
-                                                <Heart className="w-4 h-4 text-red-500 flex-shrink-0" />
+                                            <div className="flex items-center space-x-2 p-2 bg-amber-50 rounded-lg">
+                                                <Heart className="w-4 h-4 text-[#8B4513] flex-shrink-0" />
                                                 <div className="flex-1 min-w-0">
                                                     <p className="text-xs text-gray-500">Blood Pressure</p>
                                                     <p className="text-sm font-semibold text-gray-900">
@@ -183,7 +183,7 @@ export default function Vitals() {
                                         )}
                                         {vital.pulse && (
                                             <div className="flex items-center space-x-2 p-2 bg-green-50 rounded-lg">
-                                                <Activity className="w-4 h-4 text-green-500 flex-shrink-0" />
+                                                <Activity className="w-4 h-4 text-[#2D5016] flex-shrink-0" />
                                                 <div className="flex-1 min-w-0">
                                                     <p className="text-xs text-gray-500">Pulse</p>
                                                     <p className="text-sm font-semibold text-gray-900">
@@ -193,8 +193,8 @@ export default function Vitals() {
                                             </div>
                                         )}
                                         {vital.temperature && (
-                                            <div className="flex items-center space-x-2 p-2 bg-blue-50 rounded-lg">
-                                                <Thermometer className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                                            <div className="flex items-center space-x-2 p-2 bg-amber-50 rounded-lg">
+                                                <Thermometer className="w-4 h-4 text-[#8B4513] flex-shrink-0" />
                                                 <div className="flex-1 min-w-0">
                                                     <p className="text-xs text-gray-500">Temperature</p>
                                                     <p className="text-sm font-semibold text-gray-900">
@@ -204,8 +204,8 @@ export default function Vitals() {
                                             </div>
                                         )}
                                         {vital.oxygen_saturation && (
-                                            <div className="flex items-center space-x-2 p-2 bg-purple-50 rounded-lg">
-                                                <Droplet className="w-4 h-4 text-purple-500 flex-shrink-0" />
+                                            <div className="flex items-center space-x-2 p-2 bg-green-50 rounded-lg">
+                                                <Droplet className="w-4 h-4 text-[#2D5016] flex-shrink-0" />
                                                 <div className="flex-1 min-w-0">
                                                     <p className="text-xs text-gray-500">O2 Sat</p>
                                                     <p className="text-sm font-semibold text-gray-900">

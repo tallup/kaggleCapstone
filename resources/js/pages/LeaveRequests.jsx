@@ -57,18 +57,18 @@ export default function LeaveRequests() {
                 <div className="flex items-start justify-between">
                   <div>
                     <div className="flex items-center space-x-3">
-                      <div className="p-2 bg-green-100 rounded-lg"><Calendar className="w-5 h-5 text-green-600" /></div>
+                      <div className="p-2 bg-green-50 rounded-lg"><Calendar className="w-5 h-5 text-[#2D5016]" /></div>
                       <div>
                         <h3 className="text-lg font-semibold text-gray-900">{lr.staff?.name || 'Staff'}</h3>
                         <p className="text-sm text-gray-500">{new Date(lr.start_date).toLocaleDateString()} - {new Date(lr.end_date).toLocaleDateString()}</p>
-                        <span className={`inline-flex px-2 py-1 rounded text-xs font-medium mt-2 ${lr.status === 'approved' ? 'bg-green-100 text-green-800' : lr.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>{lr.status}</span>
+                        <span className={`inline-flex px-2 py-1 rounded text-xs font-medium mt-2 ${lr.status === 'approved' ? 'bg-green-50 text-[#2D5016]' : lr.status === 'pending' ? 'bg-amber-50 text-[#8B4513]' : 'bg-red-100 text-red-800'}`}>{lr.status}</span>
                       </div>
                     </div>
                     {lr.reason && <p className="text-sm text-gray-700 mt-3"><span className="font-medium">Reason:</span> {lr.reason}</p>}
                   </div>
                   <div className="flex space-x-2">
-                    <button onClick={() => { setEditing(lr); setShowForm(true); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg" title="Edit"><Edit className="w-4 h-4" /></button>
-                    <button onClick={() => window.confirm('Delete leave request?') && deleteMutation.mutate(lr.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg" title="Delete"><Trash2 className="w-4 h-4" /></button>
+                    <button onClick={() => { setEditing(lr); setShowForm(true); }} className="p-2 text-[#2D5016] hover:bg-green-50 rounded-lg" title="Edit"><Edit className="w-4 h-4" /></button>
+                    <button onClick={() => window.confirm('Delete leave request?') && deleteMutation.mutate(lr.id)} className="p-2 text-[#8B4513] hover:bg-amber-50 rounded-lg" title="Delete"><Trash2 className="w-4 h-4" /></button>
                   </div>
                 </div>
               </div>

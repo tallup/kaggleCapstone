@@ -108,8 +108,8 @@ export default function Reports() {
                                     <p className="text-gray-600 text-sm font-medium">Total Residents</p>
                                     <p className="text-3xl font-bold text-gray-900 mt-2">{stats.totalResidents}</p>
                                 </div>
-                                <div className="p-3 bg-blue-100 rounded-lg">
-                                    <FileText className="w-6 h-6 text-blue-600" />
+                                <div className="p-3 bg-green-50 rounded-lg">
+                                    <FileText className="w-6 h-6 text-[#2D5016]" />
                                 </div>
                             </div>
                         </div>

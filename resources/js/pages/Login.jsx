@@ -68,7 +68,7 @@ export default function Login() {
                 {/* Logo and Branding */}
                 <div className="text-center mb-8">
                     <div className="flex items-center justify-center space-x-3 mb-4">
-                        <div className="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center shadow-lg">
+                        <div className="w-16 h-16 bg-[#2D5016] rounded-full flex items-center justify-center shadow-lg">
                             <img 
                                 src="/images/logo.jpeg" 
                                 alt="Evergreen Oasis Care Home"
@@ -78,7 +78,7 @@ export default function Login() {
                                     e.target.nextElementSibling.style.display = 'flex';
                                 }}
                             />
-                            <div className="w-14 h-14 bg-blue-600 rounded-full flex items-center justify-center hidden">
+                            <div className="w-14 h-14 bg-[#2D5016] rounded-full flex items-center justify-center hidden">
                                 <span className="text-white font-bold text-2xl">E</span>
                             </div>
                         </div>

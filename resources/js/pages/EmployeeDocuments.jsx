@@ -60,13 +60,13 @@ export default function EmployeeDocuments() {
 
     const getDocumentTypeColor = (type) => {
         const colors = {
-            contract: 'bg-blue-100 text-blue-800',
-            id: 'bg-green-100 text-green-800',
-            license: 'bg-yellow-100 text-yellow-800',
-            certification: 'bg-indigo-100 text-indigo-800',
+            contract: 'bg-amber-50 text-[#8B4513]',
+            id: 'bg-green-50 text-[#2D5016]',
+            license: 'bg-amber-50 text-[#8B4513]',
+            certification: 'bg-green-50 text-[#2D5016]',
             background_check: 'bg-red-100 text-red-800',
-            medical: 'bg-green-100 text-green-800',
-            training: 'bg-yellow-100 text-yellow-800',
+            medical: 'bg-green-50 text-[#2D5016]',
+            training: 'bg-amber-50 text-[#8B4513]',
             other: 'bg-gray-100 text-gray-800',
         };
         return colors[type] || colors.other;
@@ -269,7 +269,7 @@ export default function EmployeeDocuments() {
                                                             href={`/storage/${document.file_path}`}
                                                             target="_blank"
                                                             rel="noopener noreferrer"
-                                                            className="text-blue-600 hover:text-blue-900"
+                                                            className="text-[#2D5016] hover:text-[#1a3009]"
                                                             title="Download"
                                                         >
                                                             <Download className="w-4 h-4" />
@@ -280,7 +280,7 @@ export default function EmployeeDocuments() {
                                                             setEditing(document);
                                                             setShowForm(true);
                                                         }}
-                                                        className="text-blue-600 hover:text-blue-900"
+                                                        className="text-[#2D5016] hover:text-[#1a3009]"
                                                         title="Edit"
                                                     >
                                                         <Edit className="w-4 h-4" />
@@ -291,7 +291,7 @@ export default function EmployeeDocuments() {
                                                                 deleteMutation.mutate(document.id);
                                                             }
                                                         }}
-                                                        className="text-red-600 hover:text-red-900"
+                                                        className="text-[#8B4513] hover:text-[#6b3410]"
                                                         title="Delete"
                                                     >
                                                         <Trash2 className="w-4 h-4" />

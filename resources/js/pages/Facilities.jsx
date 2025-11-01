@@ -59,7 +59,7 @@ export default function Facilities() {
               <div key={f.id} className="bg-white rounded-lg shadow p-6">
                 <div className="flex items-start justify-between">
                   <div className="flex items-start space-x-3">
-                    <div className="p-2 bg-blue-100 rounded-lg"><Building2 className="w-5 h-5 text-blue-600" /></div>
+                    <div className="p-2 bg-green-50 rounded-lg"><Building2 className="w-5 h-5 text-[#2D5016]" /></div>
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900">{f.name}</h3>
                       {f.address && <p className="text-sm text-gray-600">{f.address}</p>}
@@ -71,14 +71,14 @@ export default function Facilities() {
                   <div className="flex space-x-2">
                     <button
                       onClick={() => { setEditing(f); setShowForm(true); }}
-                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+                      className="p-2 text-[#2D5016] hover:bg-green-50 rounded-lg"
                       title="Edit"
                     >
                       <Edit className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => window.confirm('Delete facility?') && deleteMutation.mutate(f.id)}
-                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                      className="p-2 text-[#8B4513] hover:bg-amber-50 rounded-lg"
                       title="Delete"
                     >
                       <Trash2 className="w-4 h-4" />

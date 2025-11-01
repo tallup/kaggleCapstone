@@ -137,7 +137,7 @@ export default function Residents() {
                                             setEditing(resident);
                                             setShowForm(true);
                                         }}
-                                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                        className="p-2 text-[#2D5016] hover:bg-green-50 rounded-lg transition-colors"
                                         title="Edit"
                                     >
                                         <Edit className="w-4 h-4" />
@@ -148,7 +148,7 @@ export default function Residents() {
                                                 deleteMutation.mutate(resident.id);
                                             }
                                         }}
-                                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                        className="p-2 text-[#8B4513] hover:bg-amber-50 rounded-lg transition-colors"
                                         title="Delete"
                                     >
                                         <Trash2 className="w-4 h-4" />

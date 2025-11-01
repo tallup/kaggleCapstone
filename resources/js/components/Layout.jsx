@@ -109,7 +109,7 @@ export default function Layout() {
                 {/* Logo */}
                 <div className="p-6 border-b border-slate-700">
                     <div className="flex items-center space-x-3">
-                        <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center shadow-lg overflow-hidden">
+                        <div className="w-12 h-12 bg-[#2D5016] rounded-full flex items-center justify-center shadow-lg overflow-hidden">
                             <img 
                                 src="/images/logo.jpeg" 
                                 alt="Evergreen Oasis Care Home"
@@ -119,7 +119,7 @@ export default function Layout() {
                                     e.target.nextElementSibling.style.display = 'flex';
                                 }}
                             />
-                            <div className="w-full h-full bg-blue-600 rounded-full flex items-center justify-center hidden">
+                            <div className="w-full h-full bg-[#2D5016] rounded-full flex items-center justify-center hidden">
                                 <span className="text-white font-bold text-xl">E</span>
                             </div>
                         </div>

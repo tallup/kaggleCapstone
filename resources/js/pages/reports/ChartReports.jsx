@@ -39,8 +39,8 @@ export default function ChartReports() {
                             <p className="text-gray-600 text-sm font-medium">Total Residents</p>
                             <p className="text-3xl font-bold text-gray-900 mt-2">{stats?.residents?.total_residents || 0}</p>
                         </div>
-                        <div className="p-3 bg-blue-100 rounded-lg">
-                            <Users className="w-6 h-6 text-blue-600" />
+                        <div className="p-3 bg-green-50 rounded-lg">
+                            <Users className="w-6 h-6 text-[#2D5016]" />
                         </div>
                     </div>
                 </div>
@@ -51,8 +51,8 @@ export default function ChartReports() {
                             <p className="text-gray-600 text-sm font-medium">Vitals Records</p>
                             <p className="text-3xl font-bold text-gray-900 mt-2">{stats?.vitals?.total_vitals || 0}</p>
                         </div>
-                        <div className="p-3 bg-purple-100 rounded-lg">
-                            <Activity className="w-6 h-6 text-purple-600" />
+                        <div className="p-3 bg-green-50 rounded-lg">
+                            <Activity className="w-6 h-6 text-[#2D5016]" />
                         </div>
                     </div>
                 </div>
@@ -63,8 +63,8 @@ export default function ChartReports() {
                             <p className="text-gray-600 text-sm font-medium">Appointments</p>
                             <p className="text-3xl font-bold text-gray-900 mt-2">{stats?.appointments?.total_appointments || 0}</p>
                         </div>
-                        <div className="p-3 bg-green-100 rounded-lg">
-                            <Calendar className="w-6 h-6 text-green-600" />
+                        <div className="p-3 bg-green-50 rounded-lg">
+                            <Calendar className="w-6 h-6 text-[#2D5016]" />
                         </div>
                     </div>
                 </div>
@@ -77,8 +77,8 @@ export default function ChartReports() {
                                 {stats?.sleep?.avg_sleep_hours ? parseFloat(stats.sleep.avg_sleep_hours).toFixed(1) : '0.0'}h
                             </p>
                         </div>
-                        <div className="p-3 bg-orange-100 rounded-lg">
-                            <TrendingUp className="w-6 h-6 text-orange-600" />
+                        <div className="p-3 bg-amber-50 rounded-lg">
+                            <TrendingUp className="w-6 h-6 text-[#8B4513]" />
                         </div>
                     </div>
                 </div>

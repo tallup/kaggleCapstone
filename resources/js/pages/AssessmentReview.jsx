@@ -304,7 +304,7 @@ export default function AssessmentReview() {
                                                                         }`}>
                                                                             Q{qIndex + 1}
                                                                         </span>
-                                                                        <span className="px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-700">
+                                                                        <span className="px-2 py-1 rounded text-xs font-medium bg-green-50 text-[#2D5016]">
                                                                             {q.response_type}
                                                                         </span>
                                                                     </div>
