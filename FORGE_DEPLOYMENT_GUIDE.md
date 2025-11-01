@@ -39,7 +39,7 @@ DB_HOST=127.0.0.1
 DB_PORT=3306
 DB_DATABASE=edmond_serenity_afh
 DB_USERNAME=forge
-DB_PASSWORD=YOUR_SECURE_DB_PASSWORD
+DB_PASSWORD=YOUR_DB_PASSWORD_HERE
 
 # Session Configuration
 SESSION_DRIVER=database
@@ -117,16 +117,21 @@ php artisan event:cache
 # Clear application cache
 php artisan cache:clear
 
-# Restart PHP-FPM
+# Restart PHP-FPM (try different versions)
 echo "🔄 Restarting PHP-FPM..."
-sudo service php8.3-fpm restart
+if command -v php8.3-fpm &> /dev/null; then
+    sudo service php8.3-fpm restart
+elif command -v php8.4-fpm &> /dev/null; then
+    sudo service php8.4-fpm restart
+else
+    sudo service php-fpm restart
+fi
 
 # Restart queue workers (if using queues)
 echo "🔄 Restarting queue workers..."
 php artisan queue:restart
 
 echo "✅ Deployment completed successfully!"
-echo "🌐 Application is now live at: https://your-domain.com"
 ```
 
 ## Step 4: Database Setup
@@ -151,26 +156,39 @@ If you plan to use background jobs:
    - User: `forge`
    - Directory: `/home/forge/your-domain.com`
 
-## Step 7: Backup Configuration
+## Step 7: Configure Cron Job for Scheduled Tasks
+
+**IMPORTANT**: You must add a cron job for the Laravel scheduler to run scheduled tasks like notifications.
+
+1. Go to "Cron Jobs" in your Forge site
+2. Add a new cron job:
+   - Command: `php artisan schedule:run`
+   - User: `forge`
+   - Directory: `/home/forge/your-domain.com`
+   - Frequency: `* * * * *` (runs every minute)
+
+This will ensure your notification generation command runs every hour as scheduled.
+
+## Step 8: Backup Configuration
 
 1. Go to "Backups" in your Forge site
 2. Enable database backups
 3. Set backup frequency (daily recommended)
 4. Configure backup retention (30 days recommended)
 
-## Step 8: Monitoring
+## Step 9: Monitoring
 
 1. Enable "Monitoring" in your Forge site
 2. Set up uptime monitoring
 3. Configure email notifications for downtime
 
-## Step 9: First Deployment
+## Step 10: First Deployment
 
 1. Click "Deploy Now" in your Forge site
 2. Monitor the deployment logs
 3. Check for any errors in the deployment process
 
-## Step 10: Post-Deployment Verification
+## Step 11: Post-Deployment Verification
 
 After successful deployment:
 
@@ -179,20 +197,21 @@ After successful deployment:
    - URL: `https://your-domain.com/admin/login`
    - Email: `admin@edmondserenity.com`
    - Password: `admin123!`
-3. Verify all features are working correctly
-
-## Security Considerations
-
-1. **Change default passwords** immediately after first login
-2. **Enable 2FA** for admin accounts
-3. **Regular security updates** - Forge handles this automatically
-4. **Database backups** - Ensure backups are working
-5. **SSL certificate** - Keep SSL certificate up to date
+3. Verify the notification system:
+   - Check that notifications are displayed in the UI
+   - Manually run: `php artisan notifications:generate` to test
+   - Verify the cron job is running correctly
+4. Test key features:
+   - Create a resident
+   - Add an appointment
+   - Record vital signs
+   - Add a medication
 
 ## Maintenance
 
 ### Regular Tasks:
-- Monitor application logs
+- Check application logs weekly
+- Review and monitor scheduled tasks
 - Check database backups
 - Update dependencies monthly
 - Review security logs
@@ -210,11 +229,13 @@ After successful deployment:
 2. **Database connection errors**: Verify database credentials in `.env`
 3. **Permission errors**: Ensure proper file permissions
 4. **Asset loading issues**: Run `npm run build` manually
+5. **Notifications not generating**: Verify the cron job is configured correctly
 
 ### Log Locations:
 - Application logs: `/home/forge/your-domain.com/storage/logs/`
 - Nginx logs: Available in Forge dashboard
 - PHP-FPM logs: Available in Forge dashboard
+- Schedule logs: Check Laravel logs for `schedule:run` output
 
 ## Support
 
@@ -223,6 +244,7 @@ For issues specific to this application:
 2. Review the deployment logs in Forge
 3. Verify environment variables
 4. Test database connectivity
+5. Verify scheduled tasks are running
 
 For Forge-specific issues:
 1. Check Forge documentation
@@ -236,3 +258,4 @@ For Forge-specific issues:
 - Keep backups of your database before major updates
 - Monitor your application's performance and uptime
 - Keep your dependencies updated for security
+- **CRITICAL**: Ensure the cron job `php artisan schedule:run` is configured to run every minute for scheduled tasks to work
