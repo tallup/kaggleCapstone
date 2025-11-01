@@ -289,18 +289,6 @@ export default function Dashboard() {
                             })}
                         </div>
 
-                        {/* Weekly Activity Chart - Full Width */}
-                        <div className="mb-6">
-                            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
-                                <div className="px-6 py-4 border-b border-gray-200">
-                                    <h2 className="text-xl font-bold text-[#2D5016]">Weekly Activity</h2>
-                                </div>
-                                <div className="p-6">
-                                    {stats?.weekly_activity && <WeeklyActivityChart data={stats.weekly_activity} />}
-                                </div>
-                            </div>
-                        </div>
-
                         {/* Two Column Layout */}
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
                             {/* Upcoming Appointments */}
@@ -463,117 +451,6 @@ export default function Dashboard() {
                     </>
                 )}
             </div>
-        </div>
-    );
-}
-
-// Weekly Activity Chart Component
-function WeeklyActivityChart({ data }) {
-    const chartData = {
-        labels: data.map(item => item.day),
-        datasets: [
-            {
-                label: 'Assessments',
-                data: data.map(item => item.assessments),
-                borderColor: '#FFA726', // Amber/orange
-                backgroundColor: 'rgba(255, 167, 38, 0.1)',
-                tension: 0.4,
-                fill: true,
-                pointBackgroundColor: '#FFA726',
-                pointBorderColor: '#ffffff',
-                pointBorderWidth: 2,
-                pointRadius: 4,
-                pointHoverRadius: 6,
-            },
-            {
-                label: 'Vitals Recorded',
-                data: data.map(item => item.vitals),
-                borderColor: '#66BB6A', // Green
-                backgroundColor: 'rgba(102, 187, 106, 0.1)',
-                tension: 0.4,
-                fill: true,
-                pointBackgroundColor: '#66BB6A',
-                pointBorderColor: '#ffffff',
-                pointBorderWidth: 2,
-                pointRadius: 4,
-                pointHoverRadius: 6,
-            },
-        ],
-    };
-
-    const options = {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: {
-                display: true,
-                position: 'bottom',
-                labels: {
-                    usePointStyle: true,
-                    padding: 20,
-                    font: {
-                        size: 12,
-                        weight: '500',
-                    },
-                    color: '#2D5016',
-                },
-            },
-            tooltip: {
-                backgroundColor: 'rgba(45, 80, 22, 0.9)',
-                padding: 12,
-                titleFont: {
-                    size: 13,
-                    weight: '600',
-                },
-                bodyFont: {
-                    size: 12,
-                },
-                callbacks: {
-                    label: function(context) {
-                        return `${context.dataset.label}: ${context.parsed.y}`;
-                    }
-                }
-            },
-        },
-        scales: {
-            x: {
-                display: true,
-                grid: {
-                    display: true,
-                    drawBorder: false,
-                    color: 'rgba(0, 0, 0, 0.05)',
-                },
-                ticks: {
-                    font: {
-                        size: 11,
-                        weight: '500',
-                    },
-                    color: '#8B4513',
-                },
-            },
-            y: {
-                display: true,
-                beginAtZero: true,
-                grid: {
-                    display: true,
-                    drawBorder: false,
-                    color: 'rgba(0, 0, 0, 0.05)',
-                },
-                ticks: {
-                    stepSize: 8,
-                    font: {
-                        size: 11,
-                        weight: '500',
-                    },
-                    color: '#8B4513',
-                },
-            },
-        },
-    };
-
-    return (
-        <div style={{ height: '300px' }}>
-            <Line data={chartData} options={options} />
         </div>
     );
 }
