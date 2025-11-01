@@ -40,7 +40,7 @@ export default function LeaveRequests() {
       </div>
 
       <div className="bg-white rounded-lg shadow p-6 mb-6">
-        <div className="flex space-x-2">
+        <div className="flex flex-wrap gap-2">
           {['all', 'pending', 'approved', 'rejected'].map((s) => (
             <button key={s} onClick={() => setStatusFilter(s)} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors capitalize ${statusFilter === s ? 'bg-[#2D5016] text-white' : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'}`}>{s}</button>
           ))}

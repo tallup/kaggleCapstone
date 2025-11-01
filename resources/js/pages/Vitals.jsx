@@ -61,10 +61,10 @@ export default function Vitals() {
                 <h2 className="text-xl font-semibold text-gray-900 mb-2">Vital Signs Management</h2>
                 <p className="text-gray-600 mb-6">View and track resident vital signs.</p>
                 
-                <div className="flex flex-wrap gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Date Range:</label>
-                        <div className="flex space-x-2">
+                        <div className="flex flex-wrap gap-2">
                             <button
                                 onClick={() => setDateFilter('today')}
                                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -103,7 +103,7 @@ export default function Vitals() {
                         <select
                             value={residentFilter}
                             onChange={(e) => setResidentFilter(e.target.value)}
-                            className="px-4 py-2 rounded-lg text-sm border border-gray-300 focus:ring-2 focus:ring-[#2D5016] focus:border-transparent"
+                            className="w-full px-4 py-2 rounded-lg text-sm border border-gray-300 focus:ring-2 focus:ring-[#2D5016] focus:border-transparent"
                         >
                             <option value="">All Residents</option>
                             {residentsData?.data?.map(r => (

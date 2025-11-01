@@ -101,10 +101,10 @@ export default function Appointments() {
                     </button>
                 </div>
                 
-                <div className="flex flex-wrap gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Date:</label>
-                        <div className="flex space-x-2">
+                        <div className="flex flex-wrap gap-2">
                             <button
                                 onClick={() => setDateFilter('upcoming')}
                                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -130,7 +130,7 @@ export default function Appointments() {
 
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Status:</label>
-                        <div className="flex space-x-2">
+                        <div className="flex flex-wrap gap-2">
                             {['all', 'scheduled', 'completed', 'cancelled'].map((status) => (
                                 <button
                                     key={status}

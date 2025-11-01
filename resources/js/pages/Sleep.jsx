@@ -112,10 +112,10 @@ export default function Sleep() {
 
             {/* Filters */}
             <div className="bg-white rounded-lg shadow p-6 mb-6">
-                <div className="flex flex-wrap gap-6">
-                    <div className="flex-1 min-w-[200px]">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Date Range:</label>
-                        <div className="flex space-x-2">
+                        <div className="flex flex-wrap gap-2">
                             {['all', 'today', 'week', 'month'].map((filter) => (
                                 <button
                                     key={filter}
@@ -132,7 +132,7 @@ export default function Sleep() {
                         </div>
                     </div>
 
-                    <div className="flex-1 min-w-[200px]">
+                    <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Filter by Resident:</label>
                         <select
                             value={residentFilter}
@@ -148,7 +148,7 @@ export default function Sleep() {
                         </select>
                     </div>
 
-                    <div className="flex-1 min-w-[200px]">
+                    <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Search:</label>
                         <div className="relative">
                             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
