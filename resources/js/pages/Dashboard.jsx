@@ -34,6 +34,21 @@ ChartJS.register(
 
 export default function Dashboard() {
     const navigate = useNavigate();
+    
+    // Fetch current user
+    const { data: currentUser } = useQuery({
+        queryKey: ['current-user'],
+        queryFn: async () => {
+            try {
+                const response = await api.get('/user');
+                return response.data;
+            } catch (err) {
+                console.error('Failed to fetch current user:', err);
+                return null;
+            }
+        },
+    });
+    
     const { data: stats, isLoading, error } = useQuery({
         queryKey: ['dashboard-stats'],
         queryFn: async () => {
@@ -201,7 +216,7 @@ export default function Dashboard() {
                                         </div>
                                         <div>
                                             <h1 className="text-2xl font-bold text-[#2D5016]">
-                                                {greeting} 👋
+                                                {greeting}, {currentUser?.first_name || currentUser?.name || 'User'} 👋
                                             </h1>
                                             <p className="text-sm text-gray-600 mt-1">
                                                 {isCaregiver ? 'Welcome to your Care Dashboard' : 'Welcome to the Admin Dashboard'}
