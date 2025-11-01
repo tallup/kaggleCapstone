@@ -166,33 +166,6 @@ export default function Dashboard() {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-[#F5F5DC] to-[#E6E6D4]">
-            {/* Hero Section */}
-            <div className="relative overflow-hidden bg-gradient-to-r from-[#2D5016] via-[#4a7a2a] to-[#2D5016]">
-                <div className="absolute inset-0 opacity-20">
-                    <div className="absolute inset-0" style={{
-                        backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
-                    }}></div>
-                </div>
-                <div className="relative px-6 py-12">
-                    <div className="max-w-7xl mx-auto">
-                        <div className="flex items-center space-x-3 mb-4">
-                            <Sparkles className="w-8 h-8 text-white animate-pulse" />
-                            <h1 className="text-4xl font-bold text-white">
-                                {greeting}! 👋
-                            </h1>
-                        </div>
-                        <p className="text-xl text-green-100 mb-2">
-                            {isCaregiver ? 'Welcome to your Care Dashboard' : 'Welcome to the Admin Dashboard'}
-                        </p>
-                        <p className="text-green-50">
-                            {isCaregiver 
-                                ? 'Here\'s an overview of your care activities and priorities for today.'
-                                : 'Monitor and manage your care facility operations from here.'}
-                        </p>
-                    </div>
-                </div>
-            </div>
-
             {/* Main Content */}
             <div className="max-w-7xl mx-auto px-6 py-8">
                 {error && (
@@ -215,6 +188,39 @@ export default function Dashboard() {
                 
                 {!isLoading && (
                     <>
+                        {/* Modern Welcome Card */}
+                        <div className="mb-8 bg-gradient-to-br from-white to-gray-50 rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+                            <div className="p-6">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center space-x-4">
+                                        <div className="relative">
+                                            <div className="absolute inset-0 bg-gradient-to-br from-[#2D5016] to-[#4a7a2a] rounded-xl blur-sm opacity-50"></div>
+                                            <div className="relative w-16 h-16 bg-gradient-to-br from-[#2D5016] to-[#4a7a2a] rounded-xl flex items-center justify-center">
+                                                <Sparkles className="w-8 h-8 text-white" />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <h1 className="text-2xl font-bold text-[#2D5016]">
+                                                {greeting} 👋
+                                            </h1>
+                                            <p className="text-sm text-gray-600 mt-1">
+                                                {isCaregiver ? 'Welcome to your Care Dashboard' : 'Welcome to the Admin Dashboard'}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Last Login</p>
+                                        <p className="text-sm font-semibold text-[#8B4513]">
+                                            {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                        </p>
+                                        <p className="text-xs text-gray-500">
+                                            {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         {/* Stat Cards Grid */}
                         <div className={`grid grid-cols-1 md:grid-cols-2 ${isCaregiver ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} gap-6 mb-8`}>
                             {statCards.map((card, index) => {
