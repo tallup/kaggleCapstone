@@ -164,8 +164,8 @@ export default function Appointments() {
                             <Card
                                 key={appointment.id}
                                 borderColor={
-                                    appointment.status === 'scheduled' ? 'border-blue-500' :
-                                    appointment.status === 'completed' ? 'border-green-500' :
+                                    appointment.status === 'scheduled' ? 'border-[#8B4513]' :
+                                    appointment.status === 'completed' ? 'border-[#2D5016]' :
                                     'border-red-500'
                                 }
                             >
@@ -174,9 +174,9 @@ export default function Appointments() {
                                         {appointment.appointment_type?.name || 'Appointment'}
                                     </h3>
                                     <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                                        appointment.status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
-                                        appointment.status === 'completed' ? 'bg-green-100 text-green-800' :
-                                        'bg-red-100 text-red-800'
+                                        appointment.status === 'scheduled' ? 'bg-amber-50 text-[#8B4513] border border-[#8B4513]' :
+                                        appointment.status === 'completed' ? 'bg-green-50 text-[#2D5016] border border-[#2D5016]' :
+                                        'bg-red-50 text-red-800 border border-red-500'
                                     }`}>
                                         {appointment.status}
                                     </span>

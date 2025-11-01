@@ -59,29 +59,29 @@ export default function Assessments() {
     const getStatusColor = (status) => {
         switch (status) {
             case 'approved':
-                return 'bg-green-100 text-green-800';
+                return 'bg-green-50 text-[#2D5016] border border-[#2D5016]';
             case 'completed':
-                return 'bg-blue-100 text-blue-800';
+                return 'bg-amber-50 text-[#8B4513] border border-[#8B4513]';
             case 'reviewed':
-                return 'bg-purple-100 text-purple-800';
+                return 'bg-amber-50 text-[#8B4513] border border-[#8B4513]';
             case 'in_progress':
-                return 'bg-yellow-100 text-yellow-800';
+                return 'bg-yellow-100 text-yellow-800 border border-yellow-400';
             case 'draft':
-                return 'bg-gray-100 text-gray-800';
+                return 'bg-gray-100 text-gray-800 border border-gray-400';
             case 'archived':
-                return 'bg-gray-100 text-gray-600';
+                return 'bg-gray-100 text-gray-600 border border-gray-400';
             default:
-                return 'bg-gray-100 text-gray-800';
+                return 'bg-gray-100 text-gray-800 border border-gray-400';
         }
     };
 
     const getStatusIcon = (status) => {
         switch (status) {
             case 'approved':
-                return <CheckCircle className="w-4 h-4 text-green-600" />;
+                return <CheckCircle className="w-4 h-4 text-[#2D5016]" />;
             case 'completed':
             case 'reviewed':
-                return <CheckCircle className="w-4 h-4 text-blue-600" />;
+                return <CheckCircle className="w-4 h-4 text-[#8B4513]" />;
             default:
                 return <Clock className="w-4 h-4 text-gray-600" />;
         }
@@ -185,7 +185,7 @@ export default function Assessments() {
                         data.data.map((assessment) => (
                             <Card 
                                 key={assessment.id} 
-                                borderColor="border-blue-500"
+                                borderColor="border-[#8B4513]"
                             >
                                 <div className="flex items-start justify-between">
                                     <div className="flex-1">
@@ -283,7 +283,7 @@ export default function Assessments() {
                                             setEditing(assessment);
                                             setShowForm(true);
                                         }}
-                                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                        className="p-2 text-[#8B4513] hover:bg-amber-50 rounded-lg transition-colors"
                                         title="Edit"
                                     >
                                         <Edit className="w-4 h-4" />
