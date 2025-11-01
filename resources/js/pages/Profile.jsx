@@ -137,20 +137,20 @@ export default function Profile() {
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4 md:mb-6">My Profile</h1>
 
             {/* Profile Header */}
-            <div className="bg-gradient-to-r from-[#2D5016] to-[#4a7a2a] rounded-xl shadow-lg p-8 mb-6">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-6">
+            <div className="bg-gradient-to-r from-[#2D5016] to-[#4a7a2a] rounded-xl shadow-lg p-4 md:p-8 mb-6">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
+                    <div className="flex flex-col md:flex-row md:items-center md:space-x-6 space-y-4 md:space-y-0">
                         {/* Profile Picture */}
-                        <div className="relative">
+                        <div className="relative self-center md:self-auto">
                             {(profileImagePreview || user.profile_image_url) ? (
                                 <img
                                     src={profileImagePreview || user.profile_image_url}
                                     alt={user.name}
-                                    className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-lg"
+                                    className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-white shadow-lg"
                                 />
                             ) : (
-                                <div className="w-32 h-32 rounded-full bg-white flex items-center justify-center border-4 border-white shadow-lg">
-                                    <span className="text-[#2D5016] font-bold text-5xl">
+                                <div className="w-24 h-24 md:w-32 md:h-32 rounded-full bg-white flex items-center justify-center border-4 border-white shadow-lg">
+                                    <span className="text-[#2D5016] font-bold text-4xl md:text-5xl">
                                         {user.name?.charAt(0)?.toUpperCase() || 'U'}
                                     </span>
                                 </div>
@@ -169,15 +169,15 @@ export default function Profile() {
                                 </div>
                             )}
                         </div>
-                        <div>
-                            <h2 className="text-3xl font-bold mb-2 text-white">{user.name || user.email}</h2>
+                        <div className="text-center md:text-left">
+                            <h2 className="text-xl md:text-3xl font-bold mb-2 text-white break-words">{user.name || user.email}</h2>
                             {user.position && (
-                                <p className="text-xl text-green-100">{user.position}</p>
+                                <p className="text-base md:text-xl text-green-100">{user.position}</p>
                             )}
                             {user.email && (
-                                <div className="flex items-center space-x-2 mt-2 text-green-50">
-                                    <Mail className="w-4 h-4" />
-                                    <span>{user.email}</span>
+                                <div className="flex items-center justify-center md:justify-start space-x-2 mt-2 text-sm md:text-base text-green-50">
+                                    <Mail className="w-4 h-4 flex-shrink-0" />
+                                    <span className="break-all">{user.email}</span>
                                 </div>
                             )}
                         </div>
@@ -185,17 +185,17 @@ export default function Profile() {
                     {!isEditing && (
                         <button
                             onClick={() => setIsEditing(true)}
-                            className="flex items-center space-x-2 px-6 py-2 bg-white text-[#2D5016] rounded-lg hover:bg-green-50 transition-colors font-medium"
+                            className="flex items-center justify-center space-x-2 px-4 md:px-6 py-2 bg-white text-[#2D5016] rounded-lg hover:bg-green-50 transition-colors font-medium w-full md:w-auto"
                         >
                             <Edit className="w-4 h-4" />
                             <span>Edit Profile</span>
                         </button>
                     )}
                     {isEditing && (
-                        <div className="flex space-x-3">
+                        <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
                             <button
                                 onClick={handleCancel}
-                                className="flex items-center space-x-2 px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                                className="flex items-center justify-center space-x-2 px-4 md:px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium w-full sm:w-auto"
                             >
                                 <X className="w-4 h-4" />
                                 <span>Cancel</span>
@@ -203,7 +203,7 @@ export default function Profile() {
                             <button
                                 onClick={handleSave}
                                 disabled={updateMutation.isLoading}
-                                className="flex items-center space-x-2 px-6 py-2 bg-white text-[#2D5016] rounded-lg hover:bg-green-50 transition-colors font-medium disabled:opacity-50"
+                                className="flex items-center justify-center space-x-2 px-4 md:px-6 py-2 bg-white text-[#2D5016] rounded-lg hover:bg-green-50 transition-colors font-medium disabled:opacity-50 w-full sm:w-auto"
                             >
                                 <Save className="w-4 h-4" />
                                 <span>{updateMutation.isLoading ? 'Saving...' : 'Save'}</span>
