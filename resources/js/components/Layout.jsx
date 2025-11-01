@@ -98,7 +98,7 @@ export default function Layout() {
             {/* Sidebar */}
             <aside className={`fixed md:relative inset-y-0 left-0 z-50 transform transition-transform duration-300 ease-in-out ${
                 mobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
-            } w-64 bg-slate-800 text-white flex flex-col`}>
+            } w-64 bg-[#2D5016] text-white flex flex-col`}>
                 {/* Mobile close button */}
                 <button
                     onClick={() => setMobileMenuOpen(false)}
@@ -107,7 +107,7 @@ export default function Layout() {
                     <X className="w-6 h-6" />
                 </button>
                 {/* Logo */}
-                <div className="p-6 border-b border-slate-700">
+                <div className="p-6 border-b border-[#4a7a2a]">
                     <div className="flex items-center space-x-3">
                         <div className="w-12 h-12 bg-[#2D5016] rounded-full flex items-center justify-center shadow-lg overflow-hidden">
                             <img 
@@ -148,8 +148,8 @@ export default function Layout() {
                                             onClick={() => setExpandedMenus({...expandedMenus, [item.name]: !isExpanded})}
                                             className={`w-full flex items-center justify-between space-x-3 px-4 py-3 rounded-lg transition-colors ${
                                                 isActive
-                                                    ? 'bg-[#2D5016] text-white shadow-md'
-                                                    : 'text-gray-300 hover:bg-slate-700 hover:text-white'
+                                                    ? 'bg-white text-[#2D5016] shadow-md'
+                                                    : 'text-white hover:bg-[#4a7a2a] hover:text-white'
                                             }`}
                                         >
                                             <div className="flex items-center space-x-3">
@@ -173,8 +173,8 @@ export default function Layout() {
                                                             onClick={() => setMobileMenuOpen(false)}
                                                             className={`block px-4 py-2 rounded-lg transition-colors text-sm ${
                                                                 isChildActive
-                                                                    ? 'bg-slate-700 text-white'
-                                                                    : 'text-gray-400 hover:bg-slate-700 hover:text-white'
+                                                                    ? 'bg-[#4a7a2a] text-white'
+                                                                    : 'text-white hover:bg-[#4a7a2a] hover:text-white'
                                                             }`}
                                                         >
                                                             {child.name}
@@ -190,8 +190,8 @@ export default function Layout() {
                                         onClick={() => setMobileMenuOpen(false)}
                                         className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
                                             isActive
-                                                ? 'bg-[#2D5016] text-white shadow-md'
-                                                : 'text-gray-300 hover:bg-slate-700 hover:text-white'
+                                                ? 'bg-white text-[#2D5016] shadow-md'
+                                                : 'text-white hover:bg-[#4a7a2a] hover:text-white'
                                         }`}
                                     >
                                         <Icon className="w-5 h-5" />
