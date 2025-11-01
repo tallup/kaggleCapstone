@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import { ClipboardList, Plus, Search, Filter, Edit, Trash2, Calendar, User, CheckCircle, XCircle, Clock, FileText } from 'lucide-react';
+import SectionCard from '../components/SectionCard';
+import Card from '../components/Card';
 
 export default function Assessments() {
     const queryClient = useQueryClient();
@@ -101,9 +103,11 @@ export default function Assessments() {
                 </button>
             </div>
 
-            <div className="bg-white rounded-lg shadow p-6 mb-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-2">Assessment Management</h2>
-                <p className="text-gray-600 mb-6">View and manage resident assessments.</p>
+            <SectionCard>
+                <div className="mb-6">
+                    <h2 className="text-xl font-semibold text-gray-900 mb-2">Assessment Management</h2>
+                    <p className="text-gray-600">View and manage resident assessments.</p>
+                </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     {/* Search */}
@@ -160,7 +164,7 @@ export default function Assessments() {
                         </select>
                     </div>
                 </div>
-            </div>
+            </SectionCard>
 
             {error && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
@@ -179,43 +183,44 @@ export default function Assessments() {
                 <div className="space-y-4">
                     {data?.data?.length > 0 ? (
                         data.data.map((assessment) => (
-                            <div key={assessment.id} className="bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow">
+                            <Card 
+                                key={assessment.id} 
+                                gradient="from-blue-500 to-blue-600"
+                                iconBg="bg-blue-100"
+                                iconColor="text-blue-600"
+                                icon={<ClipboardList />}
+                            >
                                 <div className="flex items-start justify-between">
                                     <div className="flex-1">
-                                        <div className="flex items-center space-x-3 mb-3">
-                                            <div className="p-2 bg-blue-100 rounded-lg">
-                                                <ClipboardList className="w-5 h-5 text-blue-600" />
-                                            </div>
-                                            <div className="flex-1">
-                                                <h3 className="text-lg font-semibold text-gray-900">
-                                                    {assessment.assessment_type || 'Assessment'}
-                                                </h3>
-                                                <p className="text-sm text-gray-500">
-                                                    {assessment.resident?.first_name} {assessment.resident?.last_name}
-                                                    {assessment.branch && ` • ${assessment.branch.name}`}
-                                                </p>
-                                            </div>
-                                            <div className="flex items-center space-x-2">
-                                                {getStatusIcon(assessment.status)}
-                                                <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(assessment.status)}`}>
-                                                    {assessment.status?.replace('_', ' ')}
-                                                </span>
-                                                <div className="flex flex-col items-end space-y-1">
-                                                    <Link
-                                                        to={`/assessments/${assessment.id}`}
-                                                        className="px-3 py-1 text-sm text-white bg-[#2D5016] hover:bg-[#1a3009] rounded-lg transition-colors"
-                                                    >
-                                                        Start Assessment
-                                                    </Link>
-                                                    <Link
-                                                        to={`/assessments/${assessment.id}/review`}
-                                                        className="px-3 py-1 text-sm text-white bg-[#2D5016] hover:bg-[#1a3009] rounded-lg transition-colors"
-                                                    >
-                                                        Review
-                                                    </Link>
-                                                </div>
-                                            </div>
+                                        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                                            {assessment.assessment_type || 'Assessment'}
+                                        </h3>
+                                        <p className="text-sm text-gray-500 mb-4">
+                                            {assessment.resident?.first_name} {assessment.resident?.last_name}
+                                            {assessment.branch && ` • ${assessment.branch.name}`}
+                                        </p>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                        {getStatusIcon(assessment.status)}
+                                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(assessment.status)}`}>
+                                            {assessment.status?.replace('_', ' ')}
+                                        </span>
+                                        <div className="flex flex-col items-end space-y-1">
+                                            <Link
+                                                to={`/assessments/${assessment.id}`}
+                                                className="px-3 py-1 text-sm text-white bg-[#2D5016] hover:bg-[#1a3009] rounded-lg transition-colors"
+                                            >
+                                                Start Assessment
+                                            </Link>
+                                            <Link
+                                                to={`/assessments/${assessment.id}/review`}
+                                                className="px-3 py-1 text-sm text-white bg-[#2D5016] hover:bg-[#1a3009] rounded-lg transition-colors"
+                                            >
+                                                Review
+                                            </Link>
                                         </div>
+                                    </div>
+                                </div>
 
                                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
                                             <div className="flex items-center space-x-2">
@@ -251,56 +256,54 @@ export default function Assessments() {
                                                     </div>
                                                 </div>
                                             )}
-                                        </div>
-
-                                        {assessment.notes && (
-                                            <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-                                                <p className="text-sm text-gray-700">
-                                                    <span className="font-medium">Notes: </span>
-                                                    {assessment.notes}
-                                                </p>
-                                            </div>
-                                        )}
-
-                                        {assessment.scores && Object.keys(assessment.scores).length > 0 && (
-                                            <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-                                                <p className="text-xs font-medium text-gray-700 mb-2">Scores:</p>
-                                                <div className="flex flex-wrap gap-2">
-                                                    {Object.entries(assessment.scores).map(([key, value]) => (
-                                                        <span key={key} className="inline-flex items-center px-2 py-1 bg-white border border-gray-300 rounded text-xs">
-                                                            {key}: {value}
-                                                        </span>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    <div className="flex space-x-2 ml-4">
-                                        <button
-                                            onClick={() => {
-                                                setEditing(assessment);
-                                                setShowForm(true);
-                                            }}
-                                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                            title="Edit"
-                                        >
-                                            <Edit className="w-4 h-4" />
-                                        </button>
-                                        <button
-                                            onClick={() => {
-                                                if (window.confirm('Are you sure you want to delete this assessment?')) {
-                                                    deleteMutation.mutate(assessment.id);
-                                                }
-                                            }}
-                                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                            title="Delete"
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
-                                    </div>
                                 </div>
-                            </div>
+
+                                {assessment.notes && (
+                                    <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                                        <p className="text-sm text-gray-700">
+                                            <span className="font-medium">Notes: </span>
+                                            {assessment.notes}
+                                        </p>
+                                    </div>
+                                )}
+
+                                {assessment.scores && Object.keys(assessment.scores).length > 0 && (
+                                    <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                                        <p className="text-xs font-medium text-gray-700 mb-2">Scores:</p>
+                                        <div className="flex flex-wrap gap-2">
+                                            {Object.entries(assessment.scores).map(([key, value]) => (
+                                                <span key={key} className="inline-flex items-center px-2 py-1 bg-white border border-gray-300 rounded text-xs">
+                                                    {key}: {value}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="flex space-x-2 mt-4">
+                                    <button
+                                        onClick={() => {
+                                            setEditing(assessment);
+                                            setShowForm(true);
+                                        }}
+                                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                        title="Edit"
+                                    >
+                                        <Edit className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            if (window.confirm('Are you sure you want to delete this assessment?')) {
+                                                deleteMutation.mutate(assessment.id);
+                                            }
+                                        }}
+                                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                        title="Delete"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            </Card>
                         ))
                     ) : (
                         <div className="bg-white rounded-lg shadow p-12 text-center">
