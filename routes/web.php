@@ -7,7 +7,7 @@ Route::get('/app{any?}', function () {
     return view('react-app');
 })->where('any', '.*');
 
-// Redirect root to admin login
+// Redirect root to React app login
 Route::get('/', function () {
-    return redirect('/admin/login');
+    return redirect('/app/login');
 });

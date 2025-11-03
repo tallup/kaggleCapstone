@@ -1080,8 +1080,150 @@ function QuickAdminister({ medication, onSuccess }) {
     const [status, setStatus] = useState('completed');
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState('');
+    const [isWithinTimeWindow, setIsWithinTimeWindow] = useState(false);
+    const [timeMessage, setTimeMessage] = useState('');
+
+    // Helper function to parse time and convert to today's date
+    const parseTimeToToday = (timeValue) => {
+        if (!timeValue) return null;
+        try {
+            let date;
+            const now = new Date();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+            if (typeof timeValue === 'string') {
+                // If it's a full datetime string
+                if (timeValue.includes('T') || timeValue.includes(' ')) {
+                    const parsed = new Date(timeValue);
+                    // Extract just the time part and apply to today
+                    today.setHours(parsed.getHours(), parsed.getMinutes(), 0, 0);
+                    date = today;
+                } else if (timeValue.match(/^\d{2}:\d{2}/)) {
+                    // If it's just a time string (e.g., "08:00")
+                    const [hours, minutes] = timeValue.split(':').map(Number);
+                    today.setHours(hours, minutes, 0, 0);
+                    date = today;
+                } else {
+                    date = new Date(timeValue);
+                    // Apply time to today's date
+                    today.setHours(date.getHours(), date.getMinutes(), 0, 0);
+                    date = today;
+                }
+            } else {
+                date = new Date(timeValue);
+                today.setHours(date.getHours(), date.getMinutes(), 0, 0);
+                date = today;
+            }
+            
+            return isNaN(date.getTime()) ? null : date;
+        } catch {
+            return null;
+        }
+    };
+
+    // Check if current time is within 30 minutes of any scheduled time
+    const checkTimeWindow = () => {
+        const now = new Date();
+        const windowMinutes = 30;
+        const times = [
+            medication.time_1,
+            medication.time_2,
+            medication.time_3,
+            medication.time_4,
+        ].filter(Boolean);
+
+        if (times.length === 0) {
+            // If no scheduled times (PRN medication), allow recording anytime
+            setIsWithinTimeWindow(true);
+            setTimeMessage('');
+            return;
+        }
+
+        let closestTime = null;
+        let minDiff = Infinity;
+
+        for (const timeValue of times) {
+            const scheduledTime = parseTimeToToday(timeValue);
+            if (!scheduledTime) continue;
+
+            // Check the scheduled time for today
+            const diffMs = Math.abs(now - scheduledTime);
+            const diffMinutes = diffMs / (1000 * 60);
+
+            // Also check for tomorrow's scheduled time (in case it's late at night)
+            const tomorrowTime = new Date(scheduledTime);
+            tomorrowTime.setDate(tomorrowTime.getDate() + 1);
+            const diffTomorrowMs = Math.abs(now - tomorrowTime);
+            const diffTomorrowMinutes = diffTomorrowMs / (1000 * 60);
+
+            // Find the closest scheduled time
+            if (diffMinutes < minDiff) {
+                minDiff = diffMinutes;
+                closestTime = scheduledTime;
+            }
+            if (diffTomorrowMinutes < minDiff) {
+                minDiff = diffTomorrowMinutes;
+                closestTime = tomorrowTime;
+            }
+
+            // Check if within 30 minutes window
+            if (diffMinutes <= windowMinutes || diffTomorrowMinutes <= windowMinutes) {
+                setIsWithinTimeWindow(true);
+                setTimeMessage('');
+                return;
+            }
+        }
+
+        // Not within window - calculate when next time window opens
+        if (closestTime) {
+            const nextWindowStart = new Date(closestTime);
+            nextWindowStart.setMinutes(nextWindowStart.getMinutes() - windowMinutes);
+            
+            // If next window is in the past, check tomorrow's times
+            if (nextWindowStart < now) {
+                const tomorrowWindowStart = new Date(nextWindowStart);
+                tomorrowWindowStart.setDate(tomorrowWindowStart.getDate() + 1);
+                const timeUntil = Math.ceil((tomorrowWindowStart - now) / (1000 * 60));
+                if (timeUntil < 1440) { // Less than 24 hours
+                    const hours = Math.floor(timeUntil / 60);
+                    const mins = timeUntil % 60;
+                    setTimeMessage(`Available in ${hours}h ${mins}m`);
+                } else {
+                    setTimeMessage('Not within 30 minutes of scheduled time');
+                }
+            } else {
+                const timeUntil = Math.ceil((nextWindowStart - now) / (1000 * 60));
+                const hours = Math.floor(timeUntil / 60);
+                const mins = timeUntil % 60;
+                if (hours > 0) {
+                    setTimeMessage(`Available in ${hours}h ${mins}m`);
+                } else {
+                    setTimeMessage(`Available in ${mins} minutes`);
+                }
+            }
+            setIsWithinTimeWindow(false);
+        } else {
+            setIsWithinTimeWindow(false);
+            setTimeMessage('No scheduled times found');
+        }
+    };
+
+    // Check time window on mount and update every minute
+    React.useEffect(() => {
+        checkTimeWindow();
+        const interval = setInterval(() => {
+            checkTimeWindow();
+        }, 60000); // Check every minute
+        return () => clearInterval(interval);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [medication.time_1, medication.time_2, medication.time_3, medication.time_4]);
 
     const handleRecord = async () => {
+        if (!isWithinTimeWindow && !medication.instructions?.includes('PRN')) {
+            setError('Can only record within 30 minutes of scheduled medication time');
+            return;
+        }
+
         try {
             setSubmitting(true);
             setError('');
@@ -1110,12 +1252,20 @@ function QuickAdminister({ medication, onSuccess }) {
                     <option value="missed">Missed</option>
                     <option value="refused">Refused</option>
                 </select>
-                <button onClick={handleRecord} disabled={submitting} className="px-2 py-1 bg-[#2D5016] text-white rounded text-xs hover:bg-[#1a3009] disabled:opacity-50">
+                <button 
+                    onClick={handleRecord} 
+                    disabled={submitting || (!isWithinTimeWindow && !medication.instructions?.includes('PRN'))} 
+                    className="px-2 py-1 bg-[#2D5016] text-white rounded text-xs hover:bg-[#1a3009] disabled:opacity-50 disabled:cursor-not-allowed"
+                    title={!isWithinTimeWindow && !medication.instructions?.includes('PRN') ? timeMessage : ''}
+                >
                     {submitting ? 'Recording...' : 'Record Now'}
                 </button>
             </div>
             {error && (
                 <p className="mt-2 text-xs text-red-600">{error}</p>
+            )}
+            {!isWithinTimeWindow && !medication.instructions?.includes('PRN') && timeMessage && (
+                <p className="mt-1 text-xs text-amber-600">{timeMessage}</p>
             )}
         </div>
     );
