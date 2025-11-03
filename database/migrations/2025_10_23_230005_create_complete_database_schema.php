@@ -28,39 +28,25 @@ return new class extends Migration
         // Create users table if it doesn't exist
         if (!Schema::hasTable('users')) {
             Schema::create('users', function (Blueprint $table) {
-            $table->id();
-            $table->string('name');
-            $table->string('email')->unique();
-            $table->timestamp('email_verified_at')->nullable();
-            $table->string('profile_image')->nullable();
-            $table->string('password');
-            $table->string('phone')->nullable();
-            $table->string('role')->default('admin');
-            $table->foreignId('assigned_branch_id')->nullable()->constrained('branches')->onDelete('set null');
-            $table->boolean('is_active')->default(true);
-            $table->date('hire_date')->nullable();
-            $table->text('notes')->nullable();
-            $table->rememberToken();
-            $table->timestamps();
-            $table->softDeletes();
-            
-            $table->index(['role', 'is_active']);
-            $table->index(['assigned_branch_id', 'is_active']);
+                $table->id();
+                $table->string('name');
+                $table->string('email')->unique();
+                $table->timestamp('email_verified_at')->nullable();
+                $table->string('profile_image')->nullable();
+                $table->string('password');
+                $table->string('phone')->nullable();
+                $table->string('role')->default('admin');
+                $table->foreignId('assigned_branch_id')->nullable()->constrained('branches')->onDelete('set null');
+                $table->boolean('is_active')->default(true);
+                $table->date('hire_date')->nullable();
+                $table->text('notes')->nullable();
+                $table->rememberToken();
+                $table->timestamps();
+                $table->softDeletes();
+                
+                $table->index(['role', 'is_active']);
+                $table->index(['assigned_branch_id', 'is_active']);
             });
-        }
-
-        // Create branches table if it doesn't exist
-        if (!Schema::hasTable('branches')) {
-        Schema::create('branches', function (Blueprint $table) {
-            $table->id();
-            $table->string('name');
-            $table->string('address')->nullable();
-            $table->string('phone')->nullable();
-            $table->string('email')->nullable();
-            $table->boolean('is_active')->default(true);
-            $table->timestamps();
-            $table->softDeletes();
-        });
         }
 
         // Create facilities table
@@ -106,18 +92,37 @@ return new class extends Migration
                 $table->string('name');
                 $table->string('first_name')->nullable();
                 $table->string('middle_names')->nullable();
+                $table->string('last_name')->nullable();
                 $table->date('date_of_birth');
-                $table->text('diagnosis')->nullable();
+                $table->string('gender')->nullable();
+                $table->string('phone')->nullable();
+                $table->string('emergency_contact_name')->nullable();
+                $table->string('emergency_contact_phone')->nullable();
+                $table->text('medical_conditions')->nullable();
                 $table->text('allergies')->nullable();
+                $table->text('medications')->nullable();
+                $table->text('dietary_restrictions')->nullable();
+                $table->text('mobility_notes')->nullable();
+                $table->text('behavioral_notes')->nullable();
+                $table->text('care_plan')->nullable();
+                $table->text('diagnosis')->nullable();
                 $table->string('physician_name')->nullable();
                 $table->string('pep_or_doctor')->nullable();
-                $table->foreignId('branch_id')->constrained()->onDelete('cascade');
+                $table->string('room_number')->nullable();
                 $table->string('room')->nullable();
                 $table->string('cart')->nullable();
+                $table->text('notes')->nullable();
+                $table->date('admission_date');
+                $table->date('discharge_date')->nullable();
+                $table->string('status')->default('active');
                 $table->string('profile_image')->nullable();
                 $table->boolean('is_active')->default(true);
+                $table->foreignId('branch_id')->constrained()->onDelete('cascade');
                 $table->timestamps();
                 $table->softDeletes();
+                
+                $table->index(['branch_id', 'status']);
+                $table->index(['status', 'admission_date']);
             });
         }
 
