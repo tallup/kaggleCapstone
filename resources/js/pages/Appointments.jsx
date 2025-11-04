@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
-import { CheckCircle, XCircle, Calendar, Plus, User, Stethoscope, MapPin } from 'lucide-react';
+import { CheckCircle, XCircle, Calendar, Plus, User, Stethoscope, MapPin, ChevronDown } from 'lucide-react';
 import Card from '../components/Card';
 import SectionCard from '../components/SectionCard';
 
@@ -526,11 +526,9 @@ function AddAppointmentModal({ branches, residents, formData, setFormData, onClo
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">Time</label>
-                            <input
-                                type="time"
+                            <TimePicker
                                 value={formData.appointment_time}
-                                onChange={(e) => setFormData({ ...formData, appointment_time: e.target.value })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2D5016] focus:border-transparent"
+                                onChange={(value) => setFormData({ ...formData, appointment_time: value })}
                             />
                         </div>
                         <div>
@@ -607,3 +605,134 @@ function AddAppointmentModal({ branches, residents, formData, setFormData, onClo
     );
 }
 
+
+// TimePicker Component
+function TimePicker({ value, onChange, className = '' }) {
+    const [isOpen, setIsOpen] = useState(false);
+    const [hours, setHours] = useState(() => {
+        if (value) {
+            const [h] = value.split(':');
+            return parseInt(h) || 12;
+        }
+        return 12;
+    });
+    const [minutes, setMinutes] = useState(() => {
+        if (value) {
+            const [, m] = value.split(':');
+            return parseInt(m) || 0;
+        }
+        return 0;
+    });
+    const [period, setPeriod] = useState(() => {
+        if (value) {
+            const [h] = value.split(':');
+            const hour = parseInt(h) || 0;
+            return hour >= 12 ? 'PM' : 'AM';
+        }
+        return 'AM';
+    });
+
+    React.useEffect(() => {
+        if (value) {
+            const [h, m] = value.split(':');
+            const hour = parseInt(h) || 0;
+            const min = parseInt(m) || 0;
+            setHours(hour % 12 || 12);
+            setMinutes(min);
+            setPeriod(hour >= 12 ? 'PM' : 'AM');
+        }
+    }, [value]);
+
+    const formatTime = (h, m, p) => {
+        let hour24 = h;
+        if (p === 'PM' && h !== 12) hour24 = h + 12;
+        if (p === 'AM' && h === 12) hour24 = 0;
+        return `${hour24.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+    };
+
+    const handleTimeChange = (newHours, newMinutes, newPeriod) => {
+        const timeValue = formatTime(newHours, newMinutes, newPeriod);
+        onChange(timeValue);
+        setIsOpen(false);
+    };
+
+    const hourOptions = Array.from({ length: 12 }, (_, i) => i + 1);
+    const minuteOptions = Array.from({ length: 60 }, (_, i) => i);
+
+    const displayValue = value 
+        ? `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')} ${period}`
+        : '--:-- --';
+
+    return (
+        <div className="relative">
+            <button
+                type="button"
+                onClick={() => setIsOpen(!isOpen)}
+                className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2D5016] focus:border-transparent bg-white text-left flex items-center justify-between ${className}`}
+            >
+                <span className={value ? 'text-gray-900' : 'text-gray-400'}>
+                    {displayValue}
+                </span>
+                <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isOpen ? 'transform rotate-180' : ''}`} />
+            </button>
+            
+            {isOpen && (
+                <>
+                    <div 
+                        className="fixed inset-0 z-10" 
+                        onClick={() => setIsOpen(false)}
+                    ></div>
+                    <div className="absolute z-20 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-4 w-full">
+                        <div className="flex items-center justify-center gap-2 mb-4">
+                            {/* Hours */}
+                            <select
+                                value={hours}
+                                onChange={(e) => {
+                                    const newHours = parseInt(e.target.value);
+                                    handleTimeChange(newHours, minutes, period);
+                                }}
+                                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2D5016] focus:border-transparent text-center text-lg font-semibold"
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                {hourOptions.map(h => (
+                                    <option key={h} value={h}>{h.toString().padStart(2, '0')}</option>
+                                ))}
+                            </select>
+                            
+                            <span className="text-2xl font-bold text-gray-700">:</span>
+                            
+                            {/* Minutes */}
+                            <select
+                                value={minutes}
+                                onChange={(e) => {
+                                    const newMinutes = parseInt(e.target.value);
+                                    handleTimeChange(hours, newMinutes, period);
+                                }}
+                                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2D5016] focus:border-transparent text-center text-lg font-semibold"
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                {minuteOptions.map(m => (
+                                    <option key={m} value={m}>{m.toString().padStart(2, '0')}</option>
+                                ))}
+                            </select>
+                            
+                            {/* AM/PM */}
+                            <select
+                                value={period}
+                                onChange={(e) => {
+                                    const newPeriod = e.target.value;
+                                    handleTimeChange(hours, minutes, newPeriod);
+                                }}
+                                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2D5016] focus:border-transparent text-center text-lg font-semibold"
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                <option value="AM">AM</option>
+                                <option value="PM">PM</option>
+                            </select>
+                        </div>
+                    </div>
+                </>
+            )}
+        </div>
+    );
+}
