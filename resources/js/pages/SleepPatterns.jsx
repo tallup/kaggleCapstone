@@ -410,9 +410,7 @@ export default function SleepPatterns() {
                                             <Line data={chartData} options={chartOptions} />
                                         )}
                                         {chartType === 'heatmap' && (
-                                            <div className="text-center py-20 text-gray-500">
-                                                Hourly Heatmap visualization coming soon
-                                            </div>
+                                            <HourlyHeatmap data={patternData.hourly_distribution || []} />
                                         )}
                                     </div>
                                 </div>
@@ -577,6 +575,132 @@ export default function SleepPatterns() {
                     </>
                 )}
             </SectionCard>
+        </div>
+    );
+}
+
+// Hourly Heatmap Component
+function HourlyHeatmap({ data }) {
+    if (!data || data.length === 0) {
+        return (
+            <div className="text-center py-20 text-gray-500">
+                No hourly distribution data available
+            </div>
+        );
+    }
+
+    // Get the maximum percentage for color scaling
+    const maxPercentage = Math.max(...data.map(d => d.percentage || 0), 1);
+
+    // Function to get color intensity based on percentage
+    const getColor = (percentage) => {
+        const intensity = Math.min(percentage / maxPercentage, 1);
+        // Use purple gradient from light to dark
+        const opacity = 0.3 + (intensity * 0.7); // Range from 0.3 to 1.0
+        return `rgba(147, 51, 234, ${opacity})`;
+    };
+
+    // Function to get text color based on background
+    const getTextColor = (percentage) => {
+        const intensity = percentage / maxPercentage;
+        return intensity > 0.5 ? 'text-white' : 'text-gray-700';
+    };
+
+    // Format hour for display (12-hour format with AM/PM)
+    const formatHour = (hour) => {
+        const hourNum = parseInt(hour);
+        if (hourNum === 0) return '12 AM';
+        if (hourNum < 12) return `${hourNum} AM`;
+        if (hourNum === 12) return '12 PM';
+        return `${hourNum - 12} PM`;
+    };
+
+    // Group hours into time periods for better visualization
+    const timePeriods = [
+        { label: 'Night (12 AM - 6 AM)', hours: [0, 1, 2, 3, 4, 5] },
+        { label: 'Morning (6 AM - 12 PM)', hours: [6, 7, 8, 9, 10, 11] },
+        { label: 'Afternoon (12 PM - 6 PM)', hours: [12, 13, 14, 15, 16, 17] },
+        { label: 'Evening (6 PM - 12 AM)', hours: [18, 19, 20, 21, 22, 23] },
+    ];
+
+    return (
+        <div className="w-full">
+            {/* Color Legend */}
+            <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-600">Less Sleep</span>
+                    <div className="flex gap-1">
+                        {[0, 0.25, 0.5, 0.75, 1].map((val) => (
+                            <div
+                                key={val}
+                                className="w-8 h-6 rounded"
+                                style={{
+                                    backgroundColor: `rgba(147, 51, 234, ${0.3 + (val * 0.7)})`,
+                                }}
+                            />
+                        ))}
+                    </div>
+                    <span className="text-sm text-gray-600">More Sleep</span>
+                </div>
+            </div>
+
+            {/* Heatmap Grid */}
+            <div className="grid grid-cols-12 gap-2 mb-6">
+                {data.map((item, index) => {
+                    const hour = parseInt(item.hour);
+                    const percentage = item.percentage || 0;
+                    const isNewPeriod = hour % 6 === 0;
+
+                    return (
+                        <div key={index} className="relative">
+                            {/* Period Labels */}
+                            {isNewPeriod && (
+                                <div className="absolute -top-6 left-0 right-0 text-xs text-gray-500 text-center font-medium">
+                                    {formatHour(item.hour)}
+                                </div>
+                            )}
+                            
+                            {/* Heatmap Cell */}
+                            <div
+                                className="rounded-lg p-3 text-center transition-all hover:scale-105 cursor-pointer border border-gray-200"
+                                style={{
+                                    backgroundColor: getColor(percentage),
+                                }}
+                                title={`${formatHour(item.hour)}: ${percentage.toFixed(1)}% sleep`}
+                            >
+                                <div className={`text-xs font-semibold ${getTextColor(percentage)}`}>
+                                    {percentage.toFixed(0)}%
+                                </div>
+                                <div className={`text-[10px] ${getTextColor(percentage)} opacity-75 mt-1`}>
+                                    {formatHour(item.hour)}
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+
+            {/* Time Period Summary */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+                {timePeriods.map((period) => {
+                    const periodData = data.filter(item => 
+                        period.hours.includes(parseInt(item.hour))
+                    );
+                    const avgPercentage = periodData.length > 0
+                        ? periodData.reduce((sum, item) => sum + (item.percentage || 0), 0) / periodData.length
+                        : 0;
+
+                    return (
+                        <div key={period.label} className="bg-gray-50 rounded-lg p-4">
+                            <div className="text-xs text-gray-600 mb-1">{period.label}</div>
+                            <div className="text-lg font-bold text-purple-600">
+                                {avgPercentage.toFixed(1)}%
+                            </div>
+                            <div className="text-xs text-gray-500">Avg. Sleep</div>
+                        </div>
+                    );
+                })}
+            </div>
         </div>
     );
 }
