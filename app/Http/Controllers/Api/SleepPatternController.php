@@ -15,15 +15,22 @@ class SleepPatternController extends Controller
 {
     public function getPattern(Request $request): JsonResponse
     {
-        $request->validate([
-            'resident_id' => 'required|exists:residents,id',
-            'month' => 'required|integer|min:1|max:12',
-            'year' => 'required|integer|min:2020|max:2100',
-        ]);
+        try {
+            $request->validate([
+                'resident_id' => 'required|exists:residents,id',
+                'month' => 'required|integer|min:1|max:12',
+                'year' => 'required|integer|min:2020|max:2100',
+            ]);
 
-        $residentId = $request->get('resident_id');
-        $month = $request->get('month');
-        $year = $request->get('year');
+            $residentId = $request->get('resident_id');
+            $month = $request->get('month');
+            $year = $request->get('year');
+
+            \Log::info('Sleep Pattern API called', [
+                'resident_id' => $residentId,
+                'month' => $month,
+                'year' => $year,
+            ]);
 
         // Get or create sleep pattern for this month/year
         $pattern = SleepPattern::where('resident_id', $residentId)
@@ -61,16 +68,36 @@ class SleepPatternController extends Controller
             
             // Calculate sleep hours - try new column first, then calculate from duration
             $sleepHours = (float) ($record->total_sleep_hours ?? 0);
-            if ($sleepHours == 0 && isset($record->sleep_duration_minutes)) {
-                $sleepHours = (float) ($record->sleep_duration_minutes / 60);
+            if ($sleepHours == 0) {
+                // Try to calculate from sleep_duration_minutes if available
+                if (isset($record->sleep_duration_minutes) && $record->sleep_duration_minutes > 0) {
+                    $sleepHours = (float) ($record->sleep_duration_minutes / 60);
+                } else {
+                    // Calculate from sleep_time and wake_time if available
+                    $sleepTime = $record->sleep_time ?? $record->sleep_start ?? null;
+                    $wakeTime = $record->wake_time ?? $record->sleep_end ?? null;
+                    if ($sleepTime && $wakeTime) {
+                        try {
+                            $sleep = Carbon::parse($sleepTime);
+                            $wake = Carbon::parse($wakeTime);
+                            if ($wake->lessThan($sleep)) {
+                                $wake->addDay();
+                            }
+                            $sleepHours = $sleep->diffInHours($wake) + ($sleep->diffInMinutes($wake) % 60) / 60;
+                        } catch (\Exception $e) {
+                            // If calculation fails, default to 8 hours
+                            $sleepHours = 8;
+                        }
+                    }
+                }
             }
             
             $awakeHours = max(0, 24 - $sleepHours);
             
             $dailyData[] = [
                 'day' => $day,
-                'sleep_hours' => $sleepHours,
-                'awake_hours' => $awakeHours,
+                'sleep_hours' => round($sleepHours, 2),
+                'awake_hours' => round($awakeHours, 2),
                 'total_hours' => 24,
             ];
         }
@@ -100,13 +127,37 @@ class SleepPatternController extends Controller
         // Get key observations
         $keyObservations = $this->getKeyObservations($pattern, $sleepRecords);
 
-        // Always return data, even if pattern is null (but we have records)
-        return response()->json([
-            'pattern' => $pattern,
-            'daily_data' => $dailyData,
-            'hourly_distribution' => $hourlyDistribution,
-            'key_observations' => $keyObservations,
-        ]);
+            // Always return data, even if pattern is null (but we have records)
+            \Log::info('Sleep Pattern API response', [
+                'records_count' => $sleepRecords->count(),
+                'daily_data_count' => count($dailyData),
+                'pattern_exists' => $pattern !== null,
+            ]);
+
+            return response()->json([
+                'pattern' => $pattern,
+                'daily_data' => $dailyData,
+                'hourly_distribution' => $hourlyDistribution,
+                'key_observations' => $keyObservations,
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            \Log::error('Sleep Pattern API validation error', [
+                'errors' => $e->errors(),
+            ]);
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Exception $e) {
+            \Log::error('Sleep Pattern API error', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return response()->json([
+                'message' => 'An error occurred while fetching sleep pattern data',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
 
     private function calculatePattern($residentId, $month, $year, $sleepRecords = null)

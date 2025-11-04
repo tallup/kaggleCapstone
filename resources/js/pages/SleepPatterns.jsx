@@ -62,17 +62,24 @@ export default function SleepPatterns() {
     });
 
     // Fetch sleep pattern data
-    const { data: patternData, isLoading } = useQuery({
+    const { data: patternData, isLoading, error } = useQuery({
         queryKey: ['sleep-pattern', residentId, month, year],
         queryFn: async () => {
-            const response = await api.get('/sleep-patterns', {
-                params: {
-                    resident_id: residentId,
-                    month: month,
-                    year: year,
-                }
-            });
-            return response.data;
+            try {
+                const response = await api.get('/sleep-patterns', {
+                    params: {
+                        resident_id: residentId,
+                        month: month,
+                        year: year,
+                    }
+                });
+                console.log('Sleep Pattern API Response:', response.data);
+                return response.data;
+            } catch (err) {
+                console.error('Sleep Pattern API Error:', err);
+                console.error('Error details:', err.response?.data);
+                throw err;
+            }
         },
         enabled: !!residentId && !!month && !!year,
     });
@@ -358,6 +365,14 @@ export default function SleepPatterns() {
                             <div className="text-center py-12">
                                 <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#2D5016]"></div>
                                 <p className="mt-4 text-gray-600">Loading sleep pattern data...</p>
+                            </div>
+                        ) : error ? (
+                            <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+                                <p className="text-red-700 font-semibold mb-2">Error loading sleep pattern data</p>
+                                <p className="text-red-600 text-sm">{error.message || 'Unknown error occurred'}</p>
+                                {error.response?.data && (
+                                    <p className="text-red-500 text-xs mt-2">{JSON.stringify(error.response.data)}</p>
+                                )}
                             </div>
                         ) : (patternData?.daily_data && patternData.daily_data.length > 0) ? (
                             <>
