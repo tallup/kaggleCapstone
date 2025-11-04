@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { BarChart3, LineChart, Grid, Download, Edit, Moon, Calendar, User, Filter, HelpCircle, Eye, TrendingUp } from 'lucide-react';
 import { Bar, Line } from 'react-chartjs-2';
@@ -30,12 +31,14 @@ ChartJS.register(
 );
 
 export default function SleepPatterns() {
+    const navigate = useNavigate();
     const [branchId, setBranchId] = useState('');
     const [residentId, setResidentId] = useState('');
     const [month, setMonth] = useState(new Date().getMonth() + 1);
     const [year, setYear] = useState(new Date().getFullYear());
     const [chartType, setChartType] = useState('bar'); // 'bar', 'line', 'heatmap'
     const [groupBy, setGroupBy] = useState('day');
+    const [showPreview, setShowPreview] = useState(false);
 
     // Fetch branches
     const { data: branchesData } = useQuery({
@@ -101,15 +104,109 @@ export default function SleepPatterns() {
         return isNaN(num) ? 0 : num;
     };
 
-    // Prepare chart data
+    // Handle Edit Sleep Data
+    const handleEditSleepData = () => {
+        if (residentId) {
+            navigate(`/sleep?resident=${residentId}&month=${month}&year=${year}`);
+        } else {
+            navigate('/sleep');
+        }
+    };
+
+    // Handle Download Sleep Data
+    const handleDownloadSleepData = () => {
+        if (!patternData || !patternData.daily_data || patternData.daily_data.length === 0) {
+            alert('No sleep data available to download');
+            return;
+        }
+
+        const selectedResident = residentsData?.data?.find(r => r.id == residentId);
+        const residentName = selectedResident 
+            ? `${selectedResident.first_name}_${selectedResident.last_name}`.replace(/\s+/g, '_')
+            : 'Unknown';
+        
+        const fileName = `sleep_data_${residentName}_${months[month - 1]}_${year}.csv`;
+        
+        // Prepare CSV content
+        const headers = ['Date', 'Sleep Hours', 'Awake Hours', 'Total Hours'];
+        const rows = patternData.daily_data.map(d => {
+            const date = new Date(year, month - 1, d.day);
+            return [
+                date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+                toNumber(d.sleep_hours).toFixed(2),
+                toNumber(d.awake_hours).toFixed(2),
+                '24.00'
+            ];
+        });
+
+        // Add summary row
+        const totalSleep = patternData.daily_data.reduce((sum, d) => sum + toNumber(d.sleep_hours), 0);
+        const totalAwake = patternData.daily_data.reduce((sum, d) => sum + toNumber(d.awake_hours), 0);
+        const avgSleep = patternData.daily_data.length > 0 ? totalSleep / patternData.daily_data.length : 0;
+
+        // Create CSV content
+        let csvContent = headers.join(',') + '\n';
+        rows.forEach(row => {
+            csvContent += row.join(',') + '\n';
+        });
+        csvContent += '\n';
+        csvContent += 'Summary\n';
+        csvContent += `Total Sleep Hours,${totalSleep.toFixed(2)}\n`;
+        csvContent += `Total Awake Hours,${totalAwake.toFixed(2)}\n`;
+        csvContent += `Average Sleep Hours/Day,${avgSleep.toFixed(2)}\n`;
+        csvContent += `Days With Records,${patternData.daily_data.length}\n`;
+
+        // Download file
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', fileName);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    // Handle Show Preview
+    const handleShowPreview = () => {
+        setShowPreview(!showPreview);
+    };
+
+    // Prepare chart data based on groupBy
     const chartData = React.useMemo(() => {
         if (!patternData?.daily_data || patternData.daily_data.length === 0) {
             return null;
         }
 
-        const labels = patternData.daily_data.map(d => d.day);
-        const sleepHours = patternData.daily_data.map(d => d.sleep_hours);
-        const awakeHours = patternData.daily_data.map(d => d.awake_hours);
+        let processedData = patternData.daily_data;
+
+        // Group by week if selected
+        if (groupBy === 'week') {
+            const weeklyData = {};
+            patternData.daily_data.forEach(d => {
+                const date = new Date(year, month - 1, d.day);
+                const weekNum = Math.ceil(d.day / 7);
+                const weekKey = `Week ${weekNum}`;
+                
+                if (!weeklyData[weekKey]) {
+                    weeklyData[weekKey] = { sleepHours: 0, awakeHours: 0, days: 0 };
+                }
+                weeklyData[weekKey].sleepHours += toNumber(d.sleep_hours);
+                weeklyData[weekKey].awakeHours += toNumber(d.awake_hours);
+                weeklyData[weekKey].days += 1;
+            });
+
+            processedData = Object.keys(weeklyData).map(week => ({
+                label: week,
+                sleep_hours: weeklyData[week].sleepHours / weeklyData[week].days,
+                awake_hours: weeklyData[week].awakeHours / weeklyData[week].days,
+            }));
+        }
+
+        const labels = processedData.map(d => d.label || d.day);
+        const sleepHours = processedData.map(d => toNumber(d.sleep_hours));
+        const awakeHours = processedData.map(d => toNumber(d.awake_hours));
 
         return {
             labels,
@@ -349,11 +446,18 @@ export default function SleepPatterns() {
                                 </button>
                             </div>
                             <div className="flex gap-2">
-                                <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2">
+                                <button 
+                                    onClick={handleEditSleepData}
+                                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+                                >
                                     <Edit className="w-4 h-4" />
                                     Edit Sleep Data
                                 </button>
-                                <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
+                                <button 
+                                    onClick={handleDownloadSleepData}
+                                    disabled={!patternData?.daily_data || patternData.daily_data.length === 0}
+                                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
                                     <Download className="w-4 h-4" />
                                     Download Sleep Data
                                 </button>
@@ -369,19 +473,89 @@ export default function SleepPatterns() {
                                         <label className="text-sm text-gray-700">Group by:</label>
                                         <select
                                             value={groupBy}
-                                            onChange={(e) => setGroupBy(e.target.value)}
+                                            onChange={(e) => {
+                                                setGroupBy(e.target.value);
+                                                setShowPreview(false); // Reset preview when grouping changes
+                                            }}
                                             className="px-3 py-1 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#2D5016] focus:border-transparent"
                                         >
                                             <option value="day">Day</option>
                                             <option value="week">Week</option>
                                         </select>
                                     </div>
-                                    <button className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2 text-sm">
+                                    <button 
+                                        onClick={handleShowPreview}
+                                        disabled={!patternData?.daily_data || patternData.daily_data.length === 0}
+                                        className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed ${
+                                            showPreview 
+                                                ? 'bg-purple-700 text-white' 
+                                                : 'bg-purple-600 text-white hover:bg-purple-700'
+                                        }`}
+                                    >
                                         <Eye className="w-4 h-4" />
-                                        Show Preview
+                                        {showPreview ? 'Hide Preview' : 'Show Preview'}
                                     </button>
                                 </div>
                             </div>
+                            
+                            {/* Preview Content */}
+                            {showPreview && patternData?.daily_data && patternData.daily_data.length > 0 && (
+                                <div className="mt-4 pt-4 border-t border-gray-200">
+                                    {groupBy === 'day' ? (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                                            {patternData.daily_data.slice(0, 8).map((day, idx) => {
+                                                const date = new Date(year, month - 1, day.day);
+                                                return (
+                                                    <div key={idx} className="bg-gray-50 rounded-lg p-3">
+                                                        <div className="text-xs font-semibold text-gray-700">
+                                                            {date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                                        </div>
+                                                        <div className="text-lg font-bold text-purple-600 mt-1">
+                                                            {toNumber(day.sleep_hours).toFixed(1)}h
+                                                        </div>
+                                                        <div className="text-xs text-gray-500">
+                                                            Sleep / {toNumber(day.awake_hours).toFixed(1)}h Awake
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    ) : (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                                            {(() => {
+                                                const weeklyData = {};
+                                                patternData.daily_data.forEach(d => {
+                                                    const weekNum = Math.ceil(d.day / 7);
+                                                    const weekKey = `Week ${weekNum}`;
+                                                    
+                                                    if (!weeklyData[weekKey]) {
+                                                        weeklyData[weekKey] = { sleepHours: 0, awakeHours: 0, days: 0 };
+                                                    }
+                                                    weeklyData[weekKey].sleepHours += toNumber(d.sleep_hours);
+                                                    weeklyData[weekKey].awakeHours += toNumber(d.awake_hours);
+                                                    weeklyData[weekKey].days += 1;
+                                                });
+
+                                                return Object.keys(weeklyData).map((week, idx) => {
+                                                    const avgSleep = weeklyData[week].sleepHours / weeklyData[week].days;
+                                                    const avgAwake = weeklyData[week].awakeHours / weeklyData[week].days;
+                                                    return (
+                                                        <div key={idx} className="bg-gray-50 rounded-lg p-3">
+                                                            <div className="text-xs font-semibold text-gray-700">{week}</div>
+                                                            <div className="text-lg font-bold text-purple-600 mt-1">
+                                                                {avgSleep.toFixed(1)}h
+                                                            </div>
+                                                            <div className="text-xs text-gray-500">
+                                                                Avg Sleep / {avgAwake.toFixed(1)}h Avg Awake
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                });
+                                            })()}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
                         {isLoading ? (
