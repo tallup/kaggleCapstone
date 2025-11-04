@@ -422,6 +422,24 @@ return new class extends Migration
             $table->unique(['user_id', 'role_id']);
             });
         }
+
+        // Create vital_ranges table
+        if (!Schema::hasTable('vital_ranges')) {
+            Schema::create('vital_ranges', function (Blueprint $table) {
+                $table->id();
+                $table->string('parameter')->unique(); // systolic, diastolic, temperature, pulse, oxygen_saturation
+                $table->decimal('min_normal', 8, 2)->nullable();
+                $table->decimal('max_normal', 8, 2)->nullable();
+                $table->decimal('min_warning', 8, 2)->nullable();
+                $table->decimal('max_warning', 8, 2)->nullable();
+                $table->decimal('min_critical', 8, 2)->nullable();
+                $table->decimal('max_critical', 8, 2)->nullable();
+                $table->string('unit')->nullable(); // mmHg, °F, BPM, %
+                $table->text('description')->nullable();
+                $table->boolean('is_active')->default(true);
+                $table->timestamps();
+            });
+        }
     }
 
     /**
@@ -433,6 +451,7 @@ return new class extends Migration
         Schema::dropIfExists('role_permissions');
         Schema::dropIfExists('permissions');
         Schema::dropIfExists('roles');
+        Schema::dropIfExists('vital_ranges');
         Schema::dropIfExists('behavior_categories');
         Schema::dropIfExists('behaviors');
         Schema::dropIfExists('incidents');
