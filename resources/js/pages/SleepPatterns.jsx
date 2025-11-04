@@ -374,7 +374,7 @@ export default function SleepPatterns() {
                                     <p className="text-red-500 text-xs mt-2">{JSON.stringify(error.response.data)}</p>
                                 )}
                             </div>
-                        ) : (patternData?.daily_data && patternData.daily_data.length > 0) ? (
+                        ) : patternData && (patternData.daily_data && patternData.daily_data.length > 0) ? (
                             <>
                                 {/* Main Chart */}
                                 <div className="bg-white rounded-lg shadow p-6 mb-6">
@@ -546,13 +546,18 @@ export default function SleepPatterns() {
                                     </div>
                                 )}
                             </>
-                        ) : residentId && !isLoading && (
+                        ) : residentId && !isLoading && patternData && (!patternData.daily_data || patternData.daily_data.length === 0) ? (
                             <div className="bg-white rounded-lg shadow p-12 text-center">
                                 <Moon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                                 <p className="text-gray-700 text-lg font-semibold mb-2">No sleep data found</p>
                                 <p className="text-gray-500">No sleep records found for {selectedResident?.first_name} {selectedResident?.last_name} in {months[month - 1]} {year}</p>
                             </div>
-                        )}
+                        ) : residentId && !isLoading && !patternData ? (
+                            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
+                                <p className="text-yellow-700 font-semibold mb-2">No data available</p>
+                                <p className="text-yellow-600 text-sm">Please check the browser console for errors.</p>
+                            </div>
+                        ) : null}
                     </>
                 )}
             </SectionCard>
