@@ -31,7 +31,7 @@ class DashboardController extends Controller
             'total_residents' => Resident::count(),
             'active_residents' => Resident::where('status', 'active')->count(),
             'today_appointments' => Appointment::whereDate('appointment_date', today())->count(),
-            'upcoming_appointments' => Appointment::where('appointment_date', '>=', now())
+            'upcoming_appointments' => Appointment::whereDate('appointment_date', '>=', today())
                 ->where('status', 'scheduled')
                 ->count(),
             'today_vitals' => VitalSign::whereDate('measurement_date', today())->count(),
