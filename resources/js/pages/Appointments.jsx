@@ -11,6 +11,7 @@ export default function Appointments() {
     const [statusFilter, setStatusFilter] = useState('all');
     const [showForm, setShowForm] = useState(false);
     const [formData, setFormData] = useState({
+        branch_id: '',
         resident_id: '',
         appointment_date: new Date().toISOString().split('T')[0],
         appointment_time: '',
@@ -34,10 +35,31 @@ export default function Appointments() {
         },
     });
 
-    // Residents for form
+    // Branches for form
+    const { data: branchesData } = useQuery({
+        queryKey: ['branches-list'],
+        queryFn: async () => {
+            const response = await api.get('/branches', { params: { per_page: 100 } });
+            // Filter active branches on frontend since backend doesn't support is_active filter
+            const branches = response.data?.data || response.data || [];
+            return {
+                ...response.data,
+                data: branches.filter(b => b.is_active !== false)
+            };
+        },
+    });
+
+    // Residents for form - filtered by branch
     const { data: residentsData } = useQuery({
-        queryKey: ['residents-list'],
-        queryFn: async () => (await api.get('/residents', { params: { per_page: 100 } })).data,
+        queryKey: ['residents-list', formData.branch_id],
+        queryFn: async () => {
+            const params = { per_page: 100 };
+            if (formData.branch_id) {
+                params.branch_id = formData.branch_id;
+            }
+            return (await api.get('/residents', { params })).data;
+        },
+        enabled: true, // Always enabled, but filters by branch_id
     });
 
     const createMutation = useMutation({
@@ -59,6 +81,7 @@ export default function Appointments() {
             queryClient.invalidateQueries(['appointments']);
             setShowForm(false);
             setFormData({
+                branch_id: '',
                 resident_id: '',
                 appointment_date: new Date().toISOString().split('T')[0],
                 appointment_time: '',
@@ -248,7 +271,8 @@ export default function Appointments() {
 
             {showForm && (
                 <AddAppointmentModal
-                    residents={residentsData?.data || []}
+                    branches={branchesData?.data || branchesData || []}
+                    residents={residentsData?.data || residentsData || []}
                     formData={formData}
                     setFormData={setFormData}
                     onClose={() => setShowForm(false)}
@@ -301,7 +325,7 @@ export default function Appointments() {
     );
 }
 
-function AddAppointmentModal({ residents, formData, setFormData, onClose, onSubmit, isSubmitting, mutation }) {
+function AddAppointmentModal({ branches, residents, formData, setFormData, onClose, onSubmit, isSubmitting, mutation }) {
     const [errors, setErrors] = React.useState({});
 
     const handleSubmit = async (e) => {
@@ -332,6 +356,29 @@ function AddAppointmentModal({ residents, formData, setFormData, onClose, onSubm
                     <div className="p-6 space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Branch</label>
+                            <div className="relative">
+                                <select
+                                    value={formData.branch_id}
+                                    onChange={(e) => {
+                                        setFormData({ 
+                                            ...formData, 
+                                            branch_id: e.target.value,
+                                            resident_id: '' // Reset resident when branch changes
+                                        });
+                                        setErrors({ ...errors, branch_id: null, resident_id: null });
+                                    }}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2D5016] focus:border-transparent"
+                                >
+                                    <option value="">All Branches</option>
+                                    {(branches || []).map(branch => (
+                                        <option key={branch.id} value={branch.id}>{branch.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            {errors.branch_id && <p className="text-xs text-red-600 mt-1">{errors.branch_id}</p>}
+                        </div>
+                        <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">Resident *</label>
                             <div className="relative">
                                 <User className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -341,12 +388,15 @@ function AddAppointmentModal({ residents, formData, setFormData, onClose, onSubm
                                         setFormData({ ...formData, resident_id: e.target.value });
                                         setErrors({ ...errors, resident_id: null });
                                     }}
+                                    disabled={!formData.branch_id}
                                     className={`w-full pl-9 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2D5016] focus:border-transparent ${
                                         errors.resident_id ? 'border-red-300' : 'border-gray-300'
-                                    }`}
+                                    } ${!formData.branch_id ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                                 >
-                                    <option value="">Select resident</option>
-                                    {residents.map(r => (
+                                    <option value="">
+                                        {formData.branch_id ? 'Select resident' : 'Select a branch first'}
+                                    </option>
+                                    {(residents?.data || []).map(r => (
                                         <option key={r.id} value={r.id}>{r.first_name} {r.last_name}</option>
                                     ))}
                                 </select>
