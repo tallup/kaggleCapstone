@@ -188,7 +188,7 @@ export default function Appointments() {
                             >
                                 <div className="flex items-center justify-between mb-3">
                                     <h3 className="text-lg font-semibold text-gray-900">
-                                        {appointment.appointment_type?.name || 'Appointment'}
+                                        {appointment.resident?.first_name} {appointment.resident?.last_name}
                                     </h3>
                                     <span className={`px-3 py-1 rounded-full text-xs font-medium ${
                                         appointment.status === 'scheduled' ? 'bg-amber-50 text-[#8B4513] border border-[#8B4513]' :
@@ -199,8 +199,8 @@ export default function Appointments() {
                                     </span>
                                 </div>
                                 
-                                <p className="text-gray-700 mb-1">
-                                    <span className="font-medium">{appointment.resident?.first_name} {appointment.resident?.last_name}</span>
+                                <p className="text-gray-600 mb-1">
+                                    <span className="font-medium">{appointment.appointment_type?.name || 'Appointment'}</span>
                                 </p>
                                 {appointment.healthcare_provider && (
                                     <p className="text-gray-600 mb-1">

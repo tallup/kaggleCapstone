@@ -34,7 +34,9 @@ class AppointmentController extends Controller
             $query->where('resident_id', $request->get('resident_id'));
         }
 
+        // Order by appointment date (ascending) then by created_at (descending) so newest appointments for same date show first
         $appointments = $query->orderBy('appointment_date', 'asc')
+            ->orderBy('created_at', 'desc')
             ->paginate($request->get('per_page', 15));
 
         return response()->json($appointments);

@@ -120,7 +120,7 @@ export default function Residents() {
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {data?.data?.length > 0 ? (
+                    {data?.data?.length > 0 ? (
                         data.data
                             .filter(resident => {
                                 if (statusFilter === 'active') return resident.is_active !== false;
@@ -147,9 +147,9 @@ export default function Residents() {
                                             {resident.first_name?.[0]?.toUpperCase() || ''}{resident.last_name?.[0]?.toUpperCase() || ''}
                                         </div>
                                     )}
-                                    <h3 className="text-lg font-semibold text-gray-900">
-                                        {resident.first_name} {resident.middle_names ? resident.middle_names + ' ' : ''}{resident.last_name}
-                                    </h3>
+                                <h3 className="text-lg font-semibold text-gray-900">
+                                    {resident.first_name} {resident.middle_names ? resident.middle_names + ' ' : ''}{resident.last_name}
+                                </h3>
                                 </div>
                                 <div className="flex space-x-2">
                                     <button
@@ -501,7 +501,7 @@ function ResidentForm({ record, branches, onClose, onSuccess }) {
                 // Don't set Content-Type - let browser set it automatically for FormData
                 const config = {};
 
-                if (record) {
+            if (record) {
                     // For file uploads with PUT, use post with _method override
                     formDataToSend.append('_method', 'PUT');
                     response = await api.post(`/residents/${record.id}`, formDataToSend, config);
@@ -545,7 +545,7 @@ function ResidentForm({ record, branches, onClose, onSuccess }) {
             
             // Wait a moment so user can see the success message, then close
             setTimeout(() => {
-                onSuccess();
+            onSuccess();
             }, 1500);
         } catch (error) {
             console.error('Error saving resident:', error);
@@ -594,7 +594,7 @@ function ResidentForm({ record, branches, onClose, onSuccess }) {
                         general: `Server Error: ${errorMessage}. Please check your input and try again. If the problem persists, contact support.` 
                     });
                 } else if (error.response.data?.errors) {
-                    setErrors(error.response.data.errors);
+                setErrors(error.response.data.errors);
                 } else {
                     setErrors({ general: error.response.data?.message || `Failed to save resident (Error ${error.response.status}). Please try again.` });
                 }
