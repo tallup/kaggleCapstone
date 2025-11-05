@@ -22,6 +22,34 @@ class VitalRangeResource extends Resource
     protected static ?int $navigationSort = 100;
     protected static bool $shouldRegisterNavigation = true;
 
+    public static function canViewAny(): bool
+    {
+        return auth()->user()->hasPermission('view_vital_ranges') 
+            || auth()->user()->hasRole('administrator') 
+            || auth()->user()->hasRole('super_admin');
+    }
+
+    public static function canCreate(): bool
+    {
+        return auth()->user()->hasPermission('create_vital_ranges') 
+            || auth()->user()->hasRole('administrator') 
+            || auth()->user()->hasRole('super_admin');
+    }
+
+    public static function canEdit($record): bool
+    {
+        return auth()->user()->hasPermission('edit_vital_ranges') 
+            || auth()->user()->hasRole('administrator') 
+            || auth()->user()->hasRole('super_admin');
+    }
+
+    public static function canDelete($record): bool
+    {
+        return auth()->user()->hasPermission('delete_vital_ranges') 
+            || auth()->user()->hasRole('administrator') 
+            || auth()->user()->hasRole('super_admin');
+    }
+
     public static function form(Form $form): Form
     {
         return $form
