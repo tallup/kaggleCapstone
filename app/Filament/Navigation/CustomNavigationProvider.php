@@ -115,6 +115,7 @@ class CustomNavigationProvider
                     ]),
 
                 // Administration (with dropdown) - Eighth item
+                // Only show if user has at least one administrative permission
                 NavigationItem::make('Administration')
                     ->icon('heroicon-o-cog-6-tooth')
                     ->url('#')
@@ -124,35 +125,81 @@ class CustomNavigationProvider
                         request()->routeIs('filament.admin.resources.users.*') || 
                         request()->routeIs('filament.admin.resources.leave-requests.*') ||
                         request()->routeIs('filament.admin.resources.roles.*') ||
-                        request()->routeIs('filament.admin.resources.residents.*'))
+                        request()->routeIs('filament.admin.resources.employee-documents.*'))
                     ->sort(80)
+                    ->visible(fn (): bool => auth()->check() && (
+                        auth()->user()->hasPermission('view_users') ||
+                        auth()->user()->hasPermission('view_facilities') ||
+                        auth()->user()->hasPermission('view_branches') ||
+                        auth()->user()->hasPermission('view_vital_ranges') ||
+                        auth()->user()->hasPermission('view_roles') ||
+                        auth()->user()->hasPermission('view_leave_requests') ||
+                        auth()->user()->hasRole('administrator') ||
+                        auth()->user()->hasRole('super_admin')
+                    ))
                     ->childItems([
-                        // Residents - First item in Administration dropdown
-                        NavigationItem::make('Residents')
-                            ->icon('heroicon-o-users')
-                            ->url(route('filament.admin.resources.residents.index'))
-                            ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.resources.residents.*')),
-                        
                         // Facility Management
                         NavigationItem::make('Facilities')
                             ->url(route('filament.admin.resources.facilities.index'))
-                            ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.resources.facilities.*')),
+                            ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.resources.facilities.*'))
+                            ->visible(fn (): bool => auth()->check() && (
+                                auth()->user()->hasPermission('view_facilities') ||
+                                auth()->user()->hasRole('administrator') ||
+                                auth()->user()->hasRole('super_admin')
+                            )),
                         
                         NavigationItem::make('Branches')
                             ->url(route('filament.admin.resources.branches.index'))
-                            ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.resources.branches.*')),
+                            ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.resources.branches.*'))
+                            ->visible(fn (): bool => auth()->check() && (
+                                auth()->user()->hasPermission('view_branches') ||
+                                auth()->user()->hasRole('administrator') ||
+                                auth()->user()->hasRole('super_admin')
+                            )),
                         
                         NavigationItem::make('Vital Ranges')
                             ->url(route('filament.admin.resources.vital-ranges.index'))
-                            ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.resources.vital-ranges.*')),
+                            ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.resources.vital-ranges.*'))
+                            ->visible(fn (): bool => auth()->check() && (
+                                auth()->user()->hasPermission('view_vital_ranges') ||
+                                auth()->user()->hasRole('administrator') ||
+                                auth()->user()->hasRole('super_admin')
+                            )),
                         
                         NavigationItem::make('Leave Requests')
                             ->url(route('filament.admin.resources.leave-requests.index'))
-                            ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.resources.leave-requests.*')),
+                            ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.resources.leave-requests.*'))
+                            ->visible(fn (): bool => auth()->check() && (
+                                auth()->user()->hasPermission('view_leave_requests') ||
+                                auth()->user()->hasRole('administrator') ||
+                                auth()->user()->hasRole('super_admin')
+                            )),
                         
                         NavigationItem::make('Roles & Permissions')
                             ->url(route('filament.admin.resources.roles.index'))
-                            ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.resources.roles.*')),
+                            ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.resources.roles.*'))
+                            ->visible(fn (): bool => auth()->check() && (
+                                auth()->user()->hasPermission('view_roles') ||
+                                auth()->user()->hasRole('administrator') ||
+                                auth()->user()->hasRole('super_admin')
+                            )),
+                        
+                        NavigationItem::make('Users')
+                            ->url(route('filament.admin.resources.users.index'))
+                            ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.resources.users.*'))
+                            ->visible(fn (): bool => auth()->check() && (
+                                auth()->user()->hasPermission('view_users') ||
+                                auth()->user()->hasRole('administrator') ||
+                                auth()->user()->hasRole('super_admin')
+                            )),
+                        
+                        NavigationItem::make('Employee Documents')
+                            ->url(route('filament.admin.resources.employee-documents.index'))
+                            ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.resources.employee-documents.*'))
+                            ->visible(fn (): bool => auth()->check() && (
+                                auth()->user()->hasRole('administrator') ||
+                                auth()->user()->hasRole('super_admin')
+                            )),
                     ]),
             ]);
     }
