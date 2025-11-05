@@ -153,12 +153,6 @@ class UserResource extends Resource
 
                 Forms\Components\Section::make('Employment Details')
                     ->schema([
-                        Forms\Components\Select::make('position')
-                            ->label('Select the Position')
-                            ->options(User::getPositionOptions())
-                            ->searchable()
-                            ->required()
-                            ->placeholder('Choose position'),
                         Forms\Components\TextInput::make('credentials')
                             ->label('State the Credentials')
                             ->maxLength(255)
@@ -205,6 +199,7 @@ class UserResource extends Resource
                         Forms\Components\TextInput::make('password')
                             ->label('Password')
                             ->password()
+                            ->revealable()
                             ->required(fn (string $context): bool => $context === 'create')
                             ->dehydrated(fn ($state) => filled($state))
                             ->placeholder('Enter secure password')
