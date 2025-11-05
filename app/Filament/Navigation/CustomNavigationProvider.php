@@ -113,7 +113,7 @@ class CustomNavigationProvider
                             ->icon('heroicon-o-chart-bar')
                             ->url(route('filament.admin.pages.staff-charts'))
                             ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.pages.staff-charts')),
-                    ]);
+                    ];
         
         // Only add Administration menu if user is NOT a caregiver
         if (auth()->check()) {
