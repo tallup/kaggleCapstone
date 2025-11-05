@@ -189,8 +189,8 @@ export default function ViewVitals() {
                 {
                     label: 'Oxygen Saturation',
                     data: sortedVitals.map(v => v.oxygen_saturation),
-                    borderColor: 'rgb(20, 184, 166)', // Teal instead of blue
-                    backgroundColor: 'rgba(20, 184, 166, 0.1)',
+                    borderColor: 'rgb(16, 185, 129)', // Emerald green instead of blue/teal
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
                     fill: false,
                     tension: 0.4,
                     pointRadius: 4,
@@ -213,11 +213,17 @@ export default function ViewVitals() {
                     font: {
                         size: 12,
                     },
+                    color: '#000000', // Black text for legend
                 },
             },
             tooltip: {
                 mode: 'index',
                 intersect: false,
+                backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                titleColor: '#000000',
+                bodyColor: '#000000',
+                borderColor: '#e5e7eb',
+                borderWidth: 1,
             },
         },
         scales: {
@@ -227,12 +233,16 @@ export default function ViewVitals() {
                 max: 200,
                 ticks: {
                     stepSize: 30,
+                    color: '#6b7280', // Gray ticks
                 },
                 grid: {
                     color: 'rgba(0, 0, 0, 0.1)',
                 },
             },
             x: {
+                ticks: {
+                    color: '#6b7280', // Gray ticks
+                },
                 grid: {
                     display: false,
                 },
