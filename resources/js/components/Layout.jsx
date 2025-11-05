@@ -29,7 +29,15 @@ const navigation = [
     { name: 'Dashboard', icon: LayoutDashboard, path: '/dashboard', children: null },
     { name: 'Assessments', icon: ClipboardList, path: '/assessments', children: null },
     { name: 'Appointment', icon: Calendar, path: '/appointments', children: null },
-    { name: 'Vitals', icon: Heart, path: '/vitals', children: null },
+    { 
+        name: 'Vitals', 
+        icon: Heart, 
+        path: '/vitals', 
+        children: [
+            { name: 'Vitals', path: '/vitals' },
+            { name: 'View Vitals', path: '/view-vitals' },
+        ]
+    },
     { name: 'Medication', icon: Pill, path: '/medications', children: null },
     { 
         name: 'Sleep', 
