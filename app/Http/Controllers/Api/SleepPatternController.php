@@ -242,14 +242,50 @@ class SleepPatternController extends Controller
         // If branch_id is not in sleep records, try to get it from the resident
         if (!$branchId) {
             $resident = \App\Models\Resident::find($residentId);
-            $branchId = $resident->branch_id ?? null;
+            if ($resident) {
+                $branchId = $resident->branch_id ?? null;
+            }
+        }
+        
+        // If still no branch_id, try to get it from the resident relationship on sleep records
+        if (!$branchId && $sleepRecords->isNotEmpty()) {
+            $firstRecord = $sleepRecords->first();
+            if (!$firstRecord->relationLoaded('resident')) {
+                $firstRecord->load('resident');
+            }
+            if ($firstRecord->resident) {
+                $branchId = $firstRecord->resident->branch_id ?? null;
+            }
+        }
+        
+        // Final fallback: if branch_id is still null, use the first branch as fallback
+        // This should rarely happen, but ensures we always have a branch_id
+        if (!$branchId) {
+            \Log::warning('Sleep Pattern: branch_id is null for resident, using fallback', [
+                'resident_id' => $residentId,
+                'month' => $month,
+                'year' => $year,
+            ]);
+            $firstBranch = \App\Models\Branch::first();
+            if ($firstBranch) {
+                $branchId = $firstBranch->id;
+                \Log::info('Sleep Pattern: Using fallback branch_id', [
+                    'branch_id' => $firstBranch->id,
+                    'resident_id' => $residentId,
+                ]);
+            } else {
+                \Log::error('Sleep Pattern: No branches exist in the system', [
+                    'resident_id' => $residentId,
+                ]);
+                throw new \Exception('No branch_id available and no branches exist in the system');
+            }
         }
 
         // Check if the table has a 'date' column (production schema) or 'month'/'year' (alternative schema)
         $hasDateColumn = Schema::hasColumn('sleep_patterns', 'date');
         $hasMonthYearColumns = Schema::hasColumn('sleep_patterns', 'month') && Schema::hasColumn('sleep_patterns', 'year');
 
-        // Prepare the data array
+        // Prepare the data array - ALWAYS include branch_id since it's required
         $patternData = [
             'branch_id' => $branchId,
         ];
