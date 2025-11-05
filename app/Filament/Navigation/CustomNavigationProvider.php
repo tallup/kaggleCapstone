@@ -14,6 +14,12 @@ class CustomNavigationProvider
         // COMPLETELY REPLACE navigation - don't use auto-discovered items
         // This ensures caregivers can't see Administration menu
         
+        // Log that provider is being called
+        \Log::info('CustomNavigationProvider called', [
+            'user' => auth()->check() ? auth()->user()->name : 'guest',
+            'existing_items_count' => count($builder->getItems()),
+        ]);
+        
         // COMPLETELY REPLACE navigation - start fresh
         // Don't use any existing items from auto-discovery
         $items = [
