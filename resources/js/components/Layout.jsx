@@ -21,7 +21,8 @@ import {
     ChevronDown,
     ChevronRight,
     Menu,
-    X
+    X,
+    CalendarClock
 } from 'lucide-react';
 import NotificationDropdown from './NotificationDropdown';
 
@@ -133,7 +134,20 @@ export default function Layout() {
 
                 {/* Navigation */}
                 <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-                    {navigation.map((item) => {
+                    {navigation.filter(item => {
+                        // Hide Administration menu for caregivers
+                        if (item.name === 'Administration' && currentUser) {
+                            const role = currentUser.role?.toLowerCase().trim() || '';
+                            const roleNormalized = role.replace(/[\s_]/g, '');
+                            
+                            // Check if user is a caregiver
+                            const isCaregiver = roleNormalized === 'caregiver' || 
+                                               (role.includes('care') && role.includes('giver'));
+                            
+                            return !isCaregiver;
+                        }
+                        return true;
+                    }).map((item) => {
                         const Icon = item.icon;
                         const isActive = location.pathname === item.path || 
                             location.pathname.startsWith(item.path + '/') ||
@@ -220,6 +234,13 @@ export default function Layout() {
                     </div>
                     <div className="flex items-center space-x-2 md:space-x-4">
                         <NotificationDropdown />
+                        <Link
+                            to="/administration/leave-requests"
+                            className="p-2 rounded-full hover:bg-gray-100 transition-colors relative"
+                            title="Leave Requests"
+                        >
+                            <CalendarClock className="w-5 h-5 text-gray-700" />
+                        </Link>
                         <div className="relative">
                             <button
                                 onClick={() => setUserMenuOpen(!userMenuOpen)}

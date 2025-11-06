@@ -14,6 +14,28 @@ export default function Assessments() {
     const [dateFilter, setDateFilter] = useState('all');
     const [showForm, setShowForm] = useState(false);
     const [editing, setEditing] = useState(null);
+    const [currentUser, setCurrentUser] = useState(null);
+
+    // Fetch current user
+    React.useEffect(() => {
+        const fetchUser = async () => {
+            try {
+                const response = await api.get('/user');
+                setCurrentUser(response.data);
+            } catch (err) {
+                console.error('Failed to fetch current user:', err);
+            }
+        };
+        fetchUser();
+    }, []);
+
+    // Check if user is a caregiver
+    const isCaregiver = React.useMemo(() => {
+        if (!currentUser) return false;
+        const role = currentUser.role?.toLowerCase().trim() || '';
+        const roleNormalized = role.replace(/[\s_]/g, '');
+        return roleNormalized === 'caregiver' || (role.includes('care') && role.includes('giver'));
+    }, [currentUser]);
 
     // Fetch residents for form
     const { data: residentsData } = useQuery({
@@ -95,16 +117,18 @@ export default function Assessments() {
                         <h2 className="text-xl font-semibold text-gray-900 mb-2">Assessment Management</h2>
                         <p className="text-gray-600">View and manage resident assessments.</p>
                     </div>
-                    <button
-                        onClick={() => {
-                            setEditing(null);
-                            setShowForm(true);
-                        }}
-                        className="w-full sm:w-auto px-4 py-2 bg-[#2D5016] text-white rounded-lg hover:bg-[#1a3009] transition-colors flex items-center justify-center space-x-2 text-sm md:text-base"
-                    >
-                        <Plus className="w-4 h-4" />
-                        <span>Add Assessment</span>
-                    </button>
+                    {!isCaregiver && (
+                        <button
+                            onClick={() => {
+                                setEditing(null);
+                                setShowForm(true);
+                            }}
+                            className="w-full sm:w-auto px-4 py-2 bg-[#2D5016] text-white rounded-lg hover:bg-[#1a3009] transition-colors flex items-center justify-center space-x-2 text-sm md:text-base"
+                        >
+                            <Plus className="w-4 h-4" />
+                            <span>Add Assessment</span>
+                        </button>
+                    )}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -264,29 +288,31 @@ export default function Assessments() {
                                     </div>
                                 )}
 
-                                <div className="flex space-x-2 mt-4">
-                                    <button
-                                        onClick={() => {
-                                            setEditing(assessment);
-                                            setShowForm(true);
-                                        }}
-                                        className="p-2 text-[#8B4513] hover:bg-amber-50 rounded-lg transition-colors"
-                                        title="Edit"
-                                    >
-                                        <Edit className="w-4 h-4" />
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            if (window.confirm('Are you sure you want to delete this assessment?')) {
-                                                deleteMutation.mutate(assessment.id);
-                                            }
-                                        }}
-                                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                        title="Delete"
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                    </button>
-                                </div>
+                                {!isCaregiver && (
+                                    <div className="flex space-x-2 mt-4">
+                                        <button
+                                            onClick={() => {
+                                                setEditing(assessment);
+                                                setShowForm(true);
+                                            }}
+                                            className="p-2 text-[#8B4513] hover:bg-amber-50 rounded-lg transition-colors"
+                                            title="Edit"
+                                        >
+                                            <Edit className="w-4 h-4" />
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                if (window.confirm('Are you sure you want to delete this assessment?')) {
+                                                    deleteMutation.mutate(assessment.id);
+                                                }
+                                            }}
+                                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                            title="Delete"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                )}
                             </Card>
                         ))
                     ) : (

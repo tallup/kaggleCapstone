@@ -8,6 +8,28 @@ export default function LeaveRequests() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
+
+  // Fetch current user
+  React.useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const response = await api.get('/user');
+        setCurrentUser(response.data);
+      } catch (err) {
+        console.error('Failed to fetch current user:', err);
+      }
+    };
+    fetchUser();
+  }, []);
+
+  // Check if user is a caregiver
+  const isCaregiver = React.useMemo(() => {
+    if (!currentUser) return false;
+    const role = currentUser.role?.toLowerCase().trim() || '';
+    const roleNormalized = role.replace(/[\s_]/g, '');
+    return roleNormalized === 'caregiver' || (role.includes('care') && role.includes('giver'));
+  }, [currentUser]);
 
   const { data: users } = useQuery({
     queryKey: ['users-options'],
@@ -69,8 +91,13 @@ export default function LeaveRequests() {
                     {lr.reason && <p className="text-sm text-gray-700 mt-3"><span className="font-medium">Reason:</span> {lr.reason}</p>}
                   </div>
                   <div className="flex space-x-2">
-                    <button onClick={() => { setEditing(lr); setShowForm(true); }} className="p-2 text-[#2D5016] hover:bg-green-50 rounded-lg" title="Edit"><Edit className="w-4 h-4" /></button>
-                    <button onClick={() => window.confirm('Delete leave request?') && deleteMutation.mutate(lr.id)} className="p-2 text-[#8B4513] hover:bg-amber-50 rounded-lg" title="Delete"><Trash2 className="w-4 h-4" /></button>
+                    {/* Caregivers can only edit/delete their own requests */}
+                    {(!isCaregiver || lr.staff_id === currentUser?.id) && (
+                      <>
+                        <button onClick={() => { setEditing(lr); setShowForm(true); }} className="p-2 text-[#2D5016] hover:bg-green-50 rounded-lg" title="Edit"><Edit className="w-4 h-4" /></button>
+                        <button onClick={() => window.confirm('Delete leave request?') && deleteMutation.mutate(lr.id)} className="p-2 text-[#8B4513] hover:bg-amber-50 rounded-lg" title="Delete"><Trash2 className="w-4 h-4" /></button>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -87,6 +114,8 @@ export default function LeaveRequests() {
       {showForm && (
         <LeaveForm
           record={editing}
+          currentUser={currentUser}
+          isCaregiver={isCaregiver}
           onClose={() => { setShowForm(false); setEditing(null); }}
           onSuccess={() => { setShowForm(false); setEditing(null); queryClient.invalidateQueries(['leave-requests']); }}
         />
@@ -95,11 +124,21 @@ export default function LeaveRequests() {
   );
 }
 
-function LeaveForm({ record, onClose, onSuccess }) {
+function LeaveForm({ record, currentUser, isCaregiver, onClose, onSuccess }) {
+  // Format date helper function
+  const formatDateForInput = (dateString) => {
+    if (!dateString) return new Date().toISOString().split('T')[0];
+    // If it's already in YYYY-MM-DD format, return it
+    if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) return dateString;
+    // Otherwise parse and format it
+    const date = new Date(dateString);
+    return date.toISOString().split('T')[0];
+  };
+
   const [form, setForm] = useState({
-    staff_id: record?.staff_id || '',
-    start_date: record?.start_date || new Date().toISOString().split('T')[0],
-    end_date: record?.end_date || new Date().toISOString().split('T')[0],
+    staff_id: record?.staff_id || currentUser?.id || '',
+    start_date: formatDateForInput(record?.start_date),
+    end_date: formatDateForInput(record?.end_date),
     reason: record?.reason || '',
     status: record?.status || 'pending',
   });
@@ -145,17 +184,20 @@ function LeaveForm({ record, onClose, onSuccess }) {
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Reason</label>
-              <textarea value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} rows={3} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2D5016] focus:border-transparent" />
+              <label className="block text-sm font-medium text-gray-700 mb-1">Reason *</label>
+              <textarea value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} rows={3} required className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2D5016] focus:border-transparent" placeholder="Please provide a reason for your leave request..." />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-              <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2D5016] focus:border-transparent">
-                <option value="pending">Pending</option>
-                <option value="approved">Approved</option>
-                <option value="rejected">Rejected</option>
-              </select>
-            </div>
+            {/* Only admins can approve/reject leave requests */}
+            {!isCaregiver && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2D5016] focus:border-transparent">
+                  <option value="pending">Pending</option>
+                  <option value="approved">Approved</option>
+                  <option value="declined">Declined</option>
+                </select>
+              </div>
+            )}
             <div className="flex items-center justify-end space-x-3 pt-4 border-t">
               <button type="button" onClick={onClose} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
               <button type="submit" disabled={submitting} className="w-full sm:w-auto px-4 py-2 bg-[#2D5016] text-white rounded-lg hover:bg-[#1a3009] disabled:opacity-50">{submitting ? 'Saving...' : (record ? 'Update' : 'Create')}</button>

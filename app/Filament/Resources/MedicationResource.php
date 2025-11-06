@@ -233,13 +233,13 @@ class MedicationResource extends Resource
                             ->label('Prescription Date')
                             ->native(false)
                             ->displayFormat('M j, Y')
-                            ->default(now())
+                            ->default(fn ($operation) => $operation === 'create' ? now() : null)
                             ->required(),
                         Forms\Components\DatePicker::make('start_date')
                             ->label('Start Date')
                             ->native(false)
                             ->displayFormat('M j, Y')
-                            ->default(now()),
+                            ->default(fn ($operation) => $operation === 'create' ? now() : null),
                         Forms\Components\DatePicker::make('end_date')
                             ->label('End Date')
                             ->native(false)

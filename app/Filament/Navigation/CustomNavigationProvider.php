@@ -9,6 +9,38 @@ use Filament\Facades\Filament;
 
 class CustomNavigationProvider
 {
+    /**
+     * Check if the current user is a caregiver
+     * Checks both the roles relationship and the role column value
+     */
+    private function isCaregiver($user): bool
+    {
+        if (!$user) {
+            return false;
+        }
+        
+        // Check the roles relationship
+        if ($user->hasRole('caregiver') || $user->hasRole('care_giver')) {
+            return true;
+        }
+        
+        // Check the role column value directly
+        $roleValue = strtolower(trim($user->role ?? ''));
+        $roleValueNormalized = str_replace([' ', '_'], '', $roleValue);
+        
+        // Check if role is exactly 'caregiver' (normalized)
+        if ($roleValueNormalized === 'caregiver') {
+            return true;
+        }
+        
+        // Check if role contains both 'care' and 'giver' (for variations like 'care giver', 'care_giver', etc.)
+        if (stripos($roleValue, 'care') !== false && stripos($roleValue, 'giver') !== false) {
+            return true;
+        }
+        
+        return false;
+    }
+
     public function __invoke(NavigationBuilder $builder): NavigationBuilder
     {
         // COMPLETELY REPLACE navigation - don't use auto-discovered items
@@ -130,22 +162,12 @@ class CustomNavigationProvider
         
         if (auth()->check()) {
             $user = auth()->user();
-            // Check for caregiver in multiple formats: 'caregiver', 'care_giver', 'care giver'
-            // Normalize the role by removing spaces and underscores, then check
-            $roleValue = strtolower(trim($user->role ?? ''));
-            $roleValueNormalized = str_replace([' ', '_'], '', $roleValue); // Remove all spaces and underscores
-            
-            // Check both the roles relationship and the role column value
-            $isCaregiver = $user->hasRole('caregiver') || 
-                           $user->hasRole('care_giver') || 
-                           $roleValueNormalized === 'caregiver' ||
-                           (stripos($roleValue, 'care') !== false && stripos($roleValue, 'giver') !== false);
+            $isCaregiver = $this->isCaregiver($user);
             
             // DEBUG: Log for troubleshooting
             \Log::info('Navigation Provider Debug', [
                 'user' => $user->name,
                 'role' => $user->role,
-                'role_normalized' => $roleValueNormalized,
                 'is_caregiver' => $isCaregiver,
                 'has_view_users' => $user->hasPermission('view_users'),
                 'has_view_facilities' => $user->hasPermission('view_facilities'),
@@ -235,7 +257,6 @@ class CustomNavigationProvider
                                 auth()->user()->hasRole('super_admin')
                             )),
                     ]);
-            }
         }
         
         // Completely replace all navigation items

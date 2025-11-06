@@ -100,7 +100,7 @@ class SleepRecordResource extends Resource
                             ->required()
                             ->native(false)
                             ->displayFormat('M j, Y')
-                            ->default(now())
+                            ->default(fn ($operation) => $operation === 'create' ? now() : null)
                             ->maxDate(now()),
                     ])
                     ->columns(3),
@@ -111,11 +111,15 @@ class SleepRecordResource extends Resource
                             ->label('Sleep Time')
                             ->required()
                             ->displayFormat('h:i A')
+                            ->format('H:i:s')
+                            ->native(false)
                             ->seconds(false),
                         Forms\Components\TimePicker::make('wake_time')
                             ->label('Wake Time')
                             ->required()
                             ->displayFormat('h:i A')
+                            ->format('H:i:s')
+                            ->native(false)
                             ->seconds(false)
                             ->live()
                             ->afterStateUpdated(function ($state, callable $get, callable $set) {

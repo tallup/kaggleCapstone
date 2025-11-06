@@ -117,11 +117,15 @@ class AppointmentResource extends Resource
                             ->label('Appointment Date')
                             ->required()
                             ->native(false)
-                            ->default(now())
+                            ->default(fn ($operation) => $operation === 'create' ? now() : null)
                             ->live(),
                         
                         Forms\Components\TimePicker::make('appointment_time')
                             ->label('Appointment Time')
+                            ->displayFormat('g:i A')
+                            ->format('H:i:s')
+                            ->native(false)
+                            ->seconds(false)
                             ->nullable(),
                         
                         Forms\Components\Select::make('location')

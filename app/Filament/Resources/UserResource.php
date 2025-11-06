@@ -192,6 +192,7 @@ class UserResource extends Resource
                             ->label('Date Employed')
                             ->required()
                             ->displayFormat('m/d/Y')
+                            ->default(fn ($operation) => $operation === 'create' ? now() : null)
                             ->maxDate(now())
                             ->helperText('Format: MM/DD/YYYY - Cannot be in the future'),
                         Forms\Components\TextInput::make('supervisor_name')

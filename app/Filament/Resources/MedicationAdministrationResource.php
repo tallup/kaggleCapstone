@@ -108,7 +108,7 @@ class MedicationAdministrationResource extends Resource
                         Forms\Components\DateTimePicker::make('administered_at')
                             ->label('Administered At')
                             ->required()
-                            ->default(now())
+                            ->default(fn ($operation) => $operation === 'create' ? now() : null)
                             ->displayFormat('M j, Y h:i A')
                             ->format('Y-m-d H:i:s')
                             ->minDate(now()->startOfDay())

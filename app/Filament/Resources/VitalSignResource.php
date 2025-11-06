@@ -100,7 +100,7 @@ class VitalSignResource extends Resource
                             ->label('Measurement Date')
                             ->required()
                             ->native(false)
-                            ->default(now())
+                            ->default(fn ($operation) => $operation === 'create' ? now() : null)
                             ->displayFormat('m/d/Y'),
                     ])
                     ->columns(3),

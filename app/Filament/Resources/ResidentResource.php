@@ -128,7 +128,7 @@ class ResidentResource extends Resource
                             ->required()
                             ->native(false)
                             ->displayFormat('M j, Y')
-                            ->default(now()),
+                            ->default(fn ($operation) => $operation === 'create' ? now() : null),
                     ])
                     ->columns(2),
 

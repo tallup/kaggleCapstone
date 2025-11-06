@@ -114,16 +114,18 @@ class LeaveRequestResource extends Resource
                             ->required()
                             ->native(false)
                             ->displayFormat('m/d/Y')
-                            ->format('Y-m-d')
-                            ->placeholder('MM/DD/YYYY'),
+                            ->placeholder('MM/DD/YYYY')
+                            ->formatStateUsing(fn ($state) => $state ? \Carbon\Carbon::parse($state)->format('Y-m-d') : null)
+                            ->dehydrateStateUsing(fn ($state) => $state ? \Carbon\Carbon::parse($state)->format('Y-m-d') : null),
                         Forms\Components\DatePicker::make('end_date')
                             ->label('End Date')
                             ->required()
                             ->native(false)
                             ->displayFormat('m/d/Y')
-                            ->format('Y-m-d')
                             ->after('start_date')
-                            ->placeholder('MM/DD/YYYY'),
+                            ->placeholder('MM/DD/YYYY')
+                            ->formatStateUsing(fn ($state) => $state ? \Carbon\Carbon::parse($state)->format('Y-m-d') : null)
+                            ->dehydrateStateUsing(fn ($state) => $state ? \Carbon\Carbon::parse($state)->format('Y-m-d') : null),
                         Forms\Components\Textarea::make('reason')
                             ->label('Reason for Leave')
                             ->required()
@@ -163,7 +165,8 @@ class LeaveRequestResource extends Resource
                             ->hidden(fn ($get) => $get('status') !== 'approved'),
                         Forms\Components\DateTimePicker::make('approved_at')
                             ->label('Approved At')
-                            ->default(now())
+                            ->default(fn ($operation) => $operation === 'create' ? now() : null)
+                            ->native(false)
                             ->hidden(fn ($get) => $get('status') !== 'approved'),
                     ])
                     ->columns(2)

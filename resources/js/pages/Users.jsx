@@ -176,12 +176,6 @@ export default function UsersPage() {
                                     </div>
                                 </div>
                                 <div className="space-y-2 text-sm">
-                                    {user.position && (
-                                        <div className="flex justify-between">
-                                            <span className="text-gray-600">Position:</span>
-                                            <span className="font-medium text-gray-900">{user.position}</span>
-                                        </div>
-                                    )}
                                     {user.assigned_branch && (
                                         <div className="flex justify-between">
                                             <span className="text-gray-600">Branch:</span>
@@ -279,6 +273,16 @@ export default function UsersPage() {
 
 // User Form Component
 function UserForm({ record, branches, roles, onClose, onSuccess }) {
+    // Format date helper function
+    const formatDateForInput = (dateString) => {
+        if (!dateString) return '';
+        // If it's already in YYYY-MM-DD format, return it
+        if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) return dateString;
+        // Otherwise parse and format it
+        const date = new Date(dateString);
+        return date.toISOString().split('T')[0];
+    };
+
     const [formData, setFormData] = useState({
         first_name: record?.first_name || '',
         middle_names: record?.middle_names || '',
@@ -286,13 +290,12 @@ function UserForm({ record, branches, roles, onClose, onSuccess }) {
         email: record?.email || '',
         password: '',
         phone_number: record?.phone_number || '',
-        date_of_birth: record?.date_of_birth || '',
+        date_of_birth: formatDateForInput(record?.date_of_birth),
         marital_status: record?.marital_status || '',
         sex: record?.sex || '',
-        position: record?.position || '',
         credentials: record?.credentials || '',
         credential_details: record?.credential_details || '',
-        date_employed: record?.date_employed || '',
+        date_employed: formatDateForInput(record?.date_employed),
         supervisor_name: record?.supervisor_name || '',
         provider_name: record?.provider_name || '',
         role: record?.role || '',
@@ -303,6 +306,34 @@ function UserForm({ record, branches, roles, onClose, onSuccess }) {
 
     const [profileImage, setProfileImage] = useState(null);
     const [profileImagePreview, setProfileImagePreview] = useState(null);
+    const [errors, setErrors] = useState({});
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Update form when record changes (for editing)
+    React.useEffect(() => {
+        if (record) {
+            setFormData({
+                first_name: record.first_name || '',
+                middle_names: record.middle_names || '',
+                last_name: record.last_name || '',
+                email: record.email || '',
+                password: '',
+                phone_number: record.phone_number || '',
+                date_of_birth: formatDateForInput(record.date_of_birth),
+                marital_status: record.marital_status || '',
+                sex: record.sex || '',
+                credentials: record.credentials || '',
+                credential_details: record.credential_details || '',
+                date_employed: formatDateForInput(record.date_employed),
+                supervisor_name: record.supervisor_name || '',
+                provider_name: record.provider_name || '',
+                role: record.role || '',
+                assigned_branch_id: record.assigned_branch_id || '',
+                is_active: record.is_active ?? true,
+                notes: record.notes || '',
+            });
+        }
+    }, [record]);
 
     // Set profile image preview when editing
     React.useEffect(() => {
@@ -316,8 +347,6 @@ function UserForm({ record, branches, roles, onClose, onSuccess }) {
             setProfileImagePreview(null);
         }
     }, [record]);
-    const [errors, setErrors] = useState({});
-    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const handleFileChange = (e) => {
         if (e.target.files && e.target.files[0]) {
@@ -387,7 +416,6 @@ function UserForm({ record, branches, roles, onClose, onSuccess }) {
             formDataToSend.append('date_of_birth', formData.date_of_birth || '');
             formDataToSend.append('marital_status', formData.marital_status || '');
             formDataToSend.append('sex', formData.sex || '');
-            formDataToSend.append('position', formData.position || '');
             formDataToSend.append('credentials', formData.credentials || '');
             formDataToSend.append('credential_details', formData.credential_details || '');
             formDataToSend.append('date_employed', formData.date_employed || '');
@@ -673,27 +701,6 @@ function UserForm({ record, branches, roles, onClose, onSuccess }) {
                         <div className="border-b border-gray-200 pb-6">
                             <h3 className="text-lg font-semibold text-gray-900 mb-4">Employment Details</h3>
                             <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        Position *
-                                    </label>
-                                    <select
-                                        value={formData.position}
-                                        onChange={(e) => setFormData({...formData, position: e.target.value})}
-                                        required
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2D5016] focus:border-transparent"
-                                    >
-                                        <option value="">Choose position</option>
-                                        <option value="caregiver">Caregiver</option>
-                                        <option value="nurse">Nurse</option>
-                                        <option value="supervisor">Supervisor</option>
-                                        <option value="administrator">Administrator</option>
-                                        <option value="manager">Manager</option>
-                                        <option value="support_staff">Support Staff</option>
-                                    </select>
-                                    {errors.position && <p className="text-xs text-red-600 mt-1">{errors.position[0]}</p>}
-                                </div>
-
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
                                         Credentials
