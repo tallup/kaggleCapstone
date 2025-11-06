@@ -299,6 +299,8 @@ export default function UsersPage() {
 
 // User Form Component
 function UserForm({ record, branches, roles, onClose, onSuccess }) {
+    const queryClient = useQueryClient();
+    
     // Format date helper function
     const formatDateForInput = (dateString) => {
         if (!dateString) return '';
@@ -307,6 +309,12 @@ function UserForm({ record, branches, roles, onClose, onSuccess }) {
         // Otherwise parse and format it
         const date = new Date(dateString);
         return date.toISOString().split('T')[0];
+    };
+
+    // Determine role value from record
+    const getRoleValue = (rec) => {
+        if (!rec) return '';
+        return rec.role || (rec.roles && rec.roles.length > 0 ? rec.roles[0].name : '') || '';
     };
 
     const [formData, setFormData] = useState({
@@ -324,7 +332,7 @@ function UserForm({ record, branches, roles, onClose, onSuccess }) {
         date_employed: formatDateForInput(record?.date_employed),
         supervisor_name: record?.supervisor_name || '',
         provider_name: record?.provider_name || '',
-        role: record?.role || record?.roles?.[0]?.name || '',
+        role: getRoleValue(record),
         assigned_branch_id: record?.assigned_branch_id || '',
         is_active: record?.is_active ?? true,
         notes: record?.notes || '',
@@ -338,6 +346,14 @@ function UserForm({ record, branches, roles, onClose, onSuccess }) {
     // Update form when record changes (for editing)
     React.useEffect(() => {
         if (record) {
+            // Debug: Log the record to see what we're getting
+            console.log('UserForm record:', record);
+            console.log('Role from record.role:', record.role);
+            console.log('Role from record.roles:', record.roles);
+            
+            const roleValue = getRoleValue(record);
+            console.log('Setting role to:', roleValue);
+            
             setFormData({
                 first_name: record.first_name || '',
                 middle_names: record.middle_names || '',
@@ -353,10 +369,32 @@ function UserForm({ record, branches, roles, onClose, onSuccess }) {
                 date_employed: formatDateForInput(record.date_employed),
                 supervisor_name: record.supervisor_name || '',
                 provider_name: record.provider_name || '',
-                role: record.role || record.roles?.[0]?.name || '',
+                role: roleValue,
                 assigned_branch_id: record.assigned_branch_id || '',
                 is_active: record.is_active ?? true,
                 notes: record.notes || '',
+            });
+        } else {
+            // Reset form when no record (creating new user)
+            setFormData({
+                first_name: '',
+                middle_names: '',
+                last_name: '',
+                email: '',
+                password: '',
+                phone_number: '',
+                date_of_birth: '',
+                marital_status: '',
+                sex: '',
+                credentials: '',
+                credential_details: '',
+                date_employed: '',
+                supervisor_name: '',
+                provider_name: '',
+                role: '',
+                assigned_branch_id: '',
+                is_active: true,
+                notes: '',
             });
         }
     }, [record]);
@@ -484,7 +522,14 @@ function UserForm({ record, branches, roles, onClose, onSuccess }) {
                 if (!formData.password) {
                     // Remove password from FormData if it wasn't set
                 }
-                await api.put(`/users/${record.id}`, formDataToSend);
+                const response = await api.put(`/users/${record.id}`, formDataToSend);
+                console.log('User updated successfully:', response.data);
+                
+                // Show success message
+                alert('User updated successfully!');
+                
+                // Invalidate queries to refresh the user list
+                queryClient.invalidateQueries(['users']);
             } else {
                 if (!formData.password) {
                     setErrors({ password: ['Password is required for new users'] });
@@ -494,6 +539,12 @@ function UserForm({ record, branches, roles, onClose, onSuccess }) {
                 console.log('Creating new user...');
                 const response = await api.post('/users', formDataToSend);
                 console.log('User created successfully:', response.data);
+                
+                // Show success message
+                alert('User created successfully!');
+                
+                // Invalidate queries to refresh the user list
+                queryClient.invalidateQueries(['users']);
             }
             console.log('Calling onSuccess...');
             onSuccess();
