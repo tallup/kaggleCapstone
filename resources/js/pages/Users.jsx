@@ -176,6 +176,23 @@ export default function UsersPage() {
                                     </div>
                                     <div className="flex space-x-2">
                                         <button
+                                            onClick={async () => {
+                                                try {
+                                                    const response = await api.get(`/users/${user.id}`);
+                                                    setEditing(response.data);
+                                                    setShowForm(true);
+                                                } catch (error) {
+                                                    console.error('Error fetching user details:', error);
+                                                    setEditing(user);
+                                                    setShowForm(true);
+                                                }
+                                            }}
+                                            className="p-2 text-[#2D5016] hover:bg-green-50 rounded-lg transition-colors"
+                                            title="Edit User"
+                                        >
+                                            <Edit className="w-4 h-4" />
+                                        </button>
+                                        <button
                                             onClick={() => setViewingProfile(user)}
                                             className="p-2 text-[#2D5016] hover:bg-green-50 rounded-lg transition-colors"
                                             title="View Profile"
@@ -346,17 +363,25 @@ function UserForm({ record, branches, roles, onClose, onSuccess }) {
 
     // Set profile image preview when editing
     React.useEffect(() => {
-        if (record?.profile_image_url) {
-            // Use the profile_image_url from the API response
-            setProfileImagePreview(record.profile_image_url);
-        } else if (record?.profile_image) {
-            // Fallback: If profile_image_url is not available, construct the URL
-            const imageUrl = record.profile_image.startsWith('http') 
-                ? record.profile_image 
-                : `/storage/${record.profile_image}`;
-            setProfileImagePreview(imageUrl);
+        if (record) {
+            if (record.profile_image_url) {
+                // Use the profile_image_url from the API response
+                setProfileImagePreview(record.profile_image_url);
+            } else if (record.profile_image) {
+                // Fallback: If profile_image_url is not available, construct the URL
+                const imageUrl = record.profile_image.startsWith('http') 
+                    ? record.profile_image 
+                    : `/storage/${record.profile_image}`;
+                setProfileImagePreview(imageUrl);
+            } else {
+                setProfileImagePreview(null);
+            }
+            // Reset profile image file when record changes
+            setProfileImage(null);
         } else {
+            // Reset when no record (creating new user)
             setProfileImagePreview(null);
+            setProfileImage(null);
         }
     }, [record]);
 
