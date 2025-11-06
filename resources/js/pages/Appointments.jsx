@@ -16,6 +16,7 @@ export default function Appointments() {
     const urlParamsProcessed = useRef(false);
     const [showForm, setShowForm] = useState(false);
     const [currentUser, setCurrentUser] = useState(null);
+    const [componentError, setComponentError] = useState(null);
     const [formData, setFormData] = useState({
         branch_id: '',
         resident_id: '',
@@ -52,36 +53,48 @@ export default function Appointments() {
     useEffect(() => {
         if (urlParamsProcessed.current) return;
         
-        const residentId = searchParams.get('resident_id');
-        const appointmentId = searchParams.get('appointment_id');
-        
-        if (residentId) {
-            setResidentFilter(residentId);
-            highlightedAppointmentId.current = appointmentId;
+        try {
+            const residentId = searchParams.get('resident_id');
+            const appointmentId = searchParams.get('appointment_id');
             
-            // Clear URL parameters after reading them
-            const newSearchParams = new URLSearchParams(searchParams);
-            if (appointmentId) {
-                // Keep appointment_id until we've scrolled to it
-                newSearchParams.delete('resident_id');
-            } else {
-                newSearchParams.delete('resident_id');
-                newSearchParams.delete('appointment_id');
+            if (residentId) {
+                setResidentFilter(residentId);
+                highlightedAppointmentId.current = appointmentId;
+                
+                // Clear URL parameters after reading them
+                const newSearchParams = new URLSearchParams(searchParams);
+                if (appointmentId) {
+                    // Keep appointment_id until we've scrolled to it
+                    newSearchParams.delete('resident_id');
+                } else {
+                    newSearchParams.delete('resident_id');
+                    newSearchParams.delete('appointment_id');
+                }
+                setSearchParams(newSearchParams, { replace: true });
             }
-            setSearchParams(newSearchParams, { replace: true });
+            
+            urlParamsProcessed.current = true;
+        } catch (error) {
+            console.error('Error processing URL parameters:', error);
+            urlParamsProcessed.current = true;
         }
-        
-        urlParamsProcessed.current = true;
-    }, [searchParams, setSearchParams]); // Include dependencies but use ref to prevent re-runs
+    }, []); // Only run once on mount
 
     // Scroll to and highlight appointment when data is loaded
     useEffect(() => {
-        if (highlightedAppointmentId.current && data && data.data && data.data.length > 0) {
+        if (!highlightedAppointmentId.current || !data || !data.data || data.data.length === 0) {
+            return;
+        }
+
+        try {
             // Wait a bit for the DOM to render
             const timeoutId = setTimeout(() => {
                 const appointmentId = highlightedAppointmentId.current;
+                if (!appointmentId) return;
+                
                 // Try both string and number keys
                 const rowRef = appointmentRowRefs.current[appointmentId] || 
+                              appointmentRowRefs.current[String(appointmentId)] ||
                               appointmentRowRefs.current[parseInt(appointmentId)];
                 
                 if (rowRef) {
@@ -91,7 +104,7 @@ export default function Appointments() {
                     // Remove highlight after 3 seconds
                     setTimeout(() => {
                         highlightedAppointmentId.current = null;
-                        const newSearchParams = new URLSearchParams(searchParams);
+                        const newSearchParams = new URLSearchParams(window.location.search);
                         newSearchParams.delete('appointment_id');
                         setSearchParams(newSearchParams, { replace: true });
                     }, 3000);
@@ -100,64 +113,90 @@ export default function Appointments() {
             
             // Cleanup function to clear timeout if component unmounts or dependencies change
             return () => clearTimeout(timeoutId);
+        } catch (error) {
+            console.error('Error scrolling to appointment:', error);
         }
-    }, [data, searchParams, setSearchParams]);
+    }, [data, setSearchParams]);
 
-    const { data, isLoading, refetch } = useQuery({
+    const { data, isLoading, error: appointmentsError, refetch } = useQuery({
         queryKey: ['appointments', residentFilter, branchFilter],
         queryFn: async () => {
-            const params = {
-                per_page: 100,
-            };
-            if (residentFilter) {
-                params.resident_id = residentFilter;
+            try {
+                const params = {
+                    per_page: 100,
+                };
+                if (residentFilter) {
+                    params.resident_id = residentFilter;
+                }
+                if (branchFilter) {
+                    params.branch_id = branchFilter;
+                }
+                const response = await api.get('/appointments', { params });
+                return response.data;
+            } catch (error) {
+                console.error('Error fetching appointments:', error);
+                throw error;
             }
-            if (branchFilter) {
-                params.branch_id = branchFilter;
-            }
-            const response = await api.get('/appointments', { params });
-            return response.data;
         },
         enabled: !!residentFilter, // Only fetch when resident is selected
+        retry: 1,
     });
 
     // Branches for form
-    const { data: branchesData } = useQuery({
+    const { data: branchesData, error: branchesError } = useQuery({
         queryKey: ['branches-list'],
         queryFn: async () => {
-            const response = await api.get('/branches', { params: { per_page: 100 } });
-            // Filter active branches on frontend since backend doesn't support is_active filter
-            const branches = response.data?.data || response.data || [];
-            return {
-                ...response.data,
-                data: branches.filter(b => b.is_active !== false)
-            };
+            try {
+                const response = await api.get('/branches', { params: { per_page: 100 } });
+                // Filter active branches on frontend since backend doesn't support is_active filter
+                const branches = response.data?.data || response.data || [];
+                return {
+                    ...response.data,
+                    data: branches.filter(b => b.is_active !== false)
+                };
+            } catch (error) {
+                console.error('Error fetching branches:', error);
+                throw error;
+            }
         },
+        retry: 1,
     });
 
     // Residents for form - filtered by branch
-    const { data: residentsData } = useQuery({
+    const { data: residentsData, error: residentsError } = useQuery({
         queryKey: ['residents-list', formData.branch_id],
         queryFn: async () => {
-            const params = { per_page: 100 };
-            if (formData.branch_id) {
-                params.branch_id = formData.branch_id;
+            try {
+                const params = { per_page: 100 };
+                if (formData.branch_id) {
+                    params.branch_id = formData.branch_id;
+                }
+                return (await api.get('/residents', { params })).data;
+            } catch (error) {
+                console.error('Error fetching residents:', error);
+                throw error;
             }
-            return (await api.get('/residents', { params })).data;
         },
         enabled: true, // Always enabled, but filters by branch_id
+        retry: 1,
     });
 
     // All residents for filter dropdown (not filtered by branch)
-    const { data: allResidentsData } = useQuery({
+    const { data: allResidentsData, error: allResidentsError } = useQuery({
         queryKey: ['all-residents-list', branchFilter],
         queryFn: async () => {
-            const params = { per_page: 100 };
-            if (branchFilter) {
-                params.branch_id = branchFilter;
+            try {
+                const params = { per_page: 100 };
+                if (branchFilter) {
+                    params.branch_id = branchFilter;
+                }
+                return (await api.get('/residents', { params })).data;
+            } catch (error) {
+                console.error('Error fetching all residents:', error);
+                throw error;
             }
-            return (await api.get('/residents', { params })).data;
         },
+        retry: 1,
     });
 
     const createMutation = useMutation({
@@ -221,6 +260,25 @@ export default function Appointments() {
     const handleComplete = (id) => {
         setCompletingAppointment(id);
     };
+
+    // Error boundary - if component error occurs, show error message
+    if (componentError) {
+        return (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+                <h2 className="text-lg font-semibold text-red-800 mb-2">Application Error</h2>
+                <p className="text-sm text-red-700 mb-4">{componentError.message || 'An unexpected error occurred'}</p>
+                <button
+                    onClick={() => {
+                        setComponentError(null);
+                        window.location.reload();
+                    }}
+                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                >
+                    Reload Page
+                </button>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
@@ -313,6 +371,19 @@ export default function Appointments() {
                 )}
             </SectionCard>
 
+            {/* Error Messages */}
+            {(appointmentsError || branchesError || residentsError || allResidentsError) && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                    <p className="text-sm text-red-800 font-medium mb-2">Error loading data:</p>
+                    <ul className="list-disc list-inside text-xs text-red-700 space-y-1">
+                        {appointmentsError && <li>Appointments: {appointmentsError?.response?.data?.message || appointmentsError?.message || 'Failed to load appointments'}</li>}
+                        {branchesError && <li>Branches: {branchesError?.response?.data?.message || branchesError?.message || 'Failed to load branches'}</li>}
+                        {residentsError && <li>Residents: {residentsError?.response?.data?.message || residentsError?.message || 'Failed to load residents'}</li>}
+                        {allResidentsError && <li>All Residents: {allResidentsError?.response?.data?.message || allResidentsError?.message || 'Failed to load all residents'}</li>}
+                    </ul>
+                </div>
+            )}
+
             {!residentFilter ? (
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
                     <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -363,38 +434,47 @@ export default function Appointments() {
                                     </thead>
                                     <tbody className="bg-white divide-y divide-gray-200">
                                         {data.data.map((appointment) => {
-                                            const date = new Date(appointment.appointment_date);
-                                            const dateStr = date.toLocaleDateString('en-US', { 
+                                            if (!appointment) return null;
+                                            
+                                            const date = appointment.appointment_date ? new Date(appointment.appointment_date) : null;
+                                            const dateStr = date && !isNaN(date.getTime()) ? date.toLocaleDateString('en-US', { 
                                                 month: 'short', 
                                                 day: 'numeric', 
                                                 year: 'numeric' 
-                                            });
+                                            }) : 'N/A';
                                             
                                             let timeStr = '';
                                             if (appointment.appointment_time) {
-                                                const timeParts = appointment.appointment_time.split(':');
-                                                if (timeParts.length >= 2) {
-                                                    const hours = parseInt(timeParts[0]) || 0;
-                                                    const minutes = timeParts[1] || '00';
-                                                    const hour12 = hours % 12 || 12;
-                                                    const ampm = hours >= 12 ? 'PM' : 'AM';
-                                                    timeStr = `${hour12}:${minutes} ${ampm}`;
+                                                try {
+                                                    const timeParts = appointment.appointment_time.split(':');
+                                                    if (timeParts.length >= 2) {
+                                                        const hours = parseInt(timeParts[0]) || 0;
+                                                        const minutes = timeParts[1] || '00';
+                                                        const hour12 = hours % 12 || 12;
+                                                        const ampm = hours >= 12 ? 'PM' : 'AM';
+                                                        timeStr = `${hour12}:${minutes} ${ampm}`;
+                                                    }
+                                                } catch (err) {
+                                                    console.error('Error parsing appointment time:', err);
                                                 }
                                             }
 
-                                            const isHighlighted = highlightedAppointmentId.current && (
-                                                highlightedAppointmentId.current === appointment.id.toString() || 
+                                            const isHighlighted = highlightedAppointmentId.current && appointment.id && (
+                                                String(highlightedAppointmentId.current) === String(appointment.id) || 
                                                 highlightedAppointmentId.current === appointment.id
                                             );
                                             
                                             return (
                                                 <tr 
-                                                    key={appointment.id} 
+                                                    key={appointment.id || Math.random()} 
                                                     ref={(el) => {
-                                                        if (el) {
-                                                            // Store ref with both string and number keys for flexibility
-                                                            appointmentRowRefs.current[appointment.id] = el;
-                                                            appointmentRowRefs.current[appointment.id.toString()] = el;
+                                                        try {
+                                                            if (el && appointment?.id) {
+                                                                appointmentRowRefs.current[appointment.id] = el;
+                                                                appointmentRowRefs.current[String(appointment.id)] = el;
+                                                            }
+                                                        } catch (err) {
+                                                            console.error('Error setting ref:', err);
                                                         }
                                                     }}
                                                     className={`hover:bg-gray-50 transition-all duration-500 ${
@@ -405,7 +485,7 @@ export default function Appointments() {
                                                 >
                                                     <td className="px-6 py-4 whitespace-nowrap">
                                                         <div className="text-sm font-medium text-gray-900">
-                                                            {appointment.resident?.first_name} {appointment.resident?.last_name}
+                                                            {appointment?.resident?.first_name || ''} {appointment?.resident?.last_name || ''}
                                                         </div>
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap">
@@ -416,12 +496,12 @@ export default function Appointments() {
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap">
                                                         <div className="text-sm text-gray-900">
-                                                            {appointment.appointment_type?.name || 'Other'}
+                                                            {appointment?.appointment_type?.name || appointment?.appointmentType?.name || 'Other'}
                                                         </div>
                                                     </td>
                                                     <td className="px-6 py-4">
                                                         <div className="text-sm text-gray-900">
-                                                            {appointment.description || appointment.provider_name || '-'}
+                                                            {appointment?.description || appointment?.provider_name || '-'}
                                                         </div>
                                                     </td>
                                                     {isCaregiver && (
