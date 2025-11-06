@@ -76,7 +76,7 @@ export default function Appointments() {
 
     // Scroll to and highlight appointment when data is loaded
     useEffect(() => {
-        if (highlightedAppointmentId.current && data?.data && data.data.length > 0) {
+        if (highlightedAppointmentId.current && data && data.data && data.data.length > 0) {
             // Wait a bit for the DOM to render
             const timeoutId = setTimeout(() => {
                 const appointmentId = highlightedAppointmentId.current;

@@ -11,6 +11,25 @@ class EditUser extends EditRecord
 {
     protected static string $resource = UserResource::class;
 
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        // Ensure name field is populated from name components
+        if (empty($data['name']) || isset($data['first_name']) || isset($data['last_name'])) {
+            $firstName = $data['first_name'] ?? $this->record->first_name ?? '';
+            $middleNames = $data['middle_names'] ?? $this->record->middle_names ?? '';
+            $lastName = $data['last_name'] ?? $this->record->last_name ?? '';
+            
+            $fullName = trim(implode(' ', array_filter([$firstName, $middleNames, $lastName])));
+            if (!empty($fullName)) {
+                $data['name'] = $fullName;
+            } elseif (empty($data['name'])) {
+                $data['name'] = $data['email'] ?? $this->record->email ?? '';
+            }
+        }
+
+        return $data;
+    }
+
     protected function afterSave(): void
     {
         // Automatically assign administrator role if user role is 'admin' or 'administrator'
@@ -41,19 +60,6 @@ class EditUser extends EditRecord
 
     protected function getFormActions(): array
     {
-        $actions = parent::getFormActions();
-        
-        // Add confirmation to the save button
-        foreach ($actions as $action) {
-            if ($action instanceof Actions\SaveAction || $action->getName() === 'save') {
-                $action->requiresConfirmation()
-                    ->modalHeading('Save User')
-                    ->modalDescription('Are you sure you want to save your changes?')
-                    ->modalSubmitActionLabel('Yes, Save');
-                break;
-            }
-        }
-        
-        return $actions;
+        return parent::getFormActions();
     }
 }
