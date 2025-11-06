@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
@@ -11,19 +11,32 @@ export default function NotificationDropdown() {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const [isOpen, setIsOpen] = useState(false);
+    const previousUnreadCountRef = useRef(0);
 
-    // Fetch notifications
-    const { data: notificationsData, isLoading } = useQuery({
+    // Fetch notifications with real-time polling
+    const { data: notificationsData, isLoading, refetch } = useQuery({
         queryKey: ['notifications'],
         queryFn: async () => {
             const response = await api.get('/notifications', { params: { limit: 50 } });
             return response.data;
         },
-        refetchInterval: 30000, // Refetch every 30 seconds
+        refetchInterval: 5000, // Refetch every 5 seconds for real-time updates
+        refetchIntervalInBackground: true, // Continue polling even when tab is in background
+        refetchOnWindowFocus: true, // Refetch when user returns to the tab
     });
 
     const notifications = notificationsData?.notifications || [];
     const unreadCount = notificationsData?.unread_count || 0;
+    const previousUnreadCount = previousUnreadCountRef.current;
+
+    // Track unread count changes for visual feedback
+    useEffect(() => {
+        if (unreadCount > previousUnreadCount && previousUnreadCount > 0) {
+            // New notification arrived - could add a toast notification here
+            // For now, the badge will update automatically
+        }
+        previousUnreadCountRef.current = unreadCount;
+    }, [unreadCount, previousUnreadCount]);
 
     // Mark as read mutation
     const markAsReadMutation = useMutation({
@@ -98,7 +111,13 @@ export default function NotificationDropdown() {
     return (
         <div className="relative">
             <button
-                onClick={() => setIsOpen(!isOpen)}
+                onClick={() => {
+                    setIsOpen(!isOpen);
+                    // Refetch notifications when opening dropdown for immediate updates
+                    if (!isOpen) {
+                        refetch();
+                    }
+                }}
                 className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors"
             >
                 <Bell className="w-5 h-5 text-gray-600" />

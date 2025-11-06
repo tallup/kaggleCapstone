@@ -104,8 +104,21 @@ class CreateMedicationAdministration extends CreateRecord
 
     protected function getFormActions(): array
     {
+        $actions = parent::getFormActions();
+        
+        // Add confirmation to the create/save button
+        foreach ($actions as $action) {
+            if ($action instanceof Actions\CreateAction || $action->getName() === 'create') {
+                $action->requiresConfirmation()
+                    ->modalHeading('Create Medication Administration')
+                    ->modalDescription('Are you sure you want to create this medication administration record?')
+                    ->modalSubmitActionLabel('Yes, Create');
+                break;
+            }
+        }
+        
         return array_merge(
-            parent::getFormActions(),
+            $actions,
             [
                 Actions\Action::make('back_to_management')
                     ->label('Back to Medication Management')

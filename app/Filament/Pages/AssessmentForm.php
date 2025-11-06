@@ -411,6 +411,10 @@ class AssessmentForm extends Page implements HasForms
         return Action::make('save')
             ->label('Save Progress')
             ->color('primary')
+            ->requiresConfirmation()
+            ->modalHeading('Save Assessment Progress')
+            ->modalDescription('Are you sure you want to save your progress? You can continue editing later.')
+            ->modalSubmitActionLabel('Yes, Save')
             ->action(function () {
                 // Get the current form state - this captures all current form values
                 try {
@@ -456,6 +460,10 @@ class AssessmentForm extends Page implements HasForms
         return Action::make('submit')
             ->label('Submit Assessment')
             ->color('success')
+            ->requiresConfirmation()
+            ->modalHeading('Submit Assessment')
+            ->modalDescription('Are you sure you want to submit this assessment? Once submitted, it will be sent for review.')
+            ->modalSubmitActionLabel('Yes, Submit')
             ->action(function () {
                 // Get the current form state - this captures all current form values
                 try {

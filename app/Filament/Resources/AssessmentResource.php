@@ -321,6 +321,10 @@ class AssessmentResource extends Resource
                     ->icon('heroicon-o-paper-airplane')
                     ->color('warning')
                     ->visible(fn (Assessment $record): bool => $record->status === 'draft')
+                    ->requiresConfirmation()
+                    ->modalHeading('Submit Assessment')
+                    ->modalDescription('Are you sure you want to submit this assessment? Once submitted, it will be sent for review.')
+                    ->modalSubmitActionLabel('Yes, Submit')
                     ->action(function (Assessment $record) {
                         $record->update([
                             'status' => 'submitted',

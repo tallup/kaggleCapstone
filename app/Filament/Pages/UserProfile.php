@@ -277,7 +277,11 @@ class UserProfile extends Page implements HasForms
             \Filament\Actions\Action::make('save')
                 ->label('Save Profile')
                 ->submit('save')
-                ->color('primary'),
+                ->color('primary')
+                ->requiresConfirmation()
+                ->modalHeading('Save Profile')
+                ->modalDescription('Are you sure you want to save your profile changes?')
+                ->modalSubmitActionLabel('Yes, Save'),
         ];
     }
 }

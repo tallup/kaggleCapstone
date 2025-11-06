@@ -26,4 +26,22 @@ class CreateAppointment extends CreateRecord
 
         return $data;
     }
+
+    protected function getFormActions(): array
+    {
+        $actions = parent::getFormActions();
+        
+        // Add confirmation to the create/save button
+        foreach ($actions as $action) {
+            if ($action instanceof Actions\CreateAction || $action->getName() === 'create') {
+                $action->requiresConfirmation()
+                    ->modalHeading('Create Appointment')
+                    ->modalDescription('Are you sure you want to create this appointment?')
+                    ->modalSubmitActionLabel('Yes, Create');
+                break;
+            }
+        }
+        
+        return $actions;
+    }
 }

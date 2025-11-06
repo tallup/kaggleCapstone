@@ -9,4 +9,22 @@ use Filament\Resources\Pages\CreateRecord;
 class CreateFacility extends CreateRecord
 {
     protected static string $resource = FacilityResource::class;
+
+    protected function getFormActions(): array
+    {
+        $actions = parent::getFormActions();
+        
+        // Add confirmation to the create/save button
+        foreach ($actions as $action) {
+            if ($action instanceof Actions\CreateAction || $action->getName() === 'create') {
+                $action->requiresConfirmation()
+                    ->modalHeading('Create Facility')
+                    ->modalDescription('Are you sure you want to create this facility?')
+                    ->modalSubmitActionLabel('Yes, Create');
+                break;
+            }
+        }
+        
+        return $actions;
+    }
 }

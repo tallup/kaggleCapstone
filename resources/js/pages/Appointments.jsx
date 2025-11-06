@@ -58,7 +58,7 @@ export default function Appointments() {
             const response = await api.get('/appointments', { params });
             return response.data;
         },
-        enabled: true, // Always fetch appointments
+        enabled: !!residentFilter, // Only fetch when resident is selected
     });
 
     // Branches for form
@@ -253,7 +253,23 @@ export default function Appointments() {
                 )}
             </SectionCard>
 
-            {isLoading ? (
+            {!residentFilter ? (
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
+                    <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Calendar className="w-10 h-10 text-[#2D5016]" />
+                    </div>
+                    <h3 className="text-xl font-semibold text-gray-900 mb-2">Select a Resident to View Appointments</h3>
+                    <p className="text-gray-600 mb-4">
+                        Choose a resident from the filter above to view their appointment history
+                    </p>
+                    <div className="inline-flex items-center space-x-2 text-sm text-green-800 bg-green-50 px-4 py-2 rounded-lg">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <span>You can filter by branch first to narrow down resident options</span>
+                    </div>
+                </div>
+            ) : isLoading ? (
                 <div className="text-center py-12 bg-white rounded-xl shadow-sm">
                     <div className="inline-block animate-spin rounded-full h-10 w-10 border-b-2 border-[#2D5016]"></div>
                     <p className="mt-4 text-gray-600 font-medium">Loading appointments...</p>
@@ -277,9 +293,6 @@ export default function Appointments() {
                                             </th>
                                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                                 Other Details
-                                            </th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Next Appointment Date
                                             </th>
                                             {isCaregiver && (
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -330,17 +343,6 @@ export default function Appointments() {
                                                     <td className="px-6 py-4">
                                                         <div className="text-sm text-gray-900">
                                                             {appointment.description || appointment.provider_name || '-'}
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-6 py-4 whitespace-nowrap">
-                                                        <div className="text-sm text-gray-900">
-                                                            {appointment.next_appointment_date 
-                                                                ? new Date(appointment.next_appointment_date).toLocaleDateString('en-US', {
-                                                                    month: 'short',
-                                                                    day: 'numeric',
-                                                                    year: 'numeric'
-                                                                })
-                                                                : '-'}
                                                         </div>
                                                     </td>
                                                     {isCaregiver && (

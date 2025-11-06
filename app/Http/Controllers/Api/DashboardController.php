@@ -28,15 +28,20 @@ class DashboardController extends Controller
         
         // Admin stats
         $stats = [
-            'total_residents' => Resident::count(),
-            'active_residents' => Resident::where('status', 'active')->count(),
+            'total_residents' => Resident::where('is_active', true)->count(),
+            'active_residents' => Resident::where('is_active', true)->count(),
             'today_appointments' => Appointment::whereDate('appointment_date', today())->count(),
             'upcoming_appointments' => Appointment::whereDate('appointment_date', '>=', today())
-                ->where('status', 'scheduled')
+                ->whereNotIn('status', ['cancelled', 'completed'])
                 ->count(),
             'today_vitals' => VitalSign::whereDate('measurement_date', today())->count(),
             'total_staff' => User::where('is_active', true)->count(),
-            'pending_assessments' => 0,
+            'pending_assessments' => Assessment::whereNotIn('status', ['approved', 'archived'])->count(),
+            'user_type' => 'admin',
+            // Add lists for admin dashboard
+            'upcoming_appointments_list' => $this->getAdminUpcomingAppointments(),
+            'resident_list' => $this->getAdminResidentList(),
+            'medication_reminders' => $this->getAdminMedicationReminders(),
         ];
 
         return response()->json($stats);
@@ -287,6 +292,124 @@ class DashboardController extends Controller
         }
         
         return $days;
+    }
+    
+    private function getAdminUpcomingAppointments(): array
+    {
+        return Appointment::with(['resident', 'appointmentType', 'branch'])
+            ->whereDate('appointment_date', '>=', today())
+            ->whereNotIn('status', ['cancelled', 'completed'])
+            ->orderBy('appointment_date')
+            ->orderBy('appointment_time')
+            ->limit(10)
+            ->get()
+            ->map(function($appointment) {
+                $residentName = 'Unknown';
+                if ($appointment->resident) {
+                    $name = trim(($appointment->resident->first_name ?? '') . ' ' . ($appointment->resident->last_name ?? ''));
+                    $residentName = !empty($name) ? $name : ($appointment->resident->name ?? 'Unknown');
+                }
+                return [
+                    'id' => $appointment->id,
+                    'resident_name' => $residentName,
+                    'time' => $appointment->appointment_time 
+                        ? Carbon::parse($appointment->appointment_time)->format('g:i A')
+                        : 'TBD',
+                    'description' => $appointment->appointmentType?->name ?? $appointment->description ?? 'Appointment',
+                    'status' => $appointment->status ?? 'scheduled',
+                    'date' => $appointment->appointment_date ? $appointment->appointment_date->format('M d, Y') : 'TBD',
+                ];
+            })
+            ->toArray();
+    }
+    
+    private function getAdminResidentList(): array
+    {
+        return Resident::where('is_active', true)
+            ->orderByRaw('COALESCE(first_name, name)')
+            ->limit(10)
+            ->get()
+            ->map(function($resident) {
+                $name = trim(($resident->first_name ?? '') . ' ' . ($resident->last_name ?? ''));
+                if (empty($name)) {
+                    $name = $resident->name ?? 'Unknown';
+                }
+                return [
+                    'id' => $resident->id,
+                    'name' => $name,
+                    'room' => $resident->room_number ?? $resident->room ?? 'N/A',
+                ];
+            })
+            ->toArray();
+    }
+    
+    private function getAdminMedicationReminders(): array
+    {
+        $now = now();
+        $next24Hours = $now->copy()->addHours(24);
+        
+        $medications = Medication::with(['resident', 'drug'])
+            ->where('is_active', true)
+            ->where(function($q) use ($now) {
+                $q->where(function($subQ) use ($now) {
+                    $subQ->whereNull('start_date')->orWhere('start_date', '<=', $now);
+                })
+                ->where(function($subQ) use ($now) {
+                    $subQ->whereNull('end_date')->orWhere('end_date', '>=', $now);
+                });
+            })
+            ->get();
+        
+        $reminders = [];
+        
+        foreach ($medications as $medication) {
+            if (!$medication->resident) continue;
+            
+            // Get scheduled times for today
+            $times = [];
+            for ($i = 1; $i <= 4; $i++) {
+                if ($medication->{"time_{$i}"}) {
+                    $time = Carbon::parse($medication->{"time_{$i}"})->format('H:i');
+                    $times[] = $time;
+                }
+            }
+            
+            foreach ($times as $time) {
+                $timeToday = Carbon::today()->setTimeFromTimeString($time);
+                
+                // Check if time is in next 24 hours and not already administered
+                if ($timeToday >= $now && $timeToday <= $next24Hours) {
+                    $alreadyAdministered = MedicationAdministration::where('medication_id', $medication->id)
+                        ->whereDate('administered_at', today())
+                        ->whereTime('administered_at', $time)
+                        ->where('status', 'completed')
+                        ->exists();
+                    
+                    if (!$alreadyAdministered) {
+                        $residentName = 'Unknown';
+                        if ($medication->resident) {
+                            $name = trim(($medication->resident->first_name ?? '') . ' ' . ($medication->resident->last_name ?? ''));
+                            $residentName = !empty($name) ? $name : ($medication->resident->name ?? 'Unknown');
+                        }
+                        $reminders[] = [
+                            'medication_id' => $medication->id,
+                            'resident_name' => $residentName,
+                            'medication_name' => $medication->drug?->name ?? $medication->name,
+                            'medication_dosage' => $medication->instructions ?? '',
+                            'due_time' => Carbon::parse($time)->format('g:i A'),
+                            'room' => $medication->resident->room_number ?? $medication->resident->room ?? 'N/A',
+                        ];
+                    }
+                }
+            }
+        }
+        
+        // Sort by time
+        usort($reminders, function($a, $b) {
+            return strcmp($a['due_time'], $b['due_time']);
+        });
+        
+        return array_slice($reminders, 0, 10); // Limit to 10 reminders
     }
 }
 
