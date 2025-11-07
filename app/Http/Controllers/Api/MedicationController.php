@@ -125,7 +125,7 @@ class MedicationController extends Controller
 
     public function update(Request $request, $id): JsonResponse
     {
-        $medication = Medication::findOrFail($id);
+        $medication = Medication::with('resident')->findOrFail($id);
 
         // If user is a caregiver, ensure they can only update medications for residents in their assigned branch
         if (auth()->user()->hasRole('caregiver')) {

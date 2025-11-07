@@ -281,96 +281,304 @@ export default function Appointments() {
         );
     }
 
+    // Helper function to calculate age
+    const calculateAge = (dateOfBirth) => {
+        if (!dateOfBirth) return 'N/A';
+        const today = new Date();
+        const birthDate = new Date(dateOfBirth);
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const monthDiff = today.getMonth() - birthDate.getMonth();
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+            age--;
+        }
+        return age;
+    };
+
+    // Helper function to get next appointment for a resident
+    const getNextAppointment = (residentId) => {
+        if (!data?.data) return null;
+        const residentAppointments = data.data.filter(apt => apt.resident_id === residentId && apt.status !== 'cancelled' && apt.status !== 'completed');
+        if (residentAppointments.length === 0) return null;
+        
+        // Sort by date and return the next one
+        const sorted = residentAppointments.sort((a, b) => {
+            const dateA = new Date(a.appointment_date);
+            const dateB = new Date(b.appointment_date);
+            return dateA - dateB;
+        });
+        
+        return sorted[0];
+    };
+
+    // Handle opening appointment modal for a specific resident
+    const handleOpenAppointmentModal = (residentId) => {
+        setFormData(prev => ({
+            ...prev,
+            resident_id: residentId,
+            branch_id: allResidentsData?.data?.find(r => r.id === residentId)?.branch_id || '',
+        }));
+        setShowForm(true);
+    };
+
     return (
         <div className="space-y-6">
-            {/* Filters Card */}
-            <SectionCard>
-                <div className="flex items-center justify-between mb-4">
+            {/* Header */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
                         <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-green-600 rounded-lg flex items-center justify-center">
-                            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
-                            </svg>
+                            <Calendar className="w-5 h-5 text-white" />
                         </div>
                         <div>
-                            <h3 className="text-lg font-semibold text-gray-900">
+                            <h2 className="text-xl font-semibold text-gray-900">
                                 {isCaregiver ? 'Appointment Management' : 'View Appointments'}
-                            </h3>
+                            </h2>
                             <p className="text-sm text-gray-500">
                                 {isCaregiver 
-                                    ? 'Create and manage resident appointments' 
+                                    ? 'Manage appointments for your assigned residents' 
                                     : 'Select branch and resident to view appointment history'}
                             </p>
                         </div>
                     </div>
-                    {/* Only caregivers can add appointments */}
-                    {isCaregiver && (
-                        <button
-                            onClick={() => setShowForm(true)}
-                            className="hidden md:flex items-center space-x-2 bg-[#2D5016] text-white px-4 py-2 rounded-lg hover:bg-[#1a3009] transition-colors"
-                        >
-                            <Plus className="w-4 h-4" />
-                            <span>Add Appointment</span>
-                        </button>
-                    )}
                 </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                    {/* Branch Filter */}
+            </div>
+
+            {isCaregiver ? (
+                <>
+                    {/* Resident Cards Section */}
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Branch:</label>
-                        <div className="relative">
-                            <MapPin className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                            <select
-                                value={branchFilter}
-                                onChange={(e) => {
-                                    setBranchFilter(e.target.value);
-                                    setResidentFilter(''); // Clear resident when branch changes
-                                }}
-                                className="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2D5016] focus:border-transparent appearance-none bg-white"
-                            >
-                                <option value="">All Branches</option>
-                                {(branchesData?.data || branchesData || []).map(branch => (
-                                    <option key={branch.id} value={branch.id}>{branch.name}</option>
-                                ))}
-                            </select>
-                            <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                        </div>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Residents</h3>
+                        {allResidentsData?.data && allResidentsData.data.length > 0 ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                                {(allResidentsData.data || []).map((resident) => {
+                                    const nextAppt = getNextAppointment(resident.id);
+                                    const age = calculateAge(resident.date_of_birth);
+                                    
+                                    return (
+                                        <div key={resident.id} className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow border border-gray-200 overflow-hidden">
+                                            <div className="p-5">
+                                                {/* Resident Header */}
+                                                <div className="flex items-start justify-between mb-4">
+                                                    <div className="flex-1">
+                                                        <h4 className="text-lg font-semibold text-gray-900 mb-1">
+                                                            {resident.first_name} {resident.last_name}
+                                                        </h4>
+                                                        <div className="flex items-center space-x-4 text-sm text-gray-600">
+                                                            {age !== 'N/A' && (
+                                                                <span className="flex items-center">
+                                                                    <User className="w-4 h-4 mr-1" />
+                                                                    {age} years
+                                                                </span>
+                                                            )}
+                                                            {resident.room_number && (
+                                                                <span className="flex items-center">
+                                                                    <MapPin className="w-4 h-4 mr-1" />
+                                                                    Room {resident.room_number}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    {resident.gender && (
+                                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold ${
+                                                            resident.gender.toLowerCase() === 'male' ? 'bg-blue-500' : 'bg-pink-500'
+                                                        }`}>
+                                                            {resident.gender.charAt(0).toUpperCase()}
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* Resident Info */}
+                                                <div className="space-y-2 mb-4 text-sm">
+                                                    {resident.diagnosis && (
+                                                        <div className="text-gray-600">
+                                                            <span className="font-medium">Diagnosis:</span> {resident.diagnosis}
+                                                        </div>
+                                                    )}
+                                                    {resident.allergies && (
+                                                        <div className="text-amber-600">
+                                                            <span className="font-medium">Allergies:</span> {resident.allergies}
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* Next Appointment Info */}
+                                                {nextAppt && (
+                                                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                                                        <div className="flex items-center justify-between">
+                                                            <div>
+                                                                <p className="text-xs text-blue-600 font-medium mb-1">Next Appointment</p>
+                                                                <p className="text-sm font-semibold text-blue-900">
+                                                                    {new Date(nextAppt.appointment_date).toLocaleDateString('en-US', { 
+                                                                        month: 'short', 
+                                                                        day: 'numeric',
+                                                                        year: 'numeric'
+                                                                    })}
+                                                                </p>
+                                                                {nextAppt.appointment_time && (
+                                                                    <p className="text-xs text-blue-700">
+                                                                        {(() => {
+                                                                            const timeParts = nextAppt.appointment_time.split(':');
+                                                                            if (timeParts.length >= 2) {
+                                                                                const hours = parseInt(timeParts[0]) || 0;
+                                                                                const minutes = timeParts[1] || '00';
+                                                                                const hour12 = hours % 12 || 12;
+                                                                                const ampm = hours >= 12 ? 'PM' : 'AM';
+                                                                                return `${hour12}:${minutes} ${ampm}`;
+                                                                            }
+                                                                            return '';
+                                                                        })()}
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                                                nextAppt.status === 'scheduled' ? 'bg-amber-100 text-amber-800' :
+                                                                nextAppt.status === 'confirmed' ? 'bg-green-100 text-green-800' :
+                                                                'bg-gray-100 text-gray-800'
+                                                            }`}>
+                                                                {nextAppt.status?.charAt(0).toUpperCase() + nextAppt.status?.slice(1)}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Appointment Button */}
+                                                <button
+                                                    onClick={() => handleOpenAppointmentModal(resident.id)}
+                                                    className="w-full bg-[#2D5016] hover:bg-[#1a3009] text-white px-4 py-2 rounded-lg transition-colors flex items-center justify-center space-x-2"
+                                                >
+                                                    <Calendar className="w-4 h-4" />
+                                                    <span>Schedule Appointment</span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
+                                <User className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                                <p className="text-gray-600 text-lg font-semibold mb-2">No Residents Found</p>
+                                <p className="text-gray-500 text-sm">You don't have any assigned residents yet.</p>
+                            </div>
+                        )}
                     </div>
 
-                    {/* Resident Filter */}
+                    {/* Appointment History Section */}
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Resident:</label>
-                        <div className="relative">
-                            <User className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                            <select
-                                value={residentFilter}
-                                onChange={(e) => setResidentFilter(e.target.value)}
-                                className="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2D5016] focus:border-transparent appearance-none bg-white"
-                            >
-                                <option value="">All Residents</option>
-                                {(allResidentsData?.data || []).map(r => (
-                                    <option key={r.id} value={r.id}>
-                                        {r.first_name} {r.last_name}
-                                    </option>
-                                ))}
-                            </select>
-                            <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Appointment History</h3>
+                        {/* Filters for appointment history */}
+                        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">Filter by Resident:</label>
+                                    <div className="relative">
+                                        <User className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                        <select
+                                            value={residentFilter}
+                                            onChange={(e) => setResidentFilter(e.target.value)}
+                                            className="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2D5016] focus:border-transparent appearance-none bg-white"
+                                        >
+                                            <option value="">All Residents</option>
+                                            {(allResidentsData?.data || []).map(r => (
+                                                <option key={r.id} value={r.id}>
+                                                    {r.first_name} {r.last_name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                                    </div>
+                                </div>
+                                {branchFilter && (
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">Branch:</label>
+                                        <div className="relative">
+                                            <MapPin className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                            <select
+                                                value={branchFilter}
+                                                onChange={(e) => {
+                                                    setBranchFilter(e.target.value);
+                                                    setResidentFilter('');
+                                                }}
+                                                className="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2D5016] focus:border-transparent appearance-none bg-white"
+                                            >
+                                                <option value="">All Branches</option>
+                                                {(branchesData?.data || branchesData || []).map(branch => (
+                                                    <option key={branch.id} value={branch.id}>{branch.name}</option>
+                                                ))}
+                                            </select>
+                                            <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
-                </div>
+                </>
+            ) : (
+                <>
+                    {/* Non-caregiver view - Original filters */}
+                    <SectionCard>
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center space-x-3">
+                                <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-green-600 rounded-lg flex items-center justify-center">
+                                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-semibold text-gray-900">View Appointments</h3>
+                                    <p className="text-sm text-gray-500">Select branch and resident to view appointment history</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                            {/* Branch Filter */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Branch:</label>
+                                <div className="relative">
+                                    <MapPin className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                    <select
+                                        value={branchFilter}
+                                        onChange={(e) => {
+                                            setBranchFilter(e.target.value);
+                                            setResidentFilter('');
+                                        }}
+                                        className="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2D5016] focus:border-transparent appearance-none bg-white"
+                                    >
+                                        <option value="">All Branches</option>
+                                        {(branchesData?.data || branchesData || []).map(branch => (
+                                            <option key={branch.id} value={branch.id}>{branch.name}</option>
+                                        ))}
+                                    </select>
+                                    <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                                </div>
+                            </div>
 
-                {/* Mobile Add Button - Only for caregivers */}
-                {isCaregiver && (
-                    <button
-                        onClick={() => setShowForm(true)}
-                        className="md:hidden w-full mt-4 flex items-center justify-center space-x-2 bg-[#2D5016] hover:bg-[#1a3009] text-white px-4 py-3 rounded-lg transition-all duration-200"
-                    >
-                        <Plus className="w-5 h-5" />
-                        <span>Add Appointment</span>
-                    </button>
-                )}
-            </SectionCard>
+                            {/* Resident Filter */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Resident:</label>
+                                <div className="relative">
+                                    <User className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                    <select
+                                        value={residentFilter}
+                                        onChange={(e) => setResidentFilter(e.target.value)}
+                                        className="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2D5016] focus:border-transparent appearance-none bg-white"
+                                    >
+                                        <option value="">All Residents</option>
+                                        {(allResidentsData?.data || []).map(r => (
+                                            <option key={r.id} value={r.id}>
+                                                {r.first_name} {r.last_name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                                </div>
+                            </div>
+                        </div>
+                    </SectionCard>
+                </>
+            )}
 
             {/* Error Messages */}
             {(appointmentsError || branchesError || residentsError || allResidentsError) && (

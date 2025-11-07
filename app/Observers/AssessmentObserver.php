@@ -40,7 +40,7 @@ class AssessmentObserver
                            " on {$assessmentDate}",
                 'icon' => 'clipboard',
                 'icon_color' => 'text-[#8B4513]',
-                'action_url' => '/app/assessments',
+                'action_url' => "/app/assessments/{$assessment->id}/review",
                 'metadata' => [
                     'assessment_id' => $assessment->id,
                     'resident_id' => $assessment->resident_id,
@@ -103,7 +103,7 @@ class AssessmentObserver
                                " has been {$statusText} on {$completionDate}",
                     'icon' => 'clipboard',
                     'icon_color' => 'text-green-600',
-                    'action_url' => '/app/assessments',
+                    'action_url' => "/app/assessments/{$assessment->id}/review",
                     'metadata' => [
                         'assessment_id' => $assessment->id,
                         'resident_id' => $assessment->resident_id,

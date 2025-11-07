@@ -67,6 +67,14 @@ export default function NotificationDropdown() {
         // Navigate based on notification type and metadata
         const metadata = notification.metadata || {};
         
+        // If action_url is already set and looks complete (starts with /app/), use it directly
+        // This allows the backend to specify exact navigation paths
+        if (notification.action_url && notification.action_url.startsWith('/app/')) {
+            navigate(notification.action_url);
+            setIsOpen(false);
+            return;
+        }
+        
         // Build navigation URL based on notification type
         let navUrl = notification.action_url || '/app/dashboard';
         
@@ -88,8 +96,12 @@ export default function NotificationDropdown() {
                 break;
             case 'assessment_created':
             case 'assessment_completed':
-                if (metadata.assessment_id && metadata.resident_id) {
-                    navUrl = `/app/assessments?resident_id=${metadata.resident_id}&assessment_id=${metadata.assessment_id}`;
+                if (metadata.assessment_id) {
+                    // Navigate directly to the assessment review page
+                    navUrl = `/app/assessments/${metadata.assessment_id}/review`;
+                } else if (metadata.resident_id) {
+                    // Fallback to assessments list filtered by resident
+                    navUrl = `/app/assessments?resident_id=${metadata.resident_id}`;
                 }
                 break;
             case 'leave_request':
