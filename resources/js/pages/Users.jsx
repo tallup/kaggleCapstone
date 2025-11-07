@@ -343,6 +343,11 @@ function UserForm({ record, branches, roles, onClose, onSuccess }) {
     const [errors, setErrors] = useState({});
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // Track when formData.role changes
+    React.useEffect(() => {
+        console.log('formData.role changed to:', formData.role);
+    }, [formData.role]);
+
     // Update form when record changes (for editing)
     React.useEffect(() => {
         if (record) {
@@ -354,28 +359,32 @@ function UserForm({ record, branches, roles, onClose, onSuccess }) {
             const roleValue = getRoleValue(record);
             console.log('Setting role to:', roleValue);
             
-            const newFormData = {
-                first_name: record.first_name || '',
-                middle_names: record.middle_names || '',
-                last_name: record.last_name || '',
-                email: record.email || '',
-                password: '',
-                phone_number: record.phone_number || '',
-                date_of_birth: formatDateForInput(record.date_of_birth),
-                marital_status: record.marital_status || '',
-                sex: record.sex || '',
-                credentials: record.credentials || '',
-                credential_details: record.credential_details || '',
-                date_employed: formatDateForInput(record.date_employed),
-                supervisor_name: record.supervisor_name || '',
-                provider_name: record.provider_name || '',
-                role: roleValue,
-                assigned_branch_id: record.assigned_branch_id || '',
-                is_active: record.is_active ?? true,
-                notes: record.notes || '',
-            };
-            console.log('Setting formData with role:', roleValue, 'Full formData:', newFormData);
-            setFormData(newFormData);
+            // Use functional update to ensure state is set correctly
+            setFormData(prevFormData => {
+                const newFormData = {
+                    ...prevFormData,
+                    first_name: record.first_name || '',
+                    middle_names: record.middle_names || '',
+                    last_name: record.last_name || '',
+                    email: record.email || '',
+                    password: '',
+                    phone_number: record.phone_number || '',
+                    date_of_birth: formatDateForInput(record.date_of_birth),
+                    marital_status: record.marital_status || '',
+                    sex: record.sex || '',
+                    credentials: record.credentials || '',
+                    credential_details: record.credential_details || '',
+                    date_employed: formatDateForInput(record.date_employed),
+                    supervisor_name: record.supervisor_name || '',
+                    provider_name: record.provider_name || '',
+                    role: roleValue,
+                    assigned_branch_id: record.assigned_branch_id || '',
+                    is_active: record.is_active ?? true,
+                    notes: record.notes || '',
+                };
+                console.log('Setting formData with role:', roleValue, 'Full formData:', newFormData);
+                return newFormData;
+            });
         } else {
             // Reset form when no record (creating new user)
             setFormData({
@@ -912,6 +921,7 @@ function UserForm({ record, branches, roles, onClose, onSuccess }) {
                                         Role *
                                     </label>
                                     <select
+                                        key={`role-select-${record?.id || 'new'}-${formData.role}`}
                                         value={formData.role || ''}
                                         onChange={(e) => {
                                             console.log('Role changed to:', e.target.value);
@@ -929,9 +939,9 @@ function UserForm({ record, branches, roles, onClose, onSuccess }) {
                                         <option value="support_staff">Support Staff</option>
                                     </select>
                                     {errors.role && <p className="text-xs text-red-600 mt-1">{errors.role[0]}</p>}
-                                    {formData.role && (
-                                        <p className="text-xs text-gray-500 mt-1">Current role: {formData.role}</p>
-                                    )}
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        {formData.role ? `Current role: ${formData.role}` : 'No role selected'}
+                                    </p>
                                 </div>
 
                                 <div>

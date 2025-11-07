@@ -6,6 +6,32 @@ import { CheckCircle, XCircle, Calendar, Plus, User, Stethoscope, MapPin, Chevro
 import Card from '../components/Card';
 import SectionCard from '../components/SectionCard';
 
+// Profile Image Component with fallback
+function ProfileImage({ resident }) {
+    const [imageError, setImageError] = useState(false);
+    
+    if (!resident.profile_image || imageError) {
+        return (
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold ${
+                resident.gender?.toLowerCase() === 'male' ? 'bg-blue-500' : 'bg-pink-500'
+            }`}>
+                {resident.first_name?.[0]?.toUpperCase() || ''}{resident.last_name?.[0]?.toUpperCase() || ''}
+            </div>
+        );
+    }
+    
+    return (
+        <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-gray-200 flex-shrink-0">
+            <img 
+                src={`/storage/${resident.profile_image}`} 
+                alt={`${resident.first_name} ${resident.last_name}`}
+                className="w-full h-full object-cover"
+                onError={() => setImageError(true)}
+            />
+        </div>
+    );
+}
+
 export default function Appointments() {
     const queryClient = useQueryClient();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -17,6 +43,7 @@ export default function Appointments() {
     const [showForm, setShowForm] = useState(false);
     const [currentUser, setCurrentUser] = useState(null);
     const [componentError, setComponentError] = useState(null);
+    const [isPreFilled, setIsPreFilled] = useState(false); // Track if form was opened with pre-filled data
     const [formData, setFormData] = useState({
         branch_id: '',
         resident_id: '',
@@ -217,17 +244,7 @@ export default function Appointments() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries(['appointments']);
-            setShowForm(false);
-            setFormData({
-                branch_id: '',
-                resident_id: '',
-                appointment_date: new Date().toISOString().split('T')[0],
-                appointment_time: '',
-                provider_name: '',
-                location: '',
-                description: '',
-                status: 'scheduled',
-            });
+            handleCloseForm();
         },
         onError: (error) => {
             console.error('Error creating appointment:', error);
@@ -312,12 +329,46 @@ export default function Appointments() {
 
     // Handle opening appointment modal for a specific resident
     const handleOpenAppointmentModal = (residentId) => {
+        const resident = allResidentsData?.data?.find(r => r.id === residentId);
         setFormData(prev => ({
             ...prev,
             resident_id: residentId,
-            branch_id: allResidentsData?.data?.find(r => r.id === residentId)?.branch_id || '',
+            branch_id: resident?.branch_id || '',
         }));
+        setIsPreFilled(true); // Mark as pre-filled
         setShowForm(true);
+    };
+
+    // Handle opening form manually (not from resident card)
+    const handleOpenFormManually = () => {
+        setFormData({
+            branch_id: '',
+            resident_id: '',
+            appointment_date: new Date().toISOString().split('T')[0],
+            appointment_time: '',
+            provider_name: '',
+            location: '',
+            description: '',
+            status: 'scheduled',
+        });
+        setIsPreFilled(false); // Allow editing
+        setShowForm(true);
+    };
+
+    // Handle closing form
+    const handleCloseForm = () => {
+        setShowForm(false);
+        setIsPreFilled(false);
+        setFormData({
+            branch_id: '',
+            resident_id: '',
+            appointment_date: new Date().toISOString().split('T')[0],
+            appointment_time: '',
+            provider_name: '',
+            location: '',
+            description: '',
+            status: 'scheduled',
+        });
     };
 
     return (
@@ -378,13 +429,7 @@ export default function Appointments() {
                                                             )}
                                                         </div>
                                                     </div>
-                                                    {resident.gender && (
-                                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold ${
-                                                            resident.gender.toLowerCase() === 'male' ? 'bg-blue-500' : 'bg-pink-500'
-                                                        }`}>
-                                                            {resident.gender.charAt(0).toUpperCase()}
-                                                        </div>
-                                                    )}
+                                                    <ProfileImage resident={resident} />
                                                 </div>
 
                                                 {/* Resident Info */}
@@ -868,10 +913,11 @@ export default function Appointments() {
                     residents={residentsData?.data || residentsData || []}
                     formData={formData}
                     setFormData={setFormData}
-                    onClose={() => setShowForm(false)}
+                    onClose={handleCloseForm}
                     onSubmit={() => createMutation.mutate()}
                     isSubmitting={createMutation.isPending}
                     mutation={createMutation}
+                    isPreFilled={isPreFilled}
                 />
             )}
 
@@ -918,7 +964,7 @@ export default function Appointments() {
     );
 }
 
-function AddAppointmentModal({ branches, residents, formData, setFormData, onClose, onSubmit, isSubmitting, mutation }) {
+function AddAppointmentModal({ branches, residents, formData, setFormData, onClose, onSubmit, isSubmitting, mutation, isPreFilled = false }) {
     const [errors, setErrors] = React.useState({});
 
     const handleSubmit = async (e) => {
@@ -961,7 +1007,10 @@ function AddAppointmentModal({ branches, residents, formData, setFormData, onClo
                                         });
                                         setErrors({ ...errors, branch_id: null, resident_id: null });
                                     }}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2D5016] focus:border-transparent"
+                                    disabled={isPreFilled}
+                                    className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2D5016] focus:border-transparent ${
+                                        isPreFilled ? 'bg-gray-100 cursor-not-allowed opacity-75' : 'bg-white'
+                                    }`}
                                 >
                                     <option value="">All Branches</option>
                                     {(branches || []).map(branch => (
@@ -977,13 +1026,14 @@ function AddAppointmentModal({ branches, residents, formData, setFormData, onClo
                                 <User className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                                 <select
                                     value={formData.resident_id}
-                                onChange={(e) => {
-                                    setFormData({ ...formData, resident_id: e.target.value });
-                                    setErrors({ ...errors, resident_id: null });
-                                }}
-                                className={`w-full pl-9 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2D5016] focus:border-transparent ${
-                                    errors.resident_id ? 'border-red-300' : 'border-gray-300'
-                                }`}
+                                    onChange={(e) => {
+                                        setFormData({ ...formData, resident_id: e.target.value });
+                                        setErrors({ ...errors, resident_id: null });
+                                    }}
+                                    disabled={isPreFilled}
+                                    className={`w-full pl-9 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2D5016] focus:border-transparent ${
+                                        errors.resident_id ? 'border-red-300' : 'border-gray-300'
+                                    } ${isPreFilled ? 'bg-gray-100 cursor-not-allowed opacity-75' : 'bg-white'}`}
                                 >
                                     <option value="">Select resident</option>
                                     {(residents || []).map(r => (
