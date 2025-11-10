@@ -6,6 +6,7 @@ use Illuminate\Database\Seeder;
 use App\Models\MedicationAdministration;
 use App\Models\Medication;
 use App\Models\User;
+use App\Models\Branch;
 use Carbon\Carbon;
 
 class MedicationAdministrationSeeder extends Seeder
@@ -34,6 +35,16 @@ class MedicationAdministrationSeeder extends Seeder
             for ($i = 0; $i < $administrationCount; $i++) {
                 $administeredBy = $users->random();
                 $administeredAt = Carbon::now()->subDays(rand(1, 90))->setTime(rand(6, 22), rand(0, 59));
+
+                $branchId = $medication->branch_id
+                    ?? optional($medication->resident)->branch_id
+                    ?? optional($administeredBy)->assigned_branch_id
+                    ?? Branch::value('id');
+
+                if (!$branchId) {
+                    $this->command->warn("Skipping medication administration for medication ID {$medication->id} due to missing branch assignment.");
+                    continue;
+                }
                 
                 MedicationAdministration::create([
                     'medication_id' => $medication->id,
@@ -43,6 +54,7 @@ class MedicationAdministrationSeeder extends Seeder
                     'status' => $statuses[array_rand($statuses)],
                     'dosage_given' => $this->generateDosageGiven($medication),
                     'notes' => $this->generateAdministrationNotes(),
+                    'branch_id' => $branchId,
                     'created_at' => $administeredAt,
                     'updated_at' => $administeredAt,
                 ]);

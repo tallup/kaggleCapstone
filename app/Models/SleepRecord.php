@@ -26,8 +26,8 @@ class SleepRecord extends Model
 
     protected $casts = [
         'sleep_date' => 'date',
-        'sleep_time' => 'datetime:H:i',
-        'wake_time' => 'datetime:H:i',
+        'sleep_time' => 'string',
+        'wake_time' => 'string',
         'total_sleep_hours' => 'decimal:2',
         'sleep_quality' => 'integer',
         'restlessness_episodes' => 'integer',

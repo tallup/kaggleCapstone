@@ -34,8 +34,8 @@ class SleepPattern extends Model
         'total_awake_hours' => 'decimal:2',
         'avg_sleep_hours' => 'decimal:2',
         'days_with_records' => 'integer',
-        'common_sleep_time' => 'datetime:H:i',
-        'common_wake_time' => 'datetime:H:i',
+        'common_sleep_time' => 'string',
+        'common_wake_time' => 'string',
         'sleep_quality_score' => 'integer',
     ];
 

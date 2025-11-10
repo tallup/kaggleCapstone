@@ -102,6 +102,7 @@ export default function Layout() {
     const [expandedMenus, setExpandedMenus] = useState({});
     const [currentUser, setCurrentUser] = useState(null);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [appClock, setAppClock] = useState({ time: '', date: '' });
 
     // Fetch current user data
     useEffect(() => {
@@ -115,6 +116,41 @@ export default function Layout() {
         };
         fetchUser();
     }, []);
+
+    useEffect(() => {
+        if (!currentUser?.app_timezone) {
+            setAppClock({ time: '', date: '' });
+            return;
+        }
+
+        const timeZone = currentUser.app_timezone;
+        const timeFormatter = new Intl.DateTimeFormat([], {
+            hour: 'numeric',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: true,
+            timeZone,
+        });
+        const dateFormatter = new Intl.DateTimeFormat([], {
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+            timeZone,
+        });
+
+        const updateClock = () => {
+            const now = new Date();
+            setAppClock({
+                time: timeFormatter.format(now),
+                date: dateFormatter.format(now),
+            });
+        };
+
+        updateClock();
+        const interval = window.setInterval(updateClock, 1000);
+        return () => window.clearInterval(interval);
+    }, [currentUser?.app_timezone]);
 
     // Handle automatic logout after inactivity
     useEffect(() => {
@@ -241,6 +277,23 @@ export default function Layout() {
         }
         return navigation;
     }, [isCaregiver]);
+
+    const appTimezoneLabel = React.useMemo(() => {
+        if (!currentUser?.app_timezone) {
+            return '';
+        }
+
+        const parts = [
+            currentUser.app_timezone_abbr,
+            currentUser.app_timezone_offset,
+        ].filter(Boolean);
+
+        if (parts.length > 0) {
+            return `${parts.join(' ')} · ${currentUser.app_timezone}`;
+        }
+
+        return currentUser.app_timezone;
+    }, [currentUser]);
 
     const leaveRequestsPath = isCaregiver ? '/leave-requests' : '/administration/leave-requests';
 
@@ -374,9 +427,25 @@ export default function Layout() {
                         >
                             <Menu className="w-6 h-6" />
                         </button>
-                        <h1 className="text-lg md:text-xl font-semibold text-[#25603E]">Evergreen Oasis</h1>
+                        <div className="flex flex-col">
+                            <h1 className="text-lg md:text-xl font-semibold text-[#25603E]">Evergreen Oasis</h1>
+                            {appClock.time && (
+                                <span className="md:hidden text-xs text-gray-500">
+                                    {appClock.time} • {appTimezoneLabel}
+                                </span>
+                            )}
+                        </div>
                     </div>
                     <div className="flex items-center space-x-2 md:space-x-4">
+                        {appClock.time && (
+                            <div className="hidden md:flex flex-col items-end text-sm text-gray-600 mr-2">
+                                <span className="font-semibold">{appClock.time}</span>
+                                <span className="text-xs text-gray-500">
+                                    {appClock.date}
+                                    {appTimezoneLabel ? ` • ${appTimezoneLabel}` : ''}
+                                </span>
+                            </div>
+                        )}
                         <NotificationDropdown />
                         <Link
                             to={leaveRequestsPath}

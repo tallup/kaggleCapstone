@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Services\ActivityLogService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
@@ -44,7 +45,7 @@ class AuthController extends Controller
             ]);
 
             return response()->json([
-                'user' => $user,
+                'user' => $this->transformUser($user),
                 'token' => $token,
             ]);
         }
@@ -75,7 +76,28 @@ class AuthController extends Controller
 
     public function user(Request $request): JsonResponse
     {
-        return response()->json($request->user());
+        return response()->json($this->transformUser($request->user()));
+    }
+
+    /**
+     * Attach application timezone metadata to the user payload.
+     */
+    protected function transformUser(?\App\Models\User $user): array
+    {
+        if (!$user) {
+            return [];
+        }
+
+        $appTimezone = config('app.timezone', 'UTC');
+        $now = Carbon::now($appTimezone);
+
+        $payload = $user->toArray();
+        $payload['app_timezone'] = $appTimezone;
+        $payload['app_timezone_abbr'] = $now->format('T');
+        $payload['app_timezone_offset'] = $now->format('P');
+        $payload['app_current_time'] = $now->toIso8601String();
+
+        return $payload;
     }
 }
 

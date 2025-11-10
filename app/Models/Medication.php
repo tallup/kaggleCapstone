@@ -37,10 +37,10 @@ class Medication extends Model
         'end_date' => 'date',
         'quantity' => 'string', // Keep as string since it can be "30 tablets" etc
         'is_active' => 'boolean',
-        'time_1' => 'datetime',
-        'time_2' => 'datetime',
-        'time_3' => 'datetime',
-        'time_4' => 'datetime',
+        'time_1' => 'string',
+        'time_2' => 'string',
+        'time_3' => 'string',
+        'time_4' => 'string',
     ];
 
     // Relationships
