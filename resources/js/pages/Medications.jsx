@@ -1255,12 +1255,14 @@ function QuickAdminister({ medication, onSuccess }) {
     const [dosageNotes, setDosageNotes] = useState('');
     const [dosageValidationError, setDosageValidationError] = useState('');
     const [isWithinTimeWindow, setIsWithinTimeWindow] = useState(false);
+    const [hasClosedWindow, setHasClosedWindow] = useState(false);
     const [timeMessage, setTimeMessage] = useState('');
     const [isDailyLimitReached, setIsDailyLimitReached] = useState(false);
     const [successMessage, setSuccessMessage] = useState('');
     const [nextWindowStart, setNextWindowStart] = useState(null);
     const [nextWindowCountdown, setNextWindowCountdown] = useState('');
     const [upcomingScheduledDisplay, setUpcomingScheduledDisplay] = useState('');
+    const [isLateMode, setIsLateMode] = useState(false);
 
     const closeDosageModal = React.useCallback(() => {
         if (submitting) return;
@@ -1269,6 +1271,7 @@ function QuickAdminister({ medication, onSuccess }) {
         setError('');
         setDosageGiven('');
         setDosageNotes('');
+        setIsLateMode(false);
     }, [submitting]);
 
     const normalizedInstruction = React.useMemo(
@@ -1375,10 +1378,10 @@ function QuickAdminister({ medication, onSuccess }) {
         [parseTimeToToday]
     );
 
-    // Check if current time is within 30 minutes of any scheduled time
+    // Check if current time is within 60 minutes before or after any scheduled time
     const checkTimeWindow = React.useCallback(() => {
-        const windowBeforeMinutes = 0;
-        const windowAfterMinutes = 30;
+        const windowBeforeMinutes = 60;
+        const windowAfterMinutes = 60;
         const times = [
             medication.time_1,
             medication.time_2,
@@ -1392,6 +1395,7 @@ function QuickAdminister({ medication, onSuccess }) {
             setNextWindowStart(null);
             setNextWindowCountdown('');
             setUpcomingScheduledDisplay('');
+            setHasClosedWindow(false);
             return;
         }
 
@@ -1415,6 +1419,9 @@ function QuickAdminister({ medication, onSuccess }) {
                     });
             })
             .sort((a, b) => a.start - b.start);
+
+        const pastWindowExists = windows.some((window) => now > window.end);
+        setHasClosedWindow(pastWindowExists);
 
         for (const window of windows) {
             if (now >= window.start && now <= window.end) {
@@ -1449,6 +1456,7 @@ function QuickAdminister({ medication, onSuccess }) {
         setNextWindowStart(null);
         setNextWindowCountdown('');
         setUpcomingScheduledDisplay('');
+        setHasClosedWindow(pastWindowExists);
     }, [
         formatScheduledTime,
         isPrnMedication,
@@ -1518,6 +1526,22 @@ function QuickAdminister({ medication, onSuccess }) {
 
     const isButtonDisabled =
         submitting || isDailyLimitReached || (!isWithinTimeWindow && !isPrnMedication);
+    const showLateButton =
+        !isPrnMedication && !isWithinTimeWindow && hasClosedWindow && !isDailyLimitReached && !submitting;
+
+    const openDosageModal = (late = false) => {
+        if (late) {
+            setIsLateMode(true);
+        } else {
+            setIsLateMode(false);
+        }
+        setDosageGiven('');
+        setDosageNotes('');
+        setDosageValidationError('');
+        setError('');
+        setSuccessMessage('');
+        setIsDosageModalOpen(true);
+    };
 
     return (
         <div className="mt-3">
@@ -1530,15 +1554,9 @@ function QuickAdminister({ medication, onSuccess }) {
                 <button 
                     onClick={() => {
                         if (!isWithinTimeWindow && !isPrnMedication) {
-                            setError('Can only record within the scheduled time window.');
                             return;
                         }
-                        setDosageGiven('');
-                        setDosageNotes('');
-                        setDosageValidationError('');
-                        setError('');
-                        setSuccessMessage('');
-                        setIsDosageModalOpen(true);
+                        openDosageModal(false);
                     }} 
                     disabled={isButtonDisabled} 
                     className="px-2 py-1 bg-[#25603E] text-white rounded text-xs hover:bg-[#1B402D] disabled:opacity-50 disabled:cursor-not-allowed"
@@ -1552,6 +1570,14 @@ function QuickAdminister({ medication, onSuccess }) {
                 >
                     {submitting ? 'Administering...' : 'Administer'}
                 </button>
+                {showLateButton && (
+                    <button
+                        onClick={() => openDosageModal(true)}
+                        className="px-2 py-1 bg-amber-600 text-white rounded text-xs hover:bg-amber-700 transition-colors"
+                    >
+                        Late Administer
+                    </button>
+                )}
             </div>
             {successMessage && (
                 <p className="mt-2 text-xs text-green-600">{successMessage}</p>
@@ -1621,6 +1647,11 @@ function QuickAdminister({ medication, onSuccess }) {
                                     disabled={submitting}
                                 />
                             </div>
+                            {isLateMode && (
+                                <div className="rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-700">
+                                    This will be recorded as a late administration outside the scheduled window.
+                                </div>
+                            )}
                         </div>
                         <div className="flex justify-end gap-2 border-t px-5 py-4">
                             <button
@@ -1657,12 +1688,12 @@ function QuickAdminister({ medication, onSuccess }) {
                                         queryClient.invalidateQueries(['medication-administrations']);
                                         queryClient.invalidateQueries(['medication-administrations-today', medication.id]);
                                         queryClient.invalidateQueries(['medication-administrations-today-check', medication.id]);
-                                        const successText = `Medication ${status.charAt(0).toUpperCase() + status.slice(1)} recorded successfully.`;
+                                        const statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
+                                        const successText = isLateMode
+                                            ? `Late administration (${statusLabel}) recorded successfully.`
+                                            : `Medication ${statusLabel} recorded successfully.`;
                                         setSuccessMessage(successText);
-                                        setIsDosageModalOpen(false);
-                                        setDosageGiven('');
-                                        setDosageNotes('');
-                                        setDosageValidationError('');
+                                        closeDosageModal();
                                         checkTimeWindow();
                                         onSuccess?.();
                                     } catch (e) {
@@ -1747,9 +1778,9 @@ function TimePicker({ value, onChange, className = '' }) {
             <button
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
-                className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#25603E] focus:border-transparent bg-white text-left flex items-center justify-between ${className}`}
+                className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#25603E] focus:border-transparent bg-white text-left flex items-center justify-between text-sm ${className}`}
             >
-                <span className={value ? 'text-gray-900' : 'text-gray-400'}>
+                <span className={`${value ? 'text-gray-900' : 'text-gray-400'} font-medium`}>
                     {displayValue}
                 </span>
                 <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isOpen ? 'transform rotate-180' : ''}`} />
@@ -1761,8 +1792,8 @@ function TimePicker({ value, onChange, className = '' }) {
                         className="fixed inset-0 z-10" 
                         onClick={() => setIsOpen(false)}
                     ></div>
-                    <div className="absolute z-20 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-4 w-full">
-                        <div className="flex items-center justify-center gap-2 mb-4">
+                    <div className="absolute z-20 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-3 w-full">
+                        <div className="flex items-center justify-center gap-2 mb-3">
                             {/* Hours */}
                             <select
                                 value={hours}
@@ -1770,7 +1801,7 @@ function TimePicker({ value, onChange, className = '' }) {
                                     const newHours = parseInt(e.target.value);
                                     handleTimeChange(newHours, minutes, period);
                                 }}
-                                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#25603E] focus:border-transparent text-center text-lg font-semibold"
+                                className="px-2.5 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#25603E] focus:border-transparent text-center text-base font-medium"
                                 onClick={(e) => e.stopPropagation()}
                             >
                                 {hourOptions.map(h => (
@@ -1787,7 +1818,7 @@ function TimePicker({ value, onChange, className = '' }) {
                                     const newMinutes = parseInt(e.target.value);
                                     handleTimeChange(hours, newMinutes, period);
                                 }}
-                                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#25603E] focus:border-transparent text-center text-lg font-semibold"
+                                className="px-2.5 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#25603E] focus:border-transparent text-center text-base font-medium"
                                 onClick={(e) => e.stopPropagation()}
                             >
                                 {minuteOptions.map(m => (
@@ -1802,7 +1833,7 @@ function TimePicker({ value, onChange, className = '' }) {
                                     const newPeriod = e.target.value;
                                     handleTimeChange(hours, minutes, newPeriod);
                                 }}
-                                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#25603E] focus:border-transparent text-center text-lg font-semibold"
+                                className="px-2.5 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#25603E] focus:border-transparent text-center text-base font-medium"
                                 onClick={(e) => e.stopPropagation()}
                             >
                                 <option value="AM">AM</option>

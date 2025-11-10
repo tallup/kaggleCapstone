@@ -248,6 +248,9 @@ export default function MedicationHistory() {
                                             Status
                                         </th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Administered By
+                                        </th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Dosage / Notes
                                         </th>
                                     </tr>
@@ -257,6 +260,13 @@ export default function MedicationHistory() {
                                         const resident = administration.resident;
                                         const medication = administration.medication;
                                         const statusClass = statusStyles[administration.status] || 'bg-gray-100 text-gray-800';
+                                        const administeredBy =
+                                            administration.administered_by?.name ??
+                                            administration.administered_by?.full_name ??
+                                            administration.administeredBy?.name ??
+                                            administration.administered_by_name ??
+                                            administration.administered_by_full_name ??
+                                            administration.administered_by;
 
                                         return (
                                             <tr key={administration.id} className="hover:bg-gray-50 transition-colors">
@@ -283,15 +293,24 @@ export default function MedicationHistory() {
                                                         {administration.status?.charAt(0).toUpperCase() + administration.status?.slice(1)}
                                                     </span>
                                                 </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                    {administeredBy ? (
+                                                        <div className="flex flex-col">
+                                                            <span className="font-medium">{administeredBy}</span>
+                                                            {administration.administered_by?.position && (
+                                                                <span className="text-xs text-gray-500">
+                                                                    {administration.administered_by.position}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-gray-400 text-sm">Not recorded</span>
+                                                    )}
+                                                </td>
                                                 <td className="px-6 py-4 text-sm text-gray-900">
                                                     <div>{administration.dosage_given || 'Dose not recorded'}</div>
                                                     {administration.notes && (
                                                         <div className="text-xs text-gray-500 mt-1">{administration.notes}</div>
-                                                    )}
-                                                    {administration.administered_by?.name && (
-                                                        <div className="text-xs text-gray-400 mt-1">
-                                                            Recorded by {administration.administered_by.name}
-                                                        </div>
                                                     )}
                                                 </td>
                                             </tr>
