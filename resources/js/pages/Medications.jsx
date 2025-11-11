@@ -2,7 +2,35 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import { Pill, Clock, User, Calendar, CheckCircle, XCircle, AlertCircle, Plus, Edit, Trash2, Download, ChevronDown } from 'lucide-react';
+import {
+    setServerTimeReference,
+    getPacificDate,
+    getPacificStartOfDay,
+    getPacificISODate,
+    formatPacificTime,
+    formatPacificDate,
+    getPacificNow,
+    getPacificDateTimeLocalString,
+    getPacificISODateTime,
+    convertPacificLocalInputToISO,
+    toPacificDateFromTime,
+    formatPacificTimeValue,
+    getPacificDayIdentifier,
+} from '../utils/time';
+import {
+    Pill,
+    Clock,
+    User,
+    Calendar,
+    CheckCircle,
+    XCircle,
+    AlertCircle,
+    Plus,
+    Edit,
+    Trash2,
+    Download,
+    ChevronDown,
+} from 'lucide-react';
 
 const INSTRUCTION_DISPLAY_MAP = {
     'q.i.d': 'Four times a day',
@@ -32,156 +60,21 @@ const formatInstructionDisplay = (value) => {
     return INSTRUCTION_DISPLAY_MAP[normalized] ?? value;
 };
 
-const PACIFIC_TIMEZONE = 'America/Los_Angeles';
-
-const pacificDateTimeFormatter = new Intl.DateTimeFormat('en-US', {
-    timeZone: PACIFIC_TIMEZONE,
-    year: 'numeric',
-    month: 'numeric',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: 'numeric',
-    second: 'numeric',
-    hourCycle: 'h23',
-});
-
-const pacificDateFormatter = new Intl.DateTimeFormat('en-US', {
-    timeZone: PACIFIC_TIMEZONE,
-    year: 'numeric',
-    month: 'numeric',
-    day: 'numeric',
-});
-
-const pacificTimeFormatter = new Intl.DateTimeFormat('en-US', {
-    timeZone: PACIFIC_TIMEZONE,
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true,
-});
-
-const pacificOffsetFormatter = new Intl.DateTimeFormat('en-US', {
-    timeZone: PACIFIC_TIMEZONE,
-    timeZoneName: 'shortOffset',
-    hour: '2-digit',
-    minute: '2-digit',
-});
-
-const getPacificParts = (date = new Date()) => {
-    const parts = pacificDateTimeFormatter.formatToParts(date);
-    const lookup = {};
-    parts.forEach(({ type, value }) => {
-        if (type !== 'literal') {
-            lookup[type] = Number(value);
-        }
-    });
-    return lookup;
-};
-
-const getPacificDate = (date = new Date()) => {
-    const { year, month, day, hour = 0, minute = 0, second = 0 } = getPacificParts(date);
-    return new Date(Date.UTC(year, month - 1, day, hour, minute, second));
-};
-
-const getPacificStartOfDay = (date = new Date()) => {
-    const { year, month, day } = getPacificParts(date);
-    return new Date(Date.UTC(year, month - 1, day, 0, 0, 0));
-};
-
-const getPacificISODate = (date = new Date()) => {
-    const { year, month, day } = getPacificParts(date);
-    return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-};
-
-const formatPacificTime = (date) => pacificTimeFormatter.format(date);
-const formatPacificDate = (date) => pacificDateFormatter.format(date);
-const getPacificNow = () => getPacificDate(new Date());
-
-const toLocalISOStringFromPacific = (pacificDate) => {
-    if (!pacificDate || Number.isNaN(pacificDate.getTime())) return '';
-    const localEquivalent = new Date(pacificDate.getTime() - pacificDate.getTimezoneOffset() * 60000);
-    return localEquivalent.toISOString();
-};
-
-const getPacificDateTimeLocalString = (date = new Date()) =>
-    toLocalISOStringFromPacific(getPacificDate(date)).slice(0, 16);
-
-const getPacificISODateTime = (date = new Date()) => getPacificDate(date).toISOString();
-
-const getPacificOffsetMinutes = (date) => {
-    const parts = pacificOffsetFormatter.formatToParts(date);
-    const tzPart = parts.find(({ type }) => type === 'timeZoneName')?.value || 'GMT-8';
-    const match = tzPart.match(/GMT([+-]\d{1,2})(?::?(\d{2}))?/i);
-    if (!match) return -480;
-    const hours = Number(match[1]);
-    const minutes = match[2] ? Number(match[2]) : 0;
-    return hours * 60 + Math.sign(hours) * minutes;
-};
-
-const createPacificInstant = (year, month, day, hour = 0, minute = 0, second = 0) => {
-    const utcGuess = Date.UTC(year, month - 1, day, hour, minute, second);
-    const offsetMinutes = getPacificOffsetMinutes(new Date(utcGuess));
-    return new Date(utcGuess - offsetMinutes * 60 * 1000);
-};
-
-const convertPacificLocalInputToISO = (value) => {
-    if (!value) return value;
-    const [datePart, timePart = ''] = value.split('T');
-    if (!datePart) return value;
-    const [year, month, day] = datePart.split('-').map(Number);
-    const [hour = 0, minute = 0] = timePart.split(':').map(Number);
-    if ([year, month, day].some((n) => Number.isNaN(n)) || Number.isNaN(hour) || Number.isNaN(minute)) {
-        return value;
-    }
-    return createPacificInstant(year, month, day, hour, minute).toISOString();
-};
-
-const toPacificDateFromTime = (timeValue, { referenceDate = getPacificNow(), dayOffset = 0 } = {}) => {
-    if (!timeValue) return null;
-
-    const adjustDay = (date) => {
-        if (dayOffset) {
-            date.setUTCDate(date.getUTCDate() + dayOffset);
-        }
-        return date;
-    };
-
-    if (typeof timeValue === 'string') {
-        if (timeValue.includes('T') || timeValue.includes(' ')) {
-            const parsed = new Date(timeValue);
-            if (Number.isNaN(parsed.getTime())) return null;
-            return adjustDay(getPacificDate(parsed));
-        }
-
-        const timeMatch = timeValue.match(/^(\d{2}):(\d{2})/);
-        if (timeMatch) {
-            const [_, hoursStr, minutesStr] = timeMatch;
-            const hours = Number(hoursStr);
-            const minutes = Number(minutesStr);
-
-            if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
-
-            const base = getPacificStartOfDay(referenceDate);
-            base.setUTCHours(hours, minutes, 0, 0);
-            return adjustDay(base);
-        }
+const formatNumberUS = (value, formatOptions) => {
+    if (value === null || value === undefined) {
+        return '0';
     }
 
-    const parsed = new Date(timeValue);
-    if (Number.isNaN(parsed.getTime())) return null;
-    return adjustDay(getPacificDate(parsed));
+    const numberValue = typeof value === 'number' ? value : Number(value);
+
+    if (Number.isNaN(numberValue)) {
+        return typeof value === 'string' ? value : '0';
+    }
+
+    return new Intl.NumberFormat('en-US', formatOptions).format(numberValue);
 };
 
-const formatPacificTimeValue = (timeValue) => {
-    const pacificDate = toPacificDateFromTime(timeValue);
-    return pacificDate ? formatPacificTime(pacificDate) : null;
-};
-
-const getPacificDayIdentifier = (date = new Date()) => {
-    const { year, month, day } = getPacificParts(date);
-    return { year, month, day };
-};
-
-const isMedicationPeriodActiveNow = (medication, referenceDate = new Date()) => {
+const isMedicationPeriodActiveNow = (medication, referenceDate = getPacificNow()) => {
     if (!medication) {
         return false;
     }
@@ -235,12 +128,19 @@ export default function Medications() {
             try {
                 const response = await api.get('/user');
                 setCurrentUser(response.data);
+                setServerTimeReference(response.data?.app_current_time);
             } catch (err) {
                 console.error('Failed to fetch current user:', err);
             }
         };
         fetchUser();
     }, []);
+
+    React.useEffect(() => {
+        if (currentUser?.app_current_time) {
+            setServerTimeReference(currentUser.app_current_time);
+        }
+    }, [currentUser?.app_current_time]);
 
     // Check if user is a caregiver
     const isCaregiver = React.useMemo(() => {
@@ -390,7 +290,7 @@ export default function Medications() {
                                     <div>
                                         <p className="text-xs text-gray-500">Quantity</p>
                                         <p className="text-sm font-medium text-gray-900">
-                                            {medication.quantity}
+                                            {formatNumberUS(medication.quantity)}
                                         </p>
                                     </div>
                                 </div>
@@ -635,7 +535,7 @@ export default function Medications() {
                                             Active Medication Periods
                                         </h3>
                                         <span className="text-xs text-gray-500">
-                                            Showing {activePeriodMedications.length} medication{activePeriodMedications.length === 1 ? '' : 's'}
+                                            Showing {formatNumberUS(activePeriodMedications.length)} medication{activePeriodMedications.length === 1 ? '' : 's'}
                                         </span>
                                     </div>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -651,7 +551,7 @@ export default function Medications() {
                                             Completed Medication Periods
                                         </h3>
                                         <span className="text-xs text-gray-500">
-                                            Showing {endedPeriodMedications.length} medication{endedPeriodMedications.length === 1 ? '' : 's'}
+                                            Showing {formatNumberUS(endedPeriodMedications.length)} medication{endedPeriodMedications.length === 1 ? '' : 's'}
                                         </span>
                                     </div>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -676,7 +576,7 @@ export default function Medications() {
                     {data?.data?.length > 0 && data?.meta && (
                         <div className="bg-white rounded-lg shadow p-4 flex items-center justify-between">
                             <div className="text-sm text-gray-600">
-                                Showing {data.meta.from || 0} to {data.meta.to || 0} of {data.meta.total || 0} medications
+                                Showing {formatNumberUS(data.meta.from ?? 0)} to {formatNumberUS(data.meta.to ?? 0)} of {formatNumberUS(data.meta.total ?? 0)} medications
                             </div>
                             <div className="flex gap-2">
                                 <button
@@ -687,7 +587,7 @@ export default function Medications() {
                                     Previous
                                 </button>
                                 <span className="px-3 py-1 text-sm">
-                                    Page {data.meta.current_page || 1} of {data.meta.last_page || 1}
+                                    Page {formatNumberUS(data.meta.current_page ?? 1)} of {formatNumberUS(data.meta.last_page ?? 1)}
                                 </span>
                                 <button
                                     onClick={() => setCurrentPage(p => p + 1)}

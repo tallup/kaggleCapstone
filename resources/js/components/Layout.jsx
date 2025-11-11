@@ -25,12 +25,13 @@ import {
     CalendarClock
 } from 'lucide-react';
 import NotificationDropdown from './NotificationDropdown';
+import { setServerTimeReference, getServerNow } from '../utils/time';
 
 const DEFAULT_TIMEZONE = 'America/Los_Angeles';
 
 const getTimezoneDisplayParts = (timeZone = DEFAULT_TIMEZONE) => {
     try {
-        const now = new Date();
+        const now = getServerNow();
         const shortFormatter = new Intl.DateTimeFormat('en-US', {
             timeZone,
             timeZoneName: 'short',
@@ -149,12 +150,19 @@ export default function Layout() {
             try {
                 const response = await api.get('/user');
                 setCurrentUser(response.data);
+                setServerTimeReference(response.data?.app_current_time);
             } catch (err) {
                 console.error('Failed to fetch current user:', err);
             }
         };
         fetchUser();
     }, []);
+
+    useEffect(() => {
+        if (currentUser?.app_current_time) {
+            setServerTimeReference(currentUser.app_current_time);
+        }
+    }, [currentUser?.app_current_time]);
 
     useEffect(() => {
         const timeZone = currentUser?.app_timezone || DEFAULT_TIMEZONE;
@@ -174,7 +182,7 @@ export default function Layout() {
         });
 
         const updateClock = () => {
-            const now = new Date();
+            const now = getServerNow();
             setAppClock({
                 time: timeFormatter.format(now),
                 date: dateFormatter.format(now),
