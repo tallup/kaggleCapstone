@@ -24,16 +24,6 @@ const pacificTimeFormatter = new Intl.DateTimeFormat('en-US', {
     hour12: true,
 });
 
-const pacificOffsetFormatter = new Intl.DateTimeFormat('en-US', {
-    timeZone: PACIFIC_TIMEZONE,
-    timeZoneName: 'shortOffset',
-});
-
-const pacificShortFormatter = new Intl.DateTimeFormat('en-US', {
-    timeZone: PACIFIC_TIMEZONE,
-    timeZoneName: 'short',
-});
-
 let pacificServerReference = null;
 let pacificReferencePerformance = null;
 
@@ -44,13 +34,39 @@ const getPerformanceNow = () => {
     return Date.now();
 };
 
-export const setPacificServerTime = (isoString) => {
+const parseOffsetMinutes = (offsetString) => {
+    if (!offsetString) return null;
+    const match = offsetString.match(/^([+-])(\d{2}):?(\d{2})?$/);
+    if (!match) return null;
+    const sign = match[1] === '-' ? -1 : 1;
+    const hours = Number(match[2]);
+    const minutes = Number(match[3] ?? '0');
+    if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
+    return sign * (hours * 60 + minutes);
+};
+
+export const setPacificServerTime = (isoString, offsetString) => {
     if (!isoString) return;
-    const parsed = new Date(isoString);
-    if (Number.isNaN(parsed.getTime())) {
+    const reference = new Date(isoString);
+    if (Number.isNaN(reference.getTime())) {
         return;
     }
-    pacificServerReference = parsed;
+
+    const isoOffsetMatch = isoString.match(/([+-]\d{2}:\d{2}|Z)$/i);
+    let isoOffsetMinutes = 0;
+    if (isoOffsetMatch) {
+        if (isoOffsetMatch[1].toUpperCase() === 'Z') {
+            isoOffsetMinutes = 0;
+        } else {
+            isoOffsetMinutes = parseOffsetMinutes(isoOffsetMatch[1]) ?? 0;
+        }
+    }
+
+    const targetOffsetMinutes =
+        parseOffsetMinutes(offsetString) ?? parseOffsetMinutes('-08:00') ?? -480;
+    const deltaMinutes = targetOffsetMinutes - isoOffsetMinutes;
+
+    pacificServerReference = new Date(reference.getTime() + deltaMinutes * 60 * 1000);
     pacificReferencePerformance = getPerformanceNow();
 };
 
@@ -102,19 +118,9 @@ export const formatPacificTime = (date) => pacificTimeFormatter.format(getPacifi
 
 export const getPacificNow = () => getPacificDate();
 
-const getPacificOffsetMinutesForDate = (date) => {
-    const parts = pacificOffsetFormatter.formatToParts(date);
-    const tzPart = parts.find((part) => part.type === 'timeZoneName')?.value || 'GMT-8';
-    const match = tzPart.match(/GMT([+-]\d{1,2})(?::?(\d{2}))?/i);
-    if (!match) return -480;
-    const hours = Number(match[1]);
-    const minutes = match[2] ? Number(match[2]) : 0;
-    return hours * 60 + Math.sign(hours) * minutes;
-};
-
 const createPacificInstant = (year, month, day, hour = 0, minute = 0, second = 0) => {
     const utcGuess = Date.UTC(year, month - 1, day, hour, minute, second);
-    const offsetMinutes = getPacificOffsetMinutesForDate(new Date(utcGuess));
+    const offsetMinutes = parseOffsetMinutes('-08:00') ?? -480;
     return new Date(utcGuess - offsetMinutes * 60 * 1000);
 };
 

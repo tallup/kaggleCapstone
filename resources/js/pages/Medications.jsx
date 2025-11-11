@@ -129,7 +129,7 @@ export default function Medications() {
             try {
                 const response = await api.get('/user');
                 setCurrentUser(response.data);
-                setPacificServerTime(response.data?.app_current_time);
+                setPacificServerTime(response.data?.app_current_time, response.data?.app_timezone_offset);
             } catch (err) {
                 console.error('Failed to fetch current user:', err);
             }
@@ -139,7 +139,7 @@ export default function Medications() {
 
     React.useEffect(() => {
         if (currentUser?.app_current_time) {
-            setPacificServerTime(currentUser.app_current_time);
+            setPacificServerTime(currentUser.app_current_time, currentUser.app_timezone_offset);
         }
     }, [currentUser?.app_current_time]);
 
