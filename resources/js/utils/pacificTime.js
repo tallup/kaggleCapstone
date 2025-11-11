@@ -112,9 +112,22 @@ export const getPacificISODate = (date) => {
     return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 };
 
-export const formatPacificDate = (date) => pacificDateFormatter.format(getPacificDate(date));
+const resolveDateInput = (date) => {
+    if (date instanceof Date) {
+        return date;
+    }
+    if (date) {
+        const parsed = new Date(date);
+        if (!Number.isNaN(parsed.getTime())) {
+            return parsed;
+        }
+    }
+    return getReferenceDate();
+};
 
-export const formatPacificTime = (date) => pacificTimeFormatter.format(getPacificDate(date));
+export const formatPacificDate = (date) => pacificDateFormatter.format(resolveDateInput(date));
+
+export const formatPacificTime = (date) => pacificTimeFormatter.format(resolveDateInput(date));
 
 export const getPacificNow = () => getPacificDate();
 
