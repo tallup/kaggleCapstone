@@ -65,9 +65,10 @@ export const setPacificServerTime = (isoString, offsetString) => {
     // The API returns time in Pacific timezone (e.g., "02:33:28-08:00" means 2:33 AM Pacific)
     // JavaScript parses this and stores it as UTC internally (e.g., 10:33:28 UTC)
     // We want to store it so that UTC components = Pacific components
-    // So we subtract the offset to convert back: 10:33:28 UTC - 8 hours = 02:33:28 UTC
+    // So we need to subtract 8 hours: 10:33:28 UTC - 8 hours = 02:33:28 UTC
+    // Since isoOffsetMinutes is -480 (negative), we ADD it to subtract: +(-480) = -480 minutes
     // Now when we extract UTC components, we get 02:33:28, which is the Pacific time
-    pacificServerReference = new Date(reference.getTime() - isoOffsetMinutes * 60 * 1000);
+    pacificServerReference = new Date(reference.getTime() + isoOffsetMinutes * 60 * 1000);
     pacificReferencePerformance = getPerformanceNow();
 };
 
