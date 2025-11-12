@@ -1320,12 +1320,21 @@ function MedicationTimeBadges({ medication }) {
     const getTimeStatus = (timeValue) => {
         if (!timeValue) return null;
 
+        const now = getPacificNow();
+        
+        // Parse scheduled time for today
         const scheduledTime = parseScheduledTime(timeValue);
         if (!scheduledTime) return null;
 
+        // Use the same window as checkTimeWindow: 60 minutes after scheduled time
+        const windowAfterMinutes = 60;
+        const windowAfterMs = windowAfterMinutes * 60 * 1000;
+        
+        // Tolerance for matching administrations (30 minutes)
         const toleranceMinutes = 30;
         const toleranceMs = toleranceMinutes * 60 * 1000;
 
+        // Check if there's a matching administration within tolerance
         const matchingAdmin = todayAdminData?.data?.find((admin) => {
             const adminTime = getPacificDate(new Date(admin.administered_at));
             return Math.abs(adminTime.getTime() - scheduledTime.getTime()) <= toleranceMs;
@@ -1335,11 +1344,14 @@ function MedicationTimeBadges({ medication }) {
             return matchingAdmin.status;
         }
 
-        const now = getPacificNow();
-        if (now.getTime() - scheduledTime.getTime() >= toleranceMs) {
+        // Only mark as missed if the administration window has completely closed
+        // (i.e., current time is more than 60 minutes after the scheduled time)
+        const windowEndTime = scheduledTime.getTime() + windowAfterMs;
+        if (now.getTime() > windowEndTime) {
             return 'missed';
         }
 
+        // If the scheduled time is in the future or within the window, don't mark as missed
         return null;
     };
 
