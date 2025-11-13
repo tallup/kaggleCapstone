@@ -1379,21 +1379,22 @@ function MedicationTimeBadges({ medication }) {
         // 2. AND the administration window has closed (60 minutes after the scheduled time)
         const isMissed = scheduledTimeHasPassed && todayWindowClosed;
         
-        // Debug logging
-        if (isMissed) {
-            console.log('Time marked as missed:', {
-                timeValue,
-                scheduledTimeToday: scheduledTimeToday.toISOString(),
-                scheduledTimeTodayFormatted: formatPacificTime(scheduledTimeToday),
-                now: now.toISOString(),
-                nowFormatted: formatPacificTime(now),
-                windowEndTimeToday: new Date(windowEndTimeToday).toISOString(),
-                windowEndTimeTodayFormatted: formatPacificTime(new Date(windowEndTimeToday)),
-                scheduledTimeHasPassed,
-                todayWindowClosed,
-                isMissed
-            });
-        }
+        // Always log for debugging (remove after confirming it works)
+        console.log('getTimeStatus check:', {
+            timeValue,
+            scheduledTimeToday: scheduledTimeToday.toISOString(),
+            scheduledTimeTodayFormatted: formatPacificTime(scheduledTimeToday),
+            scheduledTimeYesterday: scheduledTimeYesterday?.toISOString(),
+            scheduledTimeYesterdayFormatted: scheduledTimeYesterday ? formatPacificTime(scheduledTimeYesterday) : null,
+            now: now.toISOString(),
+            nowFormatted: formatPacificTime(now),
+            windowEndTimeToday: new Date(windowEndTimeToday).toISOString(),
+            windowEndTimeTodayFormatted: formatPacificTime(new Date(windowEndTimeToday)),
+            scheduledTimeHasPassed,
+            todayWindowClosed,
+            isMissed,
+            timeDiff: scheduledTimeHasPassed ? ((now.getTime() - scheduledTimeToday.getTime()) / (60 * 1000)).toFixed(2) + ' minutes' : 'future'
+        });
         
         if (isMissed) {
             return 'missed';

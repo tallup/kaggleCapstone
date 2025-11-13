@@ -109,8 +109,26 @@ export const getPacificParts = (date) => {
         return extractPacificComponentsFromReference(referenceDate);
     }
     
-    // If a date is provided, we need to convert it to Pacific time using the formatter
+    // If a date is provided, check if it's from our server reference system
+    // (Dates created by createPacificInstant or getPacificDate have UTC components = Pacific components)
     const target = date ? new Date(date) : getReferenceDate();
+    
+    // If we have a server reference, check if this date is likely from our system
+    // (i.e., it's a Date object that might already have UTC = Pacific components)
+    // For dates created by our system, extract UTC components directly
+    if (pacificServerReference && pacificReferencePerformance !== null) {
+        // Extract UTC components directly (they represent Pacific time in our system)
+        return {
+            year: target.getUTCFullYear(),
+            month: target.getUTCMonth() + 1,
+            day: target.getUTCDate(),
+            hour: target.getUTCHours(),
+            minute: target.getUTCMinutes(),
+            second: target.getUTCSeconds(),
+        };
+    }
+    
+    // No server reference - use formatter to convert to Pacific time
     const parts = pacificDateTimeFormatter.formatToParts(target);
     const lookup = {};
     parts.forEach(({ type, value }) => {
@@ -288,6 +306,23 @@ export const formatPacificTime = (date) => {
         const parts = getPacificParts();
         return formatFromPacificComponents(parts, pacificTimeFormatter);
     }
+    
+    // If date is provided and we have a server reference, extract components directly
+    // (Dates from our system have UTC components = Pacific components)
+    if (date && pacificServerReference && pacificReferencePerformance !== null) {
+        const dateObj = date instanceof Date ? date : new Date(date);
+        if (!Number.isNaN(dateObj.getTime())) {
+            // Extract UTC components directly (they represent Pacific time)
+            const hours = dateObj.getUTCHours();
+            const minutes = dateObj.getUTCMinutes();
+            const hour12 = hours % 12 || 12;
+            const ampm = hours < 12 ? 'AM' : 'PM';
+            const minutesPadded = String(minutes).padStart(2, '0');
+            return `${hour12}:${minutesPadded} ${ampm}`;
+        }
+    }
+    
+    // Fallback to formatter
     return pacificTimeFormatter.format(resolveDateInput(date));
 };
 
@@ -321,7 +356,31 @@ export const convertPacificLocalInputToISO = (value) => {
 export const toPacificDateFromTime = (timeValue, { referenceDate, dayOffset = 0 } = {}) => {
     if (!timeValue) return null;
 
-    const referenceParts = getPacificParts(referenceDate);
+    // Get reference date - use getPacificNow() if not provided
+    const refDate = referenceDate || getPacificNow();
+    
+    // Extract Pacific date components directly from the reference date
+    // Always use getPacificParts to ensure consistent extraction
+    // It will handle server reference dates correctly
+    const referenceParts = getPacificParts(refDate);
+    
+    // Debug logging
+    if (timeValue && typeof timeValue === 'string' && timeValue.match(/^\d{2}:\d{2}/)) {
+        console.log('toPacificDateFromTime:', {
+            timeValue,
+            refDateISO: refDate.toISOString(),
+            refDateFormatted: formatPacificTime(refDate),
+            referenceParts,
+            willCreate: {
+                year: referenceParts.year,
+                month: referenceParts.month,
+                day: referenceParts.day + dayOffset,
+                hour: timeValue.match(/^(\d{2}):(\d{2})/)?.[1],
+                minute: timeValue.match(/^(\d{2}):(\d{2})/)?.[2],
+            }
+        });
+    }
+    
     const resolveDayOffset = (date) => {
         if (dayOffset) {
             date.setUTCDate(date.getUTCDate() + dayOffset);
@@ -342,9 +401,34 @@ export const toPacificDateFromTime = (timeValue, { referenceDate, dayOffset = 0 
             const hours = Number(hoursStr);
             const minutes = Number(minutesStr);
             if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
-            return resolveDayOffset(
-                createPacificInstant(referenceParts.year, referenceParts.month, referenceParts.day, hours, minutes)
-            );
+            
+            // Create the date with the correct day (apply dayOffset to the day component)
+            let targetDay = referenceParts.day + dayOffset;
+            let targetMonth = referenceParts.month;
+            let targetYear = referenceParts.year;
+            
+            // Handle day overflow/underflow
+            if (targetDay < 1) {
+                targetMonth--;
+                if (targetMonth < 1) {
+                    targetMonth = 12;
+                    targetYear--;
+                }
+                const daysInPrevMonth = new Date(Date.UTC(targetYear, targetMonth, 0)).getUTCDate();
+                targetDay = daysInPrevMonth + targetDay;
+            } else {
+                const daysInMonth = new Date(Date.UTC(targetYear, targetMonth, 0)).getUTCDate();
+                if (targetDay > daysInMonth) {
+                    targetDay = targetDay - daysInMonth;
+                    targetMonth++;
+                    if (targetMonth > 12) {
+                        targetMonth = 1;
+                        targetYear++;
+                    }
+                }
+            }
+            
+            return createPacificInstant(targetYear, targetMonth, targetDay, hours, minutes);
         }
     }
 
