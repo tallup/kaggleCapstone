@@ -31,32 +31,32 @@
         </x-filament::section>
 
         <div class="grid gap-4 md:grid-cols-5">
-            <x-filament::stats.card
+            <x-filament::stats-card
                 label="Tasks Today"
                 value="{{ number_format($summary['total'] ?? 0) }}"
                 description="Across all active areas"
             />
-            <x-filament::stats.card
+            <x-filament::stats-card
                 label="Completed"
                 value="{{ number_format($summary['completed'] ?? 0) }}"
                 description="Marked complete"
                 icon="heroicon-o-check-circle"
                 color="success"
             />
-            <x-filament::stats.card
+            <x-filament::stats-card
                 label="Skipped"
                 value="{{ number_format($summary['skipped'] ?? 0) }}"
                 description="Requires follow-up"
                 icon="heroicon-o-x-circle"
                 color="warning"
             />
-            <x-filament::stats.card
+            <x-filament::stats-card
                 label="Pending"
                 value="{{ number_format($summary['pending'] ?? 0) }}"
                 description="Still outstanding"
                 icon="heroicon-o-clock"
             />
-            <x-filament::stats.card
+            <x-filament::stats-card
                 label="Required Missing"
                 value="{{ number_format($summary['required_missing'] ?? 0) }}"
                 description="Required tasks not completed"
