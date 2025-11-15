@@ -94,6 +94,12 @@ class AdminPermissionsSeeder extends Seeder
             ['name' => 'create_branches', 'group' => 'Branches', 'description' => 'Create new branches'],
             ['name' => 'edit_branches', 'group' => 'Branches', 'description' => 'Edit branch information'],
             ['name' => 'delete_branches', 'group' => 'Branches', 'description' => 'Delete branches'],
+
+            // Housekeeping permissions
+            ['name' => 'view_cleaning_areas', 'group' => 'Housekeeping', 'description' => 'View cleaning areas and shifts'],
+            ['name' => 'create_cleaning_areas', 'group' => 'Housekeeping', 'description' => 'Create cleaning areas and assignments'],
+            ['name' => 'edit_cleaning_areas', 'group' => 'Housekeeping', 'description' => 'Edit cleaning areas and assignments'],
+            ['name' => 'delete_cleaning_areas', 'group' => 'Housekeeping', 'description' => 'Archive cleaning areas'],
             
             // Vital Ranges permissions
             ['name' => 'view_vital_ranges', 'group' => 'Vital Ranges', 'description' => 'View vital ranges'],

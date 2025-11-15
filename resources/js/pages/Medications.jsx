@@ -121,10 +121,13 @@ const isMedicationPeriodActiveNow = (medication, referenceDate = getPacificNow()
         return false;
     }
 
+    // Check end_date - if null/undefined, medication has no end period (active indefinitely)
     const endBoundary = buildBoundary(medication.end_date);
     if (endBoundary && compareDates(referenceDateOnly, endBoundary) > 0) {
-        return false;
+        return false; // Current date is after end_date
     }
+    // If end_date is null, endBoundary is null, so this check is skipped
+    // Medication without end_date is active indefinitely (as long as start_date has passed)
 
     return true;
 };
@@ -1695,6 +1698,8 @@ function QuickAdminister({ medication, onSuccess }) {
         setIsMedicationPeriodActive(periodActive);
 
         if (!periodActive) {
+            // Only block if period has actually ended (has end_date and current date is after it)
+            // Medications without end_date are always active (periodActive will be true)
             setIsWithinTimeWindow(false);
             setHasClosedWindow(false);
             setTimeMessage('Medication administration period has ended.');

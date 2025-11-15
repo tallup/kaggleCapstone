@@ -68,6 +68,9 @@ class GiveAdminFullAccess extends Command
             
             // Branch permissions
             'view_branches', 'create_branches', 'edit_branches', 'delete_branches',
+
+            // Housekeeping permissions
+            'view_cleaning_areas', 'create_cleaning_areas', 'edit_cleaning_areas', 'delete_cleaning_areas',
             
             // Vital Ranges permissions
             'view_vital_ranges', 'create_vital_ranges', 'edit_vital_ranges', 'delete_vital_ranges',

@@ -106,7 +106,41 @@ class CustomNavigationProvider
                     ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.resources.sleep-records.*'))
                     ->sort(60),
 
-                // Reports (with dropdown) - Seventh item
+                // Housekeeping - Seventh item
+                NavigationItem::make('Housekeeping')
+                    ->icon('heroicon-o-sparkles')
+                    ->url(route('filament.admin.resources.cleaning-areas.index'))
+                    ->isActiveWhen(fn (): bool =>
+                        request()->routeIs('filament.admin.resources.cleaning-areas.*') ||
+                        request()->routeIs('filament.admin.resources.cleaning-tasks.*')
+                    )
+                    ->childItems([
+                        NavigationItem::make('Cleaning Areas')
+                            ->url(route('filament.admin.resources.cleaning-areas.index'))
+                            ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.resources.cleaning-areas.*')),
+                        NavigationItem::make('Cleaning Tasks')
+                            ->url(route('filament.admin.resources.cleaning-tasks.index'))
+                            ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.resources.cleaning-tasks.*')),
+                    ])
+                    ->visible(function (): bool {
+                        if (!auth()->check()) {
+                            return false;
+                        }
+
+                        $user = auth()->user();
+
+                        if ($this->isCaregiver($user)) {
+                            return false;
+                        }
+
+                        return $user->hasPermission('view_cleaning_areas') ||
+                               $user->hasRole('administrator') ||
+                               $user->hasRole('admin') ||
+                               $user->hasRole('super_admin');
+                    })
+                    ->sort(65),
+
+                // Reports (with dropdown)
                 NavigationItem::make('Reports')
                     ->icon('heroicon-o-chart-bar-square')
                     ->url('#')

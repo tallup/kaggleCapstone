@@ -72,6 +72,9 @@ class UnifiedProductionSeeder extends Seeder
             
             // Branch management
             'view_branches', 'create_branches', 'edit_branches', 'delete_branches',
+
+            // Housekeeping management
+            'view_cleaning_areas', 'create_cleaning_areas', 'edit_cleaning_areas', 'delete_cleaning_areas',
             
             // Role and permission management
             'view_roles', 'create_roles', 'edit_roles', 'delete_roles',

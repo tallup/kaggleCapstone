@@ -33,6 +33,9 @@ import EmployeeDocuments from './pages/EmployeeDocuments';
 import Profile from './pages/Profile';
 import ActivityLogs from './pages/ActivityLogs';
 import DeactivatedRecords from './pages/DeactivatedRecords';
+import Housekeeping from './pages/Housekeeping';
+import HousekeepingSchedule from './pages/HousekeepingSchedule';
+import HousekeepingDashboard from './pages/HousekeepingDashboard';
 
 // Report sub-pages
 import ChartReports from './pages/reports/ChartReports';
@@ -73,6 +76,9 @@ function App() {
                 <Route path="medications/residents" element={<CaregiverMedicationsResidents />} />
                 <Route path="medications/residents/:residentId" element={<ResidentMedicationsPage />} />
                 <Route path="medication-history" element={<MedicationHistory />} />
+                <Route path="housekeeping" element={<Housekeeping />} />
+                <Route path="housekeeping/dashboard" element={<HousekeepingDashboard />} />
+                <Route path="housekeeping/schedule" element={<HousekeepingSchedule />} />
                 <Route path="sleep" element={<Sleep />} />
                 <Route path="sleep-patterns" element={<SleepPatterns />} />
                 <Route path="leave-requests" element={<LeaveRequests />} />

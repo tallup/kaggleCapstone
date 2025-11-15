@@ -22,7 +22,8 @@ import {
     ChevronRight,
     Menu,
     X,
-    CalendarClock
+    CalendarClock,
+    Sparkles
 } from 'lucide-react';
 import NotificationDropdown from './NotificationDropdown';
 import {
@@ -54,6 +55,16 @@ const navigation = [
         children: [
             { name: 'Sleep Records', path: '/sleep' },
             { name: 'Sleep Pattern', path: '/sleep-patterns' },
+        ]
+    },
+    { 
+        name: 'Housekeeping', 
+        icon: Sparkles, 
+        path: '/housekeeping', 
+        children: [
+            { name: 'Dashboard', path: '/housekeeping/dashboard' },
+            { name: 'Checklist', path: '/housekeeping' },
+            { name: 'Schedule Builder', path: '/housekeeping/schedule' },
         ]
     },
     { name: 'Reports', icon: FileText, path: '/reports', children: null },
@@ -99,6 +110,7 @@ const caregiverNavigation = [
             { name: 'Sleep Pattern', path: '/sleep-patterns' },
         ]
     },
+    { name: 'Housekeeping', icon: Sparkles, path: '/housekeeping', children: null },
     { name: 'Appointments', icon: Calendar, path: '/appointments', children: null },
     { name: 'Leave Requests', icon: CalendarClock, path: '/leave-requests', children: null },
 ];

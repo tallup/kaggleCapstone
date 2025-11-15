@@ -22,6 +22,11 @@ use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\EmployeeDocumentController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\ActivityLogController;
+use App\Http\Controllers\Api\CleaningChecklistController;
+use App\Http\Controllers\Api\CleaningAreaController;
+use App\Http\Controllers\Api\CleaningTaskController;
+use App\Http\Controllers\Api\CleaningTaskAssignmentController;
+use App\Http\Controllers\Api\HousekeepingReportController;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Session\Middleware\StartSession;
@@ -114,6 +119,26 @@ Route::prefix('v1')->group(function () {
         Route::get('/appointments', [ChartController::class, 'appointmentStats']);
         Route::get('/sleep', [ChartController::class, 'sleepStats']);
         Route::get('/staff', [ChartController::class, 'staffStats']);
+    });
+
+    // Cleaning / Housekeeping
+    Route::prefix('cleaning')->middleware('auth:sanctum')->group(function () {
+        Route::get('/checklists', [CleaningChecklistController::class, 'index']);
+        Route::post('/task-logs', [CleaningChecklistController::class, 'store']);
+        Route::get('/areas', [CleaningAreaController::class, 'index']);
+        Route::post('/areas', [CleaningAreaController::class, 'store']);
+        Route::put('/areas/{cleaningArea}', [CleaningAreaController::class, 'update']);
+        Route::delete('/areas/{cleaningArea}', [CleaningAreaController::class, 'destroy']);
+
+        Route::get('/tasks', [CleaningTaskController::class, 'index']);
+        Route::post('/tasks', [CleaningTaskController::class, 'store']);
+        Route::put('/tasks/{cleaningTask}', [CleaningTaskController::class, 'update']);
+        Route::delete('/tasks/{cleaningTask}', [CleaningTaskController::class, 'destroy']);
+
+        Route::get('/dashboard', [HousekeepingReportController::class, 'index']);
+        Route::get('/tasks/{cleaningTask}/assignments', [CleaningTaskAssignmentController::class, 'index']);
+        Route::post('/tasks/{cleaningTask}/assignments', [CleaningTaskAssignmentController::class, 'store']);
+        Route::delete('/task-assignments/{cleaningTaskAssignment}', [CleaningTaskAssignmentController::class, 'destroy']);
     });
 });
 

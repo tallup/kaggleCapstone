@@ -194,6 +194,7 @@ class MedicationAdministrationController extends Controller
                 ], 422);
             }
         }
+        // Check end_date - if null, medication has no end period (active indefinitely)
         if ($medication->end_date) {
             // Get the date as YYYY-MM-DD string to avoid timezone conversion issues
             if ($medication->end_date instanceof Carbon) {
@@ -217,6 +218,7 @@ class MedicationAdministrationController extends Controller
                 ], 422);
             }
         }
+        // If end_date is null, this check is skipped - medication is active indefinitely
 
         // Enforce daily frequency based on instructions
         $instruction = strtolower((string) $medication->instructions);
