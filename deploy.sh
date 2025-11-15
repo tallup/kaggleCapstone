@@ -12,6 +12,7 @@ composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev
 
 # Install/update NPM dependencies and build assets
 echo "🎨 Building frontend assets..."
+export NODE_OPTIONS="--max-old-space-size=4096"
 npm ci
 npm run build
 
