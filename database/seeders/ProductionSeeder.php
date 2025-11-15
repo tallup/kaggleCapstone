@@ -53,6 +53,7 @@ class ProductionSeeder extends Seeder
             'view_vital_signs', 'create_vital_signs', 'edit_vital_signs', 'delete_vital_signs',
             'view_facilities', 'create_facilities', 'edit_facilities', 'delete_facilities',
             'view_branches', 'create_branches', 'edit_branches', 'delete_branches',
+            'view_cleaning_areas', 'create_cleaning_areas', 'edit_cleaning_areas', 'delete_cleaning_areas',
             'view_roles', 'create_roles', 'edit_roles', 'delete_roles',
             'view_permissions', 'create_permissions', 'edit_permissions', 'delete_permissions',
             'view_reports', 'create_reports', 'export_reports',
@@ -186,6 +187,10 @@ class ProductionSeeder extends Seeder
         foreach ($vitalRanges as $range) {
             VitalRange::create($range);
         }
+
+        // Seed housekeeping areas, zones, and default tasks
+        $this->call(HousekeepingSeeder::class);
+        $this->command->info('🧹 Housekeeping data seeded successfully.');
 
         $this->command->info('✅ Production database seeded successfully!');
         $this->command->info('👤 Admin user created: admin@edmondserenity.com');
