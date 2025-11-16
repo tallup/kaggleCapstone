@@ -37,17 +37,29 @@ class CleaningTaskAssignmentController extends Controller
 
         $scheduledDate = Carbon::parse($data['scheduled_date'])->toDateString();
 
-        $assignment = CleaningTaskAssignment::updateOrCreate(
-            [
-                'cleaning_task_id' => $cleaningTask->id,
-                'user_id' => $data['user_id'],
-                'scheduled_date' => $scheduledDate,
-            ],
-            [
+        $keys = [
+            'cleaning_task_id' => $cleaningTask->id,
+            'user_id' => $data['user_id'],
+            'scheduled_date' => $scheduledDate,
+        ];
+
+        // Use database-level upsert to avoid race-condition duplicate key errors
+        CleaningTaskAssignment::upsert(
+            [[
+                'cleaning_task_id' => $keys['cleaning_task_id'],
+                'user_id' => $keys['user_id'],
+                'scheduled_date' => $keys['scheduled_date'],
                 'status' => 'assigned',
                 'notified_at' => now(),
-            ]
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]],
+            ['cleaning_task_id', 'user_id', 'scheduled_date'],
+            ['status', 'notified_at', 'updated_at']
         );
+
+        // Retrieve the upserted record
+        $assignment = CleaningTaskAssignment::where($keys)->firstOrFail();
 
         $this->notifyCaregiverAssignment($assignment->load('user', 'task'));
 
