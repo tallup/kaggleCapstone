@@ -31,38 +31,57 @@
         </x-filament::section>
 
         <div class="grid gap-4 md:grid-cols-5">
-            <x-filament::stats-card
-                label="Tasks Today"
-                value="{{ number_format($summary['total'] ?? 0) }}"
-                description="Across all active areas"
-            />
-            <x-filament::stats-card
-                label="Completed"
-                value="{{ number_format($summary['completed'] ?? 0) }}"
-                description="Marked complete"
-                icon="heroicon-o-check-circle"
-                color="success"
-            />
-            <x-filament::stats-card
-                label="Skipped"
-                value="{{ number_format($summary['skipped'] ?? 0) }}"
-                description="Requires follow-up"
-                icon="heroicon-o-x-circle"
-                color="warning"
-            />
-            <x-filament::stats-card
-                label="Pending"
-                value="{{ number_format($summary['pending'] ?? 0) }}"
-                description="Still outstanding"
-                icon="heroicon-o-clock"
-            />
-            <x-filament::stats-card
-                label="Required Missing"
-                value="{{ number_format($summary['required_missing'] ?? 0) }}"
-                description="Required tasks not completed"
-                icon="heroicon-o-exclamation-triangle"
-                color="danger"
-            />
+            <x-filament::card class="bg-white">
+                <p class="text-sm font-medium text-gray-500">Tasks Today</p>
+                <p class="text-3xl font-semibold text-gray-900">
+                    {{ number_format($summary['total'] ?? 0) }}
+                </p>
+                <p class="text-xs text-gray-500">Across all active areas</p>
+            </x-filament::card>
+
+            <x-filament::card class="bg-white">
+                <p class="text-sm font-medium text-gray-500 flex items-center gap-1">
+                    <x-filament::icon icon="heroicon-o-check-circle" class="h-4 w-4 text-emerald-500" />
+                    Completed
+                </p>
+                <p class="text-3xl font-semibold text-emerald-600">
+                    {{ number_format($summary['completed'] ?? 0) }}
+                </p>
+                <p class="text-xs text-gray-500">Marked complete</p>
+            </x-filament::card>
+
+            <x-filament::card class="bg-white">
+                <p class="text-sm font-medium text-gray-500 flex items-center gap-1">
+                    <x-filament::icon icon="heroicon-o-x-circle" class="h-4 w-4 text-amber-500" />
+                    Skipped
+                </p>
+                <p class="text-3xl font-semibold text-amber-600">
+                    {{ number_format($summary['skipped'] ?? 0) }}
+                </p>
+                <p class="text-xs text-gray-500">Requires follow-up</p>
+            </x-filament::card>
+
+            <x-filament::card class="bg-white">
+                <p class="text-sm font-medium text-gray-500 flex items-center gap-1">
+                    <x-filament::icon icon="heroicon-o-clock" class="h-4 w-4 text-indigo-500" />
+                    Pending
+                </p>
+                <p class="text-3xl font-semibold text-indigo-600">
+                    {{ number_format($summary['pending'] ?? 0) }}
+                </p>
+                <p class="text-xs text-gray-500">Still outstanding</p>
+            </x-filament::card>
+
+            <x-filament::card class="bg-white">
+                <p class="text-sm font-medium text-gray-500 flex items-center gap-1">
+                    <x-filament::icon icon="heroicon-o-exclamation-triangle" class="h-4 w-4 text-rose-500" />
+                    Required Missing
+                </p>
+                <p class="text-3xl font-semibold text-rose-600">
+                    {{ number_format($summary['required_missing'] ?? 0) }}
+                </p>
+                <p class="text-xs text-gray-500">Required tasks not completed</p>
+            </x-filament::card>
         </div>
 
         <x-filament::section>
