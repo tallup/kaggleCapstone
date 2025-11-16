@@ -72,6 +72,9 @@ class CleaningChecklistController extends Controller
                             'frequency' => $task->frequency,
                             'is_required' => $task->is_required,
                             'estimated_minutes' => $task->estimated_minutes,
+                            // Expose optional time window so clients can enforce when tasks are actionable
+                            'window_start' => optional($task->window_start)->format('H:i'),
+                            'window_end' => optional($task->window_end)->format('H:i'),
                             'status' => $log?->status ?? 'pending',
                             'initials' => $log?->initials,
                             'notes' => $log?->notes,

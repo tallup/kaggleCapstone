@@ -69,9 +69,31 @@ export default function Housekeeping() {
         }
     };
 
+    const isWithinWindow = (task) => {
+        // If no window defined, allow any time
+        if (!task?.window_start && !task?.window_end) return true;
+        try {
+            const dateStr = selectedDate; // 'YYYY-MM-DD'
+            const now = new Date();
+            // Build Date objects in local time
+            const start = task.window_start ? new Date(`${dateStr}T${task.window_start}:00`) : null;
+            const end = task.window_end ? new Date(`${dateStr}T${task.window_end}:00`) : null;
+            // Extend by ±1 hour around provided times
+            let windowStart = start ? new Date(start.getTime() - 60 * 60 * 1000) : null;
+            let windowEnd = end ? new Date(end.getTime() + 60 * 60 * 1000) : null;
+            // If only one side provided, use that bound with ±1h against itself
+            if (!windowStart && end) windowStart = new Date(end.getTime() - 60 * 60 * 1000);
+            if (!windowEnd && start) windowEnd = new Date(start.getTime() + 60 * 60 * 1000);
+            return now >= windowStart && now <= windowEnd;
+        } catch {
+            return true;
+        }
+    };
+
     const renderTask = (task) => {
         const badgeStyle = statusStyles[task.status] ?? statusStyles.pending;
-        const disabled = mutation.isLoading;
+        const windowOk = isWithinWindow(task);
+        const disabled = mutation.isLoading || task.status === 'completed' || !windowOk;
 
         return (
             <div key={task.id} className="rounded-2xl border border-gray-100 bg-white/80 p-4 shadow-sm">
@@ -90,6 +112,14 @@ export default function Housekeeping() {
                                 <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-gray-600">
                                     <StickyNote className="h-3 w-3" />
                                     {task.initials}
+                                </span>
+                            ) : null}
+                            {task.window_start || task.window_end ? (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-gray-600">
+                                    Window{' '}
+                                    {(task.window_start ?? '—') +
+                                        ' — ' +
+                                        (task.window_end ?? '—')}
                                 </span>
                             ) : null}
                             {task.completed_at ? (
