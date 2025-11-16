@@ -70,25 +70,31 @@ class ProductionSeeder extends Seeder
         }
 
         // Create roles
-        $adminRole = Role::create([
-            'name' => 'administrator',
-            'display_name' => 'Administrator',
-            'description' => 'Full system access with all permissions',
-        ]);
+        $adminRole = Role::firstOrCreate(
+            ['name' => 'admin'],
+            [
+                'display_name' => 'Administrator',
+                'description' => 'Full system access with all permissions',
+            ]
+        );
 
-        $caregiverRole = Role::create([
-            'name' => 'caregiver',
-            'display_name' => 'Caregiver',
-            'description' => 'Caregiver with limited access to resident care functions',
-        ]);
+        $caregiverRole = Role::firstOrCreate(
+            ['name' => 'caregiver'],
+            [
+                'display_name' => 'Caregiver',
+                'description' => 'Caregiver with limited access to resident care functions',
+            ]
+        );
 
-        $nurseRole = Role::create([
-            'name' => 'nurse',
-            'display_name' => 'Registered Nurse',
-            'description' => 'Nurse with access to medical functions and assessments',
-        ]);
+        $nurseRole = Role::firstOrCreate(
+            ['name' => 'nurse'],
+            [
+                'display_name' => 'Registered Nurse',
+                'description' => 'Nurse with access to medical functions and assessments',
+            ]
+        );
 
-        // Assign all permissions to administrator role
+        // Assign all permissions to admin role
         $adminRole->permissions()->sync(Permission::all()->pluck('id'));
 
         // Assign specific permissions to caregiver role
@@ -111,18 +117,20 @@ class ProductionSeeder extends Seeder
         ])->pluck('id');
         $nurseRole->permissions()->sync($nursePermissions);
 
-        // Create admin user
-        $adminUser = User::create([
-            'name' => 'Administrator',
-            'email' => 'admin@edmondserenity.com',
-            'password' => Hash::make('admin123!'),
-            'role' => 'admin',
-            'assigned_branch_id' => $branch->id,
-            'is_active' => true,
-            'hire_date' => now(),
-        ]);
+        // Create or update admin user
+        $adminUser = User::firstOrCreate(
+            ['email' => 'admin@edmondserenity.com'],
+            [
+                'name' => 'Administrator',
+                'password' => Hash::make('admin123!'),
+                'role' => 'admin',
+                'assigned_branch_id' => $branch->id,
+                'is_active' => true,
+                'hire_date' => now(),
+            ]
+        );
 
-        // Assign administrator role to admin user
+        // Assign admin role to admin user (sync ensures it's assigned)
         $adminUser->roles()->sync([$adminRole->id]);
 
         // Create vital ranges
