@@ -88,6 +88,14 @@ class AuthController extends Controller
             return [];
         }
 
+        // Make sure commonly-used relationships are available in the API payload.
+        // This includes the user's assigned branch and its facility so that
+        // frontend pages (e.g. profile, housekeeping, medications) can safely
+        // reference `user.assigned_branch` without needing extra API calls.
+        $user->loadMissing([
+            'assignedBranch.facility',
+        ]);
+
         $appTimezone = config('app.timezone', 'UTC');
         $now = Carbon::now($appTimezone);
 
