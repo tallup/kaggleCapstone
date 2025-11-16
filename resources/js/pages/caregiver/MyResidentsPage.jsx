@@ -75,6 +75,12 @@ export default function MyResidentsPage() {
         }));
     }, [residents]);
 
+    // Derive the caregiver's branch name from the residents list (caregivers are scoped to one branch)
+    const branchName = React.useMemo(() => {
+        const withBranch = residents.find((r) => r?.branch?.name);
+        return withBranch?.branch?.name || null;
+    }, [residents]);
+
     const renderResidentCard = (resident) => {
         const isActive = resident?.is_active === true || resident?.is_active === 1 || resident?.is_active === '1';
         const fullName = [resident.first_name, resident.middle_names, resident.last_name].filter(Boolean).join(' ');
@@ -211,6 +217,11 @@ export default function MyResidentsPage() {
                         </div>
                     ))}
                 </div>
+                {branchName ? (
+                    <p className="mt-3 text-sm text-emerald-100">
+                        Branch: <span className="font-semibold text-white">{branchName}</span>
+                    </p>
+                ) : null}
             </header>
 
             <section className="rounded-2xl bg-white p-6 shadow-sm">
