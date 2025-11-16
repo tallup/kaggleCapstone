@@ -35,6 +35,15 @@ export default function MyResidentsPage() {
     const [search, setSearch] = React.useState('');
     const [debouncedSearch, setDebouncedSearch] = React.useState('');
 
+    // Current user query (to get assigned branch)
+    const { data: currentUser } = useQuery({
+        queryKey: ['current-user'],
+        queryFn: async () => {
+            const res = await api.get('/user');
+            return res.data;
+        },
+    });
+
     React.useEffect(() => {
         const timeout = setTimeout(() => {
             setDebouncedSearch(search.trim());
@@ -78,8 +87,10 @@ export default function MyResidentsPage() {
     // Derive the caregiver's branch name from the residents list (caregivers are scoped to one branch)
     const branchName = React.useMemo(() => {
         const withBranch = residents.find((r) => r?.branch?.name);
-        return withBranch?.branch?.name || null;
-    }, [residents]);
+        if (withBranch?.branch?.name) return withBranch.branch.name;
+        if (currentUser?.assigned_branch?.name) return currentUser.assigned_branch.name;
+        return null;
+    }, [residents, currentUser?.assigned_branch?.name]);
 
     const renderResidentCard = (resident) => {
         const isActive = resident?.is_active === true || resident?.is_active === 1 || resident?.is_active === '1';

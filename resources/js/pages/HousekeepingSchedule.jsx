@@ -892,7 +892,10 @@ function AssignmentModal({ task, date, caregivers, onAssign, onRemove, isSaving,
             window.alert('Select a caregiver first.');
             return;
         }
-        await onAssign(selectedCaregiver);
+        const userId = selectedCaregiver;
+        // Close immediately per request, then perform the mutation in background
+        onClose?.();
+        await onAssign(userId);
         setSelectedCaregiver('');
     };
 
