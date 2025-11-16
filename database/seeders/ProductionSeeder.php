@@ -62,11 +62,13 @@ class ProductionSeeder extends Seeder
         ];
 
         foreach ($permissions as $permission) {
-            Permission::create([
-                'name' => $permission,
-                'display_name' => ucwords(str_replace('_', ' ', $permission)),
-                'description' => 'Permission to ' . str_replace('_', ' ', $permission),
-            ]);
+            Permission::firstOrCreate(
+                ['name' => $permission],
+                [
+                    'display_name' => ucwords(str_replace('_', ' ', $permission)),
+                    'description' => 'Permission to ' . str_replace('_', ' ', $permission),
+                ]
+            );
         }
 
         // Create roles
