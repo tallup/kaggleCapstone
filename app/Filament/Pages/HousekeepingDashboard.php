@@ -60,6 +60,7 @@ class HousekeepingDashboard extends Page implements Forms\Contracts\HasForms
         $taskIds = $areas->flatMap(fn (CleaningArea $area) => $area->tasks->pluck('id'))->all();
 
         $logs = CleaningTaskLog::query()
+            ->with('completedBy')
             ->whereIn('cleaning_task_id', $taskIds)
             ->whereDate('scheduled_date', $date->toDateString())
             ->get()
@@ -102,6 +103,7 @@ class HousekeepingDashboard extends Page implements Forms\Contracts\HasForms
                     'required' => $task->is_required,
                     'status' => $status,
                     'initials' => $log?->initials,
+                    'completed_by_name' => $log?->completedBy?->name ?? null,
                     'notes' => $log?->notes,
                     'completed_at' => optional($log?->completed_at)->format('g:i a'),
                 ]);

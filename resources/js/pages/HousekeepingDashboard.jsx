@@ -198,7 +198,7 @@ export default function HousekeepingDashboard() {
                                         <td className="px-4 py-3">
                                             <StatusBadge status={row.status} />
                                         </td>
-                                        <td className="px-4 py-3 text-gray-700">{row.initials || '—'}</td>
+                                        <td className="px-4 py-3 text-gray-700">{row.completed_by_name || row.initials || '—'}</td>
                                         <td className="px-4 py-3 text-gray-700">
                                             {row.completed_at ? new Date(row.completed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
                                         </td>

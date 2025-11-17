@@ -53,6 +53,7 @@ class HousekeepingReportController extends Controller
         $taskIds = $areas->flatMap(fn ($area) => $area->tasks->pluck('id'))->all();
 
         $logs = CleaningTaskLog::query()
+            ->with('completedBy')
             ->whereIn('cleaning_task_id', $taskIds)
             ->whereDate('scheduled_date', $date->toDateString())
             ->get()
@@ -103,6 +104,7 @@ class HousekeepingReportController extends Controller
                     'required' => (bool) $task->is_required,
                     'status' => $status,
                     'initials' => $log?->initials,
+                    'completed_by_name' => $log?->completedBy?->name ?? null,
                     'notes' => $log?->notes,
                     'completed_at' => optional($log?->completed_at)->toDateTimeString(),
                 ]);

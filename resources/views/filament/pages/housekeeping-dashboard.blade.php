@@ -124,7 +124,7 @@
                                             {{ ucfirst($row['status']) }}
                                         </span>
                                     </td>
-                                    <td class="px-4 py-3 text-gray-900">{{ $row['initials'] ?? '—' }}</td>
+                                    <td class="px-4 py-3 text-gray-900">{{ $row['completed_by_name'] ?? $row['initials'] ?? '—' }}</td>
                                     <td class="px-4 py-3 text-gray-900">{{ $row['completed_at'] ?? '—' }}</td>
                                     <td class="px-4 py-3 text-gray-600">{{ $row['notes'] ?? '—' }}</td>
                                 </tr>

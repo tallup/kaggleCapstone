@@ -43,6 +43,7 @@ class CleaningChecklistController extends Controller
         $tasks = $areas->flatMap(fn (CleaningArea $area) => $area->tasks);
 
         $logs = CleaningTaskLog::query()
+            ->with('completedBy')
             ->whereIn('cleaning_task_id', $tasks->pluck('id'))
             ->whereDate('scheduled_date', $date->toDateString())
             ->get()
@@ -77,6 +78,7 @@ class CleaningChecklistController extends Controller
                             'window_end' => optional($task->window_end)->format('H:i'),
                             'status' => $log?->status ?? 'pending',
                             'initials' => $log?->initials,
+                            'completed_by_name' => $log?->completedBy?->name ?? null,
                             'notes' => $log?->notes,
                             'log_id' => $log?->id,
                             'completed_at' => optional($log?->completed_at)->toDateTimeString(),
@@ -131,11 +133,14 @@ class CleaningChecklistController extends Controller
 
         if ($status === 'completed') {
             $this->completeAssignmentsForTask($task, $scheduledDate, $user);
+            $this->notifyAdminsOfTaskUpdate($task, $user, $scheduledDate, 'completed');
+        } elseif ($status === 'skipped') {
+            $this->notifyAdminsOfTaskUpdate($task, $user, $scheduledDate, 'skipped');
         }
 
         return response()->json([
             'message' => 'Task log saved.',
-            'log' => $log->fresh(),
+            'log' => $log->fresh(['completedBy']),
         ]);
     }
 
@@ -159,31 +164,55 @@ class CleaningChecklistController extends Controller
         $this->notifyAdminsOfCompletion($task, $caregiver, $scheduledDate);
     }
 
-    private function notifyAdminsOfCompletion(CleaningTask $task, $caregiver, string $scheduledDate): void
+    private function notifyAdminsOfTaskUpdate(CleaningTask $task, $caregiver, string $scheduledDate, string $status): void
     {
-        $admins = User::whereIn('role', ['admin', 'administrator'])->get();
+        // Get admins - try roles relationship first, fallback to role column
+        $admins = collect();
+        
+        if (method_exists(User::class, 'roles')) {
+            $admins = User::whereHas('roles', function ($query) {
+                $query->whereIn('name', ['admin', 'administrator']);
+            })->get();
+        }
+        
+        if ($admins->isEmpty()) {
+            $admins = User::whereIn('role', ['admin', 'administrator'])->get();
+        }
+
+        $statusLabel = $status === 'completed' ? 'Completed' : 'Skipped';
+        $icon = $status === 'completed' ? 'heroicon-o-check-circle' : 'heroicon-o-x-circle';
+        $iconColor = $status === 'completed' ? '#059669' : '#d97706';
+        $type = $status === 'completed' ? 'housekeeping_task_completed' : 'housekeeping_task_skipped';
 
         foreach ($admins as $admin) {
             Notification::create([
                 'user_id' => $admin->id,
-                'type' => 'housekeeping_task_completed',
-                'title' => 'Housekeeping Task Completed',
+                'type' => $type,
+                'title' => "Housekeeping Task {$statusLabel}",
                 'message' => sprintf(
-                    '%s completed "%s" (%s) on %s.',
+                    '%s %s "%s" (%s) on %s.',
                     $caregiver->name ?? 'A caregiver',
+                    $status === 'completed' ? 'completed' : 'skipped',
                     $task->title,
                     $task->area->name ?? 'Housekeeping',
                     Carbon::parse($scheduledDate)->toFormattedDateString()
                 ),
-                'icon' => 'heroicon-o-check-circle',
-                'icon_color' => '#059669',
+                'icon' => $icon,
+                'icon_color' => $iconColor,
                 'action_url' => '/app/housekeeping/dashboard',
                 'metadata' => [
                     'task_id' => $task->id,
                     'scheduled_date' => $scheduledDate,
+                    'status' => $status,
                 ],
             ]);
         }
+    }
+
+    private function notifyAdminsOfCompletion(CleaningTask $task, $caregiver, string $scheduledDate): void
+    {
+        // Legacy method - redirect to new method
+        $this->notifyAdminsOfTaskUpdate($task, $caregiver, $scheduledDate, 'completed');
     }
 
     private function resolveDate(?string $date): Carbon

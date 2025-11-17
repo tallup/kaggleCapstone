@@ -117,10 +117,10 @@ export default function Housekeeping() {
                         {task.instructions ? <p className="mt-1 text-sm text-gray-500">{task.instructions}</p> : null}
                         <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-gray-400">
                             <span className="font-medium uppercase tracking-wide text-gray-500">{task.frequency}</span>
-                            {task.initials ? (
+                            {task.completed_by_name ? (
                                 <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-gray-600">
                                     <StickyNote className="h-3 w-3" />
-                                    {task.initials}
+                                    {task.completed_by_name}
                                 </span>
                             ) : null}
                             {task.window_start || task.window_end ? (
@@ -169,7 +169,7 @@ export default function Housekeeping() {
                         <p className="text-sm font-medium uppercase tracking-wide text-emerald-100">Daily Operations</p>
                         <h1 className="text-3xl font-semibold">Housekeeping Checklist</h1>
                         <p className="mt-2 max-w-2xl text-sm text-emerald-50">
-                            Track cleaning responsibilities across rooms, floats, and shifts. Mark tasks complete with your initials to keep the
+                            Track cleaning responsibilities across rooms, floats, and shifts. Mark tasks complete to keep the
                             log up to date.
                         </p>
                     </div>
