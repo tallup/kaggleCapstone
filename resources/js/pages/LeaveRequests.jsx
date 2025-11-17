@@ -181,19 +181,40 @@ function LeaveForm({ record, currentUser, isCaregiver, onClose, onSuccess }) {
     }
     
     try {
+      console.log('Submitting leave request:', form);
+      let response;
       if (record) {
-        await api.put(`/leave-requests/${record.id}`, form);
+        response = await api.put(`/leave-requests/${record.id}`, form);
       } else {
-        await api.post('/leave-requests', form);
+        response = await api.post('/leave-requests', form);
       }
+      console.log('Leave request saved successfully:', response.data);
       onSuccess();
     } catch (e) {
       console.error('Leave request error:', e);
+      console.error('Error response:', e.response);
+      console.error('Error data:', e.response?.data);
       const errorData = e.response?.data;
+      
+      // Handle validation errors
       if (errorData?.errors) {
-        setErrors(errorData.errors);
+        const validationErrors = {};
+        Object.keys(errorData.errors).forEach(key => {
+          validationErrors[key] = Array.isArray(errorData.errors[key]) 
+            ? errorData.errors[key][0] 
+            : errorData.errors[key];
+        });
+        setErrors(validationErrors);
+        
+        // Also show the general message if provided
+        if (errorData?.message) {
+          setErrors(prev => ({ ...prev, general: errorData.message }));
+        }
       } else {
-        setErrors({ general: errorData?.message || 'Failed to save request. Please try again.' });
+        // Handle general errors
+        const errorMessage = errorData?.message || e.message || 'Failed to save request. Please try again.';
+        setErrors({ general: errorMessage });
+        console.error('Error message:', errorMessage);
       }
     } finally {
       setSubmitting(false);
