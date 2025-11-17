@@ -637,6 +637,7 @@ export default function ResidentDetailPage() {
                     </div>
                 )}
             </section>
+            </div>
         </div>
     );
 }
