@@ -35,9 +35,15 @@ class LeaveRequestController extends Controller
                 'staff_id' => 'sometimes|exists:users,id',
                 'start_date' => 'required|date',
                 'end_date' => 'required|date|after_or_equal:start_date',
+                'leave_type' => 'nullable|string',
                 'reason' => 'required|string|min:10',
                 'status' => 'nullable|in:pending,approved,declined',
             ]);
+            
+            // Set default leave_type if not provided
+            if (!isset($validated['leave_type']) || empty($validated['leave_type'])) {
+                $validated['leave_type'] = 'Personal';
+            }
             
             $user = auth()->user();
             
@@ -124,10 +130,19 @@ class LeaveRequestController extends Controller
             'staff_id' => 'sometimes|exists:users,id',
             'start_date' => 'sometimes|date',
             'end_date' => 'sometimes|date|after_or_equal:start_date',
+            'leave_type' => 'nullable|string',
             'reason' => 'sometimes|string|min:10',
             'status' => 'nullable|in:pending,approved,declined',
             'approved_by' => 'nullable|exists:users,id',
         ]);
+        
+        // Set default leave_type if not provided
+        if (isset($validated['leave_type']) && empty($validated['leave_type'])) {
+            $validated['leave_type'] = 'Personal';
+        } elseif (!isset($validated['leave_type'])) {
+            // Keep existing leave_type if not being updated
+            unset($validated['leave_type']);
+        }
         
         // Caregivers cannot change status or staff_id
         if (auth()->user()->hasRole('caregiver')) {

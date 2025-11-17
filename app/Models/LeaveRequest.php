@@ -16,6 +16,7 @@ class LeaveRequest extends Model
         'branch_id',
         'start_date',
         'end_date',
+        'leave_type',
         'reason',
         'status',
         'decline_reason',
