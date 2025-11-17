@@ -177,47 +177,47 @@ export default function VitalsCharts() {
 
                 {/* Statistics Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition">
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
                         <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-gray-600 text-sm font-medium">Total Vitals</p>
-                                <p className="text-3xl font-bold text-gray-900 mt-2">{data?.total_vitals || 0}</p>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-gray-600 text-xs font-medium">Total Vitals</p>
+                                <p className="text-xl font-bold text-gray-900 mt-1">{data?.total_vitals || 0}</p>
                             </div>
-                            <div className="p-3 bg-red-50 rounded-lg">
-                                <Activity className="h-6 w-6 text-red-600" />
+                            <div className="p-2 bg-red-50 rounded-lg flex-shrink-0 ml-2">
+                                <Activity className="h-4 w-4 text-red-600" />
                             </div>
                         </div>
                     </div>
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition">
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
                         <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-gray-600 text-sm font-medium">Today</p>
-                                <p className="text-3xl font-bold text-gray-900 mt-2">{data?.today_vitals || 0}</p>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-gray-600 text-xs font-medium">Today</p>
+                                <p className="text-xl font-bold text-gray-900 mt-1">{data?.today_vitals || 0}</p>
                             </div>
-                            <div className="p-3 bg-blue-50 rounded-lg">
-                                <Calendar className="h-6 w-6 text-blue-600" />
+                            <div className="p-2 bg-blue-50 rounded-lg">
+                                <Calendar className="h-4 w-4 text-blue-600" />
                             </div>
                         </div>
                     </div>
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition">
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
                         <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-gray-600 text-sm font-medium">This Week</p>
-                                <p className="text-3xl font-bold text-gray-900 mt-2">{data?.week_vitals || 0}</p>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-gray-600 text-xs font-medium">This Week</p>
+                                <p className="text-xl font-bold text-gray-900 mt-1">{data?.week_vitals || 0}</p>
                             </div>
-                            <div className="p-3 bg-emerald-50 rounded-lg">
-                                <TrendingUp className="h-6 w-6 text-emerald-600" />
+                            <div className="p-2 bg-emerald-50 rounded-lg">
+                                <TrendingUp className="h-4 w-4 text-emerald-600" />
                             </div>
                         </div>
                     </div>
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition">
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
                         <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-gray-600 text-sm font-medium">This Month</p>
-                                <p className="text-3xl font-bold text-gray-900 mt-2">{data?.month_vitals || 0}</p>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-gray-600 text-xs font-medium">This Month</p>
+                                <p className="text-xl font-bold text-gray-900 mt-1">{data?.month_vitals || 0}</p>
                             </div>
-                            <div className="p-3 bg-purple-50 rounded-lg">
-                                <BarChart3 className="h-6 w-6 text-purple-600" />
+                            <div className="p-2 bg-purple-50 rounded-lg">
+                                <BarChart3 className="h-4 w-4 text-purple-600" />
                             </div>
                         </div>
                     </div>

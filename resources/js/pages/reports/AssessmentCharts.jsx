@@ -177,47 +177,47 @@ export default function AssessmentCharts() {
 
                 {/* Statistics Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition">
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-gray-600 text-sm font-medium">Total Assessments</p>
-                                <p className="text-3xl font-bold text-gray-900 mt-2">{data?.total_assessments || 0}</p>
+                                <p className="text-gray-600 text-xs font-medium">Total Assessments</p>
+                                <p className="text-xl font-bold text-gray-900 mt-1">{data?.total_assessments || 0}</p>
                             </div>
                             <div className="p-3 bg-purple-50 rounded-lg">
-                                <FileText className="h-6 w-6 text-purple-600" />
+                                <FileText className="h-4 w-4 text-purple-600" />
                             </div>
                         </div>
                     </div>
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition">
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-gray-600 text-sm font-medium">Completed</p>
-                                <p className="text-3xl font-bold text-gray-900 mt-2">{data?.completed_assessments || 0}</p>
+                                <p className="text-gray-600 text-xs font-medium">Completed</p>
+                                <p className="text-xl font-bold text-gray-900 mt-1">{data?.completed_assessments || 0}</p>
                             </div>
                             <div className="p-3 bg-emerald-50 rounded-lg">
-                                <CheckCircle2 className="h-6 w-6 text-emerald-600" />
+                                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
                             </div>
                         </div>
                     </div>
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition">
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-gray-600 text-sm font-medium">Pending</p>
-                                <p className="text-3xl font-bold text-gray-900 mt-2">{data?.pending_assessments || 0}</p>
+                                <p className="text-gray-600 text-xs font-medium">Pending</p>
+                                <p className="text-xl font-bold text-gray-900 mt-1">{data?.pending_assessments || 0}</p>
                             </div>
                             <div className="p-3 bg-amber-50 rounded-lg">
-                                <Clock className="h-6 w-6 text-amber-600" />
+                                <Clock className="h-4 w-4 text-amber-600" />
                             </div>
                         </div>
                     </div>
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition">
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-gray-600 text-sm font-medium">This Month</p>
-                                <p className="text-3xl font-bold text-gray-900 mt-2">{data?.this_month || 0}</p>
+                                <p className="text-gray-600 text-xs font-medium">This Month</p>
+                                <p className="text-xl font-bold text-gray-900 mt-1">{data?.this_month || 0}</p>
                             </div>
                             <div className="p-3 bg-blue-50 rounded-lg">
-                                <TrendingUp className="h-6 w-6 text-blue-600" />
+                                <TrendingUp className="h-4 w-4 text-blue-600" />
                             </div>
                         </div>
                     </div>

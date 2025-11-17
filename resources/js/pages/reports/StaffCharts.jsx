@@ -84,47 +84,47 @@ export default function StaffCharts() {
 
                 {/* Statistics Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition">
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-gray-600 text-sm font-medium">Total Staff</p>
-                                <p className="text-3xl font-bold text-gray-900 mt-2">{data?.total_staff || 0}</p>
+                                <p className="text-gray-600 text-xs font-medium">Total Staff</p>
+                                <p className="text-xl font-bold text-gray-900 mt-1">{data?.total_staff || 0}</p>
                             </div>
                             <div className="p-3 bg-indigo-50 rounded-lg">
-                                <Users className="h-6 w-6 text-indigo-600" />
+                                <Users className="h-4 w-4 text-indigo-600" />
                             </div>
                         </div>
                     </div>
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition">
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-gray-600 text-sm font-medium">Caregivers</p>
-                                <p className="text-3xl font-bold text-gray-900 mt-2">{data?.total_caregivers || 0}</p>
+                                <p className="text-gray-600 text-xs font-medium">Caregivers</p>
+                                <p className="text-xl font-bold text-gray-900 mt-1">{data?.total_caregivers || 0}</p>
                             </div>
                             <div className="p-3 bg-blue-50 rounded-lg">
-                                <UserCheck className="h-6 w-6 text-blue-600" />
+                                <UserCheck className="h-4 w-4 text-blue-600" />
                             </div>
                         </div>
                     </div>
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition">
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-gray-600 text-sm font-medium">Active Assignments</p>
-                                <p className="text-3xl font-bold text-gray-900 mt-2">{data?.active_assignments || 0}</p>
+                                <p className="text-gray-600 text-xs font-medium">Active Assignments</p>
+                                <p className="text-xl font-bold text-gray-900 mt-1">{data?.active_assignments || 0}</p>
                             </div>
                             <div className="p-3 bg-emerald-50 rounded-lg">
-                                <CheckCircle2 className="h-6 w-6 text-emerald-600" />
+                                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
                             </div>
                         </div>
                     </div>
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition">
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-gray-600 text-sm font-medium">Pending Leave</p>
-                                <p className="text-3xl font-bold text-gray-900 mt-2">{data?.pending_leave || 0}</p>
+                                <p className="text-gray-600 text-xs font-medium">Pending Leave</p>
+                                <p className="text-xl font-bold text-gray-900 mt-1">{data?.pending_leave || 0}</p>
                             </div>
                             <div className="p-3 bg-amber-50 rounded-lg">
-                                <Calendar className="h-6 w-6 text-amber-600" />
+                                <Calendar className="h-4 w-4 text-amber-600" />
                             </div>
                         </div>
                     </div>

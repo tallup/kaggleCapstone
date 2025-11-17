@@ -160,79 +160,79 @@ export default function SleepCharts() {
 
                 {/* Statistics Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition">
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
                         <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-gray-600 text-sm font-medium">Total Records</p>
-                                <p className="text-3xl font-bold text-gray-900 mt-2">{data?.total_records || 0}</p>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-gray-600 text-xs font-medium">Total Records</p>
+                                <p className="text-xl font-bold text-gray-900 mt-1">{data?.total_records || 0}</p>
                             </div>
-                            <div className="p-3 bg-blue-50 rounded-lg">
-                                <Activity className="h-6 w-6 text-blue-600" />
+                            <div className="p-2 bg-blue-50 rounded-lg flex-shrink-0 ml-2">
+                                <Activity className="h-4 w-4 text-blue-600" />
                             </div>
                         </div>
                     </div>
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition">
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
                         <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-gray-600 text-sm font-medium">Avg Sleep Hours</p>
-                                <p className="text-3xl font-bold text-gray-900 mt-2">
+                            <div className="flex-1 min-w-0">
+                                <p className="text-gray-600 text-xs font-medium">Avg Sleep Hours</p>
+                                <p className="text-xl font-bold text-gray-900 mt-1">
                                     {data?.avg_sleep_hours ? parseFloat(data.avg_sleep_hours).toFixed(1) : '0.0'}h
                                 </p>
                             </div>
-                            <div className="p-3 bg-emerald-50 rounded-lg">
-                                <Clock className="h-6 w-6 text-emerald-600" />
+                            <div className="p-2 bg-emerald-50 rounded-lg flex-shrink-0 ml-2">
+                                <Clock className="h-4 w-4 text-emerald-600" />
                             </div>
                         </div>
                     </div>
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition">
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
                         <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-gray-600 text-sm font-medium">Avg Quality</p>
-                                <p className="text-3xl font-bold text-gray-900 mt-2">
+                            <div className="flex-1 min-w-0">
+                                <p className="text-gray-600 text-xs font-medium">Avg Quality</p>
+                                <p className="text-xl font-bold text-gray-900 mt-1">
                                     {data?.avg_quality ? parseFloat(data.avg_quality).toFixed(1) : '0.0'}/10
                                 </p>
                             </div>
-                            <div className="p-3 bg-amber-50 rounded-lg">
-                                <TrendingUp className="h-6 w-6 text-amber-600" />
+                            <div className="p-2 bg-amber-50 rounded-lg flex-shrink-0 ml-2">
+                                <TrendingUp className="h-4 w-4 text-amber-600" />
                             </div>
                         </div>
                     </div>
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition">
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
                         <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-gray-600 text-sm font-medium">Min Hours</p>
-                                <p className="text-3xl font-bold text-gray-900 mt-2">
+                            <div className="flex-1 min-w-0">
+                                <p className="text-gray-600 text-xs font-medium">Min Hours</p>
+                                <p className="text-xl font-bold text-gray-900 mt-1">
                                     {data?.min_sleep_hours ? parseFloat(data.min_sleep_hours).toFixed(1) : '0.0'}h
                                 </p>
                             </div>
-                            <div className="p-3 bg-red-50 rounded-lg">
-                                <BarChart3 className="h-6 w-6 text-red-600" />
+                            <div className="p-2 bg-red-50 rounded-lg flex-shrink-0 ml-2">
+                                <BarChart3 className="h-4 w-4 text-red-600" />
                             </div>
                         </div>
                     </div>
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition">
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
                         <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-gray-600 text-sm font-medium">Max Hours</p>
-                                <p className="text-3xl font-bold text-gray-900 mt-2">
+                            <div className="flex-1 min-w-0">
+                                <p className="text-gray-600 text-xs font-medium">Max Hours</p>
+                                <p className="text-xl font-bold text-gray-900 mt-1">
                                     {data?.max_sleep_hours ? parseFloat(data.max_sleep_hours).toFixed(1) : '0.0'}h
                                 </p>
                             </div>
-                            <div className="p-3 bg-green-50 rounded-lg">
-                                <BarChart3 className="h-6 w-6 text-green-600" />
+                            <div className="p-2 bg-green-50 rounded-lg flex-shrink-0 ml-2">
+                                <BarChart3 className="h-4 w-4 text-green-600" />
                             </div>
                         </div>
                     </div>
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition">
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
                         <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-gray-600 text-sm font-medium">Total Hours</p>
-                                <p className="text-3xl font-bold text-gray-900 mt-2">
+                            <div className="flex-1 min-w-0">
+                                <p className="text-gray-600 text-xs font-medium">Total Hours</p>
+                                <p className="text-xl font-bold text-gray-900 mt-1">
                                     {data?.total_sleep_hours ? parseFloat(data.total_sleep_hours).toFixed(1) : '0.0'}h
                                 </p>
                             </div>
-                            <div className="p-3 bg-purple-50 rounded-lg">
-                                <Moon className="h-6 w-6 text-purple-600" />
+                            <div className="p-2 bg-purple-50 rounded-lg flex-shrink-0 ml-2">
+                                <Moon className="h-4 w-4 text-purple-600" />
                             </div>
                         </div>
                     </div>

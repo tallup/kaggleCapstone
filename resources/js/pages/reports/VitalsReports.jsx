@@ -165,58 +165,58 @@ export default function VitalsReports() {
 
                 {/* Statistics Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition">
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-gray-600 text-sm font-medium">Total Records</p>
-                                <p className="text-3xl font-bold text-gray-900 mt-2">{stats.total}</p>
+                                <p className="text-gray-600 text-xs font-medium">Total Records</p>
+                                <p className="text-xl font-bold text-gray-900 mt-1">{stats.total}</p>
                             </div>
                             <div className="p-3 bg-red-50 rounded-lg">
-                                <Activity className="h-6 w-6 text-red-600" />
+                                <Activity className="h-4 w-4 text-red-600" />
                             </div>
                         </div>
                     </div>
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition">
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-gray-600 text-sm font-medium">With BP</p>
-                                <p className="text-3xl font-bold text-gray-900 mt-2">{stats.withBP}</p>
+                                <p className="text-gray-600 text-xs font-medium">With BP</p>
+                                <p className="text-xl font-bold text-gray-900 mt-1">{stats.withBP}</p>
                             </div>
                             <div className="p-3 bg-pink-50 rounded-lg">
-                                <Heart className="h-6 w-6 text-pink-600" />
+                                <Heart className="h-4 w-4 text-pink-600" />
                             </div>
                         </div>
                     </div>
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition">
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-gray-600 text-sm font-medium">With Temperature</p>
-                                <p className="text-3xl font-bold text-gray-900 mt-2">{stats.withTemp}</p>
+                                <p className="text-gray-600 text-xs font-medium">With Temperature</p>
+                                <p className="text-xl font-bold text-gray-900 mt-1">{stats.withTemp}</p>
                             </div>
                             <div className="p-3 bg-orange-50 rounded-lg">
-                                <Thermometer className="h-6 w-6 text-orange-600" />
+                                <Thermometer className="h-4 w-4 text-orange-600" />
                             </div>
                         </div>
                     </div>
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition">
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-gray-600 text-sm font-medium">With Pulse</p>
-                                <p className="text-3xl font-bold text-gray-900 mt-2">{stats.withPulse}</p>
+                                <p className="text-gray-600 text-xs font-medium">With Pulse</p>
+                                <p className="text-xl font-bold text-gray-900 mt-1">{stats.withPulse}</p>
                             </div>
                             <div className="p-3 bg-blue-50 rounded-lg">
-                                <Activity className="h-6 w-6 text-blue-600" />
+                                <Activity className="h-4 w-4 text-blue-600" />
                             </div>
                         </div>
                     </div>
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition">
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-gray-600 text-sm font-medium">With O2 Sat</p>
-                                <p className="text-3xl font-bold text-gray-900 mt-2">{stats.withO2}</p>
+                                <p className="text-gray-600 text-xs font-medium">With O2 Sat</p>
+                                <p className="text-xl font-bold text-gray-900 mt-1">{stats.withO2}</p>
                             </div>
                             <div className="p-3 bg-cyan-50 rounded-lg">
-                                <Droplet className="h-6 w-6 text-cyan-600" />
+                                <Droplet className="h-4 w-4 text-cyan-600" />
                             </div>
                         </div>
                     </div>

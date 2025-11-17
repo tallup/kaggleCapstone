@@ -138,11 +138,11 @@ export default function ChartReports() {
 
                 {/* Statistics Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition">
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-gray-600 text-sm font-medium">Total Residents</p>
-                                <p className="text-3xl font-bold text-gray-900 mt-2">{stats?.residents?.total_residents || 0}</p>
+                                <p className="text-gray-600 text-xs font-medium">Total Residents</p>
+                                <p className="text-xl font-bold text-gray-900 mt-1">{stats?.residents?.total_residents || 0}</p>
                                 {stats?.residents?.by_branch && (
                                     <p className="text-xs text-gray-500 mt-1">
                                         {stats.residents.by_branch.length} {stats.residents.by_branch.length === 1 ? 'branch' : 'branches'}
@@ -150,16 +150,16 @@ export default function ChartReports() {
                                 )}
                             </div>
                             <div className="p-3 bg-emerald-50 rounded-lg">
-                                <Users className="h-6 w-6 text-emerald-600" />
+                                <Users className="h-4 w-4 text-emerald-600" />
                             </div>
                         </div>
                     </div>
 
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition">
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-gray-600 text-sm font-medium">Vitals Records</p>
-                                <p className="text-3xl font-bold text-gray-900 mt-2">{stats?.vitals?.total_vitals || 0}</p>
+                                <p className="text-gray-600 text-xs font-medium">Vitals Records</p>
+                                <p className="text-xl font-bold text-gray-900 mt-1">{stats?.vitals?.total_vitals || 0}</p>
                                 {stats?.vitals?.today_vitals !== undefined && (
                                     <p className="text-xs text-gray-500 mt-1">
                                         {stats.vitals.today_vitals} today
@@ -167,16 +167,16 @@ export default function ChartReports() {
                                 )}
                             </div>
                             <div className="p-3 bg-red-50 rounded-lg">
-                                <Activity className="h-6 w-6 text-red-600" />
+                                <Activity className="h-4 w-4 text-red-600" />
                             </div>
                         </div>
                     </div>
 
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition">
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-gray-600 text-sm font-medium">Appointments</p>
-                                <p className="text-3xl font-bold text-gray-900 mt-2">{stats?.appointments?.total_appointments || 0}</p>
+                                <p className="text-gray-600 text-xs font-medium">Appointments</p>
+                                <p className="text-xl font-bold text-gray-900 mt-1">{stats?.appointments?.total_appointments || 0}</p>
                                 {stats?.appointments?.upcoming !== undefined && (
                                     <p className="text-xs text-gray-500 mt-1">
                                         {stats.appointments.upcoming} upcoming
@@ -184,16 +184,16 @@ export default function ChartReports() {
                                 )}
                             </div>
                             <div className="p-3 bg-blue-50 rounded-lg">
-                                <Calendar className="h-6 w-6 text-blue-600" />
+                                <Calendar className="h-4 w-4 text-blue-600" />
                             </div>
                         </div>
                     </div>
 
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition">
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-gray-600 text-sm font-medium">Avg Sleep Hours</p>
-                                <p className="text-3xl font-bold text-gray-900 mt-2">
+                                <p className="text-gray-600 text-xs font-medium">Avg Sleep Hours</p>
+                                <p className="text-xl font-bold text-gray-900 mt-1">
                                     {stats?.sleep?.avg_sleep_hours ? parseFloat(stats.sleep.avg_sleep_hours).toFixed(1) : '0.0'}h
                                 </p>
                                 {stats?.sleep?.total_records !== undefined && (
@@ -203,7 +203,7 @@ export default function ChartReports() {
                                 )}
                             </div>
                             <div className="p-3 bg-amber-50 rounded-lg">
-                                <Moon className="h-6 w-6 text-amber-600" />
+                                <Moon className="h-4 w-4 text-amber-600" />
                             </div>
                         </div>
                     </div>
@@ -216,7 +216,7 @@ export default function ChartReports() {
                             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <p className="text-gray-600 text-sm font-medium">Avg Sleep Quality</p>
+                                        <p className="text-gray-600 text-xs font-medium">Avg Sleep Quality</p>
                                         <p className="text-2xl font-bold text-gray-900 mt-2">
                                             {parseFloat(stats.sleep.avg_quality).toFixed(1)}/10
                                         </p>
@@ -231,7 +231,7 @@ export default function ChartReports() {
                             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <p className="text-gray-600 text-sm font-medium">Total Sleep Hours</p>
+                                        <p className="text-gray-600 text-xs font-medium">Total Sleep Hours</p>
                                         <p className="text-2xl font-bold text-gray-900 mt-2">
                                             {parseFloat(stats.sleep.total_sleep_hours).toFixed(1)}h
                                         </p>
@@ -246,7 +246,7 @@ export default function ChartReports() {
                             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <p className="text-gray-600 text-sm font-medium">Sleep Range</p>
+                                        <p className="text-gray-600 text-xs font-medium">Sleep Range</p>
                                         <p className="text-2xl font-bold text-gray-900 mt-2">
                                             {parseFloat(stats.sleep.min_sleep_hours).toFixed(1)}h - {parseFloat(stats.sleep.max_sleep_hours).toFixed(1)}h
                                         </p>
