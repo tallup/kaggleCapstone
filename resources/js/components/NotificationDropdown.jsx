@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { 
     Bell, Calendar, Activity, ClipboardList, Pill, Moon, UserCheck, 
-    Check, CheckCheck, AlertCircle, Clock, X, User, UserPlus, Building2
+    Check, CheckCheck, AlertCircle, Clock, X, User, UserPlus, Building2, Sparkles
 } from 'lucide-react';
 
 export default function NotificationDropdown() {
@@ -185,6 +185,10 @@ export default function NotificationDropdown() {
                     navUrl = '/administration/branches';
                 }
                 break;
+            case 'housekeeping_task_completed':
+            case 'housekeeping_task_skipped':
+                navUrl = '/housekeeping/dashboard';
+                break;
             default:
                 navUrl = '/dashboard';
         }
@@ -235,6 +239,10 @@ export default function NotificationDropdown() {
                 return { Icon: Pill, color: 'text-[#8B4513]' };
             case 'medication_administered':
                 return { Icon: Pill, color: 'text-green-600' };
+            case 'housekeeping_task_completed':
+                return { Icon: Sparkles, color: 'text-green-600' };
+            case 'housekeeping_task_skipped':
+                return { Icon: Sparkles, color: 'text-amber-600' };
             default:
                 return { Icon: Bell, color: 'text-gray-600' };
         }
