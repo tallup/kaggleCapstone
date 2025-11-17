@@ -88,26 +88,12 @@ export default function ResidentCharts() {
                 {/* Statistics Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
                     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-gray-600 text-xs font-medium">Total Residents</p>
-                                <p className="text-xl font-bold text-gray-900 mt-1">{data?.total_residents || 0}</p>
-                            </div>
-                            <div className="p-3 bg-emerald-50 rounded-lg">
-                                <Users className="h-4 w-4 text-emerald-600" />
-                            </div>
-                        </div>
+                        <p className="text-gray-600 text-xs font-medium">Total Residents</p>
+                        <p className="text-xl font-bold text-gray-900 mt-1">{data?.total_residents || 0}</p>
                     </div>
                     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-gray-600 text-xs font-medium">Active Residents</p>
-                                <p className="text-xl font-bold text-gray-900 mt-1">{data?.active_residents || 0}</p>
-                            </div>
-                            <div className="p-3 bg-blue-50 rounded-lg">
-                                <CheckCircle2 className="h-4 w-4 text-blue-600" />
-                            </div>
-                        </div>
+                        <p className="text-gray-600 text-xs font-medium">Active Residents</p>
+                        <p className="text-xl font-bold text-gray-900 mt-1">{data?.active_residents || 0}</p>
                     </div>
                 </div>
 
@@ -124,47 +110,47 @@ export default function ResidentCharts() {
                         <div className="h-80">
                             {data?.by_branch?.length ? (
                                 <Bar
-                                    data={{
-                                        labels: data.by_branch.map(b => b.branch_name),
-                                        datasets: [{
-                                            label: 'Residents',
-                                            data: data.by_branch.map(b => b.count),
-                                            backgroundColor: [
-                                                colors.primary + '80',
-                                                colors.info + '80',
-                                                colors.success + '80',
-                                                colors.warning + '80',
-                                                colors.danger + '80',
-                                            ],
-                                            borderColor: [
-                                                colors.primary,
-                                                colors.info,
-                                                colors.success,
-                                                colors.warning,
-                                                colors.danger,
-                                            ],
-                                            borderWidth: 2,
-                                        }],
-                                    }}
-                                    options={{
-                                        ...defaultOptions,
-                                        scales: {
-                                            y: {
-                                                beginAtZero: true,
-                                                title: {
-                                                    display: true,
-                                                    text: 'Number of Residents'
-                                                }
-                                            }
-                                        }
-                                    }}
+                        data={{
+                            labels: data.by_branch.map(b => b.branch_name),
+                            datasets: [{
+                                label: 'Residents',
+                                data: data.by_branch.map(b => b.count),
+                                backgroundColor: [
+                                    colors.primary + '80',
+                                    colors.info + '80',
+                                    colors.success + '80',
+                                    colors.warning + '80',
+                                    colors.danger + '80',
+                                ],
+                                borderColor: [
+                                    colors.primary,
+                                    colors.info,
+                                    colors.success,
+                                    colors.warning,
+                                    colors.danger,
+                                ],
+                                borderWidth: 2,
+                            }],
+                        }}
+                        options={{
+                            ...defaultOptions,
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    title: {
+                                        display: true,
+                                        text: 'Number of Residents'
+                                    }
+                                }
+                            }
+                        }}
                                 />
                             ) : (
                                 <div className="h-80 flex items-center justify-center text-gray-500">
-                                    <div className="text-center">
-                                        <Building2 className="h-12 w-12 text-gray-300 mx-auto mb-2" />
-                                        <p>No data available</p>
-                                    </div>
+                        <div className="text-center">
+                            <Building2 className="h-12 w-12 text-gray-300 mx-auto mb-2" />
+                            <p>No data available</p>
+                        </div>
                                 </div>
                             )}
                         </div>
@@ -181,36 +167,36 @@ export default function ResidentCharts() {
                         <div className="h-80">
                             {data?.by_status?.length ? (
                                 <Doughnut
-                                    data={{
-                                        labels: data.by_status.map(s => s.status || 'Unknown'),
-                                        datasets: [{
-                                            data: data.by_status.map(s => s.count),
-                                            backgroundColor: [
-                                                colors.primary + '80',
-                                                colors.success + '80',
-                                                colors.warning + '80',
-                                                colors.danger + '80',
-                                            ],
-                                            borderColor: [
-                                                colors.primary,
-                                                colors.success,
-                                                colors.warning,
-                                                colors.danger,
-                                            ],
-                                            borderWidth: 2,
-                                        }],
-                                    }}
-                                    options={{
-                                        ...defaultOptions,
-                                        maintainAspectRatio: false,
-                                    }}
+                        data={{
+                            labels: data.by_status.map(s => s.status || 'Unknown'),
+                            datasets: [{
+                                data: data.by_status.map(s => s.count),
+                                backgroundColor: [
+                                    colors.primary + '80',
+                                    colors.success + '80',
+                                    colors.warning + '80',
+                                    colors.danger + '80',
+                                ],
+                                borderColor: [
+                                    colors.primary,
+                                    colors.success,
+                                    colors.warning,
+                                    colors.danger,
+                                ],
+                                borderWidth: 2,
+                            }],
+                        }}
+                        options={{
+                            ...defaultOptions,
+                            maintainAspectRatio: false,
+                        }}
                                 />
                             ) : (
                                 <div className="h-80 flex items-center justify-center text-gray-500">
-                                    <div className="text-center">
-                                        <PieChart className="h-12 w-12 text-gray-300 mx-auto mb-2" />
-                                        <p>No data available</p>
-                                    </div>
+                        <div className="text-center">
+                            <PieChart className="h-12 w-12 text-gray-300 mx-auto mb-2" />
+                            <p>No data available</p>
+                        </div>
                                 </div>
                             )}
                         </div>

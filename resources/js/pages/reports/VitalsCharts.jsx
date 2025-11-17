@@ -74,8 +74,7 @@ export default function VitalsCharts() {
                         <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#25603E]"></div>
                         <p className="mt-4 text-gray-600">Loading vitals charts...</p>
                     </div>
-                </div>
-            </div>
+                    </div>
         );
     }
 
@@ -115,113 +114,81 @@ export default function VitalsCharts() {
                         <div className="flex flex-wrap items-end gap-4">
                             <div className="flex-1 min-w-[200px]">
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    <Calendar className="inline h-4 w-4 mr-1" />
-                                    From Date
+                        <Calendar className="inline h-4 w-4 mr-1" />
+                        From Date
                                 </label>
                                 <input
-                                    type="date"
-                                    value={dateFrom}
-                                    onChange={(e) => setDateFrom(e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#25603E] focus:border-transparent"
+                        type="date"
+                        value={dateFrom}
+                        onChange={(e) => setDateFrom(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#25603E] focus:border-transparent"
                                 />
                             </div>
                             <div className="flex-1 min-w-[200px]">
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    <Calendar className="inline h-4 w-4 mr-1" />
-                                    To Date
+                        <Calendar className="inline h-4 w-4 mr-1" />
+                        To Date
                                 </label>
                                 <input
-                                    type="date"
-                                    value={dateTo}
-                                    onChange={(e) => setDateTo(e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#25603E] focus:border-transparent"
+                        type="date"
+                        value={dateTo}
+                        onChange={(e) => setDateTo(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#25603E] focus:border-transparent"
                                 />
                             </div>
                             <div className="flex-1 min-w-[200px]">
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    <Filter className="inline h-4 w-4 mr-1" />
-                                    Branch (Optional)
+                        <Filter className="inline h-4 w-4 mr-1" />
+                        Branch (Optional)
                                 </label>
                                 <select
-                                    value={branchId || ''}
-                                    onChange={(e) => setBranchId(e.target.value || null)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#25603E] focus:border-transparent"
+                        value={branchId || ''}
+                        onChange={(e) => setBranchId(e.target.value || null)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#25603E] focus:border-transparent"
                                 >
-                                    <option value="">All Branches</option>
-                                    {branches.map(b => (
-                                        <option key={b.id} value={b.id}>{b.name}</option>
-                                    ))}
+                        <option value="">All Branches</option>
+                        {branches.map(b => (
+                            <option key={b.id} value={b.id}>{b.name}</option>
+                        ))}
                                 </select>
                             </div>
                             <div className="flex-1 min-w-[200px]">
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    <Filter className="inline h-4 w-4 mr-1" />
-                                    Resident (Optional)
+                        <Filter className="inline h-4 w-4 mr-1" />
+                        Resident (Optional)
                                 </label>
                                 <select
-                                    value={residentId || ''}
-                                    onChange={(e) => setResidentId(e.target.value || null)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#25603E] focus:border-transparent"
+                        value={residentId || ''}
+                        onChange={(e) => setResidentId(e.target.value || null)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#25603E] focus:border-transparent"
                                 >
-                                    <option value="">All Residents</option>
-                                    {residents.map(r => (
-                                        <option key={r.id} value={r.id}>
-                                            {r.first_name} {r.last_name}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                        </div>
+                        <option value="">All Residents</option>
+                        {residents.map(r => (
+                            <option key={r.id} value={r.id}>
+                                {r.first_name} {r.last_name}
+                            </option>
+                        ))}
+                                </select></div>
                     </div>
-                </div>
 
                 {/* Statistics Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
-                        <div className="flex items-center justify-between">
-                            <div className="flex-1 min-w-0">
-                                <p className="text-gray-600 text-xs font-medium">Total Vitals</p>
-                                <p className="text-xl font-bold text-gray-900 mt-1">{data?.total_vitals || 0}</p>
-                            </div>
-                            <div className="p-2 bg-red-50 rounded-lg flex-shrink-0 ml-2">
-                                <Activity className="h-4 w-4 text-red-600" />
-                            </div>
-                        </div>
+                        <p className="text-gray-600 text-xs font-medium">Total Vitals</p>
+                        <p className="text-xl font-bold text-gray-900 mt-1">{data?.total_vitals || 0}</p>
                     </div>
                     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
-                        <div className="flex items-center justify-between">
-                            <div className="flex-1 min-w-0">
-                                <p className="text-gray-600 text-xs font-medium">Today</p>
-                                <p className="text-xl font-bold text-gray-900 mt-1">{data?.today_vitals || 0}</p>
-                            </div>
-                            <div className="p-2 bg-blue-50 rounded-lg">
-                                <Calendar className="h-4 w-4 text-blue-600" />
-                            </div>
-                        </div>
+                        <p className="text-gray-600 text-xs font-medium">Today</p>
+                        <p className="text-xl font-bold text-gray-900 mt-1">{data?.today_vitals || 0}</p>
                     </div>
                     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
-                        <div className="flex items-center justify-between">
-                            <div className="flex-1 min-w-0">
-                                <p className="text-gray-600 text-xs font-medium">This Week</p>
-                                <p className="text-xl font-bold text-gray-900 mt-1">{data?.week_vitals || 0}</p>
-                            </div>
-                            <div className="p-2 bg-emerald-50 rounded-lg">
-                                <TrendingUp className="h-4 w-4 text-emerald-600" />
-                            </div>
-                        </div>
+                        <p className="text-gray-600 text-xs font-medium">This Week</p>
+                        <p className="text-xl font-bold text-gray-900 mt-1">{data?.week_vitals || 0}</p>
                     </div>
                     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
-                        <div className="flex items-center justify-between">
-                            <div className="flex-1 min-w-0">
-                                <p className="text-gray-600 text-xs font-medium">This Month</p>
-                                <p className="text-xl font-bold text-gray-900 mt-1">{data?.month_vitals || 0}</p>
-                            </div>
-                            <div className="p-2 bg-purple-50 rounded-lg">
-                                <BarChart3 className="h-4 w-4 text-purple-600" />
-                            </div>
-                        </div>
+                        <p className="text-gray-600 text-xs font-medium">This Month</p>
+                        <p className="text-xl font-bold text-gray-900 mt-1">{data?.month_vitals || 0}</p>
                     </div>
-                </div>
 
                 {/* Charts Grid */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
@@ -236,38 +203,38 @@ export default function VitalsCharts() {
                         <div className="h-80">
                             {data?.trends?.length ? (
                                 <Line
-                                    data={{
-                                        labels: data.trends.map(t => t.date),
-                                        datasets: [{
-                                            label: 'Vitals Count',
-                                            data: data.trends.map(t => t.count),
-                                            borderColor: colors.info,
-                                            backgroundColor: colors.info + '20',
-                                            fill: true,
-                                            tension: 0.4,
-                                            pointRadius: 4,
-                                            pointHoverRadius: 6,
-                                        }],
-                                    }}
-                                    options={{
-                                        ...defaultOptions,
-                                        scales: {
-                                            y: {
-                                                beginAtZero: true,
-                                                title: {
-                                                    display: true,
-                                                    text: 'Number of Records'
-                                                }
-                                            }
-                                        }
-                                    }}
+                        data={{
+                            labels: data.trends.map(t => t.date),
+                            datasets: [{
+                                label: 'Vitals Count',
+                                data: data.trends.map(t => t.count),
+                                borderColor: colors.info,
+                                backgroundColor: colors.info + '20',
+                                fill: true,
+                                tension: 0.4,
+                                pointRadius: 4,
+                                pointHoverRadius: 6,
+                            }],
+                        }}
+                        options={{
+                            ...defaultOptions,
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    title: {
+                                        display: true,
+                                        text: 'Number of Records'
+                                    }
+                                }
+                            }
+                        }}
                                 />
                             ) : (
                                 <div className="h-80 flex items-center justify-center text-gray-500">
-                                    <div className="text-center">
-                                        <LineChartIcon className="h-12 w-12 text-gray-300 mx-auto mb-2" />
-                                        <p>No data available</p>
-                                    </div>
+                        <div className="text-center">
+                            <LineChartIcon className="h-12 w-12 text-gray-300 mx-auto mb-2" />
+                            <p>No data available</p>
+                        </div>
                                 </div>
                             )}
                         </div>
@@ -284,48 +251,48 @@ export default function VitalsCharts() {
                         <div className="h-80">
                             {data?.blood_pressure?.labels?.length ? (
                                 <Line
-                                    data={{
-                                        labels: data.blood_pressure.labels.slice(0, 20),
-                                        datasets: [
-                                            {
-                                                label: 'Systolic',
-                                                data: data.blood_pressure.systolic.slice(0, 20),
-                                                borderColor: colors.danger,
-                                                backgroundColor: colors.danger + '20',
-                                                fill: false,
-                                                tension: 0.4,
-                                                pointRadius: 3,
-                                            },
-                                            {
-                                                label: 'Diastolic',
-                                                data: data.blood_pressure.diastolic.slice(0, 20),
-                                                borderColor: colors.info,
-                                                backgroundColor: colors.info + '20',
-                                                fill: false,
-                                                tension: 0.4,
-                                                pointRadius: 3,
-                                            },
-                                        ],
-                                    }}
-                                    options={{
-                                        ...defaultOptions,
-                                        scales: {
-                                            y: {
-                                                beginAtZero: false,
-                                                title: {
-                                                    display: true,
-                                                    text: 'mmHg'
-                                                }
-                                            }
-                                        }
-                                    }}
+                        data={{
+                            labels: data.blood_pressure.labels.slice(0, 20),
+                            datasets: [
+                                {
+                                    label: 'Systolic',
+                                    data: data.blood_pressure.systolic.slice(0, 20),
+                                    borderColor: colors.danger,
+                                    backgroundColor: colors.danger + '20',
+                                    fill: false,
+                                    tension: 0.4,
+                                    pointRadius: 3,
+                                },
+                                {
+                                    label: 'Diastolic',
+                                    data: data.blood_pressure.diastolic.slice(0, 20),
+                                    borderColor: colors.info,
+                                    backgroundColor: colors.info + '20',
+                                    fill: false,
+                                    tension: 0.4,
+                                    pointRadius: 3,
+                                },
+                            ],
+                        }}
+                        options={{
+                            ...defaultOptions,
+                            scales: {
+                                y: {
+                                    beginAtZero: false,
+                                    title: {
+                                        display: true,
+                                        text: 'mmHg'
+                                    }
+                                }
+                            }
+                        }}
                                 />
                             ) : (
                                 <div className="h-80 flex items-center justify-center text-gray-500">
-                                    <div className="text-center">
-                                        <Heart className="h-12 w-12 text-gray-300 mx-auto mb-2" />
-                                        <p>No data available</p>
-                                    </div>
+                        <div className="text-center">
+                            <Heart className="h-12 w-12 text-gray-300 mx-auto mb-2" />
+                            <p>No data available</p>
+                        </div>
                                 </div>
                             )}
                         </div>
@@ -342,41 +309,38 @@ export default function VitalsCharts() {
                         <div className="h-80">
                             {data?.temperature?.labels?.length ? (
                                 <Bar
-                                    data={{
-                                        labels: data.temperature.labels.slice(0, 30),
-                                        datasets: [{
-                                            label: 'Temperature (°F)',
-                                            data: data.temperature.temperature.slice(0, 30),
-                                            backgroundColor: colors.warning + '80',
-                                            borderColor: colors.warning,
-                                            borderWidth: 2,
-                                        }],
-                                    }}
-                                    options={{
-                                        ...defaultOptions,
-                                        scales: {
-                                            y: {
-                                                beginAtZero: false,
-                                                title: {
-                                                    display: true,
-                                                    text: 'Temperature (°F)'
-                                                }
-                                            }
-                                        }
-                                    }}
+                        data={{
+                            labels: data.temperature.labels.slice(0, 30),
+                            datasets: [{
+                                label: 'Temperature (°F)',
+                                data: data.temperature.temperature.slice(0, 30),
+                                backgroundColor: colors.warning + '80',
+                                borderColor: colors.warning,
+                                borderWidth: 2,
+                            }],
+                        }}
+                        options={{
+                            ...defaultOptions,
+                            scales: {
+                                y: {
+                                    beginAtZero: false,
+                                    title: {
+                                        display: true,
+                                        text: 'Temperature (°F)'
+                                    }
+                                }
+                            }
+                        }}
                                 />
                             ) : (
                                 <div className="h-80 flex items-center justify-center text-gray-500">
-                                    <div className="text-center">
-                                        <Thermometer className="h-12 w-12 text-gray-300 mx-auto mb-2" />
-                                        <p>No data available</p>
-                                    </div>
-                                </div>
-                            )}
+                        <div className="text-center">
+                            <Thermometer className="h-12 w-12 text-gray-300 mx-auto mb-2" />
+                            <p>No data available</p>
                         </div>
+                                </div>
+                            )}</div>
                     </div>
-                </div>
-            </div>
         </div>
     );
 }

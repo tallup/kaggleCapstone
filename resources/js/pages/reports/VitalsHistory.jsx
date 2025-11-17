@@ -98,8 +98,7 @@ export default function VitalsHistory() {
                         <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#25603E]"></div>
                         <p className="mt-4 text-gray-600">Loading vitals history...</p>
                     </div>
-                </div>
-            </div>
+                    </div>
         );
     }
 
@@ -140,116 +139,113 @@ export default function VitalsHistory() {
                         <div className="flex flex-wrap items-end gap-4">
                             <div className="flex-1 min-w-[200px]">
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    <Calendar className="inline h-4 w-4 mr-1" />
-                                    From Date
+                        <Calendar className="inline h-4 w-4 mr-1" />
+                        From Date
                                 </label>
                                 <input
-                                    type="date"
-                                    value={dateFrom}
-                                    onChange={(e) => setDateFrom(e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#25603E] focus:border-transparent"
+                        type="date"
+                        value={dateFrom}
+                        onChange={(e) => setDateFrom(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#25603E] focus:border-transparent"
                                 />
                             </div>
                             <div className="flex-1 min-w-[200px]">
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    <Calendar className="inline h-4 w-4 mr-1" />
-                                    To Date
+                        <Calendar className="inline h-4 w-4 mr-1" />
+                        To Date
                                 </label>
                                 <input
-                                    type="date"
-                                    value={dateTo}
-                                    onChange={(e) => setDateTo(e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#25603E] focus:border-transparent"
+                        type="date"
+                        value={dateTo}
+                        onChange={(e) => setDateTo(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#25603E] focus:border-transparent"
                                 />
                             </div>
                             <div className="flex-1 min-w-[200px]">
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    <Filter className="inline h-4 w-4 mr-1" />
-                                    Branch (Optional)
+                        <Filter className="inline h-4 w-4 mr-1" />
+                        Branch (Optional)
                                 </label>
                                 <select
-                                    value={branchId || ''}
-                                    onChange={(e) => setBranchId(e.target.value || null)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#25603E] focus:border-transparent"
+                        value={branchId || ''}
+                        onChange={(e) => setBranchId(e.target.value || null)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#25603E] focus:border-transparent"
                                 >
-                                    <option value="">All Branches</option>
-                                    {branches.map(b => (
-                                        <option key={b.id} value={b.id}>{b.name}</option>
-                                    ))}
+                        <option value="">All Branches</option>
+                        {branches.map(b => (
+                            <option key={b.id} value={b.id}>{b.name}</option>
+                        ))}
                                 </select>
                             </div>
                             <div className="flex-1 min-w-[200px]">
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    <Filter className="inline h-4 w-4 mr-1" />
-                                    Resident (Optional)
+                        <Filter className="inline h-4 w-4 mr-1" />
+                        Resident (Optional)
                                 </label>
                                 <select
-                                    value={residentId || ''}
-                                    onChange={(e) => setResidentId(e.target.value || null)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#25603E] focus:border-transparent"
+                        value={residentId || ''}
+                        onChange={(e) => setResidentId(e.target.value || null)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#25603E] focus:border-transparent"
                                 >
-                                    <option value="">All Residents</option>
-                                    {residents.map(r => (
-                                        <option key={r.id} value={r.id}>
-                                            {r.first_name} {r.last_name}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                        </div>
+                        <option value="">All Residents</option>
+                        {residents.map(r => (
+                            <option key={r.id} value={r.id}>
+                                {r.first_name} {r.last_name}
+                            </option>
+                        ))}
+                                </select></div>
                     </div>
-                </div>
 
                 {chartData ? (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         {chartData.systolic.length > 0 && (
                             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                                 <div className="flex items-center justify-between mb-4">
-                                    <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-                                        <Heart className="h-5 w-5 text-red-600" />
-                                        Blood Pressure
-                                    </h2>
+                        <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+                            <Heart className="h-5 w-5 text-red-600" />
+                            Blood Pressure
+                        </h2>
                                 </div>
                                 <div className="h-80">
-                                    <Line
-                                        data={{
-                                            labels: chartData.labels.slice(-30),
-                                            datasets: [
-                                                {
-                                                    label: 'Systolic',
-                                                    data: chartData.systolic.slice(-30),
-                                                    borderColor: colors.danger,
-                                                    backgroundColor: colors.danger + '20',
-                                                    fill: false,
-                                                    tension: 0.4,
-                                                    pointRadius: 3,
-                                                    pointHoverRadius: 5,
-                                                },
-                                                {
-                                                    label: 'Diastolic',
-                                                    data: chartData.diastolic.slice(-30),
-                                                    borderColor: colors.info,
-                                                    backgroundColor: colors.info + '20',
-                                                    fill: false,
-                                                    tension: 0.4,
-                                                    pointRadius: 3,
-                                                    pointHoverRadius: 5,
-                                                },
-                                            ],
-                                        }}
-                                        options={{
-                                            ...defaultOptions,
-                                            scales: {
-                                                y: {
-                                                    beginAtZero: false,
-                                                    title: {
-                                                        display: true,
-                                                        text: 'mmHg'
-                                                    }
-                                                }
-                                            }
-                                        }}
-                                    />
+                        <Line
+                            data={{
+                                labels: chartData.labels.slice(-30),
+                                datasets: [
+                                    {
+                                        label: 'Systolic',
+                                        data: chartData.systolic.slice(-30),
+                                        borderColor: colors.danger,
+                                        backgroundColor: colors.danger + '20',
+                                        fill: false,
+                                        tension: 0.4,
+                                        pointRadius: 3,
+                                        pointHoverRadius: 5,
+                                    },
+                                    {
+                                        label: 'Diastolic',
+                                        data: chartData.diastolic.slice(-30),
+                                        borderColor: colors.info,
+                                        backgroundColor: colors.info + '20',
+                                        fill: false,
+                                        tension: 0.4,
+                                        pointRadius: 3,
+                                        pointHoverRadius: 5,
+                                    },
+                                ],
+                            }}
+                            options={{
+                                ...defaultOptions,
+                                scales: {
+                                    y: {
+                                        beginAtZero: false,
+                                        title: {
+                                            display: true,
+                                            text: 'mmHg'
+                                        }
+                                    }
+                                }
+                            }}
+                        />
                                 </div>
                             </div>
                         )}
@@ -257,36 +253,36 @@ export default function VitalsHistory() {
                         {chartData.temperature.length > 0 && (
                             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                                 <div className="flex items-center justify-between mb-4">
-                                    <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-                                        <Thermometer className="h-5 w-5 text-orange-600" />
-                                        Temperature
-                                    </h2>
+                        <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+                            <Thermometer className="h-5 w-5 text-orange-600" />
+                            Temperature
+                        </h2>
                                 </div>
                                 <div className="h-80">
-                                    <Bar
-                                        data={{
-                                            labels: chartData.labels.slice(-30),
-                                            datasets: [{
-                                                label: 'Temperature (°F)',
-                                                data: chartData.temperature.slice(-30),
-                                                backgroundColor: colors.warning + '80',
-                                                borderColor: colors.warning,
-                                                borderWidth: 2,
-                                            }],
-                                        }}
-                                        options={{
-                                            ...defaultOptions,
-                                            scales: {
-                                                y: {
-                                                    beginAtZero: false,
-                                                    title: {
-                                                        display: true,
-                                                        text: 'Temperature (°F)'
-                                                    }
-                                                }
-                                            }
-                                        }}
-                                    />
+                        <Bar
+                            data={{
+                                labels: chartData.labels.slice(-30),
+                                datasets: [{
+                                    label: 'Temperature (°F)',
+                                    data: chartData.temperature.slice(-30),
+                                    backgroundColor: colors.warning + '80',
+                                    borderColor: colors.warning,
+                                    borderWidth: 2,
+                                }],
+                            }}
+                            options={{
+                                ...defaultOptions,
+                                scales: {
+                                    y: {
+                                        beginAtZero: false,
+                                        title: {
+                                            display: true,
+                                            text: 'Temperature (°F)'
+                                        }
+                                    }
+                                }
+                            }}
+                        />
                                 </div>
                             </div>
                         )}
@@ -294,39 +290,39 @@ export default function VitalsHistory() {
                         {chartData.pulse.length > 0 && (
                             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 lg:col-span-2">
                                 <div className="flex items-center justify-between mb-4">
-                                    <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-                                        <TrendingUp className="h-5 w-5 text-blue-600" />
-                                        Heart Rate (Pulse)
-                                    </h2>
+                        <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+                            <TrendingUp className="h-5 w-5 text-blue-600" />
+                            Heart Rate (Pulse)
+                        </h2>
                                 </div>
                                 <div className="h-80">
-                                    <Line
-                                        data={{
-                                            labels: chartData.labels.slice(-30),
-                                            datasets: [{
-                                                label: 'Pulse (bpm)',
-                                                data: chartData.pulse.slice(-30),
-                                                borderColor: colors.success,
-                                                backgroundColor: colors.success + '20',
-                                                fill: true,
-                                                tension: 0.4,
-                                                pointRadius: 3,
-                                                pointHoverRadius: 5,
-                                            }],
-                                        }}
-                                        options={{
-                                            ...defaultOptions,
-                                            scales: {
-                                                y: {
-                                                    beginAtZero: false,
-                                                    title: {
-                                                        display: true,
-                                                        text: 'Beats per Minute (bpm)'
-                                                    }
-                                                }
-                                            }
-                                        }}
-                                    />
+                        <Line
+                            data={{
+                                labels: chartData.labels.slice(-30),
+                                datasets: [{
+                                    label: 'Pulse (bpm)',
+                                    data: chartData.pulse.slice(-30),
+                                    borderColor: colors.success,
+                                    backgroundColor: colors.success + '20',
+                                    fill: true,
+                                    tension: 0.4,
+                                    pointRadius: 3,
+                                    pointHoverRadius: 5,
+                                }],
+                            }}
+                            options={{
+                                ...defaultOptions,
+                                scales: {
+                                    y: {
+                                        beginAtZero: false,
+                                        title: {
+                                            display: true,
+                                            text: 'Beats per Minute (bpm)'
+                                        }
+                                    }
+                                }
+                            }}
+                        />
                                 </div>
                             </div>
                         )}

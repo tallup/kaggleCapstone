@@ -69,8 +69,7 @@ export default function VitalsReports() {
                         <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#25603E]"></div>
                         <p className="mt-4 text-gray-600">Loading vitals report...</p>
                     </div>
-                </div>
-            </div>
+                    </div>
         );
     }
 
@@ -110,115 +109,79 @@ export default function VitalsReports() {
                         <div className="flex flex-wrap items-end gap-4">
                             <div className="flex-1 min-w-[200px]">
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    <Calendar className="inline h-4 w-4 mr-1" />
-                                    From Date
+                        <Calendar className="inline h-4 w-4 mr-1" />
+                        From Date
                                 </label>
                                 <input
-                                    type="date"
-                                    value={dateFrom}
-                                    onChange={(e) => {
-                                        setDateFrom(e.target.value);
-                                        setCurrentPage(1);
-                                    }}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#25603E] focus:border-transparent"
+                        type="date"
+                        value={dateFrom}
+                        onChange={(e) => {
+                            setDateFrom(e.target.value);
+                            setCurrentPage(1);
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#25603E] focus:border-transparent"
                                 />
                             </div>
                             <div className="flex-1 min-w-[200px]">
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    <Calendar className="inline h-4 w-4 mr-1" />
-                                    To Date
+                        <Calendar className="inline h-4 w-4 mr-1" />
+                        To Date
                                 </label>
                                 <input
-                                    type="date"
-                                    value={dateTo}
-                                    onChange={(e) => {
-                                        setDateTo(e.target.value);
-                                        setCurrentPage(1);
-                                    }}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#25603E] focus:border-transparent"
+                        type="date"
+                        value={dateTo}
+                        onChange={(e) => {
+                            setDateTo(e.target.value);
+                            setCurrentPage(1);
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#25603E] focus:border-transparent"
                                 />
                             </div>
                             <div className="flex-1 min-w-[200px]">
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    <Filter className="inline h-4 w-4 mr-1" />
-                                    Resident (Optional)
+                        <Filter className="inline h-4 w-4 mr-1" />
+                        Resident (Optional)
                                 </label>
                                 <select
-                                    value={residentId}
-                                    onChange={(e) => {
-                                        setResidentId(e.target.value);
-                                        setCurrentPage(1);
-                                    }}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#25603E] focus:border-transparent"
+                        value={residentId}
+                        onChange={(e) => {
+                            setResidentId(e.target.value);
+                            setCurrentPage(1);
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#25603E] focus:border-transparent"
                                 >
-                                    <option value="">All Residents</option>
-                                    {residents.map(r => (
-                                        <option key={r.id} value={r.id}>
-                                            {r.first_name} {r.last_name}
-                                        </option>
-                                    ))}
+                        <option value="">All Residents</option>
+                        {residents.map(r => (
+                            <option key={r.id} value={r.id}>
+                                {r.first_name} {r.last_name}
+                            </option>
+                        ))}
                                 </select>
                             </div>
-                        </div>
                     </div>
                 </div>
 
                 {/* Statistics Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
                     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-gray-600 text-xs font-medium">Total Records</p>
-                                <p className="text-xl font-bold text-gray-900 mt-1">{stats.total}</p>
-                            </div>
-                            <div className="p-3 bg-red-50 rounded-lg">
-                                <Activity className="h-4 w-4 text-red-600" />
-                            </div>
-                        </div>
+                        <p className="text-gray-600 text-xs font-medium">Total Records</p>
+                        <p className="text-xl font-bold text-gray-900 mt-1">{stats.total}</p>
                     </div>
                     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-gray-600 text-xs font-medium">With BP</p>
-                                <p className="text-xl font-bold text-gray-900 mt-1">{stats.withBP}</p>
-                            </div>
-                            <div className="p-3 bg-pink-50 rounded-lg">
-                                <Heart className="h-4 w-4 text-pink-600" />
-                            </div>
-                        </div>
+                        <p className="text-gray-600 text-xs font-medium">With BP</p>
+                        <p className="text-xl font-bold text-gray-900 mt-1">{stats.withBP}</p>
                     </div>
                     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-gray-600 text-xs font-medium">With Temperature</p>
-                                <p className="text-xl font-bold text-gray-900 mt-1">{stats.withTemp}</p>
-                            </div>
-                            <div className="p-3 bg-orange-50 rounded-lg">
-                                <Thermometer className="h-4 w-4 text-orange-600" />
-                            </div>
-                        </div>
+                        <p className="text-gray-600 text-xs font-medium">With Temperature</p>
+                        <p className="text-xl font-bold text-gray-900 mt-1">{stats.withTemp}</p>
                     </div>
                     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-gray-600 text-xs font-medium">With Pulse</p>
-                                <p className="text-xl font-bold text-gray-900 mt-1">{stats.withPulse}</p>
-                            </div>
-                            <div className="p-3 bg-blue-50 rounded-lg">
-                                <Activity className="h-4 w-4 text-blue-600" />
-                            </div>
-                        </div>
+                        <p className="text-gray-600 text-xs font-medium">With Pulse</p>
+                        <p className="text-xl font-bold text-gray-900 mt-1">{stats.withPulse}</p>
                     </div>
                     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-gray-600 text-xs font-medium">With O2 Sat</p>
-                                <p className="text-xl font-bold text-gray-900 mt-1">{stats.withO2}</p>
-                            </div>
-                            <div className="p-3 bg-cyan-50 rounded-lg">
-                                <Droplet className="h-4 w-4 text-cyan-600" />
-                            </div>
-                        </div>
+                        <p className="text-gray-600 text-xs font-medium">With O2 Sat</p>
+                        <p className="text-xl font-bold text-gray-900 mt-1">{stats.withO2}</p>
                     </div>
                 </div>
 
@@ -234,78 +197,78 @@ export default function VitalsReports() {
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
                                 <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Resident</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Blood Pressure</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Temperature</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pulse</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">O2 Saturation</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notes</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Resident</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Blood Pressure</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Temperature</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pulse</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">O2 Saturation</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notes</th>
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
                                 {vitals.length > 0 ? (
-                                    vitals.map((vital) => (
-                                        <tr key={vital.id} className="hover:bg-gray-50 transition">
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                {new Date(vital.measurement_date).toLocaleDateString()}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                                {vital.resident?.first_name} {vital.resident?.last_name}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                {vital.systolic && vital.diastolic ? (
-                                                    <span className="inline-flex items-center gap-1">
-                                                        <Heart className="h-3 w-3 text-red-500" />
-                                                        {vital.systolic}/{vital.diastolic} mmHg
-                                                    </span>
-                                                ) : (
-                                                    <span className="text-gray-400">—</span>
-                                                )}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                {vital.temperature ? (
-                                                    <span className="inline-flex items-center gap-1">
-                                                        <Thermometer className="h-3 w-3 text-orange-500" />
-                                                        {vital.temperature}°F
-                                                    </span>
-                                                ) : (
-                                                    <span className="text-gray-400">—</span>
-                                                )}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                {vital.pulse ? (
-                                                    <span className="inline-flex items-center gap-1">
-                                                        <Activity className="h-3 w-3 text-blue-500" />
-                                                        {vital.pulse} bpm
-                                                    </span>
-                                                ) : (
-                                                    <span className="text-gray-400">—</span>
-                                                )}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                {vital.oxygen_saturation ? (
-                                                    <span className="inline-flex items-center gap-1">
-                                                        <Droplet className="h-3 w-3 text-cyan-500" />
-                                                        {vital.oxygen_saturation}%
-                                                    </span>
-                                                ) : (
-                                                    <span className="text-gray-400">—</span>
-                                                )}
-                                            </td>
-                                            <td className="px-6 py-4 text-sm text-gray-600 max-w-xs truncate">
-                                                {vital.notes || '—'}
-                                            </td>
-                                        </tr>
-                                    ))
+                        vitals.map((vital) => (
+                            <tr key={vital.id} className="hover:bg-gray-50 transition">
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    {new Date(vital.measurement_date).toLocaleDateString()}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                    {vital.resident?.first_name} {vital.resident?.last_name}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    {vital.systolic && vital.diastolic ? (
+                                        <span className="inline-flex items-center gap-1">
+                                            <Heart className="h-3 w-3 text-red-500" />
+                                            {vital.systolic}/{vital.diastolic} mmHg
+                                        </span>
+                                    ) : (
+                                        <span className="text-gray-400">—</span>
+                                    )}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    {vital.temperature ? (
+                                        <span className="inline-flex items-center gap-1">
+                                            <Thermometer className="h-3 w-3 text-orange-500" />
+                                            {vital.temperature}°F
+                                        </span>
+                                    ) : (
+                                        <span className="text-gray-400">—</span>
+                                    )}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    {vital.pulse ? (
+                                        <span className="inline-flex items-center gap-1">
+                                            <Activity className="h-3 w-3 text-blue-500" />
+                                            {vital.pulse} bpm
+                                        </span>
+                                    ) : (
+                                        <span className="text-gray-400">—</span>
+                                    )}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    {vital.oxygen_saturation ? (
+                                        <span className="inline-flex items-center gap-1">
+                                            <Droplet className="h-3 w-3 text-cyan-500" />
+                                            {vital.oxygen_saturation}%
+                                        </span>
+                                    ) : (
+                                        <span className="text-gray-400">—</span>
+                                    )}
+                                </td>
+                                <td className="px-6 py-4 text-sm text-gray-600 max-w-xs truncate">
+                                    {vital.notes || '—'}
+                                </td>
+                            </tr>
+                        ))
                                 ) : (
-                                    <tr>
-                                        <td colSpan={7} className="px-6 py-12 text-center">
-                                            <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                                            <p className="text-gray-600 text-lg font-medium">No vitals data found</p>
-                                            <p className="text-gray-500 text-sm mt-1">Try adjusting your date range or filters</p>
-                                        </td>
-                                    </tr>
+                        <tr>
+                            <td colSpan={7} className="px-6 py-12 text-center">
+                                <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                                <p className="text-gray-600 text-lg font-medium">No vitals data found</p>
+                                <p className="text-gray-500 text-sm mt-1">Try adjusting your date range or filters</p>
+                            </td>
+                        </tr>
                                 )}
                             </tbody>
                         </table>
@@ -319,24 +282,23 @@ export default function VitalsReports() {
                             </div>
                             <div className="flex items-center gap-2">
                                 <button
-                                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                                    disabled={currentPage === 1}
-                                    className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        disabled={currentPage === 1}
+                        className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
                                 >
-                                    Previous
+                        Previous
                                 </button>
                                 <button
-                                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                                    disabled={currentPage === totalPages}
-                                    className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                        disabled={currentPage === totalPages}
+                        className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
                                 >
-                                    Next
+                        Next
                                 </button>
                             </div>
                         </div>
                     )}
                 </div>
-            </div>
-        </div>
+                    </div>
     );
 }

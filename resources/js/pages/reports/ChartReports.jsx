@@ -69,8 +69,7 @@ export default function ChartReports() {
                         <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#25603E]"></div>
                         <p className="mt-4 text-gray-600">Loading chart reports...</p>
                     </div>
-                </div>
-            </div>
+                    </div>
         );
     }
 
@@ -110,151 +109,98 @@ export default function ChartReports() {
                         <div className="flex flex-wrap items-end gap-4">
                             <div className="flex-1 min-w-[200px]">
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    <Calendar className="inline h-4 w-4 mr-1" />
-                                    From Date (for Sleep Data)
+                        <Calendar className="inline h-4 w-4 mr-1" />
+                        From Date (for Sleep Data)
                                 </label>
                                 <input
-                                    type="date"
-                                    value={dateFrom}
-                                    onChange={(e) => setDateFrom(e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#25603E] focus:border-transparent"
+                        type="date"
+                        value={dateFrom}
+                        onChange={(e) => setDateFrom(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#25603E] focus:border-transparent"
                                 />
                             </div>
                             <div className="flex-1 min-w-[200px]">
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    <Calendar className="inline h-4 w-4 mr-1" />
-                                    To Date (for Sleep Data)
+                        <Calendar className="inline h-4 w-4 mr-1" />
+                        To Date (for Sleep Data)
                                 </label>
                                 <input
-                                    type="date"
-                                    value={dateTo}
-                                    onChange={(e) => setDateTo(e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#25603E] focus:border-transparent"
-                                />
-                            </div>
-                        </div>
+                        type="date"
+                        value={dateTo}
+                        onChange={(e) => setDateTo(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#25603E] focus:border-transparent"
+                                /></div>
                     </div>
-                </div>
 
                 {/* Statistics Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-gray-600 text-xs font-medium">Total Residents</p>
-                                <p className="text-xl font-bold text-gray-900 mt-1">{stats?.residents?.total_residents || 0}</p>
-                                {stats?.residents?.by_branch && (
-                                    <p className="text-xs text-gray-500 mt-1">
-                                        {stats.residents.by_branch.length} {stats.residents.by_branch.length === 1 ? 'branch' : 'branches'}
-                                    </p>
-                                )}
-                            </div>
-                            <div className="p-3 bg-emerald-50 rounded-lg">
-                                <Users className="h-4 w-4 text-emerald-600" />
-                            </div>
-                        </div>
+                        <p className="text-gray-600 text-xs font-medium">Total Residents</p>
+                        <p className="text-xl font-bold text-gray-900 mt-1">{stats?.residents?.total_residents || 0}</p>
+                        {stats?.residents?.by_branch && (
+                            <p className="text-xs text-gray-500 mt-1">
+                                {stats.residents.by_branch.length} {stats.residents.by_branch.length === 1 ? 'branch' : 'branches'}
+                            </p>
+                        )}
                     </div>
 
                     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-gray-600 text-xs font-medium">Vitals Records</p>
-                                <p className="text-xl font-bold text-gray-900 mt-1">{stats?.vitals?.total_vitals || 0}</p>
-                                {stats?.vitals?.today_vitals !== undefined && (
-                                    <p className="text-xs text-gray-500 mt-1">
-                                        {stats.vitals.today_vitals} today
-                                    </p>
-                                )}
-                            </div>
-                            <div className="p-3 bg-red-50 rounded-lg">
-                                <Activity className="h-4 w-4 text-red-600" />
-                            </div>
-                        </div>
+                        <p className="text-gray-600 text-xs font-medium">Vitals Records</p>
+                        <p className="text-xl font-bold text-gray-900 mt-1">{stats?.vitals?.total_vitals || 0}</p>
+                        {stats?.vitals?.today_vitals !== undefined && (
+                            <p className="text-xs text-gray-500 mt-1">
+                                {stats.vitals.today_vitals} today
+                            </p>
+                        )}
                     </div>
 
                     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-gray-600 text-xs font-medium">Appointments</p>
-                                <p className="text-xl font-bold text-gray-900 mt-1">{stats?.appointments?.total_appointments || 0}</p>
-                                {stats?.appointments?.upcoming !== undefined && (
-                                    <p className="text-xs text-gray-500 mt-1">
-                                        {stats.appointments.upcoming} upcoming
-                                    </p>
-                                )}
-                            </div>
-                            <div className="p-3 bg-blue-50 rounded-lg">
-                                <Calendar className="h-4 w-4 text-blue-600" />
-                            </div>
-                        </div>
+                        <p className="text-gray-600 text-xs font-medium">Appointments</p>
+                        <p className="text-xl font-bold text-gray-900 mt-1">{stats?.appointments?.total_appointments || 0}</p>
+                        {stats?.appointments?.upcoming !== undefined && (
+                            <p className="text-xs text-gray-500 mt-1">
+                                {stats.appointments.upcoming} upcoming
+                            </p>
+                        )}
                     </div>
 
                     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-gray-600 text-xs font-medium">Avg Sleep Hours</p>
-                                <p className="text-xl font-bold text-gray-900 mt-1">
-                                    {stats?.sleep?.avg_sleep_hours ? parseFloat(stats.sleep.avg_sleep_hours).toFixed(1) : '0.0'}h
-                                </p>
-                                {stats?.sleep?.total_records !== undefined && (
-                                    <p className="text-xs text-gray-500 mt-1">
-                                        {stats.sleep.total_records} records
-                                    </p>
-                                )}
-                            </div>
-                            <div className="p-3 bg-amber-50 rounded-lg">
-                                <Moon className="h-4 w-4 text-amber-600" />
-                            </div>
-                        </div>
+                        <p className="text-gray-600 text-xs font-medium">Avg Sleep Hours</p>
+                        <p className="text-xl font-bold text-gray-900 mt-1">
+                            {stats?.sleep?.avg_sleep_hours ? parseFloat(stats.sleep.avg_sleep_hours).toFixed(1) : '0.0'}h
+                        </p>
+                        {stats?.sleep?.total_records !== undefined && (
+                            <p className="text-xs text-gray-500 mt-1">
+                                {stats.sleep.total_records} records
+                            </p>
+                        )}
                     </div>
-                </div>
 
                 {/* Additional Stats Row */}
                 {(stats?.sleep?.avg_quality || stats?.sleep?.total_sleep_hours) && (
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                         {stats?.sleep?.avg_quality && (
-                            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <p className="text-gray-600 text-xs font-medium">Avg Sleep Quality</p>
-                                        <p className="text-2xl font-bold text-gray-900 mt-2">
-                                            {parseFloat(stats.sleep.avg_quality).toFixed(1)}/10
-                                        </p>
-                                    </div>
-                                    <div className="p-3 bg-purple-50 rounded-lg">
-                                        <TrendingUp className="h-5 w-5 text-purple-600" />
-                                    </div>
-                                </div>
+                            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
+                                <p className="text-gray-600 text-xs font-medium">Avg Sleep Quality</p>
+                                <p className="text-xl font-bold text-gray-900 mt-1">
+                                    {parseFloat(stats.sleep.avg_quality).toFixed(1)}/10
+                                </p>
                             </div>
                         )}
                         {stats?.sleep?.total_sleep_hours && (
-                            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <p className="text-gray-600 text-xs font-medium">Total Sleep Hours</p>
-                                        <p className="text-2xl font-bold text-gray-900 mt-2">
-                                            {parseFloat(stats.sleep.total_sleep_hours).toFixed(1)}h
-                                        </p>
-                                    </div>
-                                    <div className="p-3 bg-indigo-50 rounded-lg">
-                                        <Clock className="h-5 w-5 text-indigo-600" />
-                                    </div>
-                                </div>
+                            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
+                                <p className="text-gray-600 text-xs font-medium">Total Sleep Hours</p>
+                                <p className="text-xl font-bold text-gray-900 mt-1">
+                                    {parseFloat(stats.sleep.total_sleep_hours).toFixed(1)}h
+                                </p>
                             </div>
                         )}
                         {stats?.sleep?.min_sleep_hours && stats?.sleep?.max_sleep_hours && (
-                            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <p className="text-gray-600 text-xs font-medium">Sleep Range</p>
-                                        <p className="text-2xl font-bold text-gray-900 mt-2">
-                                            {parseFloat(stats.sleep.min_sleep_hours).toFixed(1)}h - {parseFloat(stats.sleep.max_sleep_hours).toFixed(1)}h
-                                        </p>
-                                    </div>
-                                    <div className="p-3 bg-teal-50 rounded-lg">
-                                        <BarChart3 className="h-5 w-5 text-teal-600" />
-                                    </div>
-                                </div>
+                            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
+                                <p className="text-gray-600 text-xs font-medium">Sleep Range</p>
+                                <p className="text-xl font-bold text-gray-900 mt-1">
+                                    {parseFloat(stats.sleep.min_sleep_hours).toFixed(1)}h - {parseFloat(stats.sleep.max_sleep_hours).toFixed(1)}h
+                                </p>
                             </div>
                         )}
                     </div>
@@ -267,34 +213,34 @@ export default function ChartReports() {
                         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                             <div className="flex items-center justify-between mb-4">
                                 <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-                                    <Users className="h-5 w-5 text-emerald-600" />
-                                    Residents by Branch
+                        <Users className="h-5 w-5 text-emerald-600" />
+                        Residents by Branch
                                 </h2>
                             </div>
                             <div className="h-80">
                                 <Bar
-                                    data={{
-                                        labels: stats.residents.by_branch.map(b => b.branch_name),
-                                        datasets: [{
-                                            label: 'Residents',
-                                            data: stats.residents.by_branch.map(b => b.count),
-                                            backgroundColor: colors.primary + '80',
-                                            borderColor: colors.primary,
-                                            borderWidth: 2,
-                                        }],
-                                    }}
-                                    options={{
-                                        ...defaultOptions,
-                                        scales: {
-                                            y: {
-                                                beginAtZero: true,
-                                                title: {
-                                                    display: true,
-                                                    text: 'Number of Residents'
-                                                }
-                                            }
-                                        }
-                                    }}
+                        data={{
+                            labels: stats.residents.by_branch.map(b => b.branch_name),
+                            datasets: [{
+                                label: 'Residents',
+                                data: stats.residents.by_branch.map(b => b.count),
+                                backgroundColor: colors.primary + '80',
+                                borderColor: colors.primary,
+                                borderWidth: 2,
+                            }],
+                        }}
+                        options={{
+                            ...defaultOptions,
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    title: {
+                                        display: true,
+                                        text: 'Number of Residents'
+                                    }
+                                }
+                            }
+                        }}
                                 />
                             </div>
                         </div>
@@ -305,37 +251,37 @@ export default function ChartReports() {
                         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                             <div className="flex items-center justify-between mb-4">
                                 <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-                                    <LineChartIcon className="h-5 w-5 text-red-600" />
-                                    Vitals Trends (Last 7 Days)
+                        <LineChartIcon className="h-5 w-5 text-red-600" />
+                        Vitals Trends (Last 7 Days)
                                 </h2>
                             </div>
                             <div className="h-80">
                                 <Line
-                                    data={{
-                                        labels: stats.vitals.trends.map(t => t.date),
-                                        datasets: [{
-                                            label: 'Vitals Count',
-                                            data: stats.vitals.trends.map(t => t.count),
-                                            borderColor: colors.info,
-                                            backgroundColor: colors.info + '20',
-                                            fill: true,
-                                            tension: 0.4,
-                                            pointRadius: 4,
-                                            pointHoverRadius: 6,
-                                        }],
-                                    }}
-                                    options={{
-                                        ...defaultOptions,
-                                        scales: {
-                                            y: {
-                                                beginAtZero: true,
-                                                title: {
-                                                    display: true,
-                                                    text: 'Number of Records'
-                                                }
-                                            }
-                                        }
-                                    }}
+                        data={{
+                            labels: stats.vitals.trends.map(t => t.date),
+                            datasets: [{
+                                label: 'Vitals Count',
+                                data: stats.vitals.trends.map(t => t.count),
+                                borderColor: colors.info,
+                                backgroundColor: colors.info + '20',
+                                fill: true,
+                                tension: 0.4,
+                                pointRadius: 4,
+                                pointHoverRadius: 6,
+                            }],
+                        }}
+                        options={{
+                            ...defaultOptions,
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    title: {
+                                        display: true,
+                                        text: 'Number of Records'
+                                    }
+                                }
+                            }
+                        }}
                                 />
                             </div>
                         </div>
@@ -346,37 +292,37 @@ export default function ChartReports() {
                         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                             <div className="flex items-center justify-between mb-4">
                                 <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-                                    <Moon className="h-5 w-5 text-amber-600" />
-                                    Sleep Duration Trends
+                        <Moon className="h-5 w-5 text-amber-600" />
+                        Sleep Duration Trends
                                 </h2>
                             </div>
                             <div className="h-80">
                                 <Line
-                                    data={{
-                                        labels: stats.sleep.sleep_duration_trends.map(t => t.date),
-                                        datasets: [{
-                                            label: 'Avg Hours',
-                                            data: stats.sleep.sleep_duration_trends.map(t => t.avg_hours),
-                                            borderColor: colors.primary,
-                                            backgroundColor: colors.primary + '20',
-                                            fill: true,
-                                            tension: 0.4,
-                                            pointRadius: 4,
-                                            pointHoverRadius: 6,
-                                        }],
-                                    }}
-                                    options={{
-                                        ...defaultOptions,
-                                        scales: {
-                                            y: {
-                                                beginAtZero: true,
-                                                title: {
-                                                    display: true,
-                                                    text: 'Hours'
-                                                }
-                                            }
-                                        }
-                                    }}
+                        data={{
+                            labels: stats.sleep.sleep_duration_trends.map(t => t.date),
+                            datasets: [{
+                                label: 'Avg Hours',
+                                data: stats.sleep.sleep_duration_trends.map(t => t.avg_hours),
+                                borderColor: colors.primary,
+                                backgroundColor: colors.primary + '20',
+                                fill: true,
+                                tension: 0.4,
+                                pointRadius: 4,
+                                pointHoverRadius: 6,
+                            }],
+                        }}
+                        options={{
+                            ...defaultOptions,
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    title: {
+                                        display: true,
+                                        text: 'Hours'
+                                    }
+                                }
+                            }
+                        }}
                                 />
                             </div>
                         </div>
@@ -387,46 +333,46 @@ export default function ChartReports() {
                         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                             <div className="flex items-center justify-between mb-4">
                                 <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-                                    <PieChart className="h-5 w-5 text-purple-600" />
-                                    Sleep Quality Distribution
+                        <PieChart className="h-5 w-5 text-purple-600" />
+                        Sleep Quality Distribution
                                 </h2>
                             </div>
                             <div className="h-80">
                                 <Bar
-                                    data={{
-                                        labels: stats.sleep.quality_distribution.map(q => `Quality ${q.quality}`),
-                                        datasets: [{
-                                            label: 'Count',
-                                            data: stats.sleep.quality_distribution.map(q => q.count),
-                                            backgroundColor: [
-                                                colors.danger + '80',
-                                                colors.warning + '80',
-                                                colors.info + '80',
-                                                colors.success + '80',
-                                                colors.primary + '80',
-                                            ],
-                                            borderColor: [
-                                                colors.danger,
-                                                colors.warning,
-                                                colors.info,
-                                                colors.success,
-                                                colors.primary,
-                                            ],
-                                            borderWidth: 2,
-                                        }],
-                                    }}
-                                    options={{
-                                        ...defaultOptions,
-                                        scales: {
-                                            y: {
-                                                beginAtZero: true,
-                                                title: {
-                                                    display: true,
-                                                    text: 'Count'
-                                                }
-                                            }
-                                        }
-                                    }}
+                        data={{
+                            labels: stats.sleep.quality_distribution.map(q => `Quality ${q.quality}`),
+                            datasets: [{
+                                label: 'Count',
+                                data: stats.sleep.quality_distribution.map(q => q.count),
+                                backgroundColor: [
+                                    colors.danger + '80',
+                                    colors.warning + '80',
+                                    colors.info + '80',
+                                    colors.success + '80',
+                                    colors.primary + '80',
+                                ],
+                                borderColor: [
+                                    colors.danger,
+                                    colors.warning,
+                                    colors.info,
+                                    colors.success,
+                                    colors.primary,
+                                ],
+                                borderWidth: 2,
+                            }],
+                        }}
+                        options={{
+                            ...defaultOptions,
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    title: {
+                                        display: true,
+                                        text: 'Count'
+                                    }
+                                }
+                            }
+                        }}
                                 />
                             </div>
                         </div>
@@ -437,36 +383,36 @@ export default function ChartReports() {
                         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                             <div className="flex items-center justify-between mb-4">
                                 <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-                                    <Calendar className="h-5 w-5 text-blue-600" />
-                                    Appointments by Status
+                        <Calendar className="h-5 w-5 text-blue-600" />
+                        Appointments by Status
                                 </h2>
                             </div>
                             <div className="h-80">
                                 <Doughnut
-                                    data={{
-                                        labels: stats.appointments.by_status.map(s => s.status),
-                                        datasets: [{
-                                            label: 'Count',
-                                            data: stats.appointments.by_status.map(s => s.count),
-                                            backgroundColor: [
-                                                colors.info + '80',
-                                                colors.success + '80',
-                                                colors.warning + '80',
-                                                colors.danger + '80',
-                                            ],
-                                            borderColor: [
-                                                colors.info,
-                                                colors.success,
-                                                colors.warning,
-                                                colors.danger,
-                                            ],
-                                            borderWidth: 2,
-                                        }],
-                                    }}
-                                    options={{
-                                        ...defaultOptions,
-                                        maintainAspectRatio: false,
-                                    }}
+                        data={{
+                            labels: stats.appointments.by_status.map(s => s.status),
+                            datasets: [{
+                                label: 'Count',
+                                data: stats.appointments.by_status.map(s => s.count),
+                                backgroundColor: [
+                                    colors.info + '80',
+                                    colors.success + '80',
+                                    colors.warning + '80',
+                                    colors.danger + '80',
+                                ],
+                                borderColor: [
+                                    colors.info,
+                                    colors.success,
+                                    colors.warning,
+                                    colors.danger,
+                                ],
+                                borderWidth: 2,
+                            }],
+                        }}
+                        options={{
+                            ...defaultOptions,
+                            maintainAspectRatio: false,
+                        }}
                                 />
                             </div>
                         </div>
@@ -477,34 +423,34 @@ export default function ChartReports() {
                         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                             <div className="flex items-center justify-between mb-4">
                                 <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-                                    <Calendar className="h-5 w-5 text-indigo-600" />
-                                    Weekly Sleep Average by Day
+                        <Calendar className="h-5 w-5 text-indigo-600" />
+                        Weekly Sleep Average by Day
                                 </h2>
                             </div>
                             <div className="h-80">
                                 <Bar
-                                    data={{
-                                        labels: stats.sleep.weekly_average.map(w => w.day),
-                                        datasets: [{
-                                            label: 'Avg Hours',
-                                            data: stats.sleep.weekly_average.map(w => w.avg_hours),
-                                            backgroundColor: colors.primary + '80',
-                                            borderColor: colors.primary,
-                                            borderWidth: 2,
-                                        }],
-                                    }}
-                                    options={{
-                                        ...defaultOptions,
-                                        scales: {
-                                            y: {
-                                                beginAtZero: true,
-                                                title: {
-                                                    display: true,
-                                                    text: 'Hours'
-                                                }
-                                            }
-                                        }
-                                    }}
+                        data={{
+                            labels: stats.sleep.weekly_average.map(w => w.day),
+                            datasets: [{
+                                label: 'Avg Hours',
+                                data: stats.sleep.weekly_average.map(w => w.avg_hours),
+                                backgroundColor: colors.primary + '80',
+                                borderColor: colors.primary,
+                                borderWidth: 2,
+                            }],
+                        }}
+                        options={{
+                            ...defaultOptions,
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    title: {
+                                        display: true,
+                                        text: 'Hours'
+                                    }
+                                }
+                            }
+                        }}
                                 />
                             </div>
                         </div>
