@@ -98,8 +98,8 @@
                                 <th class="px-4 py-3">Area / Shift</th>
                                 <th class="px-4 py-3">Task</th>
                                 <th class="px-4 py-3">Status</th>
-                                <th class="px-4 py-3">Initials</th>
-                                <th class="px-4 py-3">Completed At</th>
+                                <th class="px-4 py-3">Completed/Skipped By</th>
+                                <th class="px-4 py-3">Completed/Skipped At</th>
                                 <th class="px-4 py-3">Notes</th>
                             </tr>
                         </thead>

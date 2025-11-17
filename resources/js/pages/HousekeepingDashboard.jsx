@@ -264,8 +264,8 @@ export default function HousekeepingDashboard() {
                                             <th className="px-4 py-3">Area / Shift</th>
                                             <th className="px-4 py-3">Task</th>
                                             <th className="px-4 py-3">Status</th>
-                                            <th className="px-4 py-3">Completed By</th>
-                                            <th className="px-4 py-3">Completed At</th>
+                                            <th className="px-4 py-3">Completed/Skipped By</th>
+                                            <th className="px-4 py-3">Completed/Skipped At</th>
                                             <th className="px-4 py-3">Notes</th>
                                         </tr>
                                     </thead>
