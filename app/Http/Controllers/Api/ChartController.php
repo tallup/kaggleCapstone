@@ -258,42 +258,156 @@ class ChartController extends Controller
     }
 
     // Sleep Charts
-    public function sleepStats(): JsonResponse
+    public function sleepStats(Request $request): JsonResponse
     {
+        $dateFrom = $request->input('date_from') 
+            ? Carbon::parse($request->input('date_from'))->startOfDay()
+            : Carbon::now()->subDays(30)->startOfDay();
+        
+        $dateTo = $request->input('date_to')
+            ? Carbon::parse($request->input('date_to'))->endOfDay()
+            : Carbon::now()->endOfDay();
+
+        $query = SleepRecord::whereBetween('sleep_date', [$dateFrom, $dateTo]);
+        
+        if ($request->has('resident_id')) {
+            $query->where('resident_id', $request->input('resident_id'));
+        }
+
         $stats = [
-            'total_records' => SleepRecord::count(),
-            'avg_sleep_hours' => SleepRecord::avg('total_sleep_hours'),
-            'avg_quality' => SleepRecord::whereNotNull('sleep_quality')->avg('sleep_quality'),
-            'sleep_duration_trends' => $this->getSleepDurationTrends(),
-            'quality_distribution' => $this->getSleepQualityDistribution(),
+            'total_records' => $query->count(),
+            'avg_sleep_hours' => round($query->avg('total_sleep_hours') ?? 0, 1),
+            'avg_quality' => round($query->whereNotNull('sleep_quality')->avg('sleep_quality') ?? 0, 1),
+            'min_sleep_hours' => round($query->min('total_sleep_hours') ?? 0, 1),
+            'max_sleep_hours' => round($query->max('total_sleep_hours') ?? 0, 1),
+            'total_sleep_hours' => round($query->sum('total_sleep_hours') ?? 0, 1),
+            'sleep_duration_trends' => $this->getSleepDurationTrends($dateFrom, $dateTo, $request->input('resident_id')),
+            'quality_distribution' => $this->getSleepQualityDistribution($dateFrom, $dateTo, $request->input('resident_id')),
+            'quality_over_time' => $this->getQualityOverTime($dateFrom, $dateTo, $request->input('resident_id')),
+            'weekly_average' => $this->getWeeklyAverage($dateFrom, $dateTo, $request->input('resident_id')),
         ];
 
         return response()->json($stats);
     }
 
-    private function getSleepDurationTrends(): array
+    private function getSleepDurationTrends($dateFrom, $dateTo, $residentId = null): array
     {
-        $last7Days = [];
-        for ($i = 6; $i >= 0; $i--) {
-            $date = Carbon::now()->subDays($i);
-            $avg = SleepRecord::whereDate('sleep_date', $date)->avg('total_sleep_hours');
-            $last7Days[] = [
-                'date' => $date->format('M j'),
-                'avg_hours' => round($avg ?? 0, 2)
-            ];
+        $query = SleepRecord::whereBetween('sleep_date', [$dateFrom, $dateTo]);
+        if ($residentId) {
+            $query->where('resident_id', $residentId);
         }
-        return $last7Days;
+
+        $daysDiff = $dateFrom->diffInDays($dateTo);
+        $interval = $daysDiff <= 7 ? 'day' : ($daysDiff <= 30 ? 'day' : 'week');
+
+        if ($interval === 'day') {
+            $trends = [];
+            $current = $dateFrom->copy();
+            while ($current <= $dateTo) {
+                $avg = (clone $query)->whereDate('sleep_date', $current)->avg('total_sleep_hours');
+                $trends[] = [
+                    'date' => $current->format('M j'),
+                    'avg_hours' => round($avg ?? 0, 2)
+                ];
+                $current->addDay();
+            }
+            return $trends;
+        } else {
+            return $query->selectRaw('DATE(sleep_date) as date, AVG(total_sleep_hours) as avg_hours')
+                ->groupBy('date')
+                ->orderBy('date')
+                ->get()
+                ->map(fn($r) => [
+                    'date' => Carbon::parse($r->date)->format('M j'),
+                    'avg_hours' => round($r->avg_hours ?? 0, 2)
+                ])
+                ->toArray();
+        }
     }
 
-    private function getSleepQualityDistribution(): array
+    private function getSleepQualityDistribution($dateFrom, $dateTo, $residentId = null): array
     {
-        return SleepRecord::selectRaw('sleep_quality, COUNT(*) as count')
-            ->whereNotNull('sleep_quality')
+        $query = SleepRecord::whereBetween('sleep_date', [$dateFrom, $dateTo])
+            ->whereNotNull('sleep_quality');
+        
+        if ($residentId) {
+            $query->where('resident_id', $residentId);
+        }
+
+        return $query->selectRaw('sleep_quality, COUNT(*) as count')
             ->groupBy('sleep_quality')
             ->orderBy('sleep_quality')
             ->get()
             ->map(fn($r) => ['quality' => $r->sleep_quality, 'count' => $r->count])
             ->toArray();
+    }
+
+    private function getQualityOverTime($dateFrom, $dateTo, $residentId = null): array
+    {
+        $query = SleepRecord::whereBetween('sleep_date', [$dateFrom, $dateTo])
+            ->whereNotNull('sleep_quality');
+        
+        if ($residentId) {
+            $query->where('resident_id', $residentId);
+        }
+
+        $daysDiff = $dateFrom->diffInDays($dateTo);
+        $interval = $daysDiff <= 7 ? 'day' : ($daysDiff <= 30 ? 'day' : 'week');
+
+        if ($interval === 'day') {
+            $trends = [];
+            $current = $dateFrom->copy();
+            while ($current <= $dateTo) {
+                $avg = (clone $query)->whereDate('sleep_date', $current)->avg('sleep_quality');
+                $trends[] = [
+                    'date' => $current->format('M j'),
+                    'avg_quality' => round($avg ?? 0, 1)
+                ];
+                $current->addDay();
+            }
+            return $trends;
+        } else {
+            return $query->selectRaw('DATE(sleep_date) as date, AVG(sleep_quality) as avg_quality')
+                ->groupBy('date')
+                ->orderBy('date')
+                ->get()
+                ->map(fn($r) => [
+                    'date' => Carbon::parse($r->date)->format('M j'),
+                    'avg_quality' => round($r->avg_quality ?? 0, 1)
+                ])
+                ->toArray();
+        }
+    }
+
+    private function getWeeklyAverage($dateFrom, $dateTo, $residentId = null): array
+    {
+        $query = SleepRecord::whereBetween('sleep_date', [$dateFrom, $dateTo]);
+        
+        if ($residentId) {
+            $query->where('resident_id', $residentId);
+        }
+
+        // Use Carbon's dayOfWeek which returns 0-6 (Sunday = 0)
+        $records = $query->get();
+        $weeklyData = [];
+        $days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        
+        for ($i = 0; $i < 7; $i++) {
+            $dayRecords = $records->filter(function($record) use ($i) {
+                return Carbon::parse($record->sleep_date)->dayOfWeek === $i;
+            });
+            
+            $avgHours = $dayRecords->count() > 0 
+                ? round($dayRecords->avg('total_sleep_hours') ?? 0, 1)
+                : 0;
+            
+            $weeklyData[] = [
+                'day' => $days[$i],
+                'avg_hours' => $avgHours
+            ];
+        }
+        
+        return $weeklyData;
     }
 
     // Staff Charts
