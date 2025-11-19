@@ -83,6 +83,7 @@ const navigation = [
             { name: 'Leave Requests', path: '/administration/leave-requests' },
             { name: 'Roles & Permissions', path: '/administration/roles' },
             { name: 'Users', path: '/administration/users' },
+            { name: 'Drugs', path: '/administration/drugs' },
             { name: 'Inactive Records', path: '/administration/deactivated' },
             { name: 'Employee Documents', path: '/administration/employee-documents' },
             { name: 'Activity Logs', path: '/administration/activity-logs' },

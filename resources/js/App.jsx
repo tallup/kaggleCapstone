@@ -30,6 +30,7 @@ import LeaveRequests from './pages/LeaveRequests';
 import Roles from './pages/Roles';
 import Users from './pages/Users';
 import EmployeeDocuments from './pages/EmployeeDocuments';
+import Drugs from './pages/Drugs';
 import Profile from './pages/Profile';
 import ActivityLogs from './pages/ActivityLogs';
 import DeactivatedRecords from './pages/DeactivatedRecords';
@@ -105,6 +106,7 @@ function App() {
                 <Route path="administration/leave-requests" element={<LeaveRequests />} />
                 <Route path="administration/roles" element={<Roles />} />
                 <Route path="administration/users" element={<Users />} />
+                <Route path="administration/drugs" element={<Drugs />} />
                 <Route path="administration/employee-documents" element={<EmployeeDocuments />} />
                 <Route path="administration/activity-logs" element={<ActivityLogs />} />
                 <Route path="administration/deactivated" element={<DeactivatedRecords />} />

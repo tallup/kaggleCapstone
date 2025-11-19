@@ -288,6 +288,14 @@ class CustomNavigationProvider
                                 auth()->user()->hasRole('administrator') ||
                                 auth()->user()->hasRole('super_admin')
                             )),
+                        NavigationItem::make('Drugs')
+                            ->url('/app/administration/drugs')
+                            ->isActiveWhen(fn (): bool => request()->is('app/administration/drugs') || request()->is('app/administration/drugs/*'))
+                            ->visible(fn (): bool => auth()->check() && (
+                                auth()->user()->hasPermission('view_drugs') ||
+                                auth()->user()->hasRole('administrator') ||
+                                auth()->user()->hasRole('super_admin')
+                            )),
                         NavigationItem::make('Inactive Users')
                             ->url(route('filament.admin.pages.inactive-users'))
                             ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.pages.inactive-users'))

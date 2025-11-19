@@ -38,5 +38,52 @@ class DrugController extends Controller
         $drug = Drug::findOrFail($id);
         return response()->json($drug);
     }
+
+    public function store(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'generic_name' => 'nullable|string|max:255',
+            'description' => 'nullable|string',
+            'dosage_form' => 'nullable|string|max:255',
+            'strength' => 'nullable|string|max:255',
+            'indications' => 'nullable|string',
+            'contraindications' => 'nullable|string',
+            'side_effects' => 'nullable|string',
+            'storage_instructions' => 'nullable|string',
+            'is_active' => 'boolean',
+        ]);
+
+        $drug = Drug::create($validated);
+        return response()->json($drug, 201);
+    }
+
+    public function update(Request $request, $id): JsonResponse
+    {
+        $drug = Drug::findOrFail($id);
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'generic_name' => 'nullable|string|max:255',
+            'description' => 'nullable|string',
+            'dosage_form' => 'nullable|string|max:255',
+            'strength' => 'nullable|string|max:255',
+            'indications' => 'nullable|string',
+            'contraindications' => 'nullable|string',
+            'side_effects' => 'nullable|string',
+            'storage_instructions' => 'nullable|string',
+            'is_active' => 'boolean',
+        ]);
+
+        $drug->update($validated);
+        return response()->json($drug);
+    }
+
+    public function destroy($id): JsonResponse
+    {
+        $drug = Drug::findOrFail($id);
+        $drug->delete();
+        return response()->json(['message' => 'Drug deleted successfully']);
+    }
 }
 

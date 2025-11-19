@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useState, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
 import { Bar, Line, Doughnut } from 'react-chartjs-2';
 import { defaultOptions, colors } from '../../utils/chartConfig';
@@ -30,18 +30,33 @@ export default function ChartReports() {
     });
     const [dateTo, setDateTo] = useState(() => getLocalDateString());
     const containerRef = usePreventDateInputReload();
+    const queryClient = useQueryClient();
+
+    // Refetch data when dates change
+    useEffect(() => {
+        if (dateFrom && dateTo) {
+            console.log('ChartReports: Dates changed, invalidating query', { dateFrom, dateTo });
+            queryClient.invalidateQueries(['chart-overview', dateFrom, dateTo]);
+        }
+    }, [dateFrom, dateTo, queryClient]);
 
     const { data: stats, isLoading, refetch } = useQuery({
         queryKey: ['chart-overview', dateFrom, dateTo],
         queryFn: async () => {
+            console.log('ChartReports: Fetching data with dates', { dateFrom, dateTo });
             const [residents, vitals, appointments, sleep] = await Promise.all([
                 api.get('/charts/residents').then(r => r.data),
                 api.get('/charts/vitals').then(r => r.data),
                 api.get('/charts/appointments').then(r => r.data),
-                api.get('/charts/sleep', { params: { date_from: dateFrom, date_to: dateTo } }).then(r => r.data),
+                api.get('/charts/sleep', { params: { date_from: dateFrom, date_to: dateTo } }).then(r => {
+                    console.log('ChartReports: Sleep data received', r.data);
+                    return r.data;
+                }),
             ]);
             return { residents, vitals, appointments, sleep };
         },
+        enabled: !!dateFrom && !!dateTo, // Only run if both dates are set
+        refetchOnWindowFocus: false, // Prevent unnecessary refetches
     });
 
     const handleExport = () => {
@@ -123,7 +138,13 @@ export default function ChartReports() {
                                         if (e.nativeEvent && typeof e.nativeEvent.stopImmediatePropagation === 'function') {
                                             e.nativeEvent.stopImmediatePropagation();
                                         }
-                                        setDateFrom(e.target.value);
+                                        const newDate = e.target.value;
+                                        console.log('ChartReports: DateFrom changed to', newDate);
+                                        setDateFrom(newDate);
+                                        // Force refetch when date changes
+                                        setTimeout(() => {
+                                            refetch();
+                                        }, 100);
                                     }}
                                     onKeyDown={(e) => {
                                         if (e.key === 'Enter') {
@@ -157,7 +178,13 @@ export default function ChartReports() {
                                         if (e.nativeEvent && typeof e.nativeEvent.stopImmediatePropagation === 'function') {
                                             e.nativeEvent.stopImmediatePropagation();
                                         }
-                                        setDateTo(e.target.value);
+                                        const newDate = e.target.value;
+                                        console.log('ChartReports: DateTo changed to', newDate);
+                                        setDateTo(newDate);
+                                        // Force refetch when date changes
+                                        setTimeout(() => {
+                                            refetch();
+                                        }, 100);
                                     }}
                                     onKeyDown={(e) => {
                                         if (e.key === 'Enter') {

@@ -75,18 +75,7 @@
                 </div>
             </div>
         </noscript>
-        <div id="react-app">
-            <div style="padding: 20px; text-align: center; background: white; min-height: 100vh; display: flex; align-items: center; justify-content: center; flex-direction: column;">
-                <div class="spinner" style="border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 20px;"></div>
-                <p style="color: #666; font-size: 16px;">Loading React application...</p>
-                <style>
-                    @keyframes spin {
-                        0% { transform: rotate(0deg); }
-                        100% { transform: rotate(360deg); }
-                    }
-                </style>
-            </div>
-        </div>
+        <div id="react-app"></div>
         <script>
             // Debug logging
             console.log('Page loaded, React app should initialize...');
