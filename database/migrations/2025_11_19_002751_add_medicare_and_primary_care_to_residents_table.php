@@ -12,8 +12,12 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('residents', function (Blueprint $table) {
-            $table->string('medicare_number')->nullable()->after('physician_name');
-            $table->string('primary_care_doctor')->nullable()->after('medicare_number');
+            if (!Schema::hasColumn('residents', 'medicare_number')) {
+                $table->string('medicare_number')->nullable()->after('physician_name');
+            }
+            if (!Schema::hasColumn('residents', 'primary_care_doctor')) {
+                $table->string('primary_care_doctor')->nullable()->after('medicare_number');
+            }
         });
     }
 
