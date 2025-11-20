@@ -49,3 +49,4 @@ class ResidentResource extends JsonResource
     }
 }
 
+

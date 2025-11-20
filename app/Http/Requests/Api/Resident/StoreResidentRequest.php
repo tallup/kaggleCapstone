@@ -77,3 +77,4 @@ class StoreResidentRequest extends FormRequest
     }
 }
 
+

@@ -1,35 +1,35 @@
-/* Evergreen Oasis Care Home - Theme Colors */
-/* Default fallback colors */
+/* HomeLogic360 - Theme Colors */
+/* Default fallback colors (Super Admin / HomeLogic360) */
 :root {
-    --theme-primary: #25603E;
-    --theme-secondary: #8B4513;
-    --theme-accent: #F5F5DC;
-    --theme-primary-hover: #1B402D;
-    --theme-primary-light: #4a7a5a;
-    --theme-primary-dark: #1B402D;
-    --theme-secondary-hover: #6b3410;
-    --theme-secondary-light: #a6683a;
+    --theme-primary: #1E3A5F; /* Dark blue from logo */
+    --theme-secondary: #86EFAC; /* Light green from logo */
+    --theme-accent: #FFFFFF; /* White from logo */
+    --theme-primary-hover: #152D4A;
+    --theme-primary-light: #2E5A8F;
+    --theme-primary-dark: #152D4A;
+    --theme-secondary-hover: #6EE7B7;
+    --theme-secondary-light: #A7F3D0;
     --theme-text-on-primary: #FFFFFF;
-    --theme-text-on-secondary: #FFFFFF;
-    --theme-border: rgba(37, 96, 62, 0.2);
-    --theme-border-light: rgba(37, 96, 62, 0.1);
-    --theme-primary-bg: rgba(37, 96, 62, 0.1);
-    --theme-primary-bg-light: rgba(37, 96, 62, 0.05);
+    --theme-text-on-secondary: #000000; /* Black text on light green */
+    --theme-border: rgba(30, 58, 95, 0.2);
+    --theme-border-light: rgba(30, 58, 95, 0.1);
+    --theme-primary-bg: rgba(30, 58, 95, 0.1);
+    --theme-primary-bg-light: rgba(30, 58, 95, 0.05);
 }
 
 /* Apply accent background to the main app */
 body {
-    background-color: var(--theme-accent, #F5F5DC) !important;
+    background-color: var(--theme-accent, #F9FAFB) !important;
 }
 
 /* Filament panel background */
 .filament-app {
-    background-color: var(--theme-accent, #F5F5DC) !important;
+    background-color: var(--theme-accent, #F9FAFB) !important;
 }
 
 /* Login page styling */
 .filament-login-page {
-    background-color: var(--theme-accent, #F5F5DC) !important;
+    background-color: var(--theme-accent, #F9FAFB) !important;
 }
 
 .filament-login-page .filament-login-page-card {

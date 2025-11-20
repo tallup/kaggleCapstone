@@ -24,3 +24,4 @@ class VitalSignResource extends JsonResource
     }
 }
 
+

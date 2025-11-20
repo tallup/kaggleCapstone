@@ -138,13 +138,13 @@ class AuthController extends Controller
         } elseif ($user->assignedBranch && $user->assignedBranch->facility) {
             $payload['facility_branding'] = $user->assignedBranch->facility->branding;
         } else {
-            // Default branding
+            // Default branding for super admin / HomeLogic360
             $payload['facility_branding'] = [
-                'name' => 'Evergreen Oasis Care Home',
-                'logo' => asset('images/logo.jpeg'),
-                'primary_color' => '#25603E',
-                'secondary_color' => '#8B4513',
-                'accent_color' => '#F5F5DC',
+                'name' => 'HomeLogic360',
+                'logo' => asset('images/logonew.png'),
+                'primary_color' => '#1E3A5F', // Dark blue from logo
+                'secondary_color' => '#86EFAC', // Light green from logo
+                'accent_color' => '#FFFFFF', // White from logo
             ];
         }
 

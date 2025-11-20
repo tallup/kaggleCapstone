@@ -49,17 +49,17 @@ export default function Login() {
     };
 
     return (
-        <div className="min-h-screen flex flex-col md:flex-row bg-[#F5F5F0]">
+        <div className="min-h-screen flex flex-col md:flex-row bg-[var(--theme-bg-light,#F9FAFB)]">
             {/* Brand / Welcome Panel */}
-            <div className="md:w-1/2 relative overflow-hidden flex items-center justify-center text-white p-8 md:p-12" style={{ background: `linear-gradient(to bottom right, var(--theme-primary-dark), var(--theme-primary), var(--theme-primary-light))` }}>
+            <div className="md:w-1/2 relative overflow-hidden flex items-center justify-center text-white p-8 md:p-12" style={{ background: `linear-gradient(135deg, var(--theme-primary-dark, #152D4A), var(--theme-primary, #1E3A5F), var(--theme-primary-light, #2E5A8F))` }}>
                 <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.45),_rgba(255,255,255,0))]"></div>
                 <div className="absolute inset-0 opacity-10 mix-blend-soft-light bg-[radial-gradient(circle_at_center,_rgba(255,255,255,0.45)_0%,_rgba(255,255,255,0)_65%)]"></div>
                 <div className="relative z-10 max-w-xl space-y-8 text-center md:text-left">
                     <div className="flex flex-col md:flex-row md:items-center md:space-x-4 items-center space-y-4 md:space-y-0">
                         <div className="h-20 w-20 rounded-full shadow-xl ring-2 ring-white/50 overflow-hidden">
                             <img
-                                src="/images/logo.jpeg"
-                                alt="Evergreen Oasis Care Home"
+                                src="/images/logonew.png"
+                                alt="HomeLogic360"
                                 className="h-full w-full object-cover"
                                 onError={(e) => {
                                     e.target.style.display = 'none';
@@ -68,10 +68,10 @@ export default function Login() {
                         </div>
                         <div>
                             <p className="uppercase tracking-[0.35em] text-xs font-semibold text-white/70">
-                                Evergreen Oasis Care Home
+                                HomeLogic360
                             </p>
                             <h1 className="text-3xl md:text-4xl font-bold leading-tight">
-                                Healthcare Management System
+                                AFH Management System
                             </h1>
                         </div>
                     </div>
@@ -106,9 +106,9 @@ export default function Login() {
                 <div className="w-full max-w-md space-y-8">
                     <div className="space-y-2 text-center md:text-left">
                         <p className="text-xs uppercase tracking-[0.4em] text-[var(--theme-primary)] font-semibold">Welcome back</p>
-                        <h2 className="text-2xl md:text-3xl font-semibold text-[var(--theme-primary-dark)]">Sign in to Evergreen</h2>
+                        <h2 className="text-2xl md:text-3xl font-semibold text-[var(--theme-primary-dark)]">Sign in to HomeLogic360</h2>
                         <p className="text-sm text-[#627567] leading-relaxed">
-                            Enter the credentials provided by the Evergreen administration team to continue.
+                            Enter your credentials to access the HomeLogic360 AFH Management System.
                         </p>
                     </div>
 
@@ -136,7 +136,7 @@ export default function Login() {
                                         required
                                         autoComplete="email"
                                         className="block w-full pl-11 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-[var(--theme-primary)] outline-none transition-all placeholder:text-gray-400"
-                                        placeholder="staff@serenityafh.com"
+                                        placeholder="your-email@example.com"
                                     />
                                 </div>
                             </div>
@@ -186,7 +186,7 @@ export default function Login() {
                         <div className="text-xs text-[#6F8276] leading-relaxed">
                             <p>
                                 Trouble signing in?{' '}
-                                <a href="mailto:support@evergreenoasiscare.com" className="text-[var(--theme-primary)] font-semibold hover:text-[var(--theme-primary-hover)] hover:underline transition-colors">
+                                <a href="mailto:support@homelogic360.com" className="text-[var(--theme-primary)] font-semibold hover:text-[var(--theme-primary-hover)] hover:underline transition-colors">
                                     Contact support
                                 </a>{' '}
                                 or access the Filament admin console directly.

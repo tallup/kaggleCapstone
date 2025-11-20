@@ -398,11 +398,11 @@ export default function Layout() {
     // Get facility branding with defaults - CSS variables are set by ThemeProvider
     const facilityBranding = React.useMemo(() => {
         return {
-            name: currentUser?.facility_branding?.name || 'Evergreen Oasis Care Home',
-            logo: currentUser?.facility_branding?.logo || '/images/logo.jpeg',
-            primary_color: currentUser?.facility_branding?.primary_color || '#25603E',
-            secondary_color: currentUser?.facility_branding?.secondary_color || '#8B4513',
-            accent_color: currentUser?.facility_branding?.accent_color || '#F5F5DC',
+            name: currentUser?.facility_branding?.name || 'HomeLogic360',
+            logo: currentUser?.facility_branding?.logo || '/images/logonew.png',
+            primary_color: currentUser?.facility_branding?.primary_color || '#1E3A5F', // Dark blue from logo
+            secondary_color: currentUser?.facility_branding?.secondary_color || '#86EFAC', // Light green from logo
+            accent_color: currentUser?.facility_branding?.accent_color || '#FFFFFF', // White from logo
         };
     }, [currentUser?.facility_branding]);
 
@@ -567,25 +567,30 @@ export default function Layout() {
                                 </span>
                             </div>
                         )}
-                        {!isCaregiver && (
-                            <button
-                                onClick={() => setCommandPaletteOpen(true)}
-                                className="hidden md:flex items-center space-x-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors border border-gray-300"
-                                title="Open command palette (Cmd+K)"
-                            >
-                                <Command className="w-4 h-4" />
-                                <span className="hidden lg:inline">Search</span>
-                                <kbd className="hidden lg:inline px-1.5 py-0.5 text-xs bg-gray-200 rounded">⌘K</kbd>
-                            </button>
+                        {/* Hide search, notifications, and calendar for super admin */}
+                        {currentUser?.role !== 'super_admin' && (
+                            <>
+                                {!isCaregiver && (
+                                    <button
+                                        onClick={() => setCommandPaletteOpen(true)}
+                                        className="hidden md:flex items-center space-x-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors border border-gray-300"
+                                        title="Open command palette (Cmd+K)"
+                                    >
+                                        <Command className="w-4 h-4" />
+                                        <span className="hidden lg:inline">Search</span>
+                                        <kbd className="hidden lg:inline px-1.5 py-0.5 text-xs bg-gray-200 rounded">⌘K</kbd>
+                                    </button>
+                                )}
+                                <NotificationDropdown />
+                                <Link
+                                    to={leaveRequestsPath}
+                                    className="p-2 rounded-full hover:bg-gray-100 transition-colors relative"
+                                    title="Leave Requests"
+                                >
+                                    <CalendarClock className="w-5 h-5 text-gray-700" />
+                                </Link>
+                            </>
                         )}
-                        <NotificationDropdown />
-                        <Link
-                            to={leaveRequestsPath}
-                            className="p-2 rounded-full hover:bg-gray-100 transition-colors relative"
-                            title="Leave Requests"
-                        >
-                            <CalendarClock className="w-5 h-5 text-gray-700" />
-                        </Link>
                         <div className="relative">
                             <button
                                 ref={userButtonRef}

@@ -9,13 +9,13 @@ const ThemeContext = createContext(null);
  * Provides facility branding colors and calculated variants to all child components
  */
 export function ThemeProvider({ children, facilityBranding }) {
-    // Default theme if no facility branding provided
+    // Default theme if no facility branding provided (HomeLogic360 / Super Admin)
     const defaultTheme = {
-        name: 'Evergreen Oasis Care Home',
-        logo: '/images/logo.jpeg',
-        primary_color: '#25603E',
-        secondary_color: '#8B4513',
-        accent_color: '#F5F5DC',
+        name: 'HomeLogic360',
+        logo: '/images/logonew.png',
+        primary_color: '#1E3A5F', // Dark blue from logo
+        secondary_color: '#86EFAC', // Light green from logo
+        accent_color: '#FFFFFF', // White from logo
     };
     
     // Use facility branding or defaults
@@ -103,21 +103,21 @@ export function useTheme() {
     const context = useContext(ThemeContext);
     
     if (!context) {
-        // Return default theme if used outside provider
+        // Return default theme if used outside provider (HomeLogic360 / Super Admin)
         return {
             theme: {
-                name: 'Evergreen Oasis Care Home',
-                logo: '/images/logo.jpeg',
-                primary_color: '#25603E',
-                secondary_color: '#8B4513',
-                accent_color: '#F5F5DC',
+                name: 'HomeLogic360',
+                logo: '/images/logonew.png',
+                primary_color: '#1E3A5F', // Dark blue from logo
+                secondary_color: '#86EFAC', // Light green from logo
+                accent_color: '#FFFFFF', // White from logo
             },
-            primary: '#25603E',
-            secondary: '#8B4513',
-            accent: '#F5F5DC',
-            primaryHover: '#1B402D',
-            primaryLight: '#4a7a5a',
-            primaryDark: '#1B402D',
+            primary: '#1E3A5F',
+            secondary: '#86EFAC',
+            accent: '#FFFFFF',
+            primaryHover: '#152D4A',
+            primaryLight: '#2E5A8F',
+            primaryDark: '#152D4A',
             lighten: (color, percent) => color,
             darken: (color, percent) => color,
         };

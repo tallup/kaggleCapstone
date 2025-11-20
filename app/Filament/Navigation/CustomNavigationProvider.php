@@ -368,7 +368,7 @@ class CustomNavigationProvider
                     NavigationItem::make('Facility Registrations')
                         ->url(route('filament.admin.resources.facility-registrations.index'))
                         ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.resources.facility-registrations.*')),
-                ]);
+                    ]);
         }
         
         // Completely replace all navigation items

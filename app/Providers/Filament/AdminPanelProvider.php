@@ -136,10 +136,11 @@ class AdminPanelProvider extends PanelProvider
     private function getBranding(?Facility $facility): array
     {
         if (!$facility) {
+            // Default branding for super admin / HomeLogic360
             return [
-                'name' => 'Evergreen Oasis Care Home',
-                'logo' => asset('images/logo.jpeg'),
-                'primary_color' => Color::Sky,
+                'name' => 'HomeLogic360',
+                'logo' => asset('images/logonew.png'),
+                'primary_color' => '#1E3A5F', // Dark blue from logo
             ];
         }
 

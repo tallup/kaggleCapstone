@@ -24,7 +24,8 @@ class DashboardService
             return $this->getCaregiverStats($user);
         }
 
-        return $this->getAdminStats();
+        // Pass user to admin stats for potential facility filtering
+        return $this->getAdminStats($user);
     }
 
     /**
@@ -119,18 +120,29 @@ class DashboardService
     /**
      * Get admin dashboard stats
      */
-    public function getAdminStats(): array
+    public function getAdminStats(?User $user = null): array
     {
+        // If user provided, filter by facility (FacilityScope should handle this, but ensure it works)
+        // The FacilityScope should automatically filter, but let's ensure we get the right context
+        $residentsQuery = Resident::where('is_active', true);
+        $appointmentsQuery = Appointment::query();
+        $vitalsQuery = VitalSign::query();
+        $staffQuery = User::where('is_active', true)->where('role', '!=', 'super_admin');
+        $assessmentsQuery = Assessment::whereNotIn('status', ['approved', 'archived']);
+
+        // FacilityScope should handle filtering, but ensure it's applied
+        // Models with FacilityScope will automatically filter by facility
+        
         return [
-            'total_residents' => Resident::where('is_active', true)->count(),
-            'active_residents' => Resident::where('is_active', true)->count(),
-            'today_appointments' => Appointment::whereDate('appointment_date', today())->count(),
-            'upcoming_appointments' => Appointment::whereDate('appointment_date', '>=', today())
+            'total_residents' => $residentsQuery->count(),
+            'active_residents' => $residentsQuery->count(),
+            'today_appointments' => $appointmentsQuery->whereDate('appointment_date', today())->count(),
+            'upcoming_appointments' => $appointmentsQuery->whereDate('appointment_date', '>=', today())
                 ->whereNotIn('status', ['cancelled', 'completed'])
                 ->count(),
-            'today_vitals' => VitalSign::whereDate('measurement_date', today())->count(),
-            'total_staff' => User::where('is_active', true)->count(),
-            'pending_assessments' => Assessment::whereNotIn('status', ['approved', 'archived'])->count(),
+            'today_vitals' => $vitalsQuery->whereDate('measurement_date', today())->count(),
+            'total_staff' => $staffQuery->count(),
+            'pending_assessments' => $assessmentsQuery->count(),
             'user_type' => 'admin',
             'upcoming_appointments_list' => $this->getAdminUpcomingAppointments(),
             'resident_list' => $this->getAdminResidentList(),
@@ -398,4 +410,5 @@ class DashboardService
         return $this->getMedicationReminders(null, 10);
     }
 }
+
 

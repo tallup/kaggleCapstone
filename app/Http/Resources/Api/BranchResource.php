@@ -28,3 +28,4 @@ class BranchResource extends JsonResource
     }
 }
 
+

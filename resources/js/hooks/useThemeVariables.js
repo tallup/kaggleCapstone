@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { lightenColor, darkenColor, addOpacity } from '../utils/colorUtils';
+import { lightenColor, darkenColor, addOpacity, getContrastColor } from '../utils/colorUtils';
 
 /**
  * Hook to set CSS custom properties (CSS variables) on the document root
@@ -11,9 +11,9 @@ export function useThemeVariables(theme) {
         
         const root = document.documentElement;
         const {
-            primary_color = '#25603E',
-            secondary_color = '#8B4513',
-            accent_color = '#F5F5DC',
+            primary_color = '#1E3A5F', // HomeLogic360 dark blue
+            secondary_color = '#86EFAC', // HomeLogic360 light green
+            accent_color = '#FFFFFF', // HomeLogic360 white
         } = theme;
         
         // Primary color variants
@@ -46,8 +46,9 @@ export function useThemeVariables(theme) {
         // Text colors (ensure contrast)
         root.style.setProperty('--theme-text-primary', primary_color);
         root.style.setProperty('--theme-text-secondary', secondary_color);
-        root.style.setProperty('--theme-text-on-primary', '#FFFFFF');
-        root.style.setProperty('--theme-text-on-secondary', '#FFFFFF');
+        root.style.setProperty('--theme-text-on-primary', getContrastColor(primary_color));
+        root.style.setProperty('--theme-text-on-secondary', getContrastColor(secondary_color));
+        root.style.setProperty('--theme-text-on-accent', getContrastColor(accent_color));
         
         // Focus ring colors
         root.style.setProperty('--theme-focus-ring', addOpacity(primary_color, 0.5));
