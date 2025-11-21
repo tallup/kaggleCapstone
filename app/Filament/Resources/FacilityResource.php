@@ -278,6 +278,7 @@ class FacilityResource extends Resource
         return [
             'index' => Pages\ListFacilities::route('/'),
             'create' => Pages\CreateFacility::route('/create'),
+            'view' => Pages\ViewFacility::route('/{record}'),
             'edit' => Pages\EditFacility::route('/{record}/edit'),
         ];
     }

@@ -24,6 +24,7 @@ import Sleep from './pages/Sleep';
 import SleepPatterns from './pages/SleepPatterns';
 import ViewVitals from './pages/ViewVitals';
 import Facilities from './pages/Facilities';
+import FacilityCreate from './pages/FacilityCreate';
 import FacilityEdit from './pages/FacilityEdit';
 import Branches from './pages/Branches';
 import VitalRanges from './pages/VitalRanges';
@@ -63,15 +64,15 @@ import StaffCharts from './pages/reports/StaffCharts';
 function App() {
     return (
         <Routes>
-                <Route path="/login" element={<Login />} />
-                <Route
-                    path="/"
-                    element={
-                        <ProtectedRoute>
-                            <Layout />
-                        </ProtectedRoute>
-                    }
-                >
+            <Route path="/login" element={<Login />} />
+            <Route
+                path="/"
+                element={
+                    <ProtectedRoute>
+                        <Layout />
+                    </ProtectedRoute>
+                }
+            >
                 <Route index element={<Navigate to="dashboard" replace />} />
 
                 {/* Main Pages */}
@@ -120,7 +121,7 @@ function App() {
                 <Route path="super-admin/settings" element={<SuperAdminSettings />} />
                 <Route path="super-admin/facility-registrations" element={<FacilityRegistrations />} />
                 <Route path="super-admin/facilities" element={<Facilities />} />
-                <Route path="super-admin/facilities/create" element={<Facilities />} />
+                <Route path="super-admin/facilities/create" element={<FacilityCreate />} />
                 <Route path="super-admin/facilities/:id/edit" element={<FacilityEdit />} />
                 <Route path="super-admin/permissions" element={<Permissions />} />
 
