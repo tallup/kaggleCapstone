@@ -18,6 +18,7 @@ class MedicationAdministration extends Model
         'status',
         'notes',
         'dosage_given',
+        'document_path',
     ];
 
     protected $casts = [

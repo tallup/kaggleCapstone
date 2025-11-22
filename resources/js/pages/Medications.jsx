@@ -34,6 +34,7 @@ import {
     ChevronDown,
     List,
     Grid,
+    Building2,
 } from 'lucide-react';
 import CalendarView from '../components/CalendarView';
 
@@ -86,17 +87,17 @@ const isMedicationPeriodActiveNow = (medication, referenceDate = getPacificNow()
 
     // Get reference date components - parse it the same way we parse medication dates
     // This ensures consistent comparison (both use UTC components = Pacific components)
-    const referenceDateParsed = referenceDate instanceof Date 
-        ? referenceDate 
+    const referenceDateParsed = referenceDate instanceof Date
+        ? referenceDate
         : parsePacificDateString(getPacificISODate(referenceDate)) || getPacificNow();
-    
+
     // Extract UTC components directly (treating UTC = Pacific in our system)
     const referenceDateOnly = {
         year: referenceDateParsed.getUTCFullYear(),
         month: referenceDateParsed.getUTCMonth() + 1,
         day: referenceDateParsed.getUTCDate(),
     };
-    
+
     const buildBoundary = (value) => {
         if (!value) return null;
         // Parse the date string as a Pacific date directly (not through UTC conversion)
@@ -266,7 +267,7 @@ export default function Medications() {
         if (!activePeriodMedications || activePeriodMedications.length === 0 || viewMode !== 'calendar') {
             return [];
         }
-        
+
         const events = [];
         const now = getPacificNow();
         const startDate = new Date(now);
@@ -383,7 +384,7 @@ export default function Medications() {
                                     </div>
                                 </div>
                             )}
-                            
+
                             {medication.quantity && (
                                 <div className="flex items-start space-x-2">
                                     <Pill className="w-4 h-4 text-gray-400 mt-1" />
@@ -435,9 +436,9 @@ export default function Medications() {
                                 <MedicationTimeBadges medication={medication} />
 
                                 {/* Quick Administer */}
-                                <QuickAdminister medication={medication} onSuccess={() => { 
-                                    queryClient.invalidateQueries(['medications']); 
-                                    queryClient.invalidateQueries(['medication-administrations']); 
+                                <QuickAdminister medication={medication} onSuccess={() => {
+                                    queryClient.invalidateQueries(['medications']);
+                                    queryClient.invalidateQueries(['medication-administrations']);
                                     queryClient.invalidateQueries(['medication-administrations-today', medication.id]);
                                     queryClient.invalidateQueries(['medication-administrations-today-check', medication.id]);
                                 }} />
@@ -596,7 +597,7 @@ export default function Medications() {
                         </button>
                     )}
                 </div>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-900 mb-2">Search:</label>
@@ -612,11 +613,10 @@ export default function Medications() {
                         <label className="block text-sm font-medium text-gray-900 mb-2">Filter:</label>
                         <button
                             onClick={() => setActiveOnly(!activeOnly)}
-                            className={`w-full px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                                activeOnly
-                                    ? 'bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)]'
-                                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                            }`}
+                            className={`w-full px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeOnly
+                                ? 'bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)]'
+                                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                                }`}
                         >
                             {activeOnly ? 'Active Only' : 'All Medications'}
                         </button>
@@ -664,22 +664,20 @@ export default function Medications() {
                                 <div className="inline-flex rounded-lg border border-gray-200 bg-white p-1 shadow-sm">
                                     <button
                                         onClick={() => setViewMode('list')}
-                                        className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
-                                            viewMode === 'list'
-                                                ? 'bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)]'
-                                                : 'text-gray-700 hover:bg-gray-50'
-                                        }`}
+                                        className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${viewMode === 'list'
+                                            ? 'bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)]'
+                                            : 'text-gray-700 hover:bg-gray-50'
+                                            }`}
                                     >
                                         <List className="w-4 h-4" />
                                         List View
                                     </button>
                                     <button
                                         onClick={() => setViewMode('calendar')}
-                                        className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
-                                            viewMode === 'calendar'
-                                                ? 'bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)]'
-                                                : 'text-gray-700 hover:bg-gray-50'
-                                        }`}
+                                        className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${viewMode === 'calendar'
+                                            ? 'bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)]'
+                                            : 'text-gray-700 hover:bg-gray-50'
+                                            }`}
                                     >
                                         <Grid className="w-4 h-4" />
                                         Calendar View
@@ -708,37 +706,37 @@ export default function Medications() {
                             />
                         ) : (
                             <div className="space-y-8">
-                            {activePeriodMedications.length > 0 && (
-                                                    <div>
-                                    <div className="flex items-center justify-between mb-3">
-                                        <h3 className="text-base font-semibold text-gray-900">
-                                            Active Medication Periods
-                                                        </h3>
-                                        <span className="text-xs text-gray-500">
-                                            Showing {formatNumberUS(activePeriodMedications.length)} medication{activePeriodMedications.length === 1 ? '' : 's'}
-                                                        </span>
-                                                </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        {activePeriodMedications.map(renderMedicationCard)}
-                                                    </div>
-                                                </div>
-                                            )}
-                                            
-                            {endedPeriodMedications.length > 0 && (
-                                                    <div>
-                                    <div className="flex items-center justify-between mb-3">
-                                        <h3 className="text-base font-semibold text-gray-900">
-                                            Completed Medication Periods
-                                        </h3>
-                                        <span className="text-xs text-gray-500">
-                                            Showing {formatNumberUS(endedPeriodMedications.length)} medication{endedPeriodMedications.length === 1 ? '' : 's'}
-                                        </span>
-                                                    </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        {endedPeriodMedications.map(renderMedicationCard)}
-                                                    </div>
-                                                </div>
-                                            )}
+                                {activePeriodMedications.length > 0 && (
+                                    <div>
+                                        <div className="flex items-center justify-between mb-3">
+                                            <h3 className="text-base font-semibold text-gray-900">
+                                                Active Medication Periods
+                                            </h3>
+                                            <span className="text-xs text-gray-500">
+                                                Showing {formatNumberUS(activePeriodMedications.length)} medication{activePeriodMedications.length === 1 ? '' : 's'}
+                                            </span>
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            {activePeriodMedications.map(renderMedicationCard)}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {endedPeriodMedications.length > 0 && (
+                                    <div>
+                                        <div className="flex items-center justify-between mb-3">
+                                            <h3 className="text-base font-semibold text-gray-900">
+                                                Completed Medication Periods
+                                            </h3>
+                                            <span className="text-xs text-gray-500">
+                                                Showing {formatNumberUS(endedPeriodMedications.length)} medication{endedPeriodMedications.length === 1 ? '' : 's'}
+                                            </span>
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            {endedPeriodMedications.map(renderMedicationCard)}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )
                     ) : (
@@ -746,8 +744,8 @@ export default function Medications() {
                             <Pill className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                             <p className="text-gray-600 text-lg font-medium">No medications found</p>
                             <p className="text-gray-500 text-sm mt-2">
-                                {activeOnly 
-                                    ? 'No active medications found.' 
+                                {activeOnly
+                                    ? 'No active medications found.'
                                     : 'Try adjusting your search or filters.'}
                             </p>
                         </div>
@@ -958,7 +956,7 @@ function MedicationAdministrationForm({ medication, onClose, onSuccess }) {
                             <input
                                 type="datetime-local"
                                 value={formData.administered_at}
-                                onChange={(e) => setFormData({...formData, administered_at: e.target.value})}
+                                onChange={(e) => setFormData({ ...formData, administered_at: e.target.value })}
                                 required
                                 max={getPacificDateTimeLocalString()}
                                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
@@ -971,26 +969,27 @@ function MedicationAdministrationForm({ medication, onClose, onSuccess }) {
                                 Status *
                             </label>
                             <div className="flex gap-2 mb-2">
-                                {['completed','missed','refused'].map(s => (
+                                {['completed', 'missed', 'refused', 'hospital_admission'].map(s => (
                                     <button
                                         key={s}
                                         type="button"
                                         onClick={() => setFormData({ ...formData, status: s })}
-                                        className={`px-3 py-1 rounded-lg text-xs border ${formData.status===s ? 'bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] border-[var(--theme-primary)]' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`}
+                                        className={`px-3 py-1 rounded-lg text-xs border ${formData.status === s ? 'bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] border-[var(--theme-primary)]' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`}
                                     >
-                                        {s.charAt(0).toUpperCase()+s.slice(1)}
+                                        {s === 'hospital_admission' ? 'Hospital' : s.charAt(0).toUpperCase() + s.slice(1)}
                                     </button>
                                 ))}
                             </div>
                             <select
                                 value={formData.status}
-                                onChange={(e) => setFormData({...formData, status: e.target.value})}
+                                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
                                 required
                                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
                             >
                                 <option value="completed">Completed</option>
                                 <option value="missed">Missed</option>
                                 <option value="refused">Refused</option>
+                                <option value="hospital_admission">Hospital Admission</option>
                             </select>
                             {errors.status && <p className="text-xs text-red-600 mt-1">{errors.status[0]}</p>}
                         </div>
@@ -1002,7 +1001,7 @@ function MedicationAdministrationForm({ medication, onClose, onSuccess }) {
                             <input
                                 type="text"
                                 value={formData.dosage_given}
-                                onChange={(e) => setFormData({...formData, dosage_given: e.target.value})}
+                                onChange={(e) => setFormData({ ...formData, dosage_given: e.target.value })}
                                 placeholder="e.g., 1 tablet, 5ml"
                                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
                             />
@@ -1015,7 +1014,7 @@ function MedicationAdministrationForm({ medication, onClose, onSuccess }) {
                             </label>
                             <textarea
                                 value={formData.notes}
-                                onChange={(e) => setFormData({...formData, notes: e.target.value})}
+                                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                                 rows={3}
                                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
                                 placeholder="Additional notes about the administration..."
@@ -1172,7 +1171,7 @@ function MedicationForm({ record, residents, branches, currentUser, isCaregiver,
             // Ensure dates are sent in YYYY-MM-DD format (no time component to avoid timezone shifts)
             const startDate = formData.start_date ? formData.start_date.split('T')[0] : formData.start_date;
             console.log('Submitting start_date:', startDate, 'from formData:', formData.start_date);
-            
+
             const payload = {
                 ...formData,
                 resident_id: parseInt(formData.resident_id),
@@ -1225,8 +1224,8 @@ function MedicationForm({ record, residents, branches, currentUser, isCaregiver,
                                     value={formData.branch_id}
                                     onChange={(e) => {
                                         // Clear resident when branch changes
-                                        setFormData({ 
-                                            ...formData, 
+                                        setFormData({
+                                            ...formData,
                                             branch_id: e.target.value,
                                             resident_id: '' // Clear resident selection when branch changes
                                         });
@@ -1270,8 +1269,8 @@ function MedicationForm({ record, residents, branches, currentUser, isCaregiver,
                                     value={formData.drug_id}
                                     onChange={(e) => {
                                         const selectedDrug = uniqueDrugs.find(d => d.id == e.target.value);
-                                        setFormData({ 
-                                            ...formData, 
+                                        setFormData({
+                                            ...formData,
                                             drug_id: e.target.value,
                                             name: selectedDrug ? selectedDrug.name : formData.name
                                         });
@@ -1385,7 +1384,7 @@ function MedicationForm({ record, residents, branches, currentUser, isCaregiver,
                         <div className="border-t pt-4">
                             <h3 className="text-lg font-semibold text-gray-900 mb-4">Administration Times</h3>
                             <div className="grid grid-cols-4 gap-4">
-                                {[1,2,3,4].slice(0, getTimesNeeded(formData.instructions)).map((idx) => (
+                                {[1, 2, 3, 4].slice(0, getTimesNeeded(formData.instructions)).map((idx) => (
                                     <div key={idx}>
                                         <label className="block text-sm font-medium text-gray-900 mb-2">Time {idx}</label>
                                         <TimePicker
@@ -1457,23 +1456,23 @@ function MedicationTimeBadges({ medication }) {
 
     const getTimeStatus = (timeValue) => {
         if (!timeValue) return null;
-        
+
         // Debug: Log when getTimeStatus is called
         console.log('getTimeStatus called for', timeValue, 'with', todayAdminData?.data?.length || 0, 'administrations');
 
         const now = getPacificNow();
-        
+
         // Parse scheduled time for today (dayOffset = 0) and yesterday (dayOffset = -1)
         // We need to check both to see if yesterday's window has closed
         const scheduledTimeToday = toPacificDateFromTime(timeValue, { referenceDate: getPacificNow(), dayOffset: 0 });
         const scheduledTimeYesterday = toPacificDateFromTime(timeValue, { referenceDate: getPacificNow(), dayOffset: -1 });
-        
+
         if (!scheduledTimeToday) return null;
 
         // Use the same window as checkTimeWindow: 60 minutes after scheduled time
         const windowAfterMinutes = 60;
         const windowAfterMs = windowAfterMinutes * 60 * 1000;
-        
+
         // Tolerance for matching administrations (60 minutes to match the administration window)
         // This ensures administrations within the 60-minute window are matched correctly
         const toleranceMinutes = 60;
@@ -1483,14 +1482,14 @@ function MedicationTimeBadges({ medication }) {
         // We need to check all administrations and find the one closest to this scheduled time
         let matchingAdmin = null;
         let closestTimeDiff = Infinity;
-        
+
         if (todayAdminData?.data && scheduledTimeToday) {
             todayAdminData.data.forEach((admin) => {
                 // Parse the administered_at time - Laravel returns it as UTC ISO string
                 // The backend stores it in Pacific timezone, but Laravel serializes as UTC
                 // We need to convert the UTC time back to Pacific for comparison
                 const adminTimeRaw = new Date(admin.administered_at);
-                
+
                 // Convert UTC time to Pacific time components
                 // Laravel stores Pacific time but serializes as UTC, so we need to extract Pacific components
                 const pacificFormatter = new Intl.DateTimeFormat('en-US', {
@@ -1503,7 +1502,7 @@ function MedicationTimeBadges({ medication }) {
                     second: '2-digit',
                     hour12: false,
                 });
-                
+
                 const parts = pacificFormatter.formatToParts(adminTimeRaw);
                 const partsMap = {};
                 parts.forEach(({ type, value }) => {
@@ -1511,7 +1510,7 @@ function MedicationTimeBadges({ medication }) {
                         partsMap[type] = parseInt(value, 10);
                     }
                 });
-                
+
                 // Create a date where UTC components = Pacific components (for comparison with scheduledTimeToday)
                 const adminTime = new Date(Date.UTC(
                     partsMap.year,
@@ -1521,18 +1520,18 @@ function MedicationTimeBadges({ medication }) {
                     partsMap.minute,
                     partsMap.second || 0
                 ));
-                
+
                 // Check against both today and yesterday's scheduled times
                 const timeDiffToday = scheduledTimeToday ? Math.abs(adminTime.getTime() - scheduledTimeToday.getTime()) : Infinity;
                 const timeDiffYesterday = scheduledTimeYesterday ? Math.abs(adminTime.getTime() - scheduledTimeYesterday.getTime()) : Infinity;
                 const minTimeDiff = Math.min(timeDiffToday, timeDiffYesterday);
-                
+
                 // Check if within tolerance and is the closest match so far
                 if (minTimeDiff <= toleranceMs && minTimeDiff < closestTimeDiff) {
                     matchingAdmin = admin;
                     closestTimeDiff = minTimeDiff;
                 }
-                
+
                 // Debug logging
                 console.log('Checking administration match:', {
                     timeValue,
@@ -1555,7 +1554,7 @@ function MedicationTimeBadges({ medication }) {
                 });
             });
         }
-        
+
         // Debug: Log the final result with clear markers
         if (todayAdminData?.data && todayAdminData.data.length > 0) {
             console.log('🔍 FINAL MATCHING RESULT for', timeValue, ':', {
@@ -1576,24 +1575,24 @@ function MedicationTimeBadges({ medication }) {
             console.log('✅ RETURNING STATUS:', matchingAdmin.status, 'for', timeValue);
             return matchingAdmin.status;
         }
-        
+
         console.log('❌ NO MATCH - returning null for', timeValue);
 
         // Only mark as missed if today's scheduled time has passed and its window has closed
         // Don't mark future times as missed
         const windowEndTimeToday = scheduledTimeToday.getTime() + windowAfterMs;
-        
+
         // Check if today's scheduled time is in the past (has already occurred)
         const scheduledTimeHasPassed = now.getTime() > scheduledTimeToday.getTime();
-        
+
         // Check if today's window has closed (60 minutes after scheduled time)
         const todayWindowClosed = now.getTime() > windowEndTimeToday;
-        
+
         // Only mark as missed if:
         // 1. The scheduled time for TODAY has already passed (not in the future)
         // 2. AND the administration window has closed (60 minutes after the scheduled time)
         const isMissed = scheduledTimeHasPassed && todayWindowClosed;
-        
+
         // Always log for debugging (remove after confirming it works)
         console.log('getTimeStatus check:', {
             timeValue,
@@ -1610,7 +1609,7 @@ function MedicationTimeBadges({ medication }) {
             isMissed,
             timeDiff: scheduledTimeHasPassed ? ((now.getTime() - scheduledTimeToday.getTime()) / (60 * 1000)).toFixed(2) + ' minutes' : 'future'
         });
-        
+
         if (isMissed) {
             return 'missed';
         }
@@ -1631,7 +1630,7 @@ function MedicationTimeBadges({ medication }) {
             {times.map((time, idx) => {
                 const timeStr = formatTime(time.value);
                 const status = getTimeStatus(time.value);
-                
+
                 const getStatusStyles = (status) => {
                     switch (status) {
                         case 'completed':
@@ -1640,6 +1639,8 @@ function MedicationTimeBadges({ medication }) {
                             return 'bg-red-500 text-white';
                         case 'refused':
                             return 'bg-yellow-500 text-white';
+                        case 'hospital_admission':
+                            return 'bg-blue-500 text-white';
                         default:
                             return 'bg-green-100 text-[var(--theme-primary)]';
                     }
@@ -1653,6 +1654,8 @@ function MedicationTimeBadges({ medication }) {
                             return <XCircle className="w-3 h-3 ml-1" />;
                         case 'refused':
                             return <AlertCircle className="w-3 h-3 ml-1" />;
+                        case 'hospital_admission':
+                            return <Building2 className="w-3 h-3 ml-1" />;
                         default:
                             return null;
                     }
@@ -1666,11 +1669,13 @@ function MedicationTimeBadges({ medication }) {
                             return 'Missed';
                         case 'refused':
                             return 'Refused';
+                        case 'hospital_admission':
+                            return 'Hospital';
                         default:
                             return '';
                     }
                 };
-                
+
                 return timeStr ? (
                     <span
                         key={idx}
@@ -1708,6 +1713,10 @@ function QuickAdminister({ medication, onSuccess }) {
     const [nextWindowStart, setNextWindowStart] = useState(null);
     const [nextWindowCountdown, setNextWindowCountdown] = useState('');
     const [upcomingScheduledDisplay, setUpcomingScheduledDisplay] = useState('');
+    const [isHospitalModalOpen, setIsHospitalModalOpen] = useState(false);
+    const [hospitalNotes, setHospitalNotes] = useState('');
+    const [hospitalDocument, setHospitalDocument] = useState(null);
+    const [hospitalDocumentPreview, setHospitalDocumentPreview] = useState(null);
     const [isLateMode, setIsLateMode] = useState(false);
     const [isMedicationPeriodActive, setIsMedicationPeriodActive] = useState(true);
 
@@ -1976,7 +1985,7 @@ function QuickAdminister({ medication, onSuccess }) {
         setDosageGiven('');
         setDosageNotes('');
         setDosageValidationError('');
-            setError('');
+        setError('');
         setSuccessMessage('');
         setIsDosageModalOpen(true);
     };
@@ -1984,12 +1993,24 @@ function QuickAdminister({ medication, onSuccess }) {
     return (
         <div className="mt-3">
             <div className="flex items-center gap-2">
-                <select value={status} onChange={(e)=>setStatus(e.target.value)} className="px-2 py-1 text-xs border rounded">
+                <select
+                    value={status}
+                    onChange={(e) => {
+                        const newStatus = e.target.value;
+                        if (newStatus === 'hospital_admission') {
+                            setIsHospitalModalOpen(true);
+                        } else {
+                            setStatus(newStatus);
+                        }
+                    }}
+                    className="px-2 py-1 text-xs border rounded"
+                >
                     <option value="completed">Completed</option>
                     <option value="missed">Missed</option>
                     <option value="refused">Refused</option>
+                    <option value="hospital_admission">Hospital Admission</option>
                 </select>
-                <button 
+                <button
                     onClick={() => {
                         if (!isMedicationPeriodActive) {
                             setError('Medication administration period has ended.');
@@ -1999,17 +2020,17 @@ function QuickAdminister({ medication, onSuccess }) {
                             return;
                         }
                         openDosageModal(false);
-                    }} 
-                    disabled={isButtonDisabled} 
+                    }}
+                    disabled={isButtonDisabled}
                     className="px-2 py-1 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] rounded text-xs hover:bg-[var(--theme-primary-hover)] disabled:opacity-50 disabled:cursor-not-allowed"
                     title={
-                        isDailyLimitReached 
+                        isDailyLimitReached
                             ? 'Daily administration limit reached for this medication'
                             : (!isMedicationPeriodActive
                                 ? 'Medication administration period has ended.'
-                            : (!isWithinTimeWindow && !isPrnMedication
-                                ? (timeMessage || (nextWindowCountdown ? `Next window in ${nextWindowCountdown}` : 'Outside scheduled window'))
-                                : ''))
+                                : (!isWithinTimeWindow && !isPrnMedication
+                                    ? (timeMessage || (nextWindowCountdown ? `Next window in ${nextWindowCountdown}` : 'Outside scheduled window'))
+                                    : ''))
                     }
                 >
                     {submitting ? 'Administering...' : 'Administer'}
@@ -2124,11 +2145,11 @@ function QuickAdminister({ medication, onSuccess }) {
                                     if (submitting) {
                                         return;
                                     }
-                                    
+
                                     // Set submitting state immediately to prevent double-clicks
                                     setSubmitting(true);
                                     setError('');
-                                    
+
                                     const trimmedDosage = dosageGiven.trim();
                                     if (!trimmedDosage) {
                                         setDosageValidationError('Dosage is required.');
@@ -2144,16 +2165,16 @@ function QuickAdminister({ medication, onSuccess }) {
 
                                     const administeredAt = getPacificISODateTime();
                                     const statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
-                                    
+
                                     // Optimistically update the cache immediately
                                     const today = getPacificISODate();
                                     const queryKey = ['medication-administrations-today', medication.id];
                                     const checkQueryKey = ['medication-administrations-today-check', medication.id];
-                                    
+
                                     // Get current cache data
                                     const currentData = queryClient.getQueryData(queryKey);
                                     const currentCheckData = queryClient.getQueryData(checkQueryKey);
-                                    
+
                                     // Create optimistic administration record with unique temp ID
                                     const tempId = `temp-${Date.now()}-${Math.random()}`;
                                     const optimisticAdmin = {
@@ -2168,7 +2189,7 @@ function QuickAdminister({ medication, onSuccess }) {
                                         created_at: administeredAt,
                                         updated_at: administeredAt,
                                     };
-                                    
+
                                     // Optimistically update cache
                                     queryClient.setQueryData(queryKey, (old) => {
                                         if (!old) {
@@ -2188,7 +2209,7 @@ function QuickAdminister({ medication, onSuccess }) {
                                             total: (old.total || 0) + 1,
                                         };
                                     });
-                                    
+
                                     queryClient.setQueryData(checkQueryKey, (old) => {
                                         if (!old) {
                                             return {
@@ -2207,17 +2228,17 @@ function QuickAdminister({ medication, onSuccess }) {
                                             total: (old.total || 0) + 1,
                                         };
                                     });
-                                    
+
                                     // Close modal immediately
                                     closeDosageModal();
                                     checkTimeWindow();
-                                    
+
                                     // Show success message
                                     const successText = isLateMode
                                         ? `Late administration (${statusLabel}) recorded successfully.`
                                         : `Medication ${statusLabel} recorded successfully.`;
                                     setSuccessMessage(successText);
-                                    
+
                                     // Make API call in background
                                     try {
                                         const response = await api.post('/medication-administrations', {
@@ -2229,10 +2250,10 @@ function QuickAdminister({ medication, onSuccess }) {
                                             dosage_given: trimmedDosage,
                                             notes: finalNotes,
                                         });
-                                        
+
                                         // Replace optimistic update with real data
                                         const realAdmin = response.data?.data || response.data;
-                                        
+
                                         // Remove all temp records with the same medication and time, then add real one
                                         queryClient.setQueryData(queryKey, (old) => {
                                             if (!old) return old;
@@ -2241,19 +2262,19 @@ function QuickAdminister({ medication, onSuccess }) {
                                                 // Keep if it's a real record (numeric ID) and different from the new one
                                                 if (typeof a.id === 'number') {
                                                     // Only keep if it's not a duplicate of the new record
-                                                    return !(a.medication_id === realAdmin.medication_id && 
-                                                             a.administered_at === realAdmin.administered_at &&
-                                                             a.status === realAdmin.status);
+                                                    return !(a.medication_id === realAdmin.medication_id &&
+                                                        a.administered_at === realAdmin.administered_at &&
+                                                        a.status === realAdmin.status);
                                                 }
                                                 // Remove all temp records
                                                 return false;
                                             });
                                             // Check if real admin already exists in filtered list
-                                            const exists = filtered.some(a => 
-                                                a.id === realAdmin.id || 
-                                                (a.medication_id === realAdmin.medication_id && 
-                                                 a.administered_at === realAdmin.administered_at &&
-                                                 a.status === realAdmin.status)
+                                            const exists = filtered.some(a =>
+                                                a.id === realAdmin.id ||
+                                                (a.medication_id === realAdmin.medication_id &&
+                                                    a.administered_at === realAdmin.administered_at &&
+                                                    a.status === realAdmin.status)
                                             );
                                             if (!exists) {
                                                 filtered.push(realAdmin);
@@ -2264,23 +2285,23 @@ function QuickAdminister({ medication, onSuccess }) {
                                                 total: filtered.length,
                                             };
                                         });
-                                        
+
                                         queryClient.setQueryData(checkQueryKey, (old) => {
                                             if (!old) return old;
                                             // Filter out all temp records and duplicates
                                             const filtered = (old.data || []).filter(a => {
                                                 if (typeof a.id === 'number') {
-                                                    return !(a.medication_id === realAdmin.medication_id && 
-                                                             a.administered_at === realAdmin.administered_at &&
-                                                             a.status === realAdmin.status);
+                                                    return !(a.medication_id === realAdmin.medication_id &&
+                                                        a.administered_at === realAdmin.administered_at &&
+                                                        a.status === realAdmin.status);
                                                 }
                                                 return false;
                                             });
-                                            const exists = filtered.some(a => 
-                                                a.id === realAdmin.id || 
-                                                (a.medication_id === realAdmin.medication_id && 
-                                                 a.administered_at === realAdmin.administered_at &&
-                                                 a.status === realAdmin.status)
+                                            const exists = filtered.some(a =>
+                                                a.id === realAdmin.id ||
+                                                (a.medication_id === realAdmin.medication_id &&
+                                                    a.administered_at === realAdmin.administered_at &&
+                                                    a.status === realAdmin.status)
                                             );
                                             if (!exists) {
                                                 filtered.push(realAdmin);
@@ -2291,16 +2312,16 @@ function QuickAdminister({ medication, onSuccess }) {
                                                 total: filtered.length,
                                             };
                                         });
-                                        
+
                                         // Invalidate other related queries
                                         queryClient.invalidateQueries(['medication-administrations']);
-                                        
+
                                         onSuccess?.();
                                     } catch (e) {
                                         // Revert optimistic update on error
                                         queryClient.setQueryData(queryKey, currentData);
                                         queryClient.setQueryData(checkQueryKey, currentCheckData);
-                                        
+
                                         const msg = e?.response?.data?.message || 'Unable to record administration.';
                                         setError(msg);
                                         // Re-open modal to show error
@@ -2313,6 +2334,148 @@ function QuickAdminister({ medication, onSuccess }) {
                                 disabled={submitting}
                             >
                                 {submitting ? 'Saving...' : 'Confirm'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {isHospitalModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: 'rgba(0, 0, 0, 0.15)' }}>
+                    <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+                        <div className="flex items-center justify-between border-b px-5 py-4">
+                            <h3 className="text-lg font-semibold text-gray-900">Hospital Admission Details</h3>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setIsHospitalModalOpen(false);
+                                    setHospitalNotes('');
+                                    setHospitalDocument(null);
+                                    setHospitalDocumentPreview(null);
+                                }}
+                                className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+                            >
+                                ×
+                            </button>
+                        </div>
+                        <div className="px-5 py-4 space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-900 mb-2">
+                                    Notes *
+                                </label>
+                                <textarea
+                                    value={hospitalNotes}
+                                    onChange={(e) => setHospitalNotes(e.target.value)}
+                                    rows={4}
+                                    placeholder="Enter details about the hospital admission..."
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-900 mb-2">
+                                    Attach Document (Optional)
+                                </label>
+                                <input
+                                    type="file"
+                                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                                    onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) {
+                                            setHospitalDocument(file);
+                                            // Create preview for images
+                                            if (file.type.startsWith('image/')) {
+                                                const reader = new FileReader();
+                                                reader.onloadend = () => {
+                                                    setHospitalDocumentPreview(reader.result);
+                                                };
+                                                reader.readAsDataURL(file);
+                                            } else {
+                                                setHospitalDocumentPreview(null);
+                                            }
+                                        }
+                                    }}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent text-sm"
+                                />
+                                {hospitalDocument && (
+                                    <div className="mt-2 p-2 bg-gray-50 rounded border border-gray-200">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-sm text-gray-700 truncate">{hospitalDocument.name}</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setHospitalDocument(null);
+                                                    setHospitalDocumentPreview(null);
+                                                }}
+                                                className="text-red-600 hover:text-red-800 text-sm ml-2"
+                                            >
+                                                Remove
+                                            </button>
+                                        </div>
+                                        {hospitalDocumentPreview && (
+                                            <img src={hospitalDocumentPreview} alt="Preview" className="mt-2 max-h-32 rounded" />
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                        <div className="flex justify-end space-x-3 px-5 py-4 border-t">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setIsHospitalModalOpen(false);
+                                    setHospitalNotes('');
+                                    setHospitalDocument(null);
+                                    setHospitalDocumentPreview(null);
+                                }}
+                                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={async () => {
+                                    if (!hospitalNotes.trim()) {
+                                        setError('Please enter notes about the hospital admission');
+                                        return;
+                                    }
+
+                                    setSubmitting(true);
+                                    setError('');
+                                    try {
+                                        const formData = new FormData();
+                                        formData.append('medication_id', medication.id);
+                                        formData.append('resident_id', medication.resident_id);
+                                        formData.append('branch_id', medication.branch_id);
+                                        formData.append('administered_at', getPacificISODateTime());
+                                        formData.append('status', 'hospital_admission');
+                                        formData.append('notes', hospitalNotes);
+
+                                        if (hospitalDocument) {
+                                            formData.append('document', hospitalDocument);
+                                        }
+
+                                        await api.post('/medication-administrations', formData, {
+                                            headers: {
+                                                'Content-Type': 'multipart/form-data',
+                                            },
+                                        });
+
+                                        setSuccessMessage('Hospital admission recorded successfully');
+                                        setIsHospitalModalOpen(false);
+                                        setHospitalNotes('');
+                                        setHospitalDocument(null);
+                                        setHospitalDocumentPreview(null);
+                                        onSuccess();
+                                    } catch (err) {
+                                        setError(err.response?.data?.message || 'Failed to record hospital admission');
+                                    } finally {
+                                        setSubmitting(false);
+                                    }
+                                }}
+                                disabled={submitting || !hospitalNotes.trim()}
+                                className="px-4 py-2 bg-[var(--theme-primary)] text-white rounded-lg hover:bg-[var(--theme-primary-hover)] disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {submitting ? 'Recording...' : 'Record Hospital Admission'}
                             </button>
                         </div>
                     </div>
@@ -2375,7 +2538,7 @@ function TimePicker({ value, onChange, className = '' }) {
     const hourOptions = Array.from({ length: 12 }, (_, i) => i + 1);
     const minuteOptions = Array.from({ length: 60 }, (_, i) => i);
 
-    const displayValue = value 
+    const displayValue = value
         ? `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')} ${period}`
         : '--:-- --';
 
@@ -2384,22 +2547,22 @@ function TimePicker({ value, onChange, className = '' }) {
             <button
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
-                className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent bg-white text-left flex items-center justify-between text-sm ${className}`}
+                className={`w-full px-2 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent bg-white text-left flex items-center justify-between text-xs ${className}`}
             >
                 <span className={`${value ? 'text-gray-900' : 'text-gray-400'} font-medium`}>
                     {displayValue}
                 </span>
-                <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isOpen ? 'transform rotate-180' : ''}`} />
+                <ChevronDown className={`w-3 h-3 text-gray-400 transition-transform ${isOpen ? 'transform rotate-180' : ''}`} />
             </button>
-            
+
             {isOpen && (
                 <>
-                    <div 
-                        className="fixed inset-0 z-10" 
+                    <div
+                        className="fixed inset-0 z-10"
                         onClick={() => setIsOpen(false)}
                     ></div>
-                    <div className="absolute z-20 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-3 w-full">
-                        <div className="flex items-center justify-center gap-2 mb-3">
+                    <div className="absolute z-20 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-2 w-full min-w-[140px]">
+                        <div className="flex items-center justify-center gap-1">
                             {/* Hours */}
                             <select
                                 value={hours}
@@ -2407,16 +2570,16 @@ function TimePicker({ value, onChange, className = '' }) {
                                     const newHours = parseInt(e.target.value);
                                     handleTimeChange(newHours, minutes, period);
                                 }}
-                                className="px-2.5 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent text-center text-base font-medium"
+                                className="px-1.5 py-1 border border-gray-300 rounded text-center text-xs font-medium w-12"
                                 onClick={(e) => e.stopPropagation()}
                             >
                                 {hourOptions.map(h => (
                                     <option key={h} value={h}>{h.toString().padStart(2, '0')}</option>
                                 ))}
                             </select>
-                            
-                            <span className="text-2xl font-bold text-gray-700">:</span>
-                            
+
+                            <span className="text-sm font-bold text-gray-700">:</span>
+
                             {/* Minutes */}
                             <select
                                 value={minutes}
@@ -2424,14 +2587,14 @@ function TimePicker({ value, onChange, className = '' }) {
                                     const newMinutes = parseInt(e.target.value);
                                     handleTimeChange(hours, newMinutes, period);
                                 }}
-                                className="px-2.5 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent text-center text-base font-medium"
+                                className="px-1.5 py-1 border border-gray-300 rounded text-center text-xs font-medium w-12"
                                 onClick={(e) => e.stopPropagation()}
                             >
                                 {minuteOptions.map(m => (
                                     <option key={m} value={m}>{m.toString().padStart(2, '0')}</option>
                                 ))}
                             </select>
-                            
+
                             {/* AM/PM */}
                             <select
                                 value={period}
@@ -2439,7 +2602,7 @@ function TimePicker({ value, onChange, className = '' }) {
                                     const newPeriod = e.target.value;
                                     handleTimeChange(hours, minutes, newPeriod);
                                 }}
-                                className="px-2.5 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent text-center text-base font-medium"
+                                className="px-1.5 py-1 border border-gray-300 rounded text-center text-xs font-medium w-14"
                                 onClick={(e) => e.stopPropagation()}
                             >
                                 <option value="AM">AM</option>

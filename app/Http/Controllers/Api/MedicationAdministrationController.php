@@ -99,22 +99,23 @@ class MedicationAdministrationController extends BaseApiController
     public function store(Request $request): JsonResponse
     {
         // Custom validation for administered_at to accept ISO format
-        $request->validate([
-            'medication_id' => 'required|exists:medications,id',
-            'resident_id' => 'required|exists:residents,id',
-            'branch_id' => 'required|exists:branches,id',
-            'administered_at' => ['required', function ($attribute, $value, $fail) {
-                // Try to parse the date - accept ISO strings and other formats
-                try {
-                    Carbon::parse($value);
-                } catch (\Exception $e) {
-                    $fail('The ' . $attribute . ' is not a valid date.');
-                }
-            }],
-            'status' => 'required|in:completed,missed,refused',
-            'dosage_given' => 'nullable|string|max:255',
-            'notes' => 'nullable|string',
-        ]);
+    $request->validate([
+        'medication_id' => 'required|exists:medications,id',
+        'resident_id' => 'required|exists:residents,id',
+        'branch_id' => 'required|exists:branches,id',
+        'administered_at' => ['required', function ($attribute, $value, $fail) {
+            // Try to parse the date - accept ISO strings and other formats
+            try {
+                Carbon::parse($value);
+            } catch (\Exception $e) {
+                $fail('The ' . $attribute . ' is not a valid date.');
+            }
+        }],
+        'status' => 'required|in:completed,missed,refused,hospital_admission',
+        'dosage_given' => 'nullable|string|max:255',
+        'notes' => 'nullable|string',
+        'document' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:5120',
+    ]);
         
         $validated = $request->only([
             'medication_id',
@@ -125,6 +126,14 @@ class MedicationAdministrationController extends BaseApiController
             'dosage_given',
             'notes',
         ]);
+
+        // Handle document upload for hospital admissions
+        if ($request->hasFile('document')) {
+            $file = $request->file('document');
+            $fileName = time() . '_' . $file->getClientOriginalName();
+            $filePath = $file->storeAs('hospital-admission-documents', $fileName, 'public');
+            $validated['document_path'] = $filePath;
+        }
 
         // Get medication to validate resident matches and enforce rules
         $medication = Medication::findOrFail($validated['medication_id']);
@@ -280,7 +289,7 @@ class MedicationAdministrationController extends BaseApiController
 
         $validated = $request->validate([
             'administered_at' => 'sometimes|date',
-            'status' => 'sometimes|in:completed,missed,refused',
+            'status' => 'sometimes|in:completed,missed,refused,hospital_admission',
             'dosage_given' => 'nullable|string|max:255',
             'notes' => 'nullable|string',
         ]);

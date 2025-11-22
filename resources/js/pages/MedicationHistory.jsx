@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '../services/api';
-import { Calendar, ClipboardList, Pill, User, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, ClipboardList, Pill, User, ChevronLeft, ChevronRight, FileText } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { formatPacificDate as formatDate, formatPacificTime as formatTime } from '../utils/pacificTime';
 
@@ -10,12 +10,14 @@ const statusOptions = [
     { value: 'completed', label: 'Completed' },
     { value: 'missed', label: 'Missed' },
     { value: 'refused', label: 'Refused' },
+    { value: 'hospital_admission', label: 'Hospital Admission' },
 ];
 
 const statusStyles = {
     completed: 'bg-green-100 text-green-800',
     missed: 'bg-red-100 text-red-800',
     refused: 'bg-yellow-100 text-yellow-800',
+    hospital_admission: 'bg-blue-100 text-blue-800',
 };
 
 export default function MedicationHistory() {
@@ -286,7 +288,9 @@ export default function MedicationHistory() {
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm">
                                                     <span className={`px-3 py-1 rounded-full text-xs font-semibold ${statusClass}`}>
-                                                        {administration.status?.charAt(0).toUpperCase() + administration.status?.slice(1)}
+                                                        {administration.status === 'hospital_admission'
+                                                            ? 'Hospital Admission'
+                                                            : administration.status?.charAt(0).toUpperCase() + administration.status?.slice(1)}
                                                     </span>
                                                     {isLateAdministration && (
                                                         <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">
@@ -313,6 +317,26 @@ export default function MedicationHistory() {
                                                     {(cleanedNotes || isLateAdministration) && (
                                                         <div className="text-xs text-gray-500 mt-1 whitespace-pre-line">
                                                             {cleanedNotes || 'Late administration recorded outside scheduled window.'}
+                                                        </div>
+                                                    )}
+                                                    {administration.status === 'hospital_admission' && (
+                                                        <div className="mt-2">
+                                                            {administration.document_path ? (
+                                                                <a
+                                                                    href={`/storage/${administration.document_path}`}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="inline-flex items-center gap-1 px-3 py-1 bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 transition-colors text-xs font-medium"
+                                                                >
+                                                                    <FileText className="w-3 h-3" />
+                                                                    View Document
+                                                                </a>
+                                                            ) : (
+                                                                <span className="inline-flex items-center gap-1 px-3 py-1 bg-gray-50 text-gray-500 rounded-md text-xs">
+                                                                    <FileText className="w-3 h-3" />
+                                                                    No document attached
+                                                                </span>
+                                                            )}
                                                         </div>
                                                     )}
                                                 </td>
