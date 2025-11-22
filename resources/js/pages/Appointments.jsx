@@ -884,14 +884,14 @@ export default function Appointments() {
                         </div>
                         <div className="p-6 space-y-6">
                             <div>
-                                <label className="block text-sm font-medium text-gray-900 mb-2">
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
                                     Appointment Outcome / Notes (Optional)
                                 </label>
                                 <textarea
                                     rows={4}
                                     value={completionNotes}
                                     onChange={(e) => setCompletionNotes(e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent text-gray-900"
                                     placeholder="Enter notes about the appointment outcome..."
                                 />
                             </div>
@@ -899,7 +899,7 @@ export default function Appointments() {
                             {/* Documents Section */}
                             <div>
                                 <div className="flex items-center justify-between mb-3">
-                                    <label className="block text-sm font-medium text-gray-700">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
                                         Upload Documents (Optional)
                                     </label>
                                     <button

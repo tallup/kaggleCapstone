@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Assessment;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
 
 class AssessmentController extends BaseApiController
@@ -13,6 +14,29 @@ class AssessmentController extends BaseApiController
     public function index(Request $request): JsonResponse
     {
         $query = Assessment::with(['resident', 'branch', 'assessor']);
+
+        // Apply facility filtering for non-super admins
+        $currentUser = Auth::user();
+        if ($currentUser && $currentUser->role !== 'super_admin') {
+            // Filter assessments by branches that belong to the user's facility
+            if ($currentUser->facility_id) {
+                $query->whereHas('branch', function($q) use ($currentUser) {
+                    $q->where('facility_id', $currentUser->facility_id);
+                });
+            } else {
+                // User has no facility assigned, return empty results
+                return response()->json([
+                    'data' => [],
+                    'current_page' => 1,
+                    'last_page' => 1,
+                    'per_page' => $request->get('per_page', 20),
+                    'total' => 0
+                ]);
+            }
+        }
+
+        // Apply branch filter for caregivers (using the helper method from BaseApiController)
+        $this->applyBranchFilter($query, $request, $currentUser);
 
         // Filter by status
         if ($request->has('status') && !empty($request->get('status'))) {
@@ -29,10 +53,8 @@ class AssessmentController extends BaseApiController
             $query->where('resident_id', $request->get('resident_id'));
         }
 
-        // Filter by branch
-        if ($request->has('branch_id') && !empty($request->get('branch_id'))) {
-            $query->where('branch_id', $request->get('branch_id'));
-        }
+        // Note: Branch filtering is handled by applyBranchFilter() above
+        // The facility filter ensures only branches from the user's facility are accessible
 
         // Filter by date
         if ($request->has('date_from')) {
@@ -72,6 +94,20 @@ class AssessmentController extends BaseApiController
     {
         $assessment = Assessment::with(['resident', 'branch', 'assessor', 'sections.questions'])
             ->findOrFail($id);
+
+        // Check facility access for non-super admins
+        $currentUser = Auth::user();
+        if ($currentUser && $currentUser->role !== 'super_admin') {
+            if ($currentUser->facility_id) {
+                // Verify the assessment's branch belongs to the user's facility
+                if (!$assessment->branch || $assessment->branch->facility_id !== $currentUser->facility_id) {
+                    return response()->json(['message' => 'Assessment not found'], 404);
+                }
+            } else {
+                // User has no facility assigned
+                return response()->json(['message' => 'Assessment not found'], 404);
+            }
+        }
 
         // If no sections exist, create default sections and questions
         if ($assessment->sections()->count() === 0) {

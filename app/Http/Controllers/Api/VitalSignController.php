@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Models\VitalSign;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Auth;
 
 class VitalSignController extends BaseApiController
 {
@@ -12,7 +13,28 @@ class VitalSignController extends BaseApiController
     {
         $query = VitalSign::with(['resident', 'takenBy']);
         $user = $request->user();
+        $currentUser = Auth::user();
 
+        // Apply facility filtering for non-super admins
+        if ($currentUser && $currentUser->role !== 'super_admin') {
+            // Filter vital signs by branches that belong to the user's facility
+            if ($currentUser->facility_id) {
+                $query->whereHas('branch', function($q) use ($currentUser) {
+                    $q->where('facility_id', $currentUser->facility_id);
+                });
+            } else {
+                // User has no facility assigned, return empty results
+                return response()->json([
+                    'data' => [],
+                    'current_page' => 1,
+                    'last_page' => 1,
+                    'per_page' => $request->get('per_page', 25),
+                    'total' => 0
+                ]);
+            }
+        }
+
+        // Apply branch filter for caregivers
         if ($this->isCaregiver($user)) {
             if ($user->assigned_branch_id) {
                 $query->where('branch_id', $user->assigned_branch_id);
@@ -63,8 +85,22 @@ class VitalSignController extends BaseApiController
 
     public function show($id): JsonResponse
     {
-        $vital = VitalSign::with(['resident', 'takenBy'])
+        $vital = VitalSign::with(['resident', 'takenBy', 'branch'])
             ->findOrFail($id);
+
+        // Check facility access for non-super admins
+        $currentUser = Auth::user();
+        if ($currentUser && $currentUser->role !== 'super_admin') {
+            if ($currentUser->facility_id) {
+                // Verify the vital sign's branch belongs to the user's facility
+                if (!$vital->branch || $vital->branch->facility_id !== $currentUser->facility_id) {
+                    return response()->json(['message' => 'Vital sign not found'], 404);
+                }
+            } else {
+                // User has no facility assigned
+                return response()->json(['message' => 'Vital sign not found'], 404);
+            }
+        }
 
         return response()->json($vital);
     }

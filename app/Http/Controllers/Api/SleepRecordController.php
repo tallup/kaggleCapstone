@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\SleepRecord;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
 
 class SleepRecordController extends BaseApiController
@@ -13,6 +14,29 @@ class SleepRecordController extends BaseApiController
     public function index(Request $request): JsonResponse
     {
         $query = SleepRecord::with(['resident', 'branch', 'createdBy']);
+        $currentUser = Auth::user();
+
+        // Apply facility filtering for non-super admins
+        if ($currentUser && $currentUser->role !== 'super_admin') {
+            // Filter sleep records by branches that belong to the user's facility
+            if ($currentUser->facility_id) {
+                $query->whereHas('branch', function($q) use ($currentUser) {
+                    $q->where('facility_id', $currentUser->facility_id);
+                });
+            } else {
+                // User has no facility assigned, return empty results
+                return response()->json([
+                    'data' => [],
+                    'current_page' => 1,
+                    'last_page' => 1,
+                    'per_page' => $request->get('per_page', 25),
+                    'total' => 0
+                ]);
+            }
+        }
+
+        // Apply branch filter for caregivers (using the helper method from BaseApiController)
+        $this->applyBranchFilter($query, $request, $currentUser);
 
         // Filter by date
         if ($request->has('date_from')) {
@@ -33,10 +57,8 @@ class SleepRecordController extends BaseApiController
             $query->where('resident_id', $request->get('resident_id'));
         }
 
-        // Filter by branch
-        if ($request->has('branch_id')) {
-            $query->where('branch_id', $request->get('branch_id'));
-        }
+        // Note: Branch filtering is handled by applyBranchFilter() above
+        // The facility filter ensures only branches from the user's facility are accessible
 
         // Search
         if ($request->has('search')) {
@@ -61,6 +83,20 @@ class SleepRecordController extends BaseApiController
     {
         $sleepRecord = SleepRecord::with(['resident', 'branch', 'createdBy'])
             ->findOrFail($id);
+
+        // Check facility access for non-super admins
+        $currentUser = Auth::user();
+        if ($currentUser && $currentUser->role !== 'super_admin') {
+            if ($currentUser->facility_id) {
+                // Verify the sleep record's branch belongs to the user's facility
+                if (!$sleepRecord->branch || $sleepRecord->branch->facility_id !== $currentUser->facility_id) {
+                    return response()->json(['message' => 'Sleep record not found'], 404);
+                }
+            } else {
+                // User has no facility assigned
+                return response()->json(['message' => 'Sleep record not found'], 404);
+            }
+        }
 
         return response()->json($sleepRecord);
     }
