@@ -39,6 +39,7 @@ class ResidentResource extends JsonResource
             'primary_care_doctor' => $this->primary_care_doctor,
             'status' => $this->status,
             'is_active' => $this->is_active,
+            'profile_image' => $this->profile_image,
             'profile_image_url' => $this->profile_image_url,
             'appointments' => AppointmentResource::collection($this->whenLoaded('appointments')),
             'vital_signs' => VitalSignResource::collection($this->whenLoaded('vitalSigns')),

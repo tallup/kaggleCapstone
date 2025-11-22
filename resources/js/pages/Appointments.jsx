@@ -11,7 +11,7 @@ import CalendarView from '../components/CalendarView';
 function ProfileImage({ resident }) {
     const [imageError, setImageError] = useState(false);
     
-    if (!resident.profile_image || imageError) {
+    if (!resident.profile_image_url && !resident.profile_image || imageError) {
         return (
             <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold ${
                 resident.gender?.toLowerCase() === 'male' ? 'bg-blue-500' : 'bg-pink-500'
@@ -24,7 +24,7 @@ function ProfileImage({ resident }) {
     return (
         <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-gray-200 flex-shrink-0">
             <img 
-                src={`/storage/${resident.profile_image}`} 
+                src={resident.profile_image_url || `/storage/${resident.profile_image}`} 
                 alt={`${resident.first_name} ${resident.last_name}`}
                 className="w-full h-full object-cover"
                 onError={() => setImageError(true)}

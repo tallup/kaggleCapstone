@@ -121,7 +121,7 @@ export default function MyResidentsPage() {
                             />
                         ) : null}
                         <div
-                            className={`absolute inset-0 ${resident.profile_image ? 'hidden' : 'flex'} items-center justify-center bg-[var(--theme-primary)] text-lg font-semibold uppercase text-white`}
+                            className={`absolute inset-0 ${(resident.profile_image_url || resident.profile_image) ? 'hidden' : 'flex'} items-center justify-center bg-[var(--theme-primary)] text-lg font-semibold uppercase text-white`}
                         >
                             {getInitials(resident.first_name, resident.last_name) || <Users className="h-6 w-6" />}
                         </div>

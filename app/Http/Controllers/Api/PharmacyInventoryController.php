@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\PharmacyInventory;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Auth;
 
 class PharmacyInventoryController extends BaseApiController
 {
@@ -18,16 +19,35 @@ class PharmacyInventoryController extends BaseApiController
         $query = PharmacyInventory::with(['branch', 'drug', 'stockLots']);
         
         $user = $request->user();
+        $currentUser = Auth::user();
         $isCaregiver = $user && in_array($user->role, ['caregiver', 'care_giver', 'nurse']);
+
+        // Apply facility filtering for non-super admins
+        if ($currentUser && $currentUser->role !== 'super_admin') {
+            // Filter pharmacy inventory by branches that belong to the user's facility
+            if ($currentUser->facility_id) {
+                $query->whereHas('branch', function($q) use ($currentUser) {
+                    $q->where('facility_id', $currentUser->facility_id);
+                });
+            } else {
+                // User has no facility assigned, return empty results
+                return response()->json([
+                    'data' => [],
+                    'current_page' => 1,
+                    'last_page' => 1,
+                    'per_page' => $request->get('per_page', 50),
+                    'total' => 0
+                ]);
+            }
+        }
         
         // Filter by branch for caregivers
         if ($isCaregiver && $user->assigned_branch_id) {
             $query->where('branch_id', $user->assigned_branch_id);
         }
         
-        if ($request->has('branch_id')) {
-            $query->where('branch_id', $request->get('branch_id'));
-        }
+        // Note: Branch filtering via request parameter is handled by facility filter above
+        // The facility filter ensures only branches from the user's facility are accessible
         
         if ($request->has('drug_id')) {
             $query->where('drug_id', $request->get('drug_id'));
@@ -103,6 +123,20 @@ class PharmacyInventoryController extends BaseApiController
 
         $inventory = PharmacyInventory::with(['branch', 'drug', 'stockLots', 'transactions'])
             ->findOrFail($id);
+
+        // Check facility access for non-super admins
+        $currentUser = Auth::user();
+        if ($currentUser && $currentUser->role !== 'super_admin') {
+            if ($currentUser->facility_id) {
+                // Verify the pharmacy inventory's branch belongs to the user's facility
+                if (!$inventory->branch || $inventory->branch->facility_id !== $currentUser->facility_id) {
+                    return response()->json(['message' => 'Pharmacy inventory item not found'], 404);
+                }
+            } else {
+                // User has no facility assigned
+                return response()->json(['message' => 'Pharmacy inventory item not found'], 404);
+            }
+        }
         
         return response()->json($inventory);
     }

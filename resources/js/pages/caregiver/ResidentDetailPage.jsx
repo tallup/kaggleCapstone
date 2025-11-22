@@ -119,7 +119,8 @@ export default function ResidentDetailPage() {
         enabled: Boolean(residentId),
         queryFn: async () => {
             const response = await api.get(`/residents/${residentId}`);
-            return response.data;
+            // The API wraps the response in { data: {...} }
+            return response.data?.data || response.data;
         },
     });
 
@@ -291,12 +292,19 @@ export default function ResidentDetailPage() {
                                     src={resident.profile_image_url || `/storage/${resident.profile_image}`}
                                     alt={fullName}
                                     className="h-full w-full object-cover"
+                                    onError={(event) => {
+                                        event.currentTarget.style.display = 'none';
+                                        if (event.currentTarget.nextElementSibling) {
+                                            event.currentTarget.nextElementSibling.style.display = 'flex';
+                                        }
+                                    }}
                                 />
-                            ) : (
-                                <div className="flex h-full w-full items-center justify-center text-2xl font-semibold uppercase">
-                                    {fullName ? fullName[0] : <Users className="h-8 w-8" />}
-                                </div>
-                            )}
+                            ) : null}
+                            <div
+                                className={`flex h-full w-full items-center justify-center text-2xl font-semibold uppercase ${(resident.profile_image_url || resident.profile_image) ? 'hidden' : ''}`}
+                            >
+                                {fullName ? fullName[0] : <Users className="h-8 w-8" />}
+                            </div>
                         </div>
                         <div>
                             <div className="flex flex-wrap items-center gap-3">
