@@ -21,6 +21,10 @@ npm run build
 echo "🗄️ Running database migrations..."
 php artisan migrate --force
 
+# Ensure required roles exist (administrator, admin, caregiver)
+echo "👥 Ensuring required roles exist..."
+php artisan roles:ensure-exist
+
 # Create super admin (first time only or if needed)
 if [ ! -f .super-admin-created ]; then
     echo "👤 Creating super admin account..."
