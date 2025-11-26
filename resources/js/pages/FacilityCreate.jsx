@@ -5,7 +5,7 @@ import api from '../services/api';
 import {
     ArrowLeft, Save, Building2, Palette, Settings, Users,
     MapPin, Phone, Mail, Image as ImageIcon, CheckCircle, XCircle,
-    AlertCircle
+    AlertCircle, Eye, EyeOff
 } from 'lucide-react';
 import { useToastContext } from '../contexts/ToastContext';
 
@@ -56,6 +56,7 @@ function FormProvider({ children }) {
         owner_email: '',
         owner_role: 'administrator',
         owner_password: '',
+        owner_password_confirmation: '',
         // Branch
         branch_name: 'Main Branch',
         branch_address: '',
@@ -466,6 +467,24 @@ function ModulesTab() {
 // Owner Account Tab
 function OwnerAccountTab() {
     const { formData, updateForm } = React.useContext(FormContext);
+    const [showPassword, setShowPassword] = React.useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = React.useState(false);
+    const [passwordError, setPasswordError] = React.useState('');
+
+    // Validate password match
+    React.useEffect(() => {
+        if (formData.owner_password_confirmation && formData.owner_password) {
+            if (formData.owner_password !== formData.owner_password_confirmation) {
+                setPasswordError('Passwords do not match');
+            } else {
+                setPasswordError('');
+            }
+        } else if (formData.owner_password_confirmation && !formData.owner_password) {
+            setPasswordError('');
+        } else {
+            setPasswordError('');
+        }
+    }, [formData.owner_password, formData.owner_password_confirmation]);
 
     return (
         <div>
@@ -515,15 +534,63 @@ function OwnerAccountTab() {
 
                     <div>
                         <label className="block text-sm font-medium text-gray-900 mb-1">Password</label>
-                        <input
-                            type="password"
-                            value={formData.owner_password}
-                            onChange={(e) => updateForm({ owner_password: e.target.value })}
-                            minLength={8}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-[var(--theme-primary)]"
-                            placeholder="Minimum 8 characters"
-                        />
+                        <div className="relative">
+                            <input
+                                type={showPassword ? 'text' : 'password'}
+                                value={formData.owner_password || ''}
+                                onChange={(e) => updateForm({ owner_password: e.target.value })}
+                                minLength={8}
+                                className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-[var(--theme-primary)]"
+                                placeholder="Minimum 8 characters"
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
+                                tabIndex={-1}
+                            >
+                                {showPassword ? (
+                                    <EyeOff className="w-5 h-5" />
+                                ) : (
+                                    <Eye className="w-5 h-5" />
+                                )}
+                            </button>
+                        </div>
                         <p className="text-xs text-gray-500 mt-1">Leave empty if creating account later</p>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-900 mb-1">Confirm Password</label>
+                        <div className="relative">
+                            <input
+                                type={showConfirmPassword ? 'text' : 'password'}
+                                value={formData.owner_password_confirmation || ''}
+                                onChange={(e) => updateForm({ owner_password_confirmation: e.target.value })}
+                                minLength={8}
+                                className={`w-full px-4 py-2 pr-10 border rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-[var(--theme-primary)] ${
+                                    passwordError ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'
+                                }`}
+                                placeholder="Confirm password"
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
+                                tabIndex={-1}
+                            >
+                                {showConfirmPassword ? (
+                                    <EyeOff className="w-5 h-5" />
+                                ) : (
+                                    <Eye className="w-5 h-5" />
+                                )}
+                            </button>
+                        </div>
+                        {passwordError && (
+                            <p className="text-xs text-red-600 mt-1">{passwordError}</p>
+                        )}
+                        {!passwordError && formData.owner_password_confirmation && formData.owner_password && (
+                            <p className="text-xs text-green-600 mt-1">Passwords match</p>
+                        )}
                     </div>
                 </div>
 
@@ -590,10 +657,28 @@ function FacilityCreateContent({ navigate, showToast, queryClient, isSubmitting,
         setIsSubmitting(true);
 
         try {
+            // Validate password confirmation if password is provided
+            if (formData.owner_password) {
+                if (!formData.owner_password_confirmation) {
+                    setErrors({ owner_password_confirmation: ['Please confirm your password'] });
+                    setIsSubmitting(false);
+                    return;
+                }
+                if (formData.owner_password !== formData.owner_password_confirmation) {
+                    setErrors({ owner_password_confirmation: ['Passwords do not match'] });
+                    setIsSubmitting(false);
+                    return;
+                }
+            }
+
             const submitData = new FormData();
 
             // Add all form fields
             Object.keys(formData).forEach((key) => {
+                // Skip password_confirmation as it's only for validation
+                if (key === 'owner_password_confirmation') {
+                    return;
+                }
                 if (key === 'logo' && formData.logo instanceof File) {
                     submitData.append('logo', formData.logo);
                 } else if (key === 'is_active') {
