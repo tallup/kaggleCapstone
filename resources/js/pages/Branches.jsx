@@ -207,9 +207,12 @@ function BranchForm({ record, facilities, currentUser, isSuperAdmin, isFacilityA
     phone: record?.phone || '',
     email: record?.email || '',
     is_active: record?.is_active ?? true,
+    latitude: record?.latitude || '',
+    longitude: record?.longitude || '',
   });
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
+  const [geocoding, setGeocoding] = useState(false);
 
   // Update facility_id when initialFacilityId changes (when currentUser loads)
   React.useEffect(() => {
@@ -301,6 +304,77 @@ function BranchForm({ record, facilities, currentUser, isSuperAdmin, isFacilityA
                 rows={2}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
               />
+            </div>
+            <div className="border-t pt-4 mt-4">
+              <div className="flex items-center justify-between mb-3">
+                <label className="block text-sm font-medium text-gray-700">
+                  Location Coordinates
+                </label>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!form.address) {
+                      alert('Please enter an address first');
+                      return;
+                    }
+                    setGeocoding(true);
+                    try {
+                      const response = await api.post('/geocode', { address: form.address });
+                      if (response.data.success) {
+                        setForm({
+                          ...form,
+                          latitude: response.data.latitude,
+                          longitude: response.data.longitude,
+                        });
+                      } else {
+                        alert('Unable to geocode address. Please enter coordinates manually.');
+                      }
+                    } catch (err) {
+                      alert('Geocoding failed. Please enter coordinates manually.');
+                    } finally {
+                      setGeocoding(false);
+                    }
+                  }}
+                  disabled={geocoding || !form.address}
+                  className="text-sm px-3 py-1 bg-[var(--theme-primary)] text-white rounded hover:bg-[var(--theme-primary-hover)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1"
+                >
+                  <MapPin className="w-4 h-4" />
+                  <span>{geocoding ? 'Geocoding...' : 'Geocode from Address'}</span>
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mb-3">Coordinates are used for location-based login restrictions (50 meters).</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    Latitude
+                  </label>
+                  <input
+                    type="number"
+                    step="0.00000001"
+                    min="-90"
+                    max="90"
+                    value={form.latitude}
+                    onChange={(e) => setForm({ ...form, latitude: e.target.value })}
+                    placeholder="e.g., 47.6062"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    Longitude
+                  </label>
+                  <input
+                    type="number"
+                    step="0.00000001"
+                    min="-180"
+                    max="180"
+                    value={form.longitude}
+                    onChange={(e) => setForm({ ...form, longitude: e.target.value })}
+                    placeholder="e.g., -122.3321"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent text-sm"
+                  />
+                </div>
+              </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>

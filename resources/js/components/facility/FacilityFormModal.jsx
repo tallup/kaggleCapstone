@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
     Building2, Palette, Image as ImageIcon, Users, Globe, Key,
-    CheckCircle, XCircle, AlertCircle
+    CheckCircle, XCircle, AlertCircle, MapPin
 } from 'lucide-react';
+import api from '../../services/api';
 
 /**
  * Available modules for facilities
@@ -55,6 +56,8 @@ export default function FacilityFormModal({
         primary_color: facility?.primary_color || '#1E3A5F',
         secondary_color: facility?.secondary_color || '#86EFAC',
         accent_color: facility?.accent_color || '#FFFFFF',
+        latitude: facility?.latitude || '',
+        longitude: facility?.longitude || '',
         logo: null,
         // Owner account (only for new facilities)
         owner_name: '',
@@ -71,6 +74,7 @@ export default function FacilityFormModal({
     const [errors, setErrors] = useState({});
     const [logoPreview, setLogoPreview] = useState(facility?.logo_url || null);
     const [activeTab, setActiveTab] = useState('basic');
+    const [geocoding, setGeocoding] = useState(false);
 
     // Scroll to top when modal opens
     useEffect(() => {
@@ -270,6 +274,8 @@ export default function FacilityFormModal({
                                 formData={formData}
                                 onChange={handleChange}
                                 errors={errors}
+                                geocoding={geocoding}
+                                setGeocoding={setGeocoding}
                             />
                         )}
 
@@ -427,7 +433,28 @@ function BasicInfoTab({ formData, onChange, errors, isSuperAdmin }) {
     );
 }
 
-function ContactInfoTab({ formData, onChange, errors }) {
+function ContactInfoTab({ formData, onChange, errors, geocoding, setGeocoding }) {
+    const handleGeocode = async () => {
+        if (!formData.address) {
+            alert('Please enter an address first');
+            return;
+        }
+        setGeocoding(true);
+        try {
+            const response = await api.post('/geocode', { address: formData.address });
+            if (response.data.success) {
+                onChange('latitude', response.data.latitude);
+                onChange('longitude', response.data.longitude);
+            } else {
+                alert('Unable to geocode address. Please enter coordinates manually.');
+            }
+        } catch (err) {
+            alert('Geocoding failed. Please enter coordinates manually.');
+        } finally {
+            setGeocoding(false);
+        }
+    };
+
     return (
         <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -497,6 +524,56 @@ function ContactInfoTab({ formData, onChange, errors }) {
                         <option value="purple">Purple</option>
                         <option value="red">Red</option>
                     </select>
+                </div>
+            </div>
+            
+            <div className="border-t pt-4 mt-4">
+                <div className="flex items-center justify-between mb-3">
+                    <label className="block text-sm font-medium text-gray-900">
+                        Location Coordinates
+                    </label>
+                    <button
+                        type="button"
+                        onClick={handleGeocode}
+                        disabled={geocoding || !formData.address}
+                        className="text-sm px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1"
+                    >
+                        <MapPin className="w-4 h-4" />
+                        <span>{geocoding ? 'Geocoding...' : 'Geocode from Address'}</span>
+                    </button>
+                </div>
+                <p className="text-xs text-gray-500 mb-3">Coordinates are used for location-based login restrictions (50 meters).</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
+                            Latitude
+                        </label>
+                        <input
+                            type="number"
+                            step="0.00000001"
+                            min="-90"
+                            max="90"
+                            value={formData.latitude}
+                            onChange={(e) => onChange('latitude', e.target.value)}
+                            placeholder="e.g., 47.6062"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
+                            Longitude
+                        </label>
+                        <input
+                            type="number"
+                            step="0.00000001"
+                            min="-180"
+                            max="180"
+                            value={formData.longitude}
+                            onChange={(e) => onChange('longitude', e.target.value)}
+                            placeholder="e.g., -122.3321"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                        />
+                    </div>
                 </div>
             </div>
         </div>

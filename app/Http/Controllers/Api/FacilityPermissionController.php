@@ -280,7 +280,12 @@ class FacilityPermissionController extends BaseApiController
             ];
         }
         
-        $permissionsByGroup = $allPermissions->groupBy('group');
+        // Group permissions by 'group' column if it exists, otherwise group all as 'Other'
+        $permissionsByGroup = $allPermissions->groupBy(function ($permission) {
+            return Schema::hasColumn('permissions', 'group') && $permission->group 
+                ? $permission->group 
+                : 'Other';
+        });
 
         // Build permissions data
         $permissionsData = [];

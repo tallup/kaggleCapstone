@@ -33,6 +33,7 @@ use App\Http\Controllers\Api\ExpenseController;
 use App\Http\Controllers\Api\BillingInvoiceController;
 use App\Http\Controllers\Api\ExpenseReportController;
 use App\Http\Controllers\Api\PaymentNotificationPreferenceController;
+use App\Http\Controllers\Api\GeocodingController;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Session\Middleware\StartSession;
@@ -134,6 +135,9 @@ Route::prefix('v1')->middleware([\App\Http\Middleware\SetFacilityContext::class]
     Route::apiResource('branches', BranchController::class)->middleware('auth:sanctum');
     Route::get('branches/{id}/residents', [BranchController::class, 'residents'])->middleware('auth:sanctum');
     Route::post('branches/{id}/transfer-residents', [BranchController::class, 'transferResidents'])->middleware('auth:sanctum');
+    
+    // Geocoding endpoint
+    Route::post('/geocode', [GeocodingController::class, 'geocode'])->middleware('auth:sanctum');
     
     // Facility Registrations (Super Admin only)
     Route::apiResource('facility-registrations', \App\Http\Controllers\Api\FacilityRegistrationController::class)->middleware('auth:sanctum');

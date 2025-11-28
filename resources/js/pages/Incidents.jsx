@@ -4,9 +4,9 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useForm, FormProvider } from 'react-hook-form';
 import api from '../services/api';
 import { 
-    AlertTriangle, Plus, Edit, Trash2, Eye, Filter, X, 
+    AlertTriangle, Plus, Edit, Trash2, Eye, X, 
     CheckCircle, Lock, Clock, User, MapPin, Calendar,
-    ChevronDown, Search, FileText, Image as ImageIcon
+    FileText, Image as ImageIcon
 } from 'lucide-react';
 import Card from '../components/Card';
 import SectionCard from '../components/SectionCard';
@@ -76,7 +76,6 @@ export default function Incidents() {
         date_from: searchParams.get('date_from') || '',
         date_to: searchParams.get('date_to') || '',
     });
-    const [showFilters, setShowFilters] = useState(false);
     const [attachments, setAttachments] = useState([]);
     
     // Initialize react-hook-form
@@ -307,23 +306,6 @@ export default function Incidents() {
         setSearchParams(newParams);
     };
 
-    const clearFilters = () => {
-        const clearedFilters = {
-            status: 'all',
-            priority: 'all',
-            severity: 'all',
-            incident_type: 'all',
-            resident_id: '',
-            branch_id: '',
-            assigned_to: 'all',
-            search: '',
-            date_from: '',
-            date_to: '',
-        };
-        setFilters(clearedFilters);
-        setSearchParams({});
-    };
-
     const incidents = data?.data || [];
     const residents = residentsData?.data || [];
     const branches = branchesData?.data || [];
@@ -391,126 +373,6 @@ export default function Incidents() {
                 </div>
             </SectionCard>
 
-            {/* Filters */}
-            <Card>
-                <div className="flex items-center justify-between mb-4">
-                    <button
-                        onClick={() => setShowFilters(!showFilters)}
-                        className="flex items-center gap-2 text-gray-700 hover:text-gray-900"
-                    >
-                        <Filter className="w-5 h-5" />
-                        Filters
-                        {showFilters && <ChevronDown className="w-4 h-4" />}
-                    </button>
-                    {(filters.search || filters.status !== 'all' || filters.priority !== 'all' || 
-                      filters.severity !== 'all' || filters.incident_type !== 'all') && (
-                        <button
-                            onClick={clearFilters}
-                            className="text-sm text-red-600 hover:text-red-700"
-                        >
-                            Clear Filters
-                        </button>
-                    )}
-                </div>
-
-                {showFilters && (
-                    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 pt-4 border-t">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
-                            <div className="relative">
-                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                <input
-                                    type="text"
-                                    value={filters.search}
-                                    onChange={(e) => handleFilterChange('search', e.target.value)}
-                                    placeholder="Search incidents..."
-                                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
-                                />
-                            </div>
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                            <select
-                                value={filters.status}
-                                onChange={(e) => handleFilterChange('status', e.target.value)}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)]"
-                            >
-                                <option value="all">All Statuses</option>
-                                <option value="open">Open</option>
-                                <option value="in_progress">In Progress</option>
-                                <option value="resolved">Resolved</option>
-                                <option value="closed">Closed</option>
-                                <option value="on_hold">On Hold</option>
-                            </select>
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
-                            <select
-                                value={filters.priority}
-                                onChange={(e) => handleFilterChange('priority', e.target.value)}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)]"
-                            >
-                                <option value="all">All Priorities</option>
-                                <option value="critical">Critical</option>
-                                <option value="high">High</option>
-                                <option value="medium">Medium</option>
-                                <option value="low">Low</option>
-                            </select>
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Severity</label>
-                            <select
-                                value={filters.severity}
-                                onChange={(e) => handleFilterChange('severity', e.target.value)}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)]"
-                            >
-                                <option value="all">All Severities</option>
-                                <option value="critical">Critical</option>
-                                <option value="high">High</option>
-                                <option value="medium">Medium</option>
-                                <option value="low">Low</option>
-                            </select>
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Incident Type</label>
-                            <select
-                                value={filters.incident_type}
-                                onChange={(e) => handleFilterChange('incident_type', e.target.value)}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)]"
-                            >
-                                <option value="all">All Types</option>
-                                {INCIDENT_TYPES.map(type => (
-                                    <option key={type} value={type}>{type}</option>
-                                ))}
-                            </select>
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Date From</label>
-                            <input
-                                type="date"
-                                value={filters.date_from}
-                                onChange={(e) => handleFilterChange('date_from', e.target.value)}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)]"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Date To</label>
-                            <input
-                                type="date"
-                                value={filters.date_to}
-                                onChange={(e) => handleFilterChange('date_to', e.target.value)}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)]"
-                            />
-                        </div>
-                    </div>
-                )}
-            </Card>
 
             {/* Incidents List */}
             {isLoading ? (

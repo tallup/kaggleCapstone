@@ -42,6 +42,8 @@ class FacilityController extends BaseApiController
             'secondary_color' => 'nullable|string|max:7',
             'accent_color' => 'nullable|string|max:7',
             'is_active' => 'nullable|boolean',
+            'latitude' => 'nullable|numeric|between:-90,90',
+            'longitude' => 'nullable|numeric|between:-180,180',
         ];
         
         // Only validate subdomain if it's provided and not empty
@@ -185,6 +187,8 @@ class FacilityController extends BaseApiController
             'secondary_color' => 'nullable|string|max:7',
             'accent_color' => 'nullable|string|max:7',
             'is_active' => 'nullable|boolean',
+            'latitude' => 'nullable|numeric|between:-90,90',
+            'longitude' => 'nullable|numeric|between:-180,180',
         ];
         
         // Only validate subdomain if it's provided and not empty

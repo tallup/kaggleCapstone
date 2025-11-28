@@ -37,6 +37,8 @@ class BranchController extends BaseApiController
             'phone' => 'nullable|string|max:50',
             'email' => 'nullable|email|max:255',
             'is_active' => 'boolean',
+            'latitude' => 'nullable|numeric|between:-90,90',
+            'longitude' => 'nullable|numeric|between:-180,180',
         ]);
 
         $branch = Branch::create($validated);
@@ -58,6 +60,8 @@ class BranchController extends BaseApiController
             'phone' => 'nullable|string|max:50',
             'email' => 'nullable|email|max:255',
             'is_active' => 'boolean',
+            'latitude' => 'nullable|numeric|between:-90,90',
+            'longitude' => 'nullable|numeric|between:-180,180',
         ]);
         $branch->update($validated);
         return response()->json($branch->load('facility'));
