@@ -27,37 +27,28 @@ export default defineConfig({
         },
         rollupOptions: {
             output: {
+                // Let Vite handle chunking automatically to avoid TDZ issues
+                // manualChunks: undefined,
                 manualChunks: (id) => {
-                    // Split vendor chunks for better caching
+                    // Only split very large libraries to avoid circular dependency issues
                     if (id.includes('node_modules')) {
-                        // Large libraries get their own chunk
+                        // React and React DOM must be together to avoid TDZ issues
                         if (id.includes('react') || id.includes('react-dom')) {
                             return 'vendor-react';
                         }
-                        if (id.includes('@radix-ui')) {
-                            return 'vendor-radix';
-                        }
-                        if (id.includes('chart.js') || id.includes('react-chartjs-2')) {
-                            return 'vendor-charts';
-                        }
-                        if (id.includes('react-router')) {
-                            return 'vendor-router';
-                        }
-                        if (id.includes('@tanstack/react-query')) {
-                            return 'vendor-query';
-                        }
-                        // Other node_modules go into vendor chunk
+                        // Keep everything else in one vendor chunk to avoid circular deps
                         return 'vendor';
                     }
-                    // Pages are already code-split by Vite's dynamic imports
                 },
             },
         },
         // Warn if chunk exceeds 500KB
         chunkSizeWarningLimit: 500,
-        // Disable sourcemaps for smaller builds
-        sourcemap: false,
-        // Use esbuild minifier (default, faster than terser)
+        // Enable sourcemaps for debugging (helps identify TDZ issues)
+        sourcemap: true,
+        // Use esbuild with conservative minification to avoid TDZ issues
         minify: 'esbuild',
+        // Target modern browsers to avoid some transformation issues
+        target: 'es2020',
     },
 });
