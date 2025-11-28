@@ -204,6 +204,10 @@ class ProductionSeeder extends Seeder
         $this->call(HousekeepingSeeder::class);
         $this->command->info('🧹 Housekeeping data seeded successfully.');
 
+        // Seed incidents (requires residents and users to exist)
+        $this->call(IncidentSeeder::class);
+        $this->command->info('🚨 Incident data seeded successfully.');
+
         $this->command->info('✅ Production database seeded successfully!');
         $this->command->info('👤 Admin user created: admin@edmondserenity.com');
         $this->command->info('🔑 Admin password: admin123!');

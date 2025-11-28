@@ -11,10 +11,14 @@ use Carbon\Carbon;
 
 class AdminMedicationRemindersWidget extends BaseWidget
 {
-    protected int | string | array $columnSpan = 'full';
+    protected int | string | array $columnSpan = [
+        'md' => 1,
+        'xl' => 1,
+    ];
     protected static ?string $heading = 'Medication Reminders';
     protected static ?string $description = 'Next 24 Hours';
-    protected static ?int $sort = 6;
+    protected static ?int $sort = 9;
+    protected static ?string $pollingInterval = '60s';
 
     public function table(Table $table): Table
     {
@@ -32,6 +36,8 @@ class AdminMedicationRemindersWidget extends BaseWidget
                     })
                     ->limit(15)
             )
+            ->searchable()
+            ->defaultSort('resident.name')
             ->columns([
                 TextColumn::make('resident.name')
                     ->label('Resident')

@@ -12,6 +12,9 @@ use App\Filament\Widgets\AdminResidentsWidget;
 use App\Filament\Widgets\AdminMedicationRemindersWidget;
 use App\Filament\Widgets\ResidentStatsWidget;
 use App\Filament\Widgets\ActivityStatsWidget;
+use App\Filament\Widgets\AdminTrendsChartWidget;
+use App\Filament\Widgets\AdminHealthOverviewWidget;
+use App\Filament\Widgets\AdminSystemHealthWidget;
 
 class AdminDashboard extends BaseDashboard
 {
@@ -46,6 +49,9 @@ class AdminDashboard extends BaseDashboard
             HeroSectionWidget::class,
             StatsOverviewWidget::class,
             QuickActionsWidget::class,
+            AdminTrendsChartWidget::class,
+            AdminHealthOverviewWidget::class,
+            AdminSystemHealthWidget::class,
             ResidentStatsWidget::class,
             ActivityStatsWidget::class,
             AdminUpcomingAppointmentsWidget::class,
@@ -54,8 +60,13 @@ class AdminDashboard extends BaseDashboard
         ];
     }
 
-    public function getColumns(): int
+    public function getColumns(): int | array
     {
-        return 2;
+        return [
+            'sm' => 1,
+            'md' => 2,
+            'lg' => 3,
+            'xl' => 4,
+        ];
     }
 }

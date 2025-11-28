@@ -8,10 +8,13 @@ use App\Models\User;
 use App\Models\Resident;
 use App\Models\Medication;
 use App\Models\Appointment;
+use Illuminate\Support\Facades\Cache;
 
 class StatsOverviewWidget extends BaseWidget
 {
     protected static ?int $sort = 3;
+    
+    protected static ?string $pollingInterval = '30s'; // Refresh every 30 seconds
     
     protected function getStats(): array
     {
@@ -100,133 +103,195 @@ class StatsOverviewWidget extends BaseWidget
     
     private function getResidentChartData(): array
     {
-        try {
-            return Resident::selectRaw('DATE(created_at) as date, COUNT(*) as count')
-                ->where('created_at', '>=', now()->subDays(7))
-                ->groupBy('date')
-                ->orderBy('date')
-                ->pluck('count')
-                ->toArray();
-        } catch (\Exception $e) {
-            return [7, 2, 10, 3, 15, 4, 17];
-        }
+        return Cache::remember('stats.residents.chart', 300, function () {
+            try {
+                $data = Resident::selectRaw('DATE(created_at) as date, COUNT(*) as count')
+                    ->where('created_at', '>=', now()->subDays(7))
+                    ->where('is_active', true)
+                    ->groupBy('date')
+                    ->orderBy('date')
+                    ->pluck('count')
+                    ->toArray();
+                
+                // Ensure we have 7 data points
+                while (count($data) < 7) {
+                    array_unshift($data, 0);
+                }
+                
+                return array_slice($data, -7);
+            } catch (\Exception $e) {
+                return [7, 2, 10, 3, 15, 4, 17];
+            }
+        });
     }
     
     private function getStaffChartData(): array
     {
-        try {
-            return User::selectRaw('DATE(created_at) as date, COUNT(*) as count')
-                ->where('created_at', '>=', now()->subDays(7))
-                ->groupBy('date')
-                ->orderBy('date')
-                ->pluck('count')
-                ->toArray();
-        } catch (\Exception $e) {
-            return [3, 4, 5, 6, 8, 10, 12];
-        }
+        return Cache::remember('stats.staff.chart', 300, function () {
+            try {
+                $data = User::selectRaw('DATE(created_at) as date, COUNT(*) as count')
+                    ->where('created_at', '>=', now()->subDays(7))
+                    ->where('is_active', true)
+                    ->groupBy('date')
+                    ->orderBy('date')
+                    ->pluck('count')
+                    ->toArray();
+                
+                while (count($data) < 7) {
+                    array_unshift($data, 0);
+                }
+                
+                return array_slice($data, -7);
+            } catch (\Exception $e) {
+                return [3, 4, 5, 6, 8, 10, 12];
+            }
+        });
     }
     
     private function getMedicationChartData(): array
     {
-        try {
-            return Medication::selectRaw('DATE(created_at) as date, COUNT(*) as count')
-                ->where('created_at', '>=', now()->subDays(7))
-                ->where('is_active', true)
-                ->groupBy('date')
-                ->orderBy('date')
-                ->pluck('count')
-                ->toArray();
-        } catch (\Exception $e) {
-            return [15, 20, 25, 30, 35, 40, 45];
-        }
+        return Cache::remember('stats.medications.chart', 300, function () {
+            try {
+                $data = Medication::selectRaw('DATE(created_at) as date, COUNT(*) as count')
+                    ->where('created_at', '>=', now()->subDays(7))
+                    ->where('is_active', true)
+                    ->groupBy('date')
+                    ->orderBy('date')
+                    ->pluck('count')
+                    ->toArray();
+                
+                while (count($data) < 7) {
+                    array_unshift($data, 0);
+                }
+                
+                return array_slice($data, -7);
+            } catch (\Exception $e) {
+                return [15, 20, 25, 30, 35, 40, 45];
+            }
+        });
     }
     
     private function getAppointmentChartData(): array
     {
-        try {
-            return Appointment::selectRaw('DATE(appointment_date) as date, COUNT(*) as count')
-                ->whereBetween('appointment_date', [now()->startOfWeek(), now()->endOfWeek()])
-                ->groupBy('date')
-                ->orderBy('date')
-                ->pluck('count')
-                ->toArray();
-        } catch (\Exception $e) {
-            return [2, 4, 6, 8, 10, 12, 14];
-        }
+        return Cache::remember('stats.appointments.chart', 300, function () {
+            try {
+                $data = Appointment::selectRaw('DATE(appointment_date) as date, COUNT(*) as count')
+                    ->whereBetween('appointment_date', [now()->startOfWeek(), now()->endOfWeek()])
+                    ->whereNotIn('status', ['cancelled', 'completed'])
+                    ->groupBy('date')
+                    ->orderBy('date')
+                    ->pluck('count')
+                    ->toArray();
+                
+                while (count($data) < 7) {
+                    array_unshift($data, 0);
+                }
+                
+                return array_slice($data, -7);
+            } catch (\Exception $e) {
+                return [2, 4, 6, 8, 10, 12, 14];
+            }
+        });
     }
     
     private function getResidentCount(): int
     {
-        try {
-            return Resident::count();
-        } catch (\Exception $e) {
-            return 24; // Default value
-        }
+        return Cache::remember('stats.residents.count', 60, function () {
+            try {
+                return Resident::where('is_active', true)->count();
+            } catch (\Exception $e) {
+                return 24;
+            }
+        });
     }
     
     private function getStaffCount(): int
     {
-        try {
-            return User::count();
-        } catch (\Exception $e) {
-            return 18; // Default value
-        }
+        return Cache::remember('stats.staff.count', 60, function () {
+            try {
+                return User::where('is_active', true)->count();
+            } catch (\Exception $e) {
+                return 18;
+            }
+        });
     }
     
     private function getMedicationCount(): int
     {
-        try {
-            return Medication::count();
-        } catch (\Exception $e) {
-            return 156; // Default value
-        }
+        return Cache::remember('stats.medications.count', 60, function () {
+            try {
+                return Medication::where('is_active', true)->count();
+            } catch (\Exception $e) {
+                return 156;
+            }
+        });
     }
     
     private function getAppointmentCount(): int
     {
-        try {
-            return Appointment::whereBetween('appointment_date', [now()->startOfWeek(), now()->endOfWeek()])->count();
-        } catch (\Exception $e) {
-            return 42; // Default value
-        }
+        return Cache::remember('stats.appointments.week', 60, function () {
+            try {
+                return Appointment::whereBetween('appointment_date', [now()->startOfWeek(), now()->endOfWeek()])
+                    ->whereNotIn('status', ['cancelled', 'completed'])
+                    ->count();
+            } catch (\Exception $e) {
+                return 42;
+            }
+        });
     }
     
     private function getPreviousResidentCount(): int
     {
-        try {
-            return Resident::where('created_at', '<', now()->subWeek())->count();
-        } catch (\Exception $e) {
-            return 20;
-        }
+        return Cache::remember('stats.residents.previous', 300, function () {
+            try {
+                return Resident::where('created_at', '<', now()->subWeek())
+                    ->where('is_active', true)
+                    ->count();
+            } catch (\Exception $e) {
+                return 20;
+            }
+        });
     }
     
     private function getPreviousStaffCount(): int
     {
-        try {
-            return User::where('created_at', '<', now()->subWeek())->count();
-        } catch (\Exception $e) {
-            return 15;
-        }
+        return Cache::remember('stats.staff.previous', 300, function () {
+            try {
+                return User::where('created_at', '<', now()->subWeek())
+                    ->where('is_active', true)
+                    ->count();
+            } catch (\Exception $e) {
+                return 15;
+            }
+        });
     }
     
     private function getPreviousMedicationCount(): int
     {
-        try {
-            return Medication::where('created_at', '<', now()->subWeek())->where('is_active', true)->count();
-        } catch (\Exception $e) {
-            return 140;
-        }
+        return Cache::remember('stats.medications.previous', 300, function () {
+            try {
+                return Medication::where('created_at', '<', now()->subWeek())
+                    ->where('is_active', true)
+                    ->count();
+            } catch (\Exception $e) {
+                return 140;
+            }
+        });
     }
     
     private function getPreviousAppointmentCount(): int
     {
-        try {
-            $lastWeekStart = now()->subWeek()->startOfWeek();
-            $lastWeekEnd = now()->subWeek()->endOfWeek();
-            return Appointment::whereBetween('appointment_date', [$lastWeekStart, $lastWeekEnd])->count();
-        } catch (\Exception $e) {
-            return 38;
-        }
+        return Cache::remember('stats.appointments.previous', 300, function () {
+            try {
+                $lastWeekStart = now()->subWeek()->startOfWeek();
+                $lastWeekEnd = now()->subWeek()->endOfWeek();
+                return Appointment::whereBetween('appointment_date', [$lastWeekStart, $lastWeekEnd])
+                    ->whereNotIn('status', ['cancelled', 'completed'])
+                    ->count();
+            } catch (\Exception $e) {
+                return 38;
+            }
+        });
     }
 }
 

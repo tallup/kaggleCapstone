@@ -11,7 +11,14 @@ use App\Models\LeaveRequest;
 
 class ActivityStatsWidget extends BaseWidget
 {
-    protected int | string | array $columnSpan = 'full';
+    protected int | string | array $columnSpan = [
+        'md' => 1,
+        'xl' => 2,
+    ];
+    
+    protected static ?string $pollingInterval = '60s';
+    
+    protected static ?int $sort = 6;
 
     protected function getStats(): array
     {

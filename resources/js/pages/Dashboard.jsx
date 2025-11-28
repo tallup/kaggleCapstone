@@ -19,7 +19,9 @@ import { hexToRgb, addOpacity } from '../utils/colorUtils';
 import { 
     Users, Calendar, Activity, UserCheck, ClipboardList, AlertCircle, 
     TrendingUp, Clock, CheckCircle, FileText, Heart, Pill, Moon,
-    ArrowRight, Sparkles, MoreVertical, Flame
+    ArrowRight, Sparkles, MoreVertical, Flame, Zap, BarChart3,
+    Building2, Stethoscope, TrendingDown, ArrowUp, ArrowDown,
+    ShoppingCart, DollarSign, Bed, Sparkles as SparklesIcon, AlertTriangle
 } from 'lucide-react';
 import { DashboardSkeleton } from '../components/ui/SkeletonLoader';
 import MiniCalendar from '../components/ui/MiniCalendar';
@@ -89,6 +91,8 @@ export default function Dashboard() {
             }
         },
         retry: false,
+        refetchInterval: 30000, // Poll every 30 seconds for real-time updates
+        refetchIntervalInBackground: true,
     });
 
     // Fetch daily activities for calendar (last 30 days)
@@ -108,6 +112,69 @@ export default function Dashboard() {
             }
         },
         retry: false,
+        refetchInterval: 60000, // Poll every minute
+    });
+
+    // Determine user type early
+    const isCaregiver = stats?.user_type === 'caregiver';
+
+    // Fetch trends data for admin users
+    const { data: trendsData } = useQuery({
+        queryKey: ['dashboard-trends'],
+        queryFn: async () => {
+            try {
+                const response = await api.get('/charts/residents');
+                return response.data;
+            } catch (err) {
+                console.error('Trends API error:', err);
+                return null;
+            }
+        },
+        retry: false,
+        enabled: !isCaregiver && !isLoading, // Only fetch for admins after stats load
+        refetchInterval: 60000,
+    });
+
+    // Fetch module statistics for admin users
+    const { data: moduleStats } = useQuery({
+        queryKey: ['dashboard-module-stats'],
+        queryFn: async () => {
+            try {
+                const [assessmentsRes, sleepRes, housekeepingRes, incidentsRes, groceryRes, pharmacyRes, billingRes] = await Promise.all([
+                    api.get('/assessments?per_page=1').catch(() => ({ data: { total: 0 } })),
+                    api.get('/sleep?per_page=1').catch(() => ({ data: { total: 0 } })),
+                    api.get('/cleaning/tasks?per_page=1').catch(() => ({ data: { total: 0 } })),
+                    api.get('/incidents?per_page=1').catch(() => ({ data: { total: 0 } })),
+                    api.get('/grocery-status?per_page=1').catch(() => ({ data: { total: 0 } })),
+                    api.get('/pharmacy/inventory?per_page=1').catch(() => ({ data: { total: 0 } })),
+                    api.get('/billing/expenses?per_page=1').catch(() => ({ data: { total: 0 } })),
+                ]);
+                
+                return {
+                    assessments: assessmentsRes.data?.total || 0,
+                    sleep: sleepRes.data?.total || 0,
+                    housekeeping: housekeepingRes.data?.total || 0,
+                    incidents: incidentsRes.data?.total || 0,
+                    grocery: groceryRes.data?.total || 0,
+                    pharmacy: pharmacyRes.data?.total || 0,
+                    billing: billingRes.data?.total || 0,
+                };
+            } catch (err) {
+                console.error('Module stats API error:', err);
+                return {
+                    assessments: 0,
+                    sleep: 0,
+                    housekeeping: 0,
+                    incidents: 0,
+                    grocery: 0,
+                    pharmacy: 0,
+                    billing: 0,
+                };
+            }
+        },
+        retry: false,
+        enabled: !isCaregiver && !isLoading,
+        refetchInterval: 120000, // Poll every 2 minutes
     });
 
     // Fetch upcoming fire drills
@@ -172,7 +239,6 @@ export default function Dashboard() {
         }
     };
 
-    const isCaregiver = stats?.user_type === 'caregiver';
     const currentHour = new Date().getHours();
     const greeting = currentHour < 12 ? 'Good Morning' : currentHour < 18 ? 'Good Afternoon' : 'Good Evening';
     
@@ -248,39 +314,69 @@ export default function Dashboard() {
     ] : [
         {
             title: 'Total Residents',
-            value: stats?.total_residents || 0,
+            value: Number(stats?.total_residents ?? 0),
             icon: Users,
-            gradient: 'from-[var(--theme-primary)] to-[var(--theme-primary-light)]',
-            iconBg: 'bg-[var(--theme-primary-bg-light)]',
-            iconColor: 'text-[var(--theme-primary)]',
+            gradient: 'from-blue-500 to-indigo-600',
+            iconBg: 'bg-blue-50',
+            iconColor: 'text-blue-600',
             link: '/administration/residents',
+            description: 'Active residents',
+            trend: 'positive',
         },
         {
             title: "Today's Appointments",
-            value: stats?.today_appointments || 0,
+            value: Number(stats?.today_appointments ?? 0),
             icon: Calendar,
-            gradient: 'from-[var(--theme-primary)] to-[var(--theme-primary-light)]',
-            iconBg: 'bg-[var(--theme-primary-bg-light)]',
-            iconColor: 'text-[var(--theme-primary)]',
+            gradient: 'from-emerald-500 to-green-600',
+            iconBg: 'bg-emerald-50',
+            iconColor: 'text-emerald-600',
             link: '/appointments',
+            description: 'Scheduled today',
+            trend: 'positive',
         },
         {
             title: 'Today Vitals',
-            value: stats?.today_vitals || 0,
+            value: Number(stats?.today_vitals ?? 0),
             icon: Activity,
-            gradient: 'from-[var(--theme-secondary)] to-[var(--theme-secondary-light)]',
-            iconBg: 'bg-[var(--theme-primary-bg-light)]',
-            iconColor: 'text-[var(--theme-secondary)]',
+            gradient: 'from-purple-500 to-violet-600',
+            iconBg: 'bg-purple-50',
+            iconColor: 'text-purple-600',
             link: '/vitals',
+            description: 'Recorded today',
+            trend: 'positive',
         },
         {
             title: 'Total Staff',
-            value: stats?.total_staff || 0,
+            value: Number(stats?.total_staff ?? 0),
             icon: UserCheck,
-            gradient: 'from-[var(--theme-secondary)] to-[var(--theme-secondary-light)]',
-            iconBg: 'bg-[var(--theme-primary-bg-light)]',
-            iconColor: 'text-[var(--theme-secondary)]',
+            gradient: 'from-amber-500 to-orange-600',
+            iconBg: 'bg-amber-50',
+            iconColor: 'text-amber-600',
             link: '/administration/users',
+            description: 'Active staff',
+            trend: 'positive',
+        },
+        {
+            title: 'Active Medications',
+            value: Number(stats?.active_medications ?? 0),
+            icon: Pill,
+            gradient: 'from-pink-500 to-rose-600',
+            iconBg: 'bg-pink-50',
+            iconColor: 'text-pink-600',
+            link: '/medications',
+            description: 'Current prescriptions',
+            trend: 'positive',
+        },
+        {
+            title: 'Pending Assessments',
+            value: Number(stats?.pending_assessments ?? 0),
+            icon: ClipboardList,
+            gradient: 'from-red-500 to-red-600',
+            iconBg: 'bg-red-50',
+            iconColor: 'text-red-600',
+            link: '/assessments',
+            description: 'Awaiting completion',
+            trend: (stats?.pending_assessments ?? 0) > 0 ? 'warning' : 'positive',
         },
     ];
 
@@ -305,38 +401,105 @@ export default function Dashboard() {
                 
                 {!isLoading && (
                     <>
-                        {/* Modern Welcome Card */}
-                        <div className="mb-8 bg-gradient-to-br from-white to-gray-50 rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
-                            <div className="p-4 md:p-6">
-                                <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-                                    <div className="flex items-center space-x-4 mb-4 md:mb-0">
-                                        <div className="relative">
-                                            <div className="absolute inset-0 rounded-xl blur-sm opacity-50" style={{ background: `linear-gradient(to bottom right, var(--theme-primary), var(--theme-primary-light))` }}></div>
-                                            <div className="relative w-12 h-12 md:w-16 md:h-16 rounded-xl flex items-center justify-center" style={{ background: `linear-gradient(to bottom right, var(--theme-primary), var(--theme-primary-light))` }}>
-                                                <Sparkles className="w-6 h-6 md:w-8 md:h-8 text-[var(--theme-text-on-primary)]" />
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <h1 className="text-xl md:text-2xl font-bold text-[var(--theme-primary)]">
+                        {/* Modern Welcome Card with Quick Stats */}
+                        <div className="mb-6 bg-gradient-to-br from-sky-500 via-blue-600 to-indigo-700 rounded-2xl shadow-xl border border-sky-400/20 overflow-hidden">
+                            <div className="p-4 sm:p-6">
+                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-3 mb-2">
+                                            <h1 className="text-xl sm:text-2xl font-bold text-white">
                                                 {greeting}, {currentUser?.first_name || currentUser?.name || 'User'} 👋
                                             </h1>
-                                            <p className="text-xs md:text-sm text-gray-600 mt-1">
-                                                {isCaregiver ? 'Welcome to your Care Dashboard' : 'Welcome to the Admin Dashboard'}
-                                            </p>
+                                            <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-white/20 text-white backdrop-blur-sm">
+                                                {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                            </span>
                                         </div>
+                                        <p className="text-sky-100 text-sm sm:text-base mb-3">
+                                            {isCaregiver ? 'Welcome to your Care Dashboard' : 'Managing care with compassion and excellence'}
+                                        </p>
+                                        
+                                        {/* Quick Stats Summary for Admins */}
+                                        {!isCaregiver && (
+                                            <div className="grid grid-cols-3 gap-2 sm:gap-3 mt-3">
+                                                <div className="bg-white/10 backdrop-blur-sm rounded-lg px-2 sm:px-3 py-2 border border-white/20">
+                                                    <div className="text-xs text-sky-100 mb-0.5">Residents</div>
+                                                    <div className="text-lg sm:text-xl font-bold text-white">{stats?.total_residents || 0}</div>
+                                                </div>
+                                                <div className="bg-white/10 backdrop-blur-sm rounded-lg px-2 sm:px-3 py-2 border border-white/20">
+                                                    <div className="text-xs text-sky-100 mb-0.5">Today</div>
+                                                    <div className="text-lg sm:text-xl font-bold text-white">{stats?.today_appointments || 0}</div>
+                                                </div>
+                                                <div className="bg-white/10 backdrop-blur-sm rounded-lg px-2 sm:px-3 py-2 border border-white/20">
+                                                    <div className="text-xs text-sky-100 mb-0.5">Pending</div>
+                                                    <div className="text-lg sm:text-xl font-bold text-white">{stats?.pending_assessments || 0}</div>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
-                                    <div className="text-left md:text-right">
-                                        <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Last Login</p>
-                                        <p className="text-sm font-semibold text-[var(--theme-secondary)]">
-                                            {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                                        </p>
-                                        <p className="text-xs text-gray-500">
-                                            {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-                                        </p>
+                                    
+                                    <div className="hidden md:flex flex-col items-end space-y-2">
+                                        <div className="text-right">
+                                            <p className="text-sky-100 text-xs font-medium">{new Date().toLocaleDateString('en-US', { weekday: 'long' })}</p>
+                                            <p className="text-white text-lg font-semibold">{new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+                                            <p className="text-sky-200 text-sm">{new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</p>
+                                        </div>
+                                        <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm border border-white/30 shadow-lg">
+                                            <Sparkles className="w-7 h-7 text-white" />
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
+
+                        {/* Quick Actions for Admins */}
+                        {!isCaregiver && (
+                            <div className="mb-6 bg-white rounded-xl shadow-md border border-gray-100 p-4">
+                                <div className="flex items-center justify-between mb-3">
+                                    <div className="flex items-center gap-2">
+                                        <Zap className="w-5 h-5 text-[var(--theme-primary)]" />
+                                        <h3 className="text-sm font-semibold text-gray-900">Quick Actions</h3>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                    <button
+                                        onClick={() => navigate('/administration/residents/create')}
+                                        className="flex flex-col items-center gap-2 p-3 bg-gradient-to-br from-sky-50 to-blue-50 border border-sky-200 rounded-lg hover:shadow-md hover:border-sky-300 transition-all active:scale-95 touch-manipulation"
+                                    >
+                                        <div className="w-10 h-10 bg-sky-500 rounded-lg flex items-center justify-center">
+                                            <Users className="w-5 h-5 text-white" />
+                                        </div>
+                                        <span className="text-xs font-medium text-gray-900">Add Resident</span>
+                                    </button>
+                                    <button
+                                        onClick={() => navigate('/appointments/create')}
+                                        className="flex flex-col items-center gap-2 p-3 bg-gradient-to-br from-emerald-50 to-green-50 border border-emerald-200 rounded-lg hover:shadow-md hover:border-emerald-300 transition-all active:scale-95 touch-manipulation"
+                                    >
+                                        <div className="w-10 h-10 bg-emerald-500 rounded-lg flex items-center justify-center">
+                                            <Calendar className="w-5 h-5 text-white" />
+                                        </div>
+                                        <span className="text-xs font-medium text-gray-900">Appointment</span>
+                                    </button>
+                                    <button
+                                        onClick={() => navigate('/medications/create')}
+                                        className="flex flex-col items-center gap-2 p-3 bg-gradient-to-br from-purple-50 to-violet-50 border border-purple-200 rounded-lg hover:shadow-md hover:border-purple-300 transition-all active:scale-95 touch-manipulation"
+                                    >
+                                        <div className="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center">
+                                            <Pill className="w-5 h-5 text-white" />
+                                        </div>
+                                        <span className="text-xs font-medium text-gray-900">Medication</span>
+                                    </button>
+                                    <button
+                                        onClick={() => navigate('/vitals/create')}
+                                        className="flex flex-col items-center gap-2 p-3 bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-lg hover:shadow-md hover:border-amber-300 transition-all active:scale-95 touch-manipulation"
+                                    >
+                                        <div className="w-10 h-10 bg-amber-500 rounded-lg flex items-center justify-center">
+                                            <Activity className="w-5 h-5 text-white" />
+                                        </div>
+                                        <span className="text-xs font-medium text-gray-900">Vitals</span>
+                                    </button>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Stat Cards Grid */}
                         <ScrollReveal animationType="fade" threshold={0.1}>
@@ -346,6 +509,24 @@ export default function Dashboard() {
                                 onCardClick={(link) => link && navigate(link)}
                             />
                         </ScrollReveal>
+
+                        {/* Trends Chart for Admins */}
+                        {!isCaregiver && trendsData && (
+                            <div className="mb-6">
+                                <TrendsChartWidget data={trendsData} />
+                            </div>
+                        )}
+
+                        {/* Modules Overview for Admins */}
+                        {!isCaregiver && (
+                            <div className="mb-6">
+                                <ModulesOverview 
+                                    stats={stats}
+                                    moduleStats={moduleStats}
+                                    navigate={navigate}
+                                />
+                            </div>
+                        )}
 
                         {/* Two Column Layout */}
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
@@ -444,15 +625,69 @@ export default function Dashboard() {
                         </div>
 
                         {/* Lower Section Grid */}
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            {/* Resident Vitals Trend Chart */}
-                            {stats?.resident_list && stats.resident_list.length > 0 && (
+                        <div className={`grid grid-cols-1 ${isCaregiver ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} gap-6`}>
+                            {/* Resident Vitals Trend Chart - Only for Caregivers */}
+                            {isCaregiver && stats?.resident_list && stats.resident_list.length > 0 && (
                                 <div className="lg:col-span-2">
                                     <ResidentVitalsTrendSection 
                                         residents={stats.resident_list}
                                         defaultTrend={stats.resident_vitals_trend}
                                     />
                                 </div>
+                            )}
+
+                            {/* Admin-specific widgets */}
+                            {!isCaregiver && (
+                                <>
+                                    {/* Active Residents Widget */}
+                                    <div className="lg:col-span-2">
+                                        <div className="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden">
+                                            <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200">
+                                                <div className="flex items-center justify-between">
+                                                    <h2 className="text-base sm:text-lg font-bold text-[var(--theme-primary)]">Active Residents</h2>
+                                                    <button
+                                                        onClick={() => navigate('/administration/residents')}
+                                                        className="text-xs sm:text-sm text-[var(--theme-primary)] hover:text-[var(--theme-primary-hover)] font-medium transition-colors"
+                                                    >
+                                                        View all →
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div className="p-4">
+                                                {stats?.resident_list?.length > 0 ? (
+                                                    <div className="space-y-2">
+                                                        {stats.resident_list.slice(0, 8).map((resident, idx) => (
+                                                            <div key={idx} className="flex items-center justify-between p-2 sm:p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                                                                 onClick={() => navigate(`/administration/residents/${resident.id}`)}>
+                                                                <div className="flex items-center space-x-2 sm:space-x-3 flex-1 min-w-0">
+                                                                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-[var(--theme-primary)] rounded-full flex items-center justify-center flex-shrink-0">
+                                                                        <span className="text-[var(--theme-text-on-primary)] text-xs sm:text-sm font-bold">
+                                                                            {resident.name.split(' ').map(n => n[0]).join('')}
+                                                                        </span>
+                                                                    </div>
+                                                                    <div className="flex-1 min-w-0">
+                                                                        <p className="text-xs sm:text-sm font-semibold text-[var(--theme-primary)] truncate">
+                                                                            {resident.name}
+                                                                        </p>
+                                                                        <p className="text-xs text-gray-500">
+                                                                            {resident.room ? `Room: ${resident.room}` : 'No room assigned'}
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                                <ArrowRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <div className="text-center py-8">
+                                                        <Users className="w-12 h-12 text-gray-300 mx-auto mb-2" />
+                                                        <p className="text-sm text-gray-500">No active residents</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </>
                             )}
 
                             {/* Medication Reminders */}
@@ -793,6 +1028,257 @@ function ResidentVitalsChart({ data }) {
     );
 }
 
+// Modules Overview Component
+function ModulesOverview({ stats, moduleStats, navigate }) {
+    const modules = [
+        {
+            name: 'Assessments',
+            icon: ClipboardList,
+            path: '/assessments',
+            count: stats?.pending_assessments || 0,
+            color: 'from-blue-500 to-indigo-600',
+            bgColor: 'bg-blue-50',
+            iconColor: 'text-blue-600',
+            description: 'Pending assessments',
+        },
+        {
+            name: 'Appointments',
+            icon: Calendar,
+            path: '/appointments',
+            count: stats?.today_appointments || 0,
+            color: 'from-emerald-500 to-green-600',
+            bgColor: 'bg-emerald-50',
+            iconColor: 'text-emerald-600',
+            description: "Today's appointments",
+        },
+        {
+            name: 'Vitals',
+            icon: Activity,
+            path: '/vitals',
+            count: stats?.today_vitals || 0,
+            color: 'from-purple-500 to-violet-600',
+            bgColor: 'bg-purple-50',
+            iconColor: 'text-purple-600',
+            description: 'Recorded today',
+        },
+        {
+            name: 'Medications',
+            icon: Pill,
+            path: '/medications',
+            count: stats?.active_medications || 0,
+            color: 'from-pink-500 to-rose-600',
+            bgColor: 'bg-pink-50',
+            iconColor: 'text-pink-600',
+            description: 'Active medications',
+        },
+        {
+            name: 'Sleep',
+            icon: Moon,
+            path: '/sleep',
+            count: moduleStats?.sleep || 0,
+            color: 'from-indigo-500 to-blue-600',
+            bgColor: 'bg-indigo-50',
+            iconColor: 'text-indigo-600',
+            description: 'Sleep records',
+        },
+        {
+            name: 'Housekeeping',
+            icon: SparklesIcon,
+            path: '/housekeeping',
+            count: moduleStats?.housekeeping || 0,
+            color: 'from-amber-500 to-orange-600',
+            bgColor: 'bg-amber-50',
+            iconColor: 'text-amber-600',
+            description: 'Tasks & schedules',
+        },
+        {
+            name: 'Grocery Status',
+            icon: ShoppingCart,
+            path: '/grocery-status',
+            count: moduleStats?.grocery || 0,
+            color: 'from-teal-500 to-cyan-600',
+            bgColor: 'bg-teal-50',
+            iconColor: 'text-teal-600',
+            description: 'Grocery items',
+        },
+        {
+            name: 'Fire Drills',
+            icon: Flame,
+            path: '/fire-drills',
+            count: 0, // Will be populated from upcomingFireDrills
+            color: 'from-red-500 to-red-600',
+            bgColor: 'bg-red-50',
+            iconColor: 'text-red-600',
+            description: 'Scheduled drills',
+        },
+        {
+            name: 'Incidents',
+            icon: AlertTriangle,
+            path: '/incidents',
+            count: moduleStats?.incidents || 0,
+            color: 'from-orange-500 to-red-600',
+            bgColor: 'bg-orange-50',
+            iconColor: 'text-orange-600',
+            description: 'Incident reports',
+        },
+        {
+            name: 'Pharmacy',
+            icon: Building2,
+            path: '/pharmacy/inventory',
+            count: moduleStats?.pharmacy || 0,
+            color: 'from-violet-500 to-purple-600',
+            bgColor: 'bg-violet-50',
+            iconColor: 'text-violet-600',
+            description: 'Inventory items',
+        },
+        {
+            name: 'Billing',
+            icon: DollarSign,
+            path: '/billing/expenses',
+            count: moduleStats?.billing || 0,
+            color: 'from-green-500 to-emerald-600',
+            bgColor: 'bg-green-50',
+            iconColor: 'text-green-600',
+            description: 'Expenses & invoices',
+        },
+        {
+            name: 'Reports',
+            icon: FileText,
+            path: '/reports',
+            count: 0,
+            color: 'from-slate-500 to-gray-600',
+            bgColor: 'bg-slate-50',
+            iconColor: 'text-slate-600',
+            description: 'Analytics & reports',
+        },
+    ];
+
+    return (
+        <div className="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden">
+            <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <BarChart3 className="w-5 h-5 text-[var(--theme-primary)]" />
+                        <h2 className="text-base sm:text-lg font-bold text-[var(--theme-primary)]">Modules Overview</h2>
+                    </div>
+                    <span className="text-xs text-gray-500 hidden sm:inline">Quick access to all modules</span>
+                </div>
+            </div>
+            <div className="p-4 sm:p-6">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 sm:gap-4">
+                    {modules.map((module, index) => {
+                        const Icon = module.icon;
+                        return (
+                            <button
+                                key={index}
+                                onClick={() => navigate(module.path)}
+                                className="group relative bg-white rounded-lg border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all duration-200 p-3 sm:p-4 text-left active:scale-95 touch-manipulation"
+                            >
+                                <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${module.color} rounded-t-lg`}></div>
+                                <div className="flex flex-col items-center text-center space-y-2 mt-1">
+                                    <div className={`${module.bgColor} p-2 sm:p-3 rounded-lg group-hover:scale-110 transition-transform duration-200`}>
+                                        <Icon className={`w-5 h-5 sm:w-6 sm:h-6 ${module.iconColor}`} />
+                                    </div>
+                                    <div className="flex-1 w-full">
+                                        <p className="text-xs sm:text-sm font-semibold text-gray-900 mb-1">{module.name}</p>
+                                        <p className="text-lg sm:text-xl font-bold text-[var(--theme-primary)]">{module.count}</p>
+                                        <p className="text-xs text-gray-500 mt-1 line-clamp-2">{module.description}</p>
+                                    </div>
+                                </div>
+                                <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4 text-[var(--theme-primary)]" />
+                                </div>
+                            </button>
+                        );
+                    })}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// Trends Chart Widget for Admins
+function TrendsChartWidget({ data }) {
+    const { primary, secondary } = useTheme();
+    const primaryRgb = hexToRgb(primary || '#25603E');
+    const tooltipBg = primaryRgb ? `rgba(${primaryRgb.r}, ${primaryRgb.g}, ${primaryRgb.b}, 0.9)` : 'rgba(37, 96, 62, 0.9)';
+
+    if (!data || !data.labels || data.labels.length === 0) {
+        return null;
+    }
+
+    const chartData = {
+        labels: data.labels || [],
+        datasets: [
+            {
+                label: 'Residents',
+                data: data.residents || [],
+                borderColor: 'rgb(59, 130, 246)',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                tension: 0.4,
+                fill: true,
+            },
+            {
+                label: 'Appointments',
+                data: data.appointments || [],
+                borderColor: 'rgb(16, 185, 129)',
+                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                tension: 0.4,
+                fill: true,
+            },
+            {
+                label: 'Medications',
+                data: data.medications || [],
+                borderColor: 'rgb(245, 158, 11)',
+                backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                tension: 0.4,
+                fill: true,
+            },
+        ],
+    };
+
+    const options = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: true,
+                position: 'top',
+            },
+            tooltip: {
+                backgroundColor: tooltipBg,
+                padding: 12,
+            },
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    stepSize: 1,
+                },
+            },
+        },
+    };
+
+    return (
+        <div className="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden">
+            <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <BarChart3 className="w-5 h-5 text-[var(--theme-primary)]" />
+                        <h2 className="text-base sm:text-lg font-bold text-[var(--theme-primary)]">7-Day Trends Overview</h2>
+                    </div>
+                </div>
+            </div>
+            <div className="p-4 sm:p-6">
+                <div style={{ height: '250px' }}>
+                    <Line data={chartData} options={options} />
+                </div>
+            </div>
+        </div>
+    );
+}
+
 // Stat Cards Grid Component with animations
 function StatCardsGrid({ statCards, isCaregiver, onCardClick }) {
     const containerRef = useStaggerAnimation('.stat-card', 'slideUp', {
@@ -804,7 +1290,7 @@ function StatCardsGrid({ statCards, isCaregiver, onCardClick }) {
     return (
         <div 
             ref={containerRef}
-            className={`grid grid-cols-1 md:grid-cols-2 ${isCaregiver ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} gap-6 mb-8`}
+            className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8`}
         >
             {statCards.map((card, index) => {
                 const Icon = card.icon;
@@ -824,58 +1310,58 @@ function StatCardsGrid({ statCards, isCaregiver, onCardClick }) {
                 return (
                     <div
                         key={index}
-                        className="stat-card group relative bg-white rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden cursor-pointer border border-gray-100"
+                        className="stat-card group relative bg-white rounded-xl sm:rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden cursor-pointer border border-gray-100 active:scale-95 touch-manipulation"
                         onClick={() => onCardClick(card.link)}
                     >
                         {/* Gradient decoration */}
                         <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${card.gradient}`}></div>
                         
-                        {/* Content */}
-                        <div className="p-6">
-                            <div className="flex items-start justify-between mb-4">
-                                <div className="flex-1">
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <p className="text-[var(--theme-secondary)] text-sm font-semibold uppercase tracking-wide">
+                        {/* Content - Data-dense layout */}
+                        <div className="p-4 sm:p-6">
+                            <div className="flex items-start justify-between mb-3 sm:mb-4">
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-1 sm:gap-2 mb-1">
+                                        <p className="text-[var(--theme-secondary)] text-xs sm:text-sm font-semibold uppercase tracking-wide truncate">
                                             {card.title}
                                         </p>
                                         {card.tooltip && (
                                             <Tooltip content={card.tooltip} position="top">
-                                                <AlertCircle className="w-3 h-3 text-gray-400 cursor-help" />
+                                                <AlertCircle className="w-3 h-3 text-gray-400 cursor-help flex-shrink-0" />
                                             </Tooltip>
                                         )}
                                     </div>
                                     <div className="flex items-baseline space-x-2">
                                         <p 
                                             ref={valueRef}
-                                            className="text-4xl font-bold text-[var(--theme-primary)]"
+                                            className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[var(--theme-primary)]"
                                         >
                                             {card.value}
                                         </p>
                                         {card.trend === 'warning' && (
                                             <Tooltip content="Requires attention" position="top">
-                                                <AlertCircle className="w-5 h-5 text-amber-500 cursor-help" />
+                                                <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500 cursor-help flex-shrink-0" />
                                             </Tooltip>
                                         )}
                                     </div>
                                     {card.description && (
-                                        <p className="text-gray-500 text-xs mt-2 flex items-center">
-                                            <Clock className="w-3 h-3 mr-1" />
-                                            {card.description}
+                                        <p className="text-gray-500 text-xs mt-1 sm:mt-2 flex items-center">
+                                            <Clock className="w-3 h-3 mr-1 flex-shrink-0" />
+                                            <span className="truncate">{card.description}</span>
                                         </p>
                                     )}
                                 </div>
                                 <Tooltip content={card.title} position="left">
-                                    <div className={`${card.iconBg} p-3 rounded-xl group-hover:scale-110 transition-transform duration-300`}>
-                                        <Icon className={`w-6 h-6 ${card.iconColor}`} />
+                                    <div className={`${card.iconBg} p-2 sm:p-3 rounded-lg sm:rounded-xl group-hover:scale-110 transition-transform duration-300 flex-shrink-0`}>
+                                        <Icon className={`w-5 h-5 sm:w-6 sm:h-6 ${card.iconColor}`} />
                                     </div>
                                 </Tooltip>
                             </div>
                             
                             {/* Hover effect */}
                             {card.link && (
-                                <div className="flex items-center text-[var(--theme-primary)] text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                <div className="flex items-center text-[var(--theme-primary)] text-xs sm:text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                                     <span>View details</span>
-                                    <ArrowRight className="w-4 h-4 ml-2 transform group-hover:translate-x-1 transition-transform" />
+                                    <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4 ml-2 transform group-hover:translate-x-1 transition-transform" />
                                 </div>
                             )}
                         </div>

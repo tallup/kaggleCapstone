@@ -10,10 +10,15 @@ use App\Models\Resident;
 
 class AdminResidentsWidget extends BaseWidget
 {
-    protected int | string | array $columnSpan = 'full';
+    protected int | string | array $columnSpan = [
+        'md' => 1,
+        'xl' => 1,
+    ];
     protected static ?string $heading = 'Active Residents';
-    protected static ?int $sort = 5;
+    protected static ?int $sort = 8;
 
+    protected static ?string $pollingInterval = '45s';
+    
     public function table(Table $table): Table
     {
         return $table
@@ -23,6 +28,8 @@ class AdminResidentsWidget extends BaseWidget
                     ->orderBy('name')
                     ->limit(10)
             )
+            ->searchable()
+            ->defaultSort('name')
             ->columns([
                 TextColumn::make('name')
                     ->label('Resident')

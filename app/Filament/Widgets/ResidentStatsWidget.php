@@ -15,7 +15,13 @@ use App\Models\Assignment;
 
 class ResidentStatsWidget extends BaseWidget
 {
-    protected int | string | array $columnSpan = 'full';
+    protected int | string | array $columnSpan = [
+        'md' => 1,
+        'xl' => 2,
+    ];
+    
+    protected static ?int $sort = 5;
+    protected static ?string $pollingInterval = '60s';
 
     protected function getStats(): array
     {

@@ -10,9 +10,13 @@ use App\Models\Appointment;
 
 class AdminUpcomingAppointmentsWidget extends BaseWidget
 {
-    protected int | string | array $columnSpan = 'full';
+    protected int | string | array $columnSpan = [
+        'md' => 1,
+        'xl' => 1,
+    ];
     protected static ?string $heading = 'Upcoming Appointments';
-    protected static ?int $sort = 4;
+    protected static ?int $sort = 7;
+    protected static ?string $pollingInterval = '60s';
 
     public function table(Table $table): Table
     {
@@ -25,6 +29,8 @@ class AdminUpcomingAppointmentsWidget extends BaseWidget
                     ->orderBy('appointment_time')
                     ->limit(10)
             )
+            ->searchable()
+            ->defaultSort('appointment_date')
             ->columns([
                 TextColumn::make('resident.name')
                     ->label('Resident')
