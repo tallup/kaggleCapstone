@@ -19,6 +19,12 @@ export default defineConfig({
     },
     optimizeDeps: {
         include: ['animejs'],
+        // Force pre-bundling of critical dependencies to avoid TDZ issues
+        force: true,
+        esbuildOptions: {
+            // Don't minify during pre-bundling to avoid TDZ issues
+            minify: false,
+        },
     },
     build: {
         commonjsOptions: {
@@ -26,35 +32,32 @@ export default defineConfig({
             transformMixedEsModules: true,
         },
         rollupOptions: {
+            // Preserve entry signatures to maintain proper module boundaries
+            preserveEntrySignatures: 'strict',
             output: {
-                // Manual chunking to control how code is split
-                manualChunks: (id) => {
-                    if (id.includes('node_modules')) {
-                        // React and React DOM together
-                        if (id.includes('react') || id.includes('react-dom')) {
-                            return 'vendor-react';
-                        }
-                        // All other vendor code in one chunk
-                        return 'vendor';
-                    }
-                },
+                // Use ES module format
+                format: 'es',
+                // Let Vite handle chunking automatically - this ensures proper dependency order
+                manualChunks: undefined,
             },
         },
         // Warn if chunk exceeds 500KB
-        chunkSizeWarningLimit: 500,
+        chunkSizeWarningLimit: 1000, // Increase limit since we're not minifying
         // Disable sourcemaps for production
         sourcemap: false,
-        // Use esbuild with only whitespace minification
-        // This avoids variable reordering that causes TDZ issues
+        // Use esbuild with minimal settings - only compress whitespace
         minify: 'esbuild',
         // Target modern browsers
         target: 'es2020',
-        // Configure esbuild to only remove whitespace, not transform code
+        // Configure esbuild to be extremely conservative
         esbuild: {
             legalComments: 'none',
-            minifyIdentifiers: false,  // Don't rename variables
-            minifySyntax: false,       // Don't transform syntax
-            minifyWhitespace: true,    // Only remove whitespace
+            // CRITICAL: Don't rename or transform anything
+            minifyIdentifiers: false,
+            minifySyntax: false,
+            minifyWhitespace: true, // Only remove whitespace
+            // Don't do any code transformations
+            treeShaking: false,
         },
     },
 });

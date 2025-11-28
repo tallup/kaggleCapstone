@@ -59,14 +59,19 @@ import '../css/app.css';
     };
 })();
 
-const queryClient = new QueryClient({
-    defaultOptions: {
-        queries: {
-            refetchOnWindowFocus: false,
-            retry: 1,
+// Create QueryClient in a function to ensure it's initialized after all imports
+function createQueryClient() {
+    return new QueryClient({
+        defaultOptions: {
+            queries: {
+                refetchOnWindowFocus: false,
+                retry: 1,
+            },
         },
-    },
-});
+    });
+}
+
+const queryClient = createQueryClient();
 
 // Wait for DOM to be ready
 function initApp() {
