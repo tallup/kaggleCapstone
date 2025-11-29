@@ -113,10 +113,10 @@ export default function Login() {
             <div 
                 ref={brandPanelRef}
                 className="md:w-1/2 relative overflow-hidden flex items-center justify-center text-white p-8 md:p-12" 
-                style={{ background: `linear-gradient(135deg, var(--theme-primary-dark, #152D4A), var(--theme-primary, #1E3A5F), var(--theme-primary-light, #2E5A8F))` }}
+                style={{ background: `linear-gradient(135deg, var(--theme-primary-dark, #152D4A), var(--theme-primary, #1E3A5F), var(--theme-primary-light, #2E5A5F))` }}
             >
-                <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.45),_rgba(255,255,255,0))]"></div>
-                <div className="absolute inset-0 opacity-10 mix-blend-soft-light bg-[radial-gradient(circle_at_center,_rgba(255,255,255,0.45)_0%,_rgba(255,255,255,0)_65%)]"></div>
+                {/* Subtle light texture instead of strong white overlay */}
+                <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.35),_rgba(255,255,255,0))]"></div>
                 <div className="relative z-10 max-w-xl space-y-8 text-center md:text-left">
                     <div className="flex flex-col md:flex-row md:items-center md:space-x-4 items-center space-y-4 md:space-y-0">
                         <div className="h-20 w-20 rounded-full shadow-xl ring-2 ring-white/50 overflow-hidden">
@@ -167,17 +167,12 @@ export default function Login() {
             {/* Authentication Panel */}
             <div className="md:w-1/2 flex items-center justify-center p-6 md:p-12 bg-white">
                 <div ref={formRef} className="w-full max-w-md space-y-8">
-                    {/* Quick Clock-In Button - Top - Highly Visible */}
+                    {/* Quick Clock-In Button - Compact */}
                     <button
                         onClick={() => window.location.href = '/app/staff/clock-in'}
-                        className="flex items-center justify-center gap-3 w-full px-8 py-5 bg-gradient-to-r from-blue-600 via-blue-700 to-blue-800 border-3 border-blue-900 text-white rounded-xl font-extrabold hover:from-blue-700 hover:via-blue-800 hover:to-blue-900 transition-all text-lg shadow-2xl hover:shadow-3xl transform hover:scale-[1.02] mb-4 ring-4 ring-blue-300"
-                        style={{ 
-                            fontSize: '18px',
-                            fontWeight: '900',
-                            letterSpacing: '0.5px'
-                        }}
+                        className="flex items-center justify-center gap-2 w-full max-w-sm mx-auto px-4 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors text-sm md:text-base shadow-md mb-4"
                     >
-                        <Clock className="w-7 h-7" />
+                        <Clock className="w-5 h-5" />
                         <span>Quick Clock-In (No Login Required)</span>
                     </button>
 
