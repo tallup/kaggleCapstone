@@ -13,7 +13,11 @@ import {
     RefreshCw,
     TrendingUp,
     Timer,
-    ArrowRight
+    ArrowRight,
+    Download,
+    Filter,
+    Search,
+    X
 } from 'lucide-react';
 import SectionCard from '../components/SectionCard';
 import EmptyState from '../components/ui/EmptyState';
@@ -64,6 +68,18 @@ const ProgressBar = ({ value, max, color = 'var(--theme-primary)', label }) => {
 export default function CheckInDashboard() {
     const queryClient = useQueryClient();
     const [refreshInterval, setRefreshInterval] = useState(30000); // 30 seconds
+    
+    // History filters
+    const [showHistory, setShowHistory] = useState(false);
+    const [historyFilters, setHistoryFilters] = useState({
+        start_date: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 days ago
+        end_date: new Date().toISOString().split('T')[0], // Today
+        resident_id: '',
+        branch_id: '',
+        is_active: '',
+        search: '',
+        page: 1,
+    });
 
     // Fetch active staff clock-ins
     const { data: activeClockIns, isLoading: clockInsLoading } = useQuery({
@@ -125,21 +141,153 @@ export default function CheckInDashboard() {
         };
     }, [activeClockIns, activeSignOuts, activeVisitors]);
 
+    // Fetch resident sign-out history
+    const { data: historyData, isLoading: historyLoading } = useQuery({
+        queryKey: ['residents-sign-outs-history', historyFilters],
+        queryFn: async () => {
+            const params = { ...historyFilters };
+            // Remove empty values
+            Object.keys(params).forEach(key => {
+                if (params[key] === '' || params[key] === null) {
+                    delete params[key];
+                }
+            });
+            const response = await api.get('/residents/sign-outs/history', { params });
+            // Handle paginated response
+            return {
+                data: response.data?.data || response.data || [],
+                meta: response.data?.meta || null,
+            };
+        },
+        enabled: showHistory,
+        staleTime: 30000,
+    });
+
+    // Fetch residents and branches for filters
+    const { data: residents } = useQuery({
+        queryKey: ['residents-list'],
+        queryFn: async () => {
+            const response = await api.get('/residents', { params: { per_page: 1000 } });
+            return response.data?.data || response.data || [];
+        },
+        staleTime: 300000, // 5 minutes
+    });
+
+    const { data: branches } = useQuery({
+        queryKey: ['branches-list'],
+        queryFn: async () => {
+            const response = await api.get('/branches', { params: { per_page: 1000 } });
+            return response.data?.data || response.data || [];
+        },
+        staleTime: 300000, // 5 minutes
+    });
+
     // Auto-refresh time calculations every minute
     useEffect(() => {
         const interval = setInterval(() => {
             queryClient.invalidateQueries(['staff-clock-ins-active']);
             queryClient.invalidateQueries(['residents-sign-outs-active']);
             queryClient.invalidateQueries(['visitors-active']);
+            if (showHistory) {
+                queryClient.invalidateQueries(['residents-sign-outs-history']);
+            }
         }, 60000); // Refresh every minute
 
         return () => clearInterval(interval);
-    }, [queryClient]);
+    }, [queryClient, showHistory]);
 
     const handleRefresh = () => {
         queryClient.invalidateQueries(['staff-clock-ins-active']);
         queryClient.invalidateQueries(['residents-sign-outs-active']);
         queryClient.invalidateQueries(['visitors-active']);
+        if (showHistory) {
+            queryClient.invalidateQueries(['residents-sign-outs-history']);
+        }
+    };
+
+    const handleExportHistory = () => {
+        if (!historyData?.data || historyData.data.length === 0) {
+            alert('No data to export');
+            return;
+        }
+
+        // Prepare CSV data
+        const headers = [
+            'Resident Name',
+            'Branch',
+            'Sign Out Date',
+            'Sign Out Time',
+            'Sign In Date',
+            'Sign In Time',
+            'Duration (Hours)',
+            'Destination',
+            'Purpose',
+            'Expected Return',
+            'Status',
+            'Accompanied By',
+            'Emergency Contact Notified',
+            'Signed Out By',
+            'Signed In By',
+            'Notes'
+        ];
+
+        const rows = historyData.data.map(signOut => {
+            const signOutDate = signOut.sign_out_at ? new Date(signOut.sign_out_at) : null;
+            const signInDate = signOut.sign_in_at ? new Date(signOut.sign_in_at) : null;
+            const expectedReturn = signOut.expected_return_at ? new Date(signOut.expected_return_at) : null;
+            
+            let duration = '';
+            if (signOutDate && signInDate) {
+                const hours = (signInDate - signOutDate) / (1000 * 60 * 60);
+                duration = hours.toFixed(2);
+            } else if (signOutDate && !signInDate && signOut.is_active) {
+                const hours = (new Date() - signOutDate) / (1000 * 60 * 60);
+                duration = `${hours.toFixed(2)} (ongoing)`;
+            }
+
+            return [
+                signOut.resident?.name || 'N/A',
+                signOut.branch?.name || 'N/A',
+                signOutDate ? signOutDate.toLocaleDateString() : 'N/A',
+                signOutDate ? signOutDate.toLocaleTimeString() : 'N/A',
+                signInDate ? signInDate.toLocaleDateString() : 'N/A',
+                signInDate ? signInDate.toLocaleTimeString() : 'N/A',
+                duration || 'N/A',
+                signOut.destination || 'N/A',
+                signOut.purpose || 'N/A',
+                expectedReturn ? expectedReturn.toLocaleString() : 'N/A',
+                signOut.is_active ? 'Active' : 'Returned',
+                signOut.accompanied_by || 'N/A',
+                signOut.emergency_contact_notified ? 'Yes' : 'No',
+                signOut.created_by?.name || 'N/A',
+                signOut.signed_in_by?.name || 'N/A',
+                signOut.notes || 'N/A'
+            ];
+        });
+
+        // Create CSV content
+        let csv = headers.join(',') + '\n';
+        rows.forEach(row => {
+            csv += row.map(cell => {
+                // Escape commas and quotes in cell values
+                const cellStr = String(cell || '');
+                if (cellStr.includes(',') || cellStr.includes('"') || cellStr.includes('\n')) {
+                    return `"${cellStr.replace(/"/g, '""')}"`;
+                }
+                return cellStr;
+            }).join(',') + '\n';
+        });
+
+        // Download CSV
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `resident-sign-out-history-${historyFilters.start_date}-to-${historyFilters.end_date}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     };
 
     const isLoading = clockInsLoading || signOutsLoading || visitorsLoading;
@@ -538,6 +686,281 @@ export default function CheckInDashboard() {
                                 </div>
                             );
                         })}
+                    </div>
+                )}
+            </SectionCard>
+
+            {/* Resident Sign-Out History Section (Admin Only) */}
+            <SectionCard>
+                <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'var(--theme-primary-bg)' }}>
+                            <Calendar className="w-5 h-5" style={{ color: 'var(--theme-primary)' }} />
+                        </div>
+                        <div>
+                            <h2 className="text-xl font-semibold text-gray-900">Resident In/Out History</h2>
+                            <p className="text-sm text-gray-600">View and export resident sign-out history for reporting</p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={() => setShowHistory(!showHistory)}
+                        className="px-4 py-2 rounded-lg text-sm font-semibold transition"
+                        style={{ 
+                            backgroundColor: showHistory ? 'var(--theme-primary)' : 'var(--theme-primary-bg)',
+                            color: showHistory ? 'white' : 'var(--theme-primary)'
+                        }}
+                    >
+                        {showHistory ? 'Hide History' : 'Show History'}
+                    </button>
+                </div>
+
+                {showHistory && (
+                    <div className="space-y-4">
+                        {/* Filters */}
+                        <div className="p-4 rounded-xl border border-gray-200 bg-gray-50">
+                            <div className="flex items-center gap-2 mb-4">
+                                <Filter className="w-4 h-4 text-gray-600" />
+                                <h3 className="text-sm font-semibold text-gray-900">Filters</h3>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <div>
+                                    <label className="block text-xs font-medium text-gray-700 mb-1">Start Date</label>
+                                    <input
+                                        type="date"
+                                        value={historyFilters.start_date}
+                                        onChange={(e) => setHistoryFilters({ ...historyFilters, start_date: e.target.value })}
+                                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent"
+                                        style={{ '--tw-ring-color': 'var(--theme-primary-bg)' }}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-medium text-gray-700 mb-1">End Date</label>
+                                    <input
+                                        type="date"
+                                        value={historyFilters.end_date}
+                                        onChange={(e) => setHistoryFilters({ ...historyFilters, end_date: e.target.value })}
+                                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent"
+                                        style={{ '--tw-ring-color': 'var(--theme-primary-bg)' }}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-medium text-gray-700 mb-1">Resident</label>
+                                    <select
+                                        value={historyFilters.resident_id}
+                                        onChange={(e) => setHistoryFilters({ ...historyFilters, resident_id: e.target.value })}
+                                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent"
+                                        style={{ '--tw-ring-color': 'var(--theme-primary-bg)' }}
+                                    >
+                                        <option value="">All Residents</option>
+                                        {residents?.map(resident => (
+                                            <option key={resident.id} value={resident.id}>{resident.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-medium text-gray-700 mb-1">Branch</label>
+                                    <select
+                                        value={historyFilters.branch_id}
+                                        onChange={(e) => setHistoryFilters({ ...historyFilters, branch_id: e.target.value })}
+                                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent"
+                                        style={{ '--tw-ring-color': 'var(--theme-primary-bg)' }}
+                                    >
+                                        <option value="">All Branches</option>
+                                        {branches?.map(branch => (
+                                            <option key={branch.id} value={branch.id}>{branch.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-medium text-gray-700 mb-1">Status</label>
+                                    <select
+                                        value={historyFilters.is_active}
+                                        onChange={(e) => setHistoryFilters({ ...historyFilters, is_active: e.target.value })}
+                                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent"
+                                        style={{ '--tw-ring-color': 'var(--theme-primary-bg)' }}
+                                    >
+                                        <option value="">All Status</option>
+                                        <option value="true">Active (Out)</option>
+                                        <option value="false">Returned</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-medium text-gray-700 mb-1">Search</label>
+                                    <div className="relative">
+                                        <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+                                        <input
+                                            type="text"
+                                            value={historyFilters.search}
+                                            onChange={(e) => setHistoryFilters({ ...historyFilters, search: e.target.value })}
+                                            placeholder="Search by resident name..."
+                                            className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent"
+                                            style={{ '--tw-ring-color': 'var(--theme-primary-bg)' }}
+                                        />
+                                        {historyFilters.search && (
+                                            <button
+                                                onClick={() => setHistoryFilters({ ...historyFilters, search: '' })}
+                                                className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
+                                            >
+                                                <X className="w-4 h-4" />
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="mt-4 flex items-center justify-end gap-2">
+                                <button
+                                    onClick={() => setHistoryFilters({
+                                        start_date: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                                        end_date: new Date().toISOString().split('T')[0],
+                                        resident_id: '',
+                                        branch_id: '',
+                                        is_active: '',
+                                        search: '',
+                                        page: 1,
+                                    })}
+                                    className="px-4 py-2 text-sm font-medium text-gray-700 rounded-lg border border-gray-300 hover:bg-gray-50 transition"
+                                >
+                                    Reset Filters
+                                </button>
+                                <button
+                                    onClick={handleExportHistory}
+                                    disabled={!historyData?.data || historyData.data.length === 0}
+                                    className="px-4 py-2 text-sm font-semibold text-white rounded-lg transition flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    style={{ backgroundColor: 'var(--theme-primary)' }}
+                                >
+                                    <Download className="w-4 h-4" />
+                                    Export CSV
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* History Table */}
+                        {historyLoading ? (
+                            <div className="text-center py-12">
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 mx-auto" style={{ borderColor: 'var(--theme-primary)' }}></div>
+                                <p className="text-gray-600 mt-4">Loading history...</p>
+                            </div>
+                        ) : !historyData?.data || historyData.data.length === 0 ? (
+                            <EmptyState
+                                icon={Calendar}
+                                title="No History Found"
+                                description="No resident sign-out records match your filters."
+                            />
+                        ) : (
+                            <div className="overflow-x-auto">
+                                <table className="w-full border-collapse">
+                                    <thead>
+                                        <tr className="border-b-2 border-gray-200">
+                                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Resident</th>
+                                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Branch</th>
+                                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Sign Out</th>
+                                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Sign In</th>
+                                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Duration</th>
+                                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Destination</th>
+                                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-200">
+                                        {historyData.data.map((signOut) => {
+                                            const signOutDate = signOut.sign_out_at ? new Date(signOut.sign_out_at) : null;
+                                            const signInDate = signOut.sign_in_at ? new Date(signOut.sign_in_at) : null;
+                                            const expectedReturn = signOut.expected_return_at ? new Date(signOut.expected_return_at) : null;
+                                            
+                                            let duration = '';
+                                            if (signOutDate && signInDate) {
+                                                const hours = (signInDate - signOutDate) / (1000 * 60 * 60);
+                                                duration = `${hours.toFixed(1)}h`;
+                                            } else if (signOutDate && !signInDate && signOut.is_active) {
+                                                const hours = (new Date() - signOutDate) / (1000 * 60 * 60);
+                                                duration = `${hours.toFixed(1)}h (ongoing)`;
+                                            }
+
+                                            const isOverdue = expectedReturn && new Date() > expectedReturn && signOut.is_active;
+
+                                            return (
+                                                <tr key={signOut.id} className="hover:bg-gray-50 transition">
+                                                    <td className="px-4 py-3 text-sm">
+                                                        <div className="font-medium text-gray-900">{signOut.resident?.name || 'N/A'}</div>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm text-gray-600">{signOut.branch?.name || 'N/A'}</td>
+                                                    <td className="px-4 py-3 text-sm text-gray-600">
+                                                        {signOutDate ? (
+                                                            <div>
+                                                                <div>{signOutDate.toLocaleDateString()}</div>
+                                                                <div className="text-xs text-gray-500">{signOutDate.toLocaleTimeString()}</div>
+                                                            </div>
+                                                        ) : 'N/A'}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm text-gray-600">
+                                                        {signInDate ? (
+                                                            <div>
+                                                                <div>{signInDate.toLocaleDateString()}</div>
+                                                                <div className="text-xs text-gray-500">{signInDate.toLocaleTimeString()}</div>
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-gray-400">Not returned</span>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm text-gray-600">{duration || 'N/A'}</td>
+                                                    <td className="px-4 py-3 text-sm text-gray-600">
+                                                        <div>{signOut.destination || 'N/A'}</div>
+                                                        {signOut.purpose && (
+                                                            <div className="text-xs text-gray-500">{signOut.purpose}</div>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm">
+                                                        {signOut.is_active ? (
+                                                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                                                                isOverdue 
+                                                                    ? 'bg-red-100 text-red-800' 
+                                                                    : 'bg-blue-100 text-blue-800'
+                                                            }`}>
+                                                                {isOverdue ? 'Overdue' : 'Active'}
+                                                            </span>
+                                                        ) : (
+                                                            <span className="px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">
+                                                                Returned
+                                                            </span>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                                
+                                {/* Pagination */}
+                                {historyData.meta && (
+                                    <div className="mt-4 flex items-center justify-between text-sm text-gray-600">
+                                        <div>
+                                            Showing {historyData.meta.from || 0} to {historyData.meta.to || 0} of {historyData.meta.total || 0} records
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            {historyData.meta && historyData.meta.current_page > 1 && (
+                                                <button
+                                                    onClick={() => {
+                                                        setHistoryFilters({ ...historyFilters, page: historyData.meta.current_page - 1 });
+                                                    }}
+                                                    className="px-3 py-1 rounded border border-gray-300 hover:bg-gray-50 transition"
+                                                >
+                                                    Previous
+                                                </button>
+                                            )}
+                                            {historyData.meta && historyData.meta.current_page < historyData.meta.last_page && (
+                                                <button
+                                                    onClick={() => {
+                                                        setHistoryFilters({ ...historyFilters, page: historyData.meta.current_page + 1 });
+                                                    }}
+                                                    className="px-3 py-1 rounded border border-gray-300 hover:bg-gray-50 transition"
+                                                >
+                                                    Next
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                 )}
             </SectionCard>

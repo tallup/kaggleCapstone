@@ -190,5 +190,68 @@ class ResidentSignOutController extends Controller
 
         return response()->json($signOuts);
     }
+
+    /**
+     * Get all resident sign-out history (for admins to generate reports)
+     */
+    public function history(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        
+        if (!$user) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        // Only admins can access history
+        $isAdmin = $user->role === 'super_admin' || $user->role === 'administrator' || $user->hasRole('administrator');
+        
+        if (!$isAdmin) {
+            return response()->json(['message' => 'Unauthorized. Admin access required.'], 403);
+        }
+
+        $query = ResidentSignOut::with(['resident', 'branch', 'createdBy', 'signedInBy']);
+
+        // Apply facility filtering for non-super admins
+        if ($user->role !== 'super_admin' && $user->facility_id) {
+            $query->where('facility_id', $user->facility_id);
+        }
+
+        // Filter by resident
+        if ($request->filled('resident_id')) {
+            $query->where('resident_id', $request->get('resident_id'));
+        }
+
+        // Filter by branch
+        if ($request->filled('branch_id')) {
+            $query->where('branch_id', $request->get('branch_id'));
+        }
+
+        // Filter by date range
+        if ($request->filled('start_date')) {
+            $query->whereDate('sign_out_at', '>=', $request->get('start_date'));
+        }
+
+        if ($request->filled('end_date')) {
+            $query->whereDate('sign_out_at', '<=', $request->get('end_date'));
+        }
+
+        // Filter by status
+        if ($request->filled('is_active')) {
+            $query->where('is_active', $request->boolean('is_active'));
+        }
+
+        // Search by resident name
+        if ($request->filled('search')) {
+            $search = $request->get('search');
+            $query->whereHas('resident', function($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%");
+            });
+        }
+
+        $perPage = min(500, max(1, (int) $request->get('per_page', 100)));
+        $signOuts = $query->orderBy('sign_out_at', 'desc')->paginate($perPage);
+
+        return response()->json($signOuts);
+    }
 }
 

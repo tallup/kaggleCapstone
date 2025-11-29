@@ -276,6 +276,7 @@ Route::prefix('v1')->middleware([\App\Http\Middleware\SetFacilityContext::class]
     });
     Route::get('/residents/sign-outs/active', [ResidentSignOutController::class, 'active'])->middleware('auth:sanctum');
     Route::get('/residents/sign-outs/overdue', [ResidentSignOutController::class, 'overdue'])->middleware('auth:sanctum');
+    Route::get('/residents/sign-outs/history', [ResidentSignOutController::class, 'history'])->middleware('auth:sanctum');
 
     // Visitors
     Route::prefix('visitors')->middleware('auth:sanctum')->group(function () {
