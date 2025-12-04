@@ -95,6 +95,18 @@ const Visitors = lazy(() => import('./pages/Visitors'));
 const VisitorsView = lazy(() => import('./pages/VisitorsView'));
 const CheckInDashboard = lazy(() => import('./pages/CheckInDashboard'));
 const Welcome = lazy(() => import('./pages/Welcome'));
+const Features = lazy(() => import('./pages/public/Features'));
+const Pricing = lazy(() => import('./pages/public/Pricing'));
+const Modules = lazy(() => import('./pages/public/Modules'));
+const Security = lazy(() => import('./pages/public/Security'));
+const About = lazy(() => import('./pages/public/About'));
+const Contact = lazy(() => import('./pages/public/Contact'));
+const Support = lazy(() => import('./pages/public/Support'));
+const Careers = lazy(() => import('./pages/public/Careers'));
+const PrivacyPolicy = lazy(() => import('./pages/public/PrivacyPolicy'));
+const TermsOfService = lazy(() => import('./pages/public/TermsOfService'));
+const HIPAACompliance = lazy(() => import('./pages/public/HIPAACompliance'));
+const CookiePolicy = lazy(() => import('./pages/public/CookiePolicy'));
 
 function App() {
     // Make toast available globally for backward compatibility
@@ -109,9 +121,23 @@ function App() {
         <Routes>
             <Route path="/" element={<Suspense fallback={<PageLoader />}><Welcome /></Suspense>} />
             <Route path="/login" element={<Login />} />
+            <Route path="/features" element={<Suspense fallback={<PageLoader />}><Features /></Suspense>} />
+            <Route path="/pricing" element={<Suspense fallback={<PageLoader />}><Pricing /></Suspense>} />
+            <Route path="/modules" element={<Suspense fallback={<PageLoader />}><Modules /></Suspense>} />
+            <Route path="/security" element={<Suspense fallback={<PageLoader />}><Security /></Suspense>} />
+            <Route path="/about" element={<Suspense fallback={<PageLoader />}><About /></Suspense>} />
+            <Route path="/contact" element={<Suspense fallback={<PageLoader />}><Contact /></Suspense>} />
+            <Route path="/support" element={<Suspense fallback={<PageLoader />}><Support /></Suspense>} />
+            <Route path="/careers" element={<Suspense fallback={<PageLoader />}><Careers /></Suspense>} />
+            <Route path="/privacy-policy" element={<Suspense fallback={<PageLoader />}><PrivacyPolicy /></Suspense>} />
+            <Route path="/terms-of-service" element={<Suspense fallback={<PageLoader />}><TermsOfService /></Suspense>} />
+            <Route path="/hipaa-compliance" element={<Suspense fallback={<PageLoader />}><HIPAACompliance /></Suspense>} />
+            <Route path="/cookie-policy" element={<Suspense fallback={<PageLoader />}><CookiePolicy /></Suspense>} />
             <Route path="/staff/clock-in" element={<Suspense fallback={<PageLoader />}><PublicStaffClockIn /></Suspense>} />
+            {/* Public welcome page at /app */}
+            <Route path="/app" element={<Suspense fallback={<PageLoader />}><Welcome /></Suspense>} />
             <Route
-                path="/app"
+                path="/app/*"
                 element={
                     <ProtectedRoute>
                         <Layout />

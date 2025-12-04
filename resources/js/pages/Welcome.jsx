@@ -427,28 +427,28 @@ export default function Welcome() {
             <div>
               <h4 className="text-white font-semibold mb-4">Product</h4>
               <ul className="space-y-2 text-sm">
-                <li><a href="#" className="hover:text-white">Features</a></li>
-                <li><a href="#" className="hover:text-white">Pricing</a></li>
-                <li><a href="#" className="hover:text-white">Modules</a></li>
-                <li><a href="#" className="hover:text-white">Security</a></li>
+                <li><a href="/features" onClick={(e) => { e.preventDefault(); navigate('/features'); }} className="hover:text-white">Features</a></li>
+                <li><a href="/pricing" onClick={(e) => { e.preventDefault(); navigate('/pricing'); }} className="hover:text-white">Pricing</a></li>
+                <li><a href="/modules" onClick={(e) => { e.preventDefault(); navigate('/modules'); }} className="hover:text-white">Modules</a></li>
+                <li><a href="/security" onClick={(e) => { e.preventDefault(); navigate('/security'); }} className="hover:text-white">Security</a></li>
               </ul>
             </div>
             <div>
               <h4 className="text-white font-semibold mb-4">Company</h4>
               <ul className="space-y-2 text-sm">
-                <li><a href="#" className="hover:text-white">About</a></li>
-                <li><a href="#" className="hover:text-white">Contact</a></li>
-                <li><a href="#" className="hover:text-white">Support</a></li>
-                <li><a href="#" className="hover:text-white">Careers</a></li>
+                <li><a href="/about" onClick={(e) => { e.preventDefault(); navigate('/about'); }} className="hover:text-white">About</a></li>
+                <li><a href="/contact" onClick={(e) => { e.preventDefault(); navigate('/contact'); }} className="hover:text-white">Contact</a></li>
+                <li><a href="/support" onClick={(e) => { e.preventDefault(); navigate('/support'); }} className="hover:text-white">Support</a></li>
+                <li><a href="/careers" onClick={(e) => { e.preventDefault(); navigate('/careers'); }} className="hover:text-white">Careers</a></li>
               </ul>
             </div>
             <div>
               <h4 className="text-white font-semibold mb-4">Legal</h4>
               <ul className="space-y-2 text-sm">
-                <li><a href="#" className="hover:text-white">Privacy Policy</a></li>
-                <li><a href="#" className="hover:text-white">Terms of Service</a></li>
-                <li><a href="#" className="hover:text-white">HIPAA Compliance</a></li>
-                <li><a href="#" className="hover:text-white">Cookie Policy</a></li>
+                <li><a href="/privacy-policy" onClick={(e) => { e.preventDefault(); navigate('/privacy-policy'); }} className="hover:text-white">Privacy Policy</a></li>
+                <li><a href="/terms-of-service" onClick={(e) => { e.preventDefault(); navigate('/terms-of-service'); }} className="hover:text-white">Terms of Service</a></li>
+                <li><a href="/hipaa-compliance" onClick={(e) => { e.preventDefault(); navigate('/hipaa-compliance'); }} className="hover:text-white">HIPAA Compliance</a></li>
+                <li><a href="/cookie-policy" onClick={(e) => { e.preventDefault(); navigate('/cookie-policy'); }} className="hover:text-white">Cookie Policy</a></li>
               </ul>
             </div>
           </div>

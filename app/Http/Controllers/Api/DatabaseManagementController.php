@@ -77,14 +77,14 @@ class DatabaseManagementController extends Controller
             // Get database connection details
             $connection = config('database.default');
             $config = config("database.connections.{$connection}");
-            
-            $host = $config['host'];
-            $database = $config['database'];
-            $username = $config['username'];
-            $password = $config['password'];
 
             // Create backup using mysqldump or sqlite dump
             if ($config['driver'] === 'mysql') {
+                $host = $config['host'] ?? 'localhost';
+                $database = $config['database'] ?? '';
+                $username = $config['username'] ?? '';
+                $password = $config['password'] ?? '';
+
                 $command = sprintf(
                     'mysqldump -h %s -u %s -p%s %s > %s 2>&1',
                     escapeshellarg($host),
@@ -196,10 +196,10 @@ class DatabaseManagementController extends Controller
             $config = config("database.connections.{$connection}");
 
             if ($config['driver'] === 'mysql') {
-                $host = $config['host'];
-                $database = $config['database'];
-                $username = $config['username'];
-                $password = $config['password'];
+                $host = $config['host'] ?? 'localhost';
+                $database = $config['database'] ?? '';
+                $username = $config['username'] ?? '';
+                $password = $config['password'] ?? '';
 
                 $command = sprintf(
                     'mysql -h %s -u %s -p%s %s < %s 2>&1',
