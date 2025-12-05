@@ -64,16 +64,8 @@ class StoreResidentRequest extends FormRequest
             $this->merge(['name' => implode(' ', $parts)]);
         }
 
-        // Handle array fields that come as strings
-        if ($this->has('medical_conditions') && is_string($this->input('medical_conditions'))) {
-            $value = trim($this->input('medical_conditions'));
-            $this->merge(['medical_conditions' => !empty($value) ? [$value] : null]);
-        }
-
-        if ($this->has('allergies') && is_string($this->input('allergies'))) {
-            $value = trim($this->input('allergies'));
-            $this->merge(['allergies' => !empty($value) ? [$value] : null]);
-        }
+        // Don't convert allergies and medical_conditions here - let validation accept strings
+        // The controller will handle the conversion to arrays for storage
     }
 }
 
