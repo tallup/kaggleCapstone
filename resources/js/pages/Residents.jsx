@@ -8,6 +8,7 @@ import ScrollReveal from '../components/ui/ScrollReveal';
 import Tooltip from '../components/ui/Tooltip';
 import TooltipIcon from '../components/ui/TooltipIcon';
 import EmptyState from '../components/ui/EmptyState';
+import { formatPhoneNumber } from '../utils/phoneFormatter';
 
 export default function Residents() {
     const navigate = useNavigate();
@@ -392,13 +393,13 @@ function ResidentForm({ record, branches, onClose, onSuccess }) {
         last_name: record?.last_name || '',
         date_of_birth: record?.date_of_birth || '',
         gender: record?.gender || '',
-        phone: record?.phone || '',
+        phone: record?.phone ? formatPhoneNumber(record.phone) : '',
         room: record?.room || '',
         room_number: record?.room_number || '',
         branch_id: record?.branch_id || '',
         admission_date: record?.admission_date || new Date().toISOString().split('T')[0],
         emergency_contact_name: record?.emergency_contact_name || '',
-        emergency_contact_phone: record?.emergency_contact_phone || '',
+        emergency_contact_phone: record?.emergency_contact_phone ? formatPhoneNumber(record.emergency_contact_phone) : '',
         diagnosis: record?.diagnosis || '',
         allergies: record?.allergies || '',
         medical_conditions: record?.medical_conditions || '',
@@ -453,13 +454,13 @@ function ResidentForm({ record, branches, onClose, onSuccess }) {
                 last_name: record.last_name || '',
                 date_of_birth: formatDateForInput(record.date_of_birth),
                 gender: record.gender || '',
-                phone: record.phone || '',
+                phone: record.phone ? formatPhoneNumber(record.phone) : '',
                 room: record.room || '',
                 room_number: record.room_number || '',
                 branch_id: record.branch_id || '',
                 admission_date: formatDateForInput(record.admission_date) || new Date().toISOString().split('T')[0],
                 emergency_contact_name: record.emergency_contact_name || '',
-                emergency_contact_phone: record.emergency_contact_phone || '',
+                emergency_contact_phone: record.emergency_contact_phone ? formatPhoneNumber(record.emergency_contact_phone) : '',
                 diagnosis: record.diagnosis || '',
                 allergies: allergiesValue,
                 medical_conditions: medicalConditionsValue,
@@ -910,10 +911,16 @@ function ResidentForm({ record, branches, onClose, onSuccess }) {
                                     </label>
                                     <input
                                         type="tel"
-                                        value={formData.phone}
-                                        onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                                        value={formData.phone || ''}
+                                        onChange={(e) => {
+                                            const formatted = formatPhoneNumber(e.target.value);
+                                            setFormData({...formData, phone: formatted});
+                                        }}
+                                        placeholder="(425) 555-0123"
+                                        maxLength={14}
                                         className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
                                     />
+                                    <p className="text-xs text-gray-500 mt-1">American format: (XXX) XXX-XXXX</p>
                                 </div>
 
                                 <div>
@@ -1055,10 +1062,16 @@ function ResidentForm({ record, branches, onClose, onSuccess }) {
                                     </label>
                                     <input
                                         type="tel"
-                                        value={formData.emergency_contact_phone}
-                                        onChange={(e) => setFormData({...formData, emergency_contact_phone: e.target.value})}
+                                        value={formData.emergency_contact_phone || ''}
+                                        onChange={(e) => {
+                                            const formatted = formatPhoneNumber(e.target.value);
+                                            setFormData({...formData, emergency_contact_phone: formatted});
+                                        }}
+                                        placeholder="(425) 555-0123"
+                                        maxLength={14}
                                         className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
                                     />
+                                    <p className="text-xs text-gray-500 mt-1">American format: (XXX) XXX-XXXX</p>
                                 </div>
                             </div>
                         </div>

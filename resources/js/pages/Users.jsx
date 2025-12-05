@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import { Users, Plus, Edit, Trash2, Search, Filter, Upload, X, Eye, Mail, Phone, Calendar, Briefcase, MapPin, Award, Shield, Clock, User as UserIcon, AlertCircle, Building2 } from 'lucide-react';
 import EmptyState from '../components/ui/EmptyState';
+import { formatPhoneNumber } from '../utils/phoneFormatter';
 
 export default function UsersPage() {
     const queryClient = useQueryClient();
@@ -414,7 +415,7 @@ function UserForm({ record, branches, roles, facilities, isSuperAdmin, onClose, 
         last_name: record?.last_name || '',
         email: record?.email || '',
         password: '',
-        phone_number: record?.phone_number || '',
+        phone_number: record?.phone_number ? formatPhoneNumber(record.phone_number) : '',
         date_of_birth: formatDateForInput(record?.date_of_birth),
         marital_status: record?.marital_status || '',
         sex: record?.sex || '',
@@ -461,7 +462,7 @@ function UserForm({ record, branches, roles, facilities, isSuperAdmin, onClose, 
                     last_name: record.last_name || '',
                     email: record.email || '',
                     password: '',
-                    phone_number: record.phone_number || '',
+                    phone_number: record.phone_number ? formatPhoneNumber(record.phone_number) : '',
                     date_of_birth: formatDateForInput(record.date_of_birth),
                     marital_status: record.marital_status || '',
                     sex: record.sex || '',
@@ -914,10 +915,14 @@ function UserForm({ record, branches, roles, facilities, isSuperAdmin, onClose, 
                                     </label>
                                     <input
                                         type="tel"
-                                        value={formData.phone_number}
-                                        onChange={(e) => setFormData({ ...formData, phone_number: e.target.value })}
+                                        value={formData.phone_number || ''}
+                                        onChange={(e) => {
+                                            const formatted = formatPhoneNumber(e.target.value);
+                                            setFormData({ ...formData, phone_number: formatted });
+                                        }}
                                         required
                                         placeholder="(425) 555-0123"
+                                        maxLength={14}
                                         className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
                                     />
                                     <p className="text-xs text-gray-500 mt-1">American format: (XXX) XXX-XXXX</p>

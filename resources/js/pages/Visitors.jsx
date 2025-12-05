@@ -333,8 +333,14 @@ function VisitorCheckInForm({ branches, residents, onClose, onSubmit, isSubmitti
                         </label>
                         <input
                             type="tel"
-                            value={form.phone}
-                            onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                            value={form.phone || ''}
+                            onChange={(e) => {
+                                const { formatPhoneNumber } = require('../utils/phoneFormatter');
+                                const formatted = formatPhoneNumber(e.target.value);
+                                setForm({ ...form, phone: formatted });
+                            }}
+                            placeholder="(425) 555-0123"
+                            maxLength={14}
                             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                         />
                     </div>

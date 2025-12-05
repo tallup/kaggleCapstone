@@ -219,10 +219,15 @@ function PersonalInfoTab() {
                     <label className="block text-sm font-medium text-gray-900 mb-1">Phone *</label>
                     <input
                         type="tel"
-                        value={formData.phone_number}
-                        onChange={(e) => updateForm({ phone_number: e.target.value })}
+                        value={formData.phone_number || ''}
+                        onChange={(e) => {
+                            const { formatPhoneNumber } = require('../utils/phoneFormatter');
+                            const formatted = formatPhoneNumber(e.target.value);
+                            updateForm({ phone_number: formatted });
+                        }}
                         required
                         placeholder="(425) 555-0123"
+                        maxLength={14}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-[var(--theme-primary)]"
                     />
                     <p className="text-xs text-gray-500 mt-1">American format: (XXX) XXX-XXXX</p>

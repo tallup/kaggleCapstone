@@ -77,7 +77,10 @@ function FormProvider({ children, initialData }) {
                 last_name: initialData.last_name || '',
                 email: initialData.email || '',
                 password: '', // Never prefill password
-                phone_number: initialData.phone_number || '',
+                phone_number: initialData.phone_number ? (() => {
+                    const { formatPhoneNumber } = require('../utils/phoneFormatter');
+                    return formatPhoneNumber(initialData.phone_number);
+                })() : '',
                 date_of_birth: initialData.date_of_birth ? formatDateForInput(initialData.date_of_birth) : '',
                 marital_status: initialData.marital_status || '',
                 sex: initialData.sex || '',
@@ -141,7 +144,10 @@ function FormProvider({ children, initialData }) {
                 last_name: initialData.last_name || '',
                 email: initialData.email || '',
                 password: '', // Don't prefill password
-                phone_number: initialData.phone_number || '',
+                phone_number: initialData.phone_number ? (() => {
+                    const { formatPhoneNumber } = require('../utils/phoneFormatter');
+                    return formatPhoneNumber(initialData.phone_number);
+                })() : '',
                 date_of_birth: formattedDateOfBirth,
                 marital_status: initialData.marital_status || '',
                 sex: initialData.sex || '',
@@ -335,9 +341,14 @@ function PersonalInfoTab() {
                     <input
                         type="tel"
                         value={formData.phone_number || ''}
-                        onChange={(e) => updateForm({ phone_number: e.target.value })}
+                        onChange={(e) => {
+                            const { formatPhoneNumber } = require('../utils/phoneFormatter');
+                            const formatted = formatPhoneNumber(e.target.value);
+                            updateForm({ phone_number: formatted });
+                        }}
                         required
                         placeholder="(425) 555-0123"
+                        maxLength={14}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-[var(--theme-primary)]"
                     />
                     <p className="text-xs text-gray-500 mt-1">American format: (XXX) XXX-XXXX</p>
