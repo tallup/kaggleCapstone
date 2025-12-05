@@ -93,24 +93,76 @@ class PharmacyOrderController extends BaseApiController
             'items.*.notes' => 'nullable|string',
         ]);
         
-        return DB::transaction(function () use ($validated) {
-            $validated['ordered_by'] = auth()->id();
-            $items = $validated['items'];
-            unset($validated['items']);
-            
-            $order = PharmacyOrder::create($validated);
-            
-            foreach ($items as $itemData) {
-                $item = $order->items()->create($itemData);
-                $item->calculateLineTotal();
-                $item->save();
+        // Verify facility access for branch and supplier
+        $user = auth()->user();
+        if ($user && $user->role !== 'super_admin') {
+            $facility = null;
+            try {
+                $facility = app()->bound('facility') ? app('facility') : null;
+            } catch (\Exception $e) {
+                $facility = null;
             }
             
-            $order->calculateTotal();
-            $order->save();
+            if (!$facility && $user->facility_id) {
+                $facility = \App\Models\Facility::find($user->facility_id);
+            }
             
-            return response()->json($order->load(['branch', 'supplier', 'orderedBy', 'items.drug']), 201);
-        });
+            if ($facility) {
+                // Verify branch belongs to facility
+                $branch = \App\Models\Branch::find($validated['branch_id']);
+                if (!$branch || $branch->facility_id !== $facility->id) {
+                    return response()->json([
+                        'message' => 'The selected branch does not belong to your facility.',
+                    ], 403);
+                }
+                
+                // Verify supplier belongs to facility (through creator or orders)
+                $supplier = \App\Models\PharmacySupplier::find($validated['supplier_id']);
+                if ($supplier) {
+                    $hasAccess = ($supplier->createdBy && $supplier->createdBy->facility_id === $facility->id) ||
+                                 $supplier->orders()->whereHas('branch', function ($q) use ($facility) {
+                                     $q->where('facility_id', $facility->id);
+                                 })->exists();
+                    
+                    if (!$hasAccess) {
+                        return response()->json([
+                            'message' => 'The selected supplier does not belong to your facility.',
+                        ], 403);
+                    }
+                }
+            }
+        }
+        
+        try {
+            return DB::transaction(function () use ($validated) {
+                $validated['ordered_by'] = auth()->id();
+                $items = $validated['items'];
+                unset($validated['items']);
+                
+                $order = PharmacyOrder::create($validated);
+                
+                foreach ($items as $itemData) {
+                    $item = $order->items()->create($itemData);
+                    $item->calculateLineTotal();
+                    $item->save();
+                }
+                
+                $order->calculateTotal();
+                $order->save();
+                
+                return response()->json($order->load(['branch', 'supplier', 'orderedBy', 'items.drug']), 201);
+            });
+        } catch (\Exception $e) {
+            \Log::error('Error creating pharmacy order: ' . $e->getMessage(), [
+                'exception' => $e,
+                'trace' => $e->getTraceAsString(),
+            ]);
+            
+            return response()->json([
+                'message' => 'Failed to create order. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
     }
     
     public function show(string $id): JsonResponse

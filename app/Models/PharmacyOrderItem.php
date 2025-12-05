@@ -40,8 +40,12 @@ class PharmacyOrderItem extends Model
     // Methods
     public function calculateLineTotal(): void
     {
-        $subtotal = $this->quantity_ordered * $this->unit_cost;
-        $discountAmount = $subtotal * ($this->discount / 100);
+        $quantity = $this->quantity_ordered ?? 0;
+        $unitCost = $this->unit_cost ?? 0;
+        $discount = $this->discount ?? 0;
+        
+        $subtotal = $quantity * $unitCost;
+        $discountAmount = $subtotal * ($discount / 100);
         $this->line_total = $subtotal - $discountAmount;
     }
 

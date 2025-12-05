@@ -136,7 +136,11 @@ class PharmacyOrder extends Model
     {
         $prefix = 'PO';
         $year = now()->format('Y');
-        $lastOrder = static::where('order_number', 'like', "{$prefix}-{$year}-%")
+        
+        // Use withoutGlobalScope to get all orders for number generation
+        // This ensures order numbers are unique across all facilities
+        $lastOrder = static::withoutGlobalScope(\App\Models\Scopes\FacilityScope::class)
+            ->where('order_number', 'like', "{$prefix}-{$year}-%")
             ->orderBy('id', 'desc')
             ->first();
 
