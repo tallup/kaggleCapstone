@@ -920,7 +920,6 @@ function ResidentForm({ record, branches, onClose, onSuccess }) {
                                         maxLength={14}
                                         className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
                                     />
-                                    <p className="text-xs text-gray-500 mt-1">American format: (XXX) XXX-XXXX</p>
                                 </div>
 
                                 <div>
@@ -1071,7 +1070,6 @@ function ResidentForm({ record, branches, onClose, onSuccess }) {
                                         maxLength={14}
                                         className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
                                     />
-                                    <p className="text-xs text-gray-500 mt-1">American format: (XXX) XXX-XXXX</p>
                                 </div>
                             </div>
                         </div>

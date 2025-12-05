@@ -925,7 +925,6 @@ function UserForm({ record, branches, roles, facilities, isSuperAdmin, onClose, 
                                         maxLength={14}
                                         className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
                                     />
-                                    <p className="text-xs text-gray-500 mt-1">American format: (XXX) XXX-XXXX</p>
                                     {errors.phone_number && <p className="text-xs text-red-600 mt-1">{errors.phone_number[0]}</p>}
                                 </div>
 

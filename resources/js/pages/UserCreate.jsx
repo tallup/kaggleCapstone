@@ -230,7 +230,6 @@ function PersonalInfoTab() {
                         maxLength={14}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-[var(--theme-primary)]"
                     />
-                    <p className="text-xs text-gray-500 mt-1">American format: (XXX) XXX-XXXX</p>
                 </div>
                 <div>
                     <label className="block text-sm font-medium text-gray-900 mb-1">Date of Birth *</label>
