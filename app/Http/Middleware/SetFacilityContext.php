@@ -22,10 +22,18 @@ class SetFacilityContext
 
         // Super admins don't have facility context restrictions
         if ($user && $user->role === 'super_admin') {
-            // Check if accessing via subdomain
+            // First, check if accessing via subdomain
             $subdomain = $this->extractSubdomain($request);
             if ($subdomain) {
                 $facility = Facility::where('subdomain', $subdomain)->first();
+            }
+            
+            // If no subdomain, check URL path for facility ID (e.g., /super-admin/facilities/10/edit)
+            if (!$facility) {
+                $facilityId = $this->extractFacilityIdFromPath($request);
+                if ($facilityId) {
+                    $facility = Facility::find($facilityId);
+                }
             }
         } elseif ($user) {
             // Try to get facility from subdomain first
@@ -64,6 +72,27 @@ class SetFacilityContext
         // e.g., evergreen.yourapp.com -> evergreen
         if (count($parts) > 2) {
             return $parts[0];
+        }
+
+        return null;
+    }
+
+    /**
+     * Extract facility ID from URL path
+     * Matches patterns like:
+     * - /super-admin/facilities/10/edit
+     * - /admin/facilities/10/edit
+     * - /facilities/10/edit
+     * - /facilities/10
+     */
+    private function extractFacilityIdFromPath(Request $request): ?int
+    {
+        $path = $request->path();
+        
+        // Match any path containing /facilities/{id}
+        // This handles: /admin/facilities/{id}, /super-admin/facilities/{id}, /facilities/{id}
+        if (preg_match('/facilities\/(\d+)/', $path, $matches)) {
+            return (int) $matches[1];
         }
 
         return null;
