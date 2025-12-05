@@ -402,7 +402,6 @@ function ResidentForm({ record, branches, onClose, onSuccess }) {
         diagnosis: record?.diagnosis || '',
         allergies: record?.allergies || '',
         medical_conditions: record?.medical_conditions || '',
-        physician_name: record?.physician_name || '',
         medicare_number: record?.medicare_number || '',
         primary_care_doctor: record?.primary_care_doctor || '',
         is_active: record?.is_active ?? true,
@@ -464,7 +463,6 @@ function ResidentForm({ record, branches, onClose, onSuccess }) {
                 diagnosis: record.diagnosis || '',
                 allergies: allergiesValue,
                 medical_conditions: medicalConditionsValue,
-                physician_name: record.physician_name || '',
                 medicare_number: record.medicare_number || '',
                 primary_care_doctor: record.primary_care_doctor || '',
                 is_active: record.is_active ?? true,
@@ -487,7 +485,6 @@ function ResidentForm({ record, branches, onClose, onSuccess }) {
                 diagnosis: '',
                 allergies: '',
                 medical_conditions: '',
-                physician_name: '',
                 medicare_number: '',
                 primary_care_doctor: '',
                 is_active: true,
@@ -615,7 +612,7 @@ function ResidentForm({ record, branches, onClose, onSuccess }) {
                 const optionalFields = [
                     'middle_names', 'gender', 'phone', 'room', 'room_number',
                     'emergency_contact_name', 'emergency_contact_phone',
-                    'diagnosis', 'physician_name', 'medicare_number', 'primary_care_doctor', 'status'
+                    'diagnosis', 'medicare_number', 'primary_care_doctor', 'status'
                 ];
                 
                 optionalFields.forEach(key => {
@@ -624,6 +621,9 @@ function ResidentForm({ record, branches, onClose, onSuccess }) {
                         formDataToSend.append(key, value);
                     }
                 });
+                
+                // Set physician_name to null (field removed from form)
+                formDataToSend.append('physician_name', '');
                 
                 // Always send allergies and medical_conditions as strings (even if empty)
                 formDataToSend.append('allergies', formData.allergies || '');
@@ -675,6 +675,9 @@ function ResidentForm({ record, branches, onClose, onSuccess }) {
                 // Ensure allergies and medical_conditions are always strings
                 payload.allergies = formData.allergies || '';
                 payload.medical_conditions = formData.medical_conditions || '';
+                
+                // Set physician_name to null (field removed from form)
+                payload.physician_name = null;
 
                 if (record) {
                     response = await api.put(`/residents/${record.id}`, payload);
@@ -986,18 +989,6 @@ function ResidentForm({ record, branches, onClose, onSuccess }) {
                                         rows={3}
                                         className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
                                         placeholder="List any known allergies..."
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-900 mb-2">
-                                        Physician Name
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={formData.physician_name}
-                                        onChange={(e) => setFormData({...formData, physician_name: e.target.value})}
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
                                     />
                                 </div>
 
