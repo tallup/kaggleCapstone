@@ -32,6 +32,10 @@ class FacilityController extends BaseApiController
 
     public function store(Request $request): JsonResponse
     {
+        if ($error = $this->requirePermission('create_facilities')) {
+            return $error;
+        }
+
         $rules = [
             'name' => 'required|string|max:255',
             'address' => 'nullable|string|max:1000',
@@ -360,6 +364,10 @@ class FacilityController extends BaseApiController
 
     public function destroy($id): JsonResponse
     {
+        if ($error = $this->requirePermission('delete_facilities')) {
+            return $error;
+        }
+
         $facility = Facility::findOrFail($id);
         $facility->delete();
         return response()->json(['message' => 'Facility deleted']);

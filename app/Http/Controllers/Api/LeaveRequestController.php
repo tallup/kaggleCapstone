@@ -30,6 +30,10 @@ class LeaveRequestController extends BaseApiController
 
     public function store(Request $request): JsonResponse
     {
+        if ($error = $this->requirePermission('create_leave_requests')) {
+            return $error;
+        }
+
         try {
             $validated = $request->validate([
                 'staff_id' => 'sometimes|exists:users,id',
@@ -119,6 +123,10 @@ class LeaveRequestController extends BaseApiController
 
     public function update(Request $request, $id): JsonResponse
     {
+        if ($error = $this->requirePermission('edit_leave_requests')) {
+            return $error;
+        }
+
         $leave = LeaveRequest::findOrFail($id);
         
         // Caregivers can only edit their own leave requests
@@ -165,6 +173,10 @@ class LeaveRequestController extends BaseApiController
 
     public function destroy($id): JsonResponse
     {
+        if ($error = $this->requirePermission('delete_leave_requests')) {
+            return $error;
+        }
+
         $leave = LeaveRequest::findOrFail($id);
         
         // Caregivers can only delete their own leave requests

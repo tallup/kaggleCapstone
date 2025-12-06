@@ -113,6 +113,10 @@ class IncidentController extends BaseApiController
 
     public function store(Request $request): JsonResponse
     {
+        if ($error = $this->requirePermission('create_incidents')) {
+            return $error;
+        }
+
         // Check module access
         if ($error = $this->requireModuleAccess(\App\Constants\Modules::INCIDENTS)) {
             return $error;
@@ -214,6 +218,10 @@ class IncidentController extends BaseApiController
 
     public function update(Request $request, $id): JsonResponse
     {
+        if ($error = $this->requirePermission('edit_incidents')) {
+            return $error;
+        }
+
         // Check module access
         if ($error = $this->requireModuleAccess(\App\Constants\Modules::INCIDENTS)) {
             return $error;
@@ -263,6 +271,10 @@ class IncidentController extends BaseApiController
 
     public function destroy($id): JsonResponse
     {
+        if ($error = $this->requirePermission('delete_incidents')) {
+            return $error;
+        }
+
         // Check module access
         if ($error = $this->requireModuleAccess(\App\Constants\Modules::INCIDENTS)) {
             return $error;

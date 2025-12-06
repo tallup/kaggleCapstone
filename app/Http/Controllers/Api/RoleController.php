@@ -36,6 +36,10 @@ class RoleController extends BaseApiController
 
     public function store(Request $request): JsonResponse
     {
+        if ($error = $this->requirePermission('create_roles')) {
+            return $error;
+        }
+
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:roles,name',
             'permissions' => 'array',
@@ -49,6 +53,10 @@ class RoleController extends BaseApiController
 
     public function update(Request $request, $id): JsonResponse
     {
+        if ($error = $this->requirePermission('edit_roles')) {
+            return $error;
+        }
+
         $role = Role::findOrFail($id);
         $validated = $request->validate([
             'name' => 'sometimes|required|string|max:255|unique:roles,name,' . $role->id,
@@ -66,6 +74,10 @@ class RoleController extends BaseApiController
 
     public function destroy($id): JsonResponse
     {
+        if ($error = $this->requirePermission('delete_roles')) {
+            return $error;
+        }
+
         $role = Role::findOrFail($id);
         $role->permissions()->detach();
         $role->delete();

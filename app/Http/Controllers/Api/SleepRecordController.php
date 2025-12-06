@@ -103,6 +103,10 @@ class SleepRecordController extends BaseApiController
 
     public function store(Request $request): JsonResponse
     {
+        if ($error = $this->requirePermission('create_sleep_records')) {
+            return $error;
+        }
+
         $validated = $request->validate([
             'resident_id' => 'required|exists:residents,id',
             'branch_id' => 'required|exists:branches,id',
@@ -142,6 +146,10 @@ class SleepRecordController extends BaseApiController
 
     public function update(Request $request, $id): JsonResponse
     {
+        if ($error = $this->requirePermission('edit_sleep_records')) {
+            return $error;
+        }
+
         $sleepRecord = SleepRecord::findOrFail($id);
 
         $validated = $request->validate([
@@ -181,6 +189,10 @@ class SleepRecordController extends BaseApiController
 
     public function destroy($id): JsonResponse
     {
+        if ($error = $this->requirePermission('delete_sleep_records')) {
+            return $error;
+        }
+
         $sleepRecord = SleepRecord::findOrFail($id);
         $sleepRecord->delete();
 
