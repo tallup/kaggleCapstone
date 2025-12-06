@@ -52,11 +52,12 @@ class FacilityPermissionController extends BaseApiController
                 ];
             }
 
-            // Get role permissions for administrator and caregiver
+            // Get role permissions for administrator, caregiver, and nurse
             $administratorRole = Role::where(function($query) {
                 $query->where('name', 'administrator')->orWhere('name', 'admin');
             })->first();
             $caregiverRole = Role::where('name', 'caregiver')->first();
+            $nurseRole = Role::where('name', 'nurse')->first();
 
             $rolePermissions = [];
             
@@ -100,6 +101,24 @@ class FacilityPermissionController extends BaseApiController
                 }
             } else {
                 \Log::warning('Caregiver role not found in database');
+            }
+            
+            if ($nurseRole) {
+                try {
+                    $rolePermissions['nurse'] = $this->getRolePermissionsData($facility, $nurseRole);
+                    \Log::info('Nurse role permissions loaded', [
+                        'role_id' => $nurseRole->id,
+                        'permissions_count' => count($rolePermissions['nurse']['global_permissions'] ?? [])
+                    ]);
+                } catch (\Exception $e) {
+                    \Log::error('Error getting nurse permissions: ' . $e->getMessage(), [
+                        'trace' => $e->getTraceAsString(),
+                        'role_id' => $nurseRole->id
+                    ]);
+                    // Continue without nurse permissions
+                }
+            } else {
+                \Log::warning('Nurse role not found in database');
             }
 
             return $this->success([
@@ -179,11 +198,11 @@ class FacilityPermissionController extends BaseApiController
             return $this->error('Unauthorized. Super admin or facility admin access required.', 403);
         }
 
-        // Facility admin can only access administrator and caregiver roles
+        // Facility admin can only access administrator, caregiver, and nurse roles
         if ($isFacilityAdmin && !$isSuperAdmin) {
             $roleName = strtolower($role->name);
-            if ($roleName !== 'administrator' && $roleName !== 'admin' && $roleName !== 'caregiver') {
-                return $this->error('Unauthorized. Facility admin can only manage administrator and caregiver permissions.', 403);
+            if ($roleName !== 'administrator' && $roleName !== 'admin' && $roleName !== 'caregiver' && $roleName !== 'nurse') {
+                return $this->error('Unauthorized. Facility admin can only manage administrator, caregiver, and nurse permissions.', 403);
             }
         }
 
@@ -214,11 +233,11 @@ class FacilityPermissionController extends BaseApiController
             return $this->error('Unauthorized. Super admin or facility admin access required.', 403);
         }
 
-        // Facility admin can only update administrator and caregiver roles
+        // Facility admin can only update administrator, caregiver, and nurse roles
         if ($isFacilityAdmin && !$isSuperAdmin) {
             $roleName = strtolower($role->name);
-            if ($roleName !== 'administrator' && $roleName !== 'admin' && $roleName !== 'caregiver') {
-                return $this->error('Unauthorized. Facility admin can only manage administrator and caregiver permissions.', 403);
+            if ($roleName !== 'administrator' && $roleName !== 'admin' && $roleName !== 'caregiver' && $roleName !== 'nurse') {
+                return $this->error('Unauthorized. Facility admin can only manage administrator, caregiver, and nurse permissions.', 403);
             }
         }
 

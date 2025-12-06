@@ -115,6 +115,7 @@ export default function FacilityPermissions({ facilityId, facilityName, onBack }
   const [localModules, setLocalModules] = useState([]);
   const [localAdminPermissions, setLocalAdminPermissions] = useState({});
   const [localCaregiverPermissions, setLocalCaregiverPermissions] = useState({});
+  const [localNursePermissions, setLocalNursePermissions] = useState({});
 
   // Initialize local state from API data - only on initial load or when data actually changes
   useEffect(() => {
@@ -145,6 +146,17 @@ export default function FacilityPermissions({ facilityId, facilityName, onBack }
         });
         setLocalCaregiverPermissions(caregiverPerms);
       }
+
+      // Nurse permissions
+      if (data.role_permissions?.nurse) {
+        const nursePerms = {};
+        data.role_permissions.nurse.permissions_by_group?.forEach((group) => {
+          group.permissions.forEach((perm) => {
+            nursePerms[perm.name] = perm.is_allowed;
+          });
+        });
+        setLocalNursePermissions(nursePerms);
+      }
     }
   }, [data]);
 
@@ -165,6 +177,11 @@ export default function FacilityPermissions({ facilityId, facilityName, onBack }
         ...prev,
         [permissionName]: !prev[permissionName],
       }));
+    } else if (role === 'nurse') {
+      setLocalNursePermissions((prev) => ({
+        ...prev,
+        [permissionName]: !prev[permissionName],
+      }));
     }
   };
 
@@ -174,13 +191,19 @@ export default function FacilityPermissions({ facilityId, facilityName, onBack }
   };
 
   const handleSaveRolePermissions = (role) => {
-    const roleId = role === 'administrator'
-      ? data.role_permissions.administrator.role.id
-      : data.role_permissions.caregiver.role.id;
-
-    const permissions = role === 'administrator'
-      ? Object.keys(localAdminPermissions).filter((p) => localAdminPermissions[p])
-      : Object.keys(localCaregiverPermissions).filter((p) => localCaregiverPermissions[p]);
+    let roleId;
+    let permissions;
+    
+    if (role === 'administrator') {
+      roleId = data.role_permissions.administrator.role.id;
+      permissions = Object.keys(localAdminPermissions).filter((p) => localAdminPermissions[p]);
+    } else if (role === 'caregiver') {
+      roleId = data.role_permissions.caregiver.role.id;
+      permissions = Object.keys(localCaregiverPermissions).filter((p) => localCaregiverPermissions[p]);
+    } else if (role === 'nurse') {
+      roleId = data.role_permissions.nurse.role.id;
+      permissions = Object.keys(localNursePermissions).filter((p) => localNursePermissions[p]);
+    }
 
     updateRolePermissionsMutation.mutate({ roleId, permissions });
   };
@@ -273,6 +296,16 @@ export default function FacilityPermissions({ facilityId, facilityName, onBack }
           >
             Caregiver Permissions
           </button>
+          <button
+            onClick={() => setActiveTab('nurse')}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition ${
+              activeTab === 'nurse'
+                ? 'bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] shadow-sm'
+                : 'text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            Nurse Permissions
+          </button>
         </nav>
       </div>
 
@@ -353,6 +386,41 @@ export default function FacilityPermissions({ facilityId, facilityName, onBack }
         {activeTab === 'caregiver' && !data?.role_permissions?.caregiver && (
           <div className="text-center py-12">
             <p className="text-gray-600 mb-4">Caregiver role not found. Please create the role first.</p>
+            <button
+              onClick={() => ensureRolesMutation.mutate()}
+              disabled={ensureRolesMutation.isPending}
+              className="px-4 py-2 bg-[var(--theme-primary)] text-white rounded-lg hover:bg-[var(--theme-primary-hover)] disabled:opacity-50 flex items-center gap-2 mx-auto transition-all duration-200 hover:scale-105 active:scale-95 shadow-md hover:shadow-lg"
+            >
+              {ensureRolesMutation.isPending ? (
+                <>
+                  <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  <span>Creating roles...</span>
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4" />
+                  <span>Create Required Roles</span>
+                </>
+              )}
+            </button>
+          </div>
+        )}
+
+        {activeTab === 'nurse' && data?.role_permissions?.nurse && (
+          <RolePermissionsTab
+            roleData={data.role_permissions.nurse}
+            localPermissions={localNursePermissions}
+            onToggle={(perm) => handlePermissionToggle(perm, 'nurse')}
+            onSave={() => handleSaveRolePermissions('nurse')}
+            isSaving={updateRolePermissionsMutation.isPending}
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+          />
+        )}
+
+        {activeTab === 'nurse' && !data?.role_permissions?.nurse && (
+          <div className="text-center py-12">
+            <p className="text-gray-600 mb-4">Nurse role not found. Please create the role first.</p>
             <button
               onClick={() => ensureRolesMutation.mutate()}
               disabled={ensureRolesMutation.isPending}
