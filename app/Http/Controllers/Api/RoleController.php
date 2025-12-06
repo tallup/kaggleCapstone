@@ -85,7 +85,7 @@ class RoleController extends BaseApiController
     }
 
     /**
-     * Ensure required roles (administrator, admin, caregiver) exist
+     * Ensure required roles (administrator, admin, caregiver, nurse) exist
      */
     public function ensureRolesExist(): JsonResponse
     {
@@ -111,6 +111,12 @@ class RoleController extends BaseApiController
             // Create caregiver role if it doesn't exist
             $caregiverRole = Role::firstOrCreate(
                 ['name' => 'caregiver'],
+                ['guard_name' => 'web']
+            );
+
+            // Create nurse role if it doesn't exist
+            $nurseRole = Role::firstOrCreate(
+                ['name' => 'nurse'],
                 ['guard_name' => 'web']
             );
 

@@ -181,7 +181,8 @@ export default function Residents() {
                             <button
                                 onClick={() => {
                                     const action = resident.is_active ? 'deactivate' : 'activate';
-                                    if (window.confirm(`Are you sure you want to ${action} this resident?`)) {
+                                    const message = 'Are you sure you want to ' + action + ' this resident?';
+                                    if (window.confirm(message)) {
                                         toggleActiveMutation.mutate({ id: resident.id, isActive: isResidentActive(resident) });
                                     }
                                 }}
