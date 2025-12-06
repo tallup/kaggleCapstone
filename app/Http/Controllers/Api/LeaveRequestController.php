@@ -15,7 +15,10 @@ class LeaveRequestController extends BaseApiController
         $currentUser = auth()->user();
         
         // If user is a caregiver, only show their own leave requests
-        if ($currentUser->hasRole('caregiver')) {
+        $isCaregiver = $currentUser->isCaregiver() || $currentUser->hasRole('caregiver') || 
+                       strtolower(trim($currentUser->role ?? '')) === 'caregiver';
+        
+        if ($isCaregiver) {
             $query->where('staff_id', $currentUser->id);
         } else {
             // For non-caregivers, filter by facility
@@ -54,7 +57,11 @@ class LeaveRequestController extends BaseApiController
 
         // Caregivers can always create their own leave requests
         // Non-caregivers need the create_leave_requests permission
-        if (!$user->hasRole('caregiver')) {
+        // Check both the role column and Spatie roles
+        $isCaregiver = $user->isCaregiver() || $user->hasRole('caregiver') || 
+                       strtolower(trim($user->role ?? '')) === 'caregiver';
+        
+        if (!$isCaregiver) {
             if ($error = $this->requirePermission('create_leave_requests')) {
                 return $error;
             }
@@ -76,7 +83,7 @@ class LeaveRequestController extends BaseApiController
             }
             
             // If user is a caregiver, force staff_id to be their own ID and status to pending
-            if ($user->hasRole('caregiver')) {
+            if ($isCaregiver) {
                 $validated['staff_id'] = $user->id;
                 $validated['status'] = 'pending';
                 // Set branch_id from user's assigned branch
@@ -150,7 +157,10 @@ class LeaveRequestController extends BaseApiController
         $leave = LeaveRequest::findOrFail($id);
         
         // Caregivers can only edit their own leave requests
-        if (auth()->user()->hasRole('caregiver') && $leave->staff_id !== auth()->id()) {
+        $isCaregiver = auth()->user()->isCaregiver() || auth()->user()->hasRole('caregiver') || 
+                       strtolower(trim(auth()->user()->role ?? '')) === 'caregiver';
+        
+        if ($isCaregiver && $leave->staff_id !== auth()->id()) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
         
@@ -173,7 +183,7 @@ class LeaveRequestController extends BaseApiController
         }
         
         // Caregivers cannot change status or staff_id
-        if (auth()->user()->hasRole('caregiver')) {
+        if ($isCaregiver) {
             unset($validated['status']);
             unset($validated['staff_id']);
             unset($validated['approved_by']);
@@ -200,7 +210,10 @@ class LeaveRequestController extends BaseApiController
         $leave = LeaveRequest::findOrFail($id);
         
         // Caregivers can only delete their own leave requests
-        if (auth()->user()->hasRole('caregiver') && $leave->staff_id !== auth()->id()) {
+        $isCaregiver = auth()->user()->isCaregiver() || auth()->user()->hasRole('caregiver') || 
+                       strtolower(trim(auth()->user()->role ?? '')) === 'caregiver';
+        
+        if ($isCaregiver && $leave->staff_id !== auth()->id()) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
         
