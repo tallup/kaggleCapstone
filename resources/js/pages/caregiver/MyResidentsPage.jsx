@@ -44,6 +44,19 @@ export default function MyResidentsPage() {
         },
     });
 
+    // Check if user can create appointments
+    const canCreateAppointments = React.useMemo(() => {
+        if (!currentUser) return false;
+        const isSuperAdmin = currentUser?.role === 'super_admin';
+        const isAdmin = currentUser?.role === 'administrator' || currentUser?.role === 'admin';
+        const permissions = Array.isArray(currentUser?.permissions) ? currentUser.permissions : [];
+        // Caregivers can create appointments (similar to incidents)
+        const isCaregiver = currentUser?.role?.toLowerCase().includes('caregiver') || 
+                           currentUser?.is_caregiver || 
+                           currentUser?.isCaregiver;
+        return isSuperAdmin || isAdmin || isCaregiver || permissions.includes('create_appointments');
+    }, [currentUser]);
+
     React.useEffect(() => {
         const timeout = setTimeout(() => {
             setDebouncedSearch(search.trim());
@@ -180,13 +193,25 @@ export default function MyResidentsPage() {
                     <div className="text-xs text-gray-400">
                         Last updated {formatDate(resident.updated_at)}
                     </div>
-                    <button
-                        type="button"
-                        onClick={() => navigate(`/my-residents/${resident.id}`)}
-                        className="inline-flex items-center rounded-lg bg-[var(--theme-primary)] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[var(--theme-primary-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--theme-primary)]"
-                    >
-                        View Details
-                    </button>
+                    <div className="flex gap-2">
+                        {canCreateAppointments && (
+                            <button
+                                type="button"
+                                onClick={() => navigate(`/appointments/create/${resident.id}`)}
+                                className="inline-flex items-center gap-2 rounded-lg border-2 border-[var(--theme-primary)] bg-white px-4 py-2 text-sm font-semibold text-[var(--theme-primary)] shadow-sm transition hover:bg-[var(--theme-primary-bg)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--theme-primary)]"
+                            >
+                                <Calendar className="h-4 w-4" />
+                                Appointment
+                            </button>
+                        )}
+                        <button
+                            type="button"
+                            onClick={() => navigate(`/my-residents/${resident.id}`)}
+                            className="inline-flex items-center rounded-lg bg-[var(--theme-primary)] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[var(--theme-primary-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--theme-primary)]"
+                        >
+                            View Details
+                        </button>
+                    </div>
                 </div>
             </article>
         );

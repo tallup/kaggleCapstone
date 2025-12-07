@@ -58,8 +58,13 @@ class AppointmentController extends BaseApiController
         $isSuperAdmin = $user && ($user->role === 'super_admin' || $user->hasRole('super_admin'));
         $isAdmin = $user && ($user->role === 'administrator' || $user->role === 'admin');
         
-        // Check permission only if user is not an admin or super admin
-        if (!$isSuperAdmin && !$isAdmin) {
+        // Check if user is a caregiver
+        $isCaregiver = $this->isCaregiver($user);
+        
+        // Caregivers can create appointments for residents in their assigned branch
+        // Admins and super admins can create appointments without specific permission
+        // Other users need the create_appointments permission
+        if (!$isSuperAdmin && !$isAdmin && !$isCaregiver) {
             if ($error = $this->requirePermission('create_appointments')) {
                 return $error;
             }
@@ -93,6 +98,19 @@ class AppointmentController extends BaseApiController
             if ($resident) {
                 $validated['branch_id'] = $resident->branch_id;
             }
+        }
+
+        // If user is a caregiver, ensure they can only create appointments for residents in their assigned branch
+        if ($isCaregiver) {
+            $resident = \App\Models\Resident::find($validated['resident_id']);
+            if (!$resident || $resident->branch_id !== $user->assigned_branch_id) {
+                return response()->json([
+                    'message' => 'Unauthorized: You can only create appointments for residents in your assigned branch.',
+                    'errors' => ['resident_id' => ['You can only create appointments for residents in your assigned branch.']]
+                ], 403);
+            }
+            // Force branch_id to caregiver's assigned branch
+            $validated['branch_id'] = $user->assigned_branch_id;
         }
 
         // Format appointment_time properly - ensure it's in HH:mm format
