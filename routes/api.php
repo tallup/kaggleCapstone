@@ -89,6 +89,7 @@ Route::prefix('v1')->middleware([\App\Http\Middleware\SetFacilityContext::class]
     // T-Logs
     Route::apiResource('t-logs', \App\Http\Controllers\Api\TLogController::class)->middleware('auth:sanctum');
     Route::post('/t-logs/{id}/attachments', [\App\Http\Controllers\Api\TLogController::class, 'uploadAttachment'])->middleware('auth:sanctum');
+    Route::get('/t-logs/{id}/attachments/{attachmentId}/download', [\App\Http\Controllers\Api\TLogController::class, 'downloadAttachment'])->middleware('auth:sanctum');
     Route::delete('/t-logs/{id}/attachments/{attachmentId}', [\App\Http\Controllers\Api\TLogController::class, 'deleteAttachment'])->middleware('auth:sanctum');
 
     // Vital Signs

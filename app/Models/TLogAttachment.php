@@ -24,6 +24,8 @@ class TLogAttachment extends Model
         'file_size' => 'integer',
     ];
 
+    protected $appends = ['file_url', 'file_size_human'];
+
     // Relationships
     public function tLog(): BelongsTo
     {

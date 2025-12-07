@@ -266,4 +266,29 @@ class TLogController extends BaseApiController
 
         return response()->json(['message' => 'Attachment deleted successfully']);
     }
+
+    public function downloadAttachment($id, $attachmentId)
+    {
+        $tLog = TLog::findOrFail($id);
+        $attachment = TLogAttachment::findOrFail($attachmentId);
+
+        // Check branch access for caregivers
+        if (!$this->checkBranchAccess($tLog)) {
+            return $this->error('You do not have access to this T-Log.', 403);
+        }
+
+        // Verify attachment belongs to this T-Log
+        if ($attachment->t_log_id != $tLog->id) {
+            return $this->error('Attachment does not belong to this T-Log.', 422);
+        }
+
+        if (!$attachment->file_path || !Storage::disk('public')->exists($attachment->file_path)) {
+            return response()->json(['message' => 'File not found'], 404);
+        }
+
+        $filePath = Storage::disk('public')->path($attachment->file_path);
+        $fileName = $attachment->file_name ?? basename($attachment->file_path);
+
+        return response()->download($filePath, $fileName);
+    }
 }

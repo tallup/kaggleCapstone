@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Plus, Edit, Trash2, Eye, X, FileText, Calendar, User, Search, Filter, ArrowLeft, AlertTriangle, ExternalLink } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, X, FileText, Calendar, User, Search, Filter, ArrowLeft, AlertTriangle, ExternalLink, Download } from 'lucide-react';
 import api from '../services/api';
 import Card from '../components/Card';
 import { toast } from 'sonner';
@@ -488,6 +488,28 @@ export default function TLogs() {
 
 // View T-Log Component (Full Page View)
 function ViewTLog({ tLog, onClose, onEdit }) {
+    const handleDownload = async (attachmentId, fileName) => {
+        try {
+            const response = await api.get(
+                `/t-logs/${tLog.id}/attachments/${attachmentId}/download`,
+                { responseType: 'blob' }
+            );
+            
+            // Create a blob URL and trigger download
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', fileName);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('Error downloading file:', error);
+            toast.error('Failed to download file');
+        }
+    };
+
     return (
         <div className="space-y-6">
             {/* Header */}
@@ -662,11 +684,8 @@ function ViewTLog({ tLog, onClose, onEdit }) {
                             </h2>
                             <div className="grid grid-cols-1 gap-3">
                                 {tLog.attachments.map((attachment) => (
-                                    <a
+                                    <div
                                         key={attachment.id}
-                                        href={attachment.file_url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
                                         className="flex items-center gap-4 p-4 border-2 border-gray-200 rounded-lg hover:border-[var(--theme-primary)] hover:bg-[var(--theme-primary-bg)] transition-all group"
                                     >
                                         <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-[var(--theme-primary-bg)] to-[var(--theme-primary)] rounded-lg flex items-center justify-center">
@@ -680,8 +699,25 @@ function ViewTLog({ tLog, onClose, onEdit }) {
                                                 {attachment.file_size_human || 'Unknown size'}
                                             </p>
                                         </div>
-                                        <ExternalLink className="w-5 h-5 text-gray-400 group-hover:text-[var(--theme-primary)] transition-colors flex-shrink-0" />
-                                    </a>
+                                        <div className="flex items-center gap-2">
+                                            <a
+                                                href={attachment.file_url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="p-2 text-gray-600 hover:text-[var(--theme-primary)] hover:bg-white rounded-lg transition-colors"
+                                                title="View"
+                                            >
+                                                <Eye className="w-5 h-5" />
+                                            </a>
+                                            <button
+                                                onClick={() => handleDownload(attachment.id, attachment.file_name)}
+                                                className="p-2 text-gray-600 hover:text-[var(--theme-primary)] hover:bg-white rounded-lg transition-colors"
+                                                title="Download"
+                                            >
+                                                <Download className="w-5 h-5" />
+                                            </button>
+                                        </div>
+                                    </div>
                                 ))}
                             </div>
                         </div>
