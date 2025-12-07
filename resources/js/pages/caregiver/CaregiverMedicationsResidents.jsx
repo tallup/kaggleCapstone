@@ -74,10 +74,21 @@ export default function CaregiverMedicationsResidents() {
         return (
             <article
                 key={resident.id}
-                className="group flex flex-col rounded-2xl border border-transparent bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-xl hover:border-emerald-100"
+                className="group flex flex-col rounded-2xl border border-transparent bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-xl"
+                style={{ 
+                    '--hover-border-color': 'var(--theme-primary-bg)',
+                }}
+                onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--theme-primary-bg)';
+                }}
+                onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = 'transparent';
+                }}
             >
                 <div className="flex items-start gap-4">
-                    <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-full border border-emerald-100 bg-emerald-600 text-white">
+                    <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-full border text-white"
+                        style={{ borderColor: 'var(--theme-primary-bg)', backgroundColor: 'var(--theme-primary)' }}
+                    >
                         {resident.profile_image_url || resident.profile_image ? (
                             <img
                                 src={resident.profile_image_url || `/storage/${resident.profile_image}`}
@@ -90,7 +101,8 @@ export default function CaregiverMedicationsResidents() {
                             />
                         ) : null}
                         <div
-                            className={`absolute inset-0 ${resident.profile_image ? 'hidden' : 'flex'} items-center justify-center bg-emerald-600 text-lg font-semibold uppercase text-white`}
+                            className={`absolute inset-0 ${resident.profile_image ? 'hidden' : 'flex'} items-center justify-center text-lg font-semibold uppercase text-white`}
+                            style={{ backgroundColor: 'var(--theme-primary)' }}
                         >
                             {getInitials(resident.first_name, resident.last_name) || <User className="h-6 w-6" />}
                         </div>
@@ -99,11 +111,16 @@ export default function CaregiverMedicationsResidents() {
                         <div className="flex items-center gap-3">
                             <h3 className="text-lg font-semibold text-gray-900">{fullName || 'Unnamed Resident'}</h3>
                             <span
-                                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${
                                     isActive
-                                        ? 'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200'
-                                        : 'bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200'
+                                        ? ''
+                                        : 'bg-amber-50 text-amber-700 ring-amber-200'
                                 }`}
+                                style={isActive ? {
+                                    backgroundColor: 'var(--theme-primary-bg)',
+                                    color: 'var(--theme-primary)',
+                                    '--tw-ring-color': 'var(--theme-primary-bg)'
+                                } : {}}
                             >
                                 {isActive ? 'Active' : 'Inactive'}
                             </span>
@@ -114,14 +131,14 @@ export default function CaregiverMedicationsResidents() {
 
                 <dl className="mt-6 grid grid-cols-1 gap-4 text-sm text-gray-600 sm:grid-cols-2">
                     <div className="flex items-center gap-2 rounded-xl border border-gray-100 bg-gray-50/60 px-3 py-2">
-                        <MapPin className="h-4 w-4 text-emerald-500" />
+                        <MapPin className="h-4 w-4" style={{ color: 'var(--theme-primary)' }} />
                         <div>
                             <dt className="text-xs uppercase tracking-wide text-gray-500">Branch</dt>
                             <dd className="font-medium text-gray-900">{branchName}</dd>
                         </div>
                     </div>
                     <div className="flex items-center gap-2 rounded-xl border border-gray-100 bg-gray-50/60 px-3 py-2">
-                        <Calendar className="h-4 w-4 text-emerald-500" />
+                        <Calendar className="h-4 w-4" style={{ color: 'var(--theme-primary)' }} />
                         <div>
                             <dt className="text-xs uppercase tracking-wide text-gray-500">Date of Birth</dt>
                             <dd className="font-medium text-gray-900">{formatDate(resident.date_of_birth)}</dd>
@@ -148,7 +165,7 @@ export default function CaregiverMedicationsResidents() {
 
     const renderResidentsEmptyState = (title, description, IconComponent = Users) => (
         <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-12 text-center shadow-sm">
-            <IconComponent className="mx-auto h-12 w-12 text-emerald-300" />
+            <IconComponent className="mx-auto h-12 w-12" style={{ color: 'var(--theme-primary-bg)' }} />
             <h3 className="mt-4 text-lg font-semibold text-gray-900">{title}</h3>
             <p className="mt-2 text-sm text-gray-500">{description}</p>
         </div>
@@ -156,18 +173,22 @@ export default function CaregiverMedicationsResidents() {
 
     return (
         <div className="space-y-6">
-            <header className="rounded-2xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-emerald-400 p-6 text-white shadow-lg">
+            <header className="rounded-2xl p-6 text-white shadow-lg"
+                style={{ 
+                    background: `linear-gradient(to right, var(--theme-primary), var(--theme-primary-hover), var(--theme-primary))`
+                }}
+            >
                 <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                     <div>
-                        <p className="text-sm font-medium uppercase tracking-wide text-emerald-100">Medication Management</p>
+                        <p className="text-sm font-medium uppercase tracking-wide opacity-90">Medication Management</p>
                         <h1 className="text-2xl font-semibold md:text-3xl">Residents</h1>
-                        <p className="mt-2 max-w-xl text-sm text-emerald-100">
+                        <p className="mt-2 max-w-xl text-sm opacity-90">
                             Select a resident to view and administer their medications.
                         </p>
                     </div>
                     <div className="rounded-xl bg-white/10 px-4 py-3 text-sm text-white shadow-inner backdrop-blur">
                         <span className="text-2xl font-semibold">{residents.length}</span>{' '}
-                        <span className="text-emerald-100">total residents</span>
+                        <span className="opacity-90">total residents</span>
                     </div>
                 </div>
             </header>
@@ -187,7 +208,16 @@ export default function CaregiverMedicationsResidents() {
                             value={search}
                             onChange={(event) => setSearch(event.target.value)}
                             placeholder="Search residents..."
-                            className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-11 pr-4 text-sm shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                            className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-11 pr-4 text-sm shadow-sm focus:outline-none focus:ring-2"
+                            style={{ 
+                                '--tw-ring-color': 'var(--theme-primary-bg)',
+                            }}
+                            onFocus={(e) => {
+                                e.target.style.borderColor = 'var(--theme-primary)';
+                            }}
+                            onBlur={(e) => {
+                                e.target.style.borderColor = '';
+                            }}
                         />
                     </div>
                 </div>
@@ -202,7 +232,12 @@ export default function CaregiverMedicationsResidents() {
             {isLoading ? (
                 <div className="flex min-h-[200px] items-center justify-center rounded-2xl bg-white shadow-sm">
                     <div className="flex flex-col items-center gap-4">
-                        <div className="h-10 w-10 animate-spin rounded-full border-2 border-emerald-200 border-t-emerald-600" />
+                        <div className="h-10 w-10 animate-spin rounded-full border-2 border-t-4"
+                            style={{ 
+                                borderColor: 'var(--theme-primary-bg)',
+                                borderTopColor: 'var(--theme-primary)'
+                            }}
+                        />
                         <p className="text-sm text-gray-500">Loading residents...</p>
                     </div>
                 </div>

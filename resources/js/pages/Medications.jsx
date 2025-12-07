@@ -637,23 +637,24 @@ export default function Medications() {
         <div>
             <div className="bg-white rounded-lg shadow p-6 mb-6">
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
-                    <div>
+                    <div className="flex-1">
                         <h2 className="text-xl font-semibold text-gray-900 mb-2">Medication Management</h2>
                         <p className="text-gray-600">View and track resident medications.</p>
                     </div>
-                    {(() => {
+                    {!isCaregiver && currentUser && (() => {
                         const isSuperAdmin = currentUser?.role === 'super_admin';
+                        const isAdmin = currentUser?.role === 'administrator' || currentUser?.role === 'admin';
                         const permissions = Array.isArray(currentUser?.permissions) ? currentUser.permissions : [];
-                        const canCreate = isSuperAdmin || permissions.includes('create_medications');
-                        return !isCaregiver && canCreate && (
+                        const canCreate = isSuperAdmin || isAdmin || permissions.includes('create_medications');
+                        return canCreate ? (
                             <button
                                 onClick={() => { setEditing(null); setShowForm(true); }}
-                                className="w-full sm:w-auto px-4 py-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] rounded-lg hover:bg-[var(--theme-primary-hover)] transition-colors flex items-center justify-center space-x-2 text-sm md:text-base"
+                                className="flex-shrink-0 w-full sm:w-auto px-6 py-2.5 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] rounded-lg hover:bg-[var(--theme-primary-hover)] transition-colors flex items-center justify-center space-x-2 text-sm md:text-base font-semibold shadow-md hover:shadow-lg"
                             >
-                                <Plus className="w-4 h-4" />
+                                <Plus className="w-5 h-5" />
                                 <span>Add Medication</span>
                             </button>
-                        );
+                        ) : null;
                     })()}
                 </div>
 
