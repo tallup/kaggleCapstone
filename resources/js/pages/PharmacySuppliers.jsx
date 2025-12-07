@@ -345,17 +345,17 @@ export default function PharmacySuppliers() {
                                     <div className="text-sm text-gray-600">
                                         {supplier.orders_count || 0} orders
                                     </div>
-                                    <div className="flex space-x-2">
+                                    <div className="flex gap-2">
                                         <button
                                             onClick={() => handleEdit(supplier)}
-                                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                            className="p-2.5 border-2 border-[var(--theme-primary)] bg-white text-[var(--theme-primary)] hover:bg-[var(--theme-primary-bg)] hover:border-[var(--theme-primary-dark)] rounded-lg transition-all shadow-sm"
                                             title="Edit"
                                         >
                                             <Edit className="w-4 h-4" />
                                         </button>
                                         <button
                                             onClick={() => handleDelete(supplier.id)}
-                                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                            className="p-2.5 border-2 border-red-400 bg-white text-red-700 hover:bg-red-50 hover:border-red-500 rounded-lg transition-all shadow-sm"
                                             title="Delete"
                                         >
                                             <Trash2 className="w-4 h-4" />

@@ -476,14 +476,14 @@ export default function Incidents() {
                                             setSelectedIncident(incident);
                                             setShowViewModal(true);
                                         }}
-                                        className="p-2 text-[var(--theme-primary)] hover:bg-[var(--theme-primary-bg)] rounded-lg transition"
+                                        className="p-2.5 border-2 border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400 rounded-lg transition-all shadow-sm"
                                         title="View"
                                     >
                                         <Eye className="w-5 h-5" />
                                     </button>
                                     <button
                                         onClick={() => handleOpenForm(incident)}
-                                        className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                                        className="p-2.5 border-2 border-[var(--theme-primary)] bg-white text-[var(--theme-primary)] hover:bg-[var(--theme-primary-bg)] hover:border-[var(--theme-primary-dark)] rounded-lg transition-all shadow-sm"
                                         title="Edit"
                                     >
                                         <Edit className="w-5 h-5" />
@@ -497,7 +497,7 @@ export default function Incidents() {
                                                     markResolvedMutation.mutate({ id: incident.id, notes: '' });
                                                 }
                                             }}
-                                            className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition"
+                                            className="p-2.5 border-2 border-green-400 bg-white text-green-700 hover:bg-green-50 hover:border-green-500 rounded-lg transition-all shadow-sm"
                                             title={incident.status === 'resolved' ? 'Mark Closed' : 'Mark Resolved'}
                                         >
                                             {incident.status === 'resolved' ? (
@@ -513,7 +513,7 @@ export default function Incidents() {
                                                 deleteMutation.mutate(incident.id);
                                             }
                                         }}
-                                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                                        className="p-2.5 border-2 border-red-400 bg-white text-red-700 hover:bg-red-50 hover:border-red-500 rounded-lg transition-all shadow-sm"
                                         title="Delete"
                                     >
                                         <Trash2 className="w-5 h-5" />

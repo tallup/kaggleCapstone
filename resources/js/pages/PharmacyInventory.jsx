@@ -466,17 +466,17 @@ export default function PharmacyInventory() {
                                             {item.unit_cost ? `$${parseFloat(item.unit_cost).toFixed(2)}` : 'N/A'}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            <div className="flex justify-end space-x-2">
+                                            <div className="flex justify-end gap-2">
                                                 <button
                                                     onClick={() => handleEdit(item)}
-                                                    className="text-blue-600 hover:text-blue-900"
+                                                    className="p-2 border-2 border-[var(--theme-primary)] bg-white text-[var(--theme-primary)] hover:bg-[var(--theme-primary-bg)] hover:border-[var(--theme-primary-dark)] rounded-lg transition-all shadow-sm"
                                                     title="Edit"
                                                 >
                                                     <Edit className="w-4 h-4" />
                                                 </button>
                                                 <button
                                                     onClick={() => handleDelete(item.id)}
-                                                    className="text-red-600 hover:text-red-900"
+                                                    className="p-2 border-2 border-red-400 bg-white text-red-700 hover:bg-red-50 hover:border-red-500 rounded-lg transition-all shadow-sm"
                                                     title="Delete"
                                                 >
                                                     <Trash2 className="w-4 h-4" />
