@@ -392,9 +392,10 @@ export default function PharmacyOrders() {
                                                     <button
                                                         type="button"
                                                         onClick={() => handleRemoveItem(index)}
-                                                        className="w-full px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                        className="w-full px-3 py-2 inline-flex items-center justify-center gap-2 text-sm font-medium text-red-700 border border-red-200 bg-red-50 hover:bg-red-100 rounded-lg transition-colors shadow-sm"
                                                     >
-                                                        <Trash2 className="w-4 h-4 mx-auto" />
+                                                        <Trash2 className="w-4 h-4" />
+                                                        <span>Delete</span>
                                                     </button>
                                                 </div>
                                             </div>
