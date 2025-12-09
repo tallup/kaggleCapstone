@@ -86,6 +86,15 @@ export default function MedicationDeliveries() {
         },
     });
 
+    const updateStatusMutation = useMutation({
+        mutationFn: async ({ id, status }) => {
+            await api.put(`/medication-deliveries/${id}`, { status });
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries(['medication-deliveries']);
+        },
+    });
+
     const deliveries = data?.data || [];
     const branches = branchesData?.data || [];
     const residents = residentsData?.data || [];
@@ -394,7 +403,26 @@ export default function MedicationDeliveries() {
                                             <Truck className="w-5 h-5 text-[var(--theme-primary)]" />
                                             <h3 className="font-semibold text-gray-900">{delivery.pharmacy_name}</h3>
                                             {getTypeBadge(delivery.delivery_type)}
-                                            {getStatusBadge(delivery.status)}
+                                            <select
+                                                value={delivery.status || 'received'}
+                                                onChange={(e) => {
+                                                    updateStatusMutation.mutate({
+                                                        id: delivery.id,
+                                                        status: e.target.value,
+                                                    });
+                                                }}
+                                                disabled={updateStatusMutation.isPending}
+                                                className={`px-2 py-1 rounded-full text-xs font-medium border-0 cursor-pointer transition-colors ${
+                                                    delivery.status === 'received' ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200' :
+                                                    delivery.status === 'verified' ? 'bg-blue-100 text-blue-800 hover:bg-blue-200' :
+                                                    delivery.status === 'stored' ? 'bg-green-100 text-green-800 hover:bg-green-200' :
+                                                    'bg-gray-100 text-gray-800 hover:bg-gray-200'
+                                                } ${updateStatusMutation.isPending ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                            >
+                                                <option value="received">Received</option>
+                                                <option value="verified">Verified</option>
+                                                <option value="stored">Stored</option>
+                                            </select>
                                         </div>
                                         <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
                                             <div>
