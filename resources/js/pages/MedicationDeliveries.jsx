@@ -90,6 +90,7 @@ export default function MedicationDeliveries() {
     const branches = branchesData?.data || [];
     const residents = residentsData?.data || [];
     const medications = medicationsData?.data || [];
+    const pharmacySuppliers = pharmacySuppliersData?.data || [];
 
     // Filter deliveries by search
     const filteredDeliveries = React.useMemo(() => {
@@ -151,6 +152,7 @@ export default function MedicationDeliveries() {
                     branches={branches}
                     residents={residents}
                     medications={medications}
+                    pharmacySuppliers={pharmacySuppliers}
                     isCaregiver={isCaregiver}
                     caregiverBranchId={currentUser?.assigned_branch_id}
                     onClose={handleCloseForm}
