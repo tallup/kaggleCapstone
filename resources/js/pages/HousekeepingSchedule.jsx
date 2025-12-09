@@ -893,85 +893,84 @@ function AreaForm({ onClose, branchId, initialValues, onSuccess }) {
 
                 {/* Form */}
                 <FormProvider {...methods}>
-                        <form onSubmit={methods.handleSubmit(onSubmit)} className="space-y-6">
+                    <form onSubmit={methods.handleSubmit(onSubmit)} className="space-y-6">
+                        <FormInput
+                            name="name"
+                            label="Area Name"
+                            placeholder="e.g. Kitchen, Float #1"
+                            required
+                        />
+
+                        <div className="grid gap-4 md:grid-cols-2">
                             <FormInput
-                                name="name"
-                                label="Area Name"
-                                placeholder="e.g. Kitchen, Float #1"
-                                required
+                                name="shift_label"
+                                label="Shift / Assignment Label"
+                                placeholder="e.g. Day Shift"
                             />
-
-                            <div className="grid gap-4 md:grid-cols-2">
-                                <FormInput
-                                    name="shift_label"
-                                    label="Shift / Assignment Label"
-                                    placeholder="e.g. Day Shift"
-                                />
-                                <FormInput
-                                    name="location"
-                                    label="Location"
-                                    placeholder="e.g. Main Level"
-                                />
-                            </div>
-
-                            <FormTextarea
-                                name="description"
-                                label="Description / Notes"
-                                placeholder="Responsibilities, reminders, etc."
-                                rows={3}
+                            <FormInput
+                                name="location"
+                                label="Location"
+                                placeholder="e.g. Main Level"
                             />
+                        </div>
 
-                            <div className="grid gap-4 md:grid-cols-2">
-                                <FormInput
-                                    name="display_order"
-                                    label="Display Order"
-                                    type="number"
-                                    min={0}
-                                />
-                                <div>
-                                    <div className="text-sm font-medium text-gray-700 mb-2">Status</div>
-                                    <div className="rounded-lg border border-gray-300 px-4 py-3 hover:bg-gray-50">
-                                        <div className="flex items-center gap-3">
-                                            <FormCheckbox
-                                                name="is_active"
-                                                label="Active area"
-                                            />
-                                        </div>
-                                        <p className="text-xs text-gray-500 mt-2 ml-7">Inactive areas stay hidden but aren't deleted.</p>
+                        <FormTextarea
+                            name="description"
+                            label="Description / Notes"
+                            placeholder="Responsibilities, reminders, etc."
+                            rows={3}
+                        />
+
+                        <div className="grid gap-4 md:grid-cols-2">
+                            <FormInput
+                                name="display_order"
+                                label="Display Order"
+                                type="number"
+                                min={0}
+                            />
+                            <div>
+                                <div className="text-sm font-medium text-gray-700 mb-2">Status</div>
+                                <div className="rounded-lg border border-gray-300 px-4 py-3 hover:bg-gray-50">
+                                    <div className="flex items-center gap-3">
+                                        <FormCheckbox
+                                            name="is_active"
+                                            label="Active area"
+                                        />
                                     </div>
+                                    <p className="text-xs text-gray-500 mt-2 ml-7">Inactive areas stay hidden but aren't deleted.</p>
                                 </div>
                             </div>
+                        </div>
 
-                            <div className="flex justify-end gap-3 pt-4 border-t">
-                                <button
-                                    type="button"
-                                    onClick={onClose}
-                                    className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={isSubmitting}
-                                    className="inline-flex items-center gap-2 px-5 py-2 text-sm font-semibold text-white rounded-lg shadow-sm transition-colors hover:bg-[var(--theme-primary-hover)] disabled:opacity-50 disabled:cursor-not-allowed"
-                                    style={{ backgroundColor: 'var(--theme-primary)' }}
-                                >
-                                    {isSubmitting ? (
-                                        <>
-                                            <Loader2 className="h-4 w-4 animate-spin" />
-                                            Saving...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Building2 className="h-4 w-4" />
-                                            {initialValues ? 'Save Changes' : 'Save Area'}
-                                        </>
-                                    )}
-                                </button>
-                            </div>
-                        </form>
-                    </FormProvider>
-                </div>
+                        <div className="flex justify-end gap-3 pt-4 border-t">
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="submit"
+                                disabled={isSubmitting}
+                                className="inline-flex items-center gap-2 px-5 py-2 text-sm font-semibold text-white rounded-lg shadow-sm transition-colors hover:bg-[var(--theme-primary-hover)] disabled:opacity-50 disabled:cursor-not-allowed"
+                                style={{ backgroundColor: 'var(--theme-primary)' }}
+                            >
+                                {isSubmitting ? (
+                                    <>
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                        Saving...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Building2 className="h-4 w-4" />
+                                        {initialValues ? 'Save Changes' : 'Save Area'}
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </form>
+                </FormProvider>
             </div>
         </div>
     );
