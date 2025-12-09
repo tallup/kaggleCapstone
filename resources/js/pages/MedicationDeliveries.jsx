@@ -476,7 +476,11 @@ function MedicationDeliveryForm({ record, branches, residents, medications, isCa
 
     // Filter residents by branch
     const filteredResidents = React.useMemo(() => {
-        if (!formData.branch_id) return [];
+        if (!residents || residents.length === 0) return [];
+        if (!formData.branch_id) {
+            // If no branch selected, show all residents
+            return residents;
+        }
         return residents.filter(r => r.branch_id == formData.branch_id);
     }, [residents, formData.branch_id]);
 
@@ -500,19 +504,28 @@ function MedicationDeliveryForm({ record, branches, residents, medications, isCa
     });
 
     // Fetch pharmacy templates
-    const { data: pharmacyTemplatesData } = useQuery({
+    const { data: pharmacyTemplatesData, error: pharmacyTemplatesError } = useQuery({
         queryKey: ['pharmacy-templates', formData.branch_id],
         queryFn: async () => {
-            if (!formData.branch_id) {
+            try {
+                const params = { per_page: 100 };
+                if (formData.branch_id) {
+                    params.branch_id = formData.branch_id;
+                }
+                const response = await api.get('/pharmacy-templates', { params });
+                // API returns paginated data, so access response.data.data
+                return response.data;
+            } catch (error) {
+                console.error('Error fetching pharmacy templates:', error);
+                // Return empty data structure if API fails
                 return { data: [] };
             }
-            const response = await api.get('/pharmacy-templates', {
-                params: { branch_id: formData.branch_id, per_page: 100 }
-            });
-            return response.data;
         },
-        enabled: !!formData.branch_id,
+        enabled: true, // Always enabled, but will filter by branch if provided
     });
+    
+    // Extract templates from paginated response
+    const pharmacyTemplates = pharmacyTemplatesData?.data || [];
 
     // Use dynamically fetched medications or fallback to passed medications
     const availableMedications = medicationsQueryData?.data || medications || [];
@@ -662,7 +675,7 @@ function MedicationDeliveryForm({ record, branches, residents, medications, isCa
                                     value=""
                                     onChange={(e) => {
                                         if (e.target.value) {
-                                            const template = pharmacyTemplatesData?.data?.find(t => t.id == e.target.value);
+                                            const template = pharmacyTemplates.find(t => t.id == e.target.value);
                                             if (template) {
                                                 setFormData({
                                                     ...formData,
@@ -675,11 +688,17 @@ function MedicationDeliveryForm({ record, branches, residents, medications, isCa
                                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent mb-2 text-gray-900 bg-white"
                                 >
                                     <option value="">Select a saved pharmacy...</option>
-                                    {pharmacyTemplatesData?.data?.map(template => (
-                                        <option key={template.id} value={template.id}>
-                                            {template.name}
+                                    {pharmacyTemplates && pharmacyTemplates.length > 0 ? (
+                                        pharmacyTemplates.map(template => (
+                                            <option key={template.id} value={template.id}>
+                                                {template.name}
+                                            </option>
+                                        ))
+                                    ) : (
+                                        <option value="" disabled>
+                                            {pharmacyTemplatesError ? 'Error loading templates' : 'No pharmacy templates available'}
                                         </option>
-                                    ))}
+                                    )}
                                 </select>
                             </div>
                             <div>

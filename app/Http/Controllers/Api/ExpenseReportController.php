@@ -36,21 +36,28 @@ class ExpenseReportController extends BaseApiController
         $expensePending = $expenses->where('payment_status', 'pending')->sum('amount');
         $expenseOverdue = $expenses->where('payment_status', 'overdue')->sum('amount');
 
-        // Calculate totals from invoices
+        // Calculate totals from invoices (for separate reporting, not combined with expenses)
         $invoiceTotal = $invoices->sum('total_amount');
         $invoicePaid = $invoices->where('status', 'paid')->sum('total_amount');
         $invoicePending = $invoices->whereIn('status', ['draft', 'sent'])->sum('total_amount');
         $invoiceOverdue = $invoices->where('status', 'overdue')->sum('total_amount');
 
+        // Expenses and invoices are separate - expenses are money going out, invoices are money coming in
         $summary = [
-            'total_expenses' => $expenseTotal + $invoiceTotal,
-            'total_paid' => $expensePaid + $invoicePaid,
-            'total_pending' => $expensePending + $invoicePending,
-            'total_overdue' => $expenseOverdue + $invoiceOverdue,
-            'expense_count' => $expenses->count() + $invoices->count(),
-            'paid_count' => $expenses->where('payment_status', 'paid')->count() + $invoices->where('status', 'paid')->count(),
-            'pending_count' => $expenses->where('payment_status', 'pending')->count() + $invoices->whereIn('status', ['draft', 'sent'])->count(),
-            'overdue_count' => $expenses->where('payment_status', 'overdue')->count() + $invoices->where('status', 'overdue')->count(),
+            'total_expenses' => $expenseTotal, // Only actual expenses, not invoices
+            'total_paid' => $expensePaid, // Only paid expenses
+            'total_pending' => $expensePending, // Only pending expenses
+            'total_overdue' => $expenseOverdue, // Only overdue expenses
+            'expense_count' => $expenses->count(),
+            'paid_count' => $expenses->where('payment_status', 'paid')->count(),
+            'pending_count' => $expenses->where('payment_status', 'pending')->count(),
+            'overdue_count' => $expenses->where('payment_status', 'overdue')->count(),
+            // Include invoice totals separately for reference
+            'total_invoices' => $invoiceTotal,
+            'invoice_paid' => $invoicePaid,
+            'invoice_pending' => $invoicePending,
+            'invoice_overdue' => $invoiceOverdue,
+            'invoice_count' => $invoices->count(),
         ];
 
         return $this->success($summary);
