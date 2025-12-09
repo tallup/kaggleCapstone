@@ -95,11 +95,37 @@ export default function AssessmentDetail() {
             return String(text).toLowerCase().trim().replace(/[?]/g, '').replace(/\s+/g, ' ');
         };
 
+        // Helper function to calculate age from date of birth
+        const calculateAge = (dateOfBirth) => {
+            if (!dateOfBirth) return null;
+            try {
+                const birth = new Date(dateOfBirth);
+                const now = new Date();
+                let age = now.getFullYear() - birth.getFullYear();
+                const monthDiff = now.getMonth() - birth.getMonth();
+                if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < birth.getDate())) {
+                    age -= 1;
+                }
+                return age;
+            } catch (error) {
+                console.error('Error calculating age:', error);
+                return null;
+            }
+        };
+
         // Helper function to get resident value for a question
         const getResidentValue = (questionText, questionType) => {
             if (!questionText) return null;
             const normalized = normalizeQuestionText(questionText);
             console.log('AssessmentDetail: Matching question text:', questionText, 'normalized:', normalized);
+            
+            // Age calculation - check for age-related questions
+            if (normalized.includes('age') || 
+                (normalized.includes('what is the resident') && normalized.includes('age')) ||
+                (normalized.includes('resident') && normalized.includes('age'))) {
+                const age = calculateAge(resident.date_of_birth);
+                return age !== null ? String(age) : null;
+            }
             
             // Demographic Information mappings - handle multiple question text variations
             if ((normalized.includes('what is the resident') && normalized.includes('full name')) ||
@@ -462,6 +488,15 @@ function QuestionInput({ question, onSave }) {
     const [saving, setSaving] = React.useState(false);
     const saveTimeoutRef = React.useRef(null);
 
+    // Check if this is an age-related question
+    const isAgeQuestion = React.useMemo(() => {
+        if (!question.question_text) return false;
+        const normalized = String(question.question_text).toLowerCase().trim();
+        return normalized.includes('age') || 
+               (normalized.includes('what is the resident') && normalized.includes('age')) ||
+               (normalized.includes('resident') && normalized.includes('age'));
+    }, [question.question_text]);
+
     // Update local value when question prop changes (from API refresh)
     React.useEffect(() => {
         const newValue = question.response_value ?? '';
@@ -495,6 +530,11 @@ function QuestionInput({ question, onSave }) {
 
     // Debounced save on change for text/number/textarea
     React.useEffect(() => {
+        // Skip auto-save for read-only age questions
+        if (isAgeQuestion) {
+            return;
+        }
+
         if (saveTimeoutRef.current) {
             clearTimeout(saveTimeoutRef.current);
         }
@@ -524,7 +564,7 @@ function QuestionInput({ question, onSave }) {
                 clearTimeout(saveTimeoutRef.current);
             }
         };
-    }, [value, question.response_value]);
+    }, [value, question.response_value, isAgeQuestion]);
 
     const common = {
         className:
@@ -538,21 +578,29 @@ function QuestionInput({ question, onSave }) {
                     <input
                         type="number"
                         value={value ?? ''}
+                        readOnly={isAgeQuestion}
                         onChange={(e) => {
-                            const val = e.target.value;
-                            setValue(val);
-                            // Also trigger immediate save if user stops typing
-                        }}
-                        onBlur={(e) => {
-                            // Save immediately when user leaves the field
-                            const val = e.target.value;
-                            if (String(val) !== String(question.response_value ?? '')) {
-                                handleSave(val);
+                            if (!isAgeQuestion) {
+                                const val = e.target.value;
+                                setValue(val);
                             }
                         }}
-                        {...common}
+                        onBlur={(e) => {
+                            if (!isAgeQuestion) {
+                                // Save immediately when user leaves the field
+                                const val = e.target.value;
+                                if (String(val) !== String(question.response_value ?? '')) {
+                                    handleSave(val);
+                                }
+                            }
+                        }}
+                        className={`${common.className} ${isAgeQuestion ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                        title={isAgeQuestion ? 'Age is automatically calculated from date of birth' : ''}
                     />
-                    {saving && (
+                    {isAgeQuestion && (
+                        <p className="text-xs text-gray-500 mt-1 italic">Auto-calculated from date of birth</p>
+                    )}
+                    {saving && !isAgeQuestion && (
                         <p className="text-xs text-gray-500 mt-1">Saving...</p>
                     )}
                 </div>
