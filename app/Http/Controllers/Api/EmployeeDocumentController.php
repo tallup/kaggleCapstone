@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\EmployeeDocument;
+use App\Services\ActivityLogService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -167,6 +168,18 @@ class EmployeeDocumentController extends BaseApiController
         }
 
         $document = EmployeeDocument::create($validated);
+
+        // Log activity
+        ActivityLogService::activity(
+            event: 'created',
+            description: 'Created employee document: ' . ($document->document_name ?? 'Document'),
+            subject: $document,
+            properties: [
+                'document_type' => $document->document_type,
+                'user_id' => $document->user_id,
+                'file_name' => $document->file_name,
+            ]
+        );
 
         return response()->json($document->load(['user']), 201);
     }

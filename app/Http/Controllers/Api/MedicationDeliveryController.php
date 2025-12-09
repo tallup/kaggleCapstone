@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\MedicationDelivery;
+use App\Models\Facility;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
@@ -17,6 +18,24 @@ class MedicationDeliveryController extends BaseApiController
         $query = MedicationDelivery::with(['branch', 'resident', 'medication', 'receivedBy']);
         $user = $request->user();
         $isCaregiver = $user && in_array($user->role, ['caregiver', 'care_giver', 'nurse', 'registered_nurse', 'licensed_nurse']);
+        
+        // Facility scoping for non-super admins
+        if ($user && $user->role !== 'super_admin') {
+            $facility = null;
+            try {
+                $facility = app()->bound('facility') ? app('facility') : null;
+            } catch (\Exception $e) {
+                $facility = null;
+            }
+            if (!$facility && $user->facility_id) {
+                $facility = Facility::find($user->facility_id);
+            }
+            if ($facility) {
+                $query->whereHas('branch', function ($q) use ($facility) {
+                    $q->where('facility_id', $facility->id);
+                });
+            }
+        }
         
         // Filter by branch for caregivers
         if ($isCaregiver && $user->assigned_branch_id) {
@@ -70,6 +89,28 @@ class MedicationDeliveryController extends BaseApiController
             'status' => 'nullable|in:received,verified,stored',
             'notes' => 'nullable|string',
         ]);
+
+        // Facility enforcement for non-super admins
+        $user = $request->user();
+        if ($user && $user->role !== 'super_admin') {
+            $facility = null;
+            try {
+                $facility = app()->bound('facility') ? app('facility') : null;
+            } catch (\Exception $e) {
+                $facility = null;
+            }
+            if (!$facility && $user->facility_id) {
+                $facility = Facility::find($user->facility_id);
+            }
+            if ($facility) {
+                $branch = \App\Models\Branch::find($validated['branch_id']);
+                if (!$branch || $branch->facility_id !== $facility->id) {
+                    return response()->json([
+                        'message' => 'The selected branch does not belong to your facility.',
+                    ], 403);
+                }
+            }
+        }
 
         // Validate medication_id is required for individual deliveries
         if ($validated['delivery_type'] === 'individual' && empty($validated['medication_id'])) {
@@ -156,6 +197,19 @@ class MedicationDeliveryController extends BaseApiController
             'deliveries.*.notes' => 'nullable|string',
         ]);
 
+        $user = $request->user();
+        $facility = null;
+        if ($user && $user->role !== 'super_admin') {
+            try {
+                $facility = app()->bound('facility') ? app('facility') : null;
+            } catch (\Exception $e) {
+                $facility = null;
+            }
+            if (!$facility && $user->facility_id) {
+                $facility = Facility::find($user->facility_id);
+            }
+        }
+
         $created = [];
         $errors = [];
 
@@ -167,6 +221,18 @@ class MedicationDeliveryController extends BaseApiController
                     'message' => 'Medication is required for individual deliveries.',
                 ];
                 continue;
+            }
+
+            // Facility enforcement for non-super admins
+            if ($facility) {
+                $branch = \App\Models\Branch::find($deliveryData['branch_id']);
+                if (!$branch || $branch->facility_id !== $facility->id) {
+                    $errors[] = [
+                        'index' => $index,
+                        'message' => 'The selected branch does not belong to your facility.',
+                    ];
+                    continue;
+                }
             }
 
             try {

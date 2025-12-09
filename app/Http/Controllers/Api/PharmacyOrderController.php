@@ -152,6 +152,10 @@ class PharmacyOrderController extends BaseApiController
                         $order = PharmacyOrder::create($validated);
                         
                         foreach ($items as $itemData) {
+                            // Make unit_cost optional by defaulting to 0 if not provided
+                            if (!isset($itemData['unit_cost']) || $itemData['unit_cost'] === null) {
+                                $itemData['unit_cost'] = 0;
+                            }
                             $item = $order->items()->create($itemData);
                             $item->calculateLineTotal();
                             $item->save();
