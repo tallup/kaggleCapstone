@@ -17,6 +17,7 @@ use App\Models\Resident;
 use App\Models\User;
 use App\Models\Facility;
 use App\Models\Branch;
+use App\Models\ExpenseCategory;
 use App\Observers\AppointmentObserver;
 use App\Observers\MedicationObserver;
 use App\Observers\MedicationAdministrationObserver;
@@ -33,6 +34,13 @@ use App\Observers\FireDrillObserver;
 use App\Models\FireDrill;
 use App\Observers\ExpenseObserver;
 use App\Models\Expense;
+use App\Observers\ExpenseCategoryObserver;
+use App\Observers\PharmacyOrderObserver;
+use App\Observers\MedicationDeliveryObserver;
+use App\Observers\PharmacySupplierObserver;
+use App\Models\PharmacyOrder;
+use App\Models\MedicationDelivery;
+use App\Models\PharmacySupplier;
 use App\Listeners\LogAuthentication;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\Logout;
@@ -76,6 +84,10 @@ class AppServiceProvider extends ServiceProvider
         Branch::observe(BranchObserver::class);
         FireDrill::observe(FireDrillObserver::class);
         Expense::observe(ExpenseObserver::class);
+        ExpenseCategory::observe(ExpenseCategoryObserver::class);
+        PharmacyOrder::observe(PharmacyOrderObserver::class);
+        MedicationDelivery::observe(MedicationDeliveryObserver::class);
+        PharmacySupplier::observe(PharmacySupplierObserver::class);
         
         // Register authentication event listeners
         Event::listen(Login::class, LogAuthentication::class);

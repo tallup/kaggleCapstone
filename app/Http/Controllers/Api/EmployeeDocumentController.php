@@ -169,6 +169,39 @@ class EmployeeDocumentController extends BaseApiController
 
         $document = EmployeeDocument::create($validated);
 
+        // Create notification
+        $targetUser = \App\Models\User::find($validated['user_id']);
+        $facility = $targetUser?->facility ?? auth()->user()?->facility;
+        
+        if ($facility) {
+            $admins = \App\Models\User::where('facility_id', $facility->id)
+                ->whereIn('role', ['administrator', 'admin', 'manager', 'super_admin'])
+                ->where('is_active', true)
+                ->get();
+
+            // Also notify the target user if they're not already in the list
+            if ($targetUser && !$admins->contains('id', $targetUser->id)) {
+                $admins->push($targetUser);
+            }
+
+            foreach ($admins as $admin) {
+                \App\Models\Notification::create([
+                    'user_id' => $admin->id,
+                    'type' => 'employee_document_created',
+                    'title' => 'Employee Document Added',
+                    'message' => "New document '{$document->document_name}' ({$document->document_type}) has been added for {$targetUser->name}.",
+                    'icon' => 'file-text',
+                    'icon_color' => 'text-blue-600',
+                    'action_url' => '/administration/employee-documents',
+                    'metadata' => [
+                        'employee_document_id' => $document->id,
+                        'user_id' => $targetUser->id,
+                        'document_type' => $document->document_type,
+                    ],
+                ]);
+            }
+        }
+
         // Log activity
         ActivityLogService::activity(
             event: 'created',
