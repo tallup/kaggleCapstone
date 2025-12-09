@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\DB;
 use App\Models\Appointment;
 use App\Models\Medication;
 use App\Models\MedicationAdministration;
@@ -51,6 +52,15 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Optimize SQLite for better performance in development
+        if (config('database.default') === 'sqlite') {
+            DB::statement('PRAGMA journal_mode=WAL;');
+            DB::statement('PRAGMA synchronous=NORMAL;');
+            DB::statement('PRAGMA busy_timeout=5000;');
+            DB::statement('PRAGMA temp_store=MEMORY;');
+            DB::statement('PRAGMA mmap_size=268435456;'); // 256MB memory-mapped I/O
+        }
+        
         // Register all model observers
         Appointment::observe(AppointmentObserver::class);
         Medication::observe(MedicationObserver::class);

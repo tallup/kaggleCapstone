@@ -6,6 +6,7 @@ use App\Models\Facility;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Symfony\Component\HttpFoundation\Response;
 
 class SetFacilityContext
@@ -26,29 +27,39 @@ class SetFacilityContext
             // This ensures when editing a facility, that facility's branding is used
             $facilityId = $this->extractFacilityIdFromPath($request);
             if ($facilityId) {
-                $facility = Facility::find($facilityId);
+                $facility = Cache::remember("facility.{$facilityId}", 3600, function () use ($facilityId) {
+                    return Facility::find($facilityId);
+                });
             }
             
             // If no facility found from path, check subdomain
             if (!$facility) {
                 $subdomain = $this->extractSubdomain($request);
                 if ($subdomain) {
-                    $facility = Facility::where('subdomain', $subdomain)->first();
+                    $facility = Cache::remember("facility.subdomain.{$subdomain}", 3600, function () use ($subdomain) {
+                        return Facility::where('subdomain', $subdomain)->first();
+                    });
                 }
             }
         } elseif ($user) {
             // Try to get facility from subdomain first
             $subdomain = $this->extractSubdomain($request);
             if ($subdomain) {
-                $facility = Facility::where('subdomain', $subdomain)->first();
+                $facility = Cache::remember("facility.subdomain.{$subdomain}", 3600, function () use ($subdomain) {
+                    return Facility::where('subdomain', $subdomain)->first();
+                });
                 
                 // Verify user belongs to this facility
                 if ($facility && $user->facility_id !== $facility->id) {
                     abort(403, 'You do not have access to this facility.');
                 }
             } else {
-                // Use user's facility_id for path-based routing
-                $facility = $user->facility;
+                // Use user's facility_id for path-based routing (cache the relationship)
+                if ($user->facility_id) {
+                    $facility = Cache::remember("facility.{$user->facility_id}", 3600, function () use ($user) {
+                        return $user->facility;
+                    });
+                }
             }
         }
 
