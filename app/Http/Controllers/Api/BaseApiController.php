@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Constants\UserRoles;
 use App\Http\Controllers\Controller;
+use App\Models\Facility;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -210,6 +211,40 @@ abstract class BaseApiController extends Controller
 
         if (!$user->hasPermission($permission)) {
             return $this->error("Unauthorized. You do not have permission to perform this action.", 403);
+        }
+
+        return null;
+    }
+
+    /**
+     * Resolve current facility from app container or user record.
+     * Returns null for super admins when no facility context is set.
+     */
+    protected function getCurrentFacility(?object $user = null): ?Facility
+    {
+        $user = $user ?? auth()->user();
+
+        // Super admins can float between facilities; prefer explicit context
+        if ($user && $user->role === 'super_admin') {
+            try {
+                return app()->bound('facility') ? app('facility') : null;
+            } catch (\Exception $e) {
+                return null;
+            }
+        }
+
+        try {
+            $facility = app()->bound('facility') ? app('facility') : null;
+        } catch (\Exception $e) {
+            $facility = null;
+        }
+
+        if ($facility) {
+            return $facility;
+        }
+
+        if ($user && $user->facility_id) {
+            return Facility::find($user->facility_id);
         }
 
         return null;

@@ -154,6 +154,16 @@ class User extends Authenticatable implements FilamentUser
         return $this->hasMany(Notification::class)->where('is_read', false)->latest();
     }
 
+    public function reminders()
+    {
+        return $this->hasMany(Reminder::class);
+    }
+
+    public function reminderEvents()
+    {
+        return $this->hasManyThrough(ReminderEvent::class, Reminder::class);
+    }
+
     public function assignedBranch()
     {
         return $this->belongsTo(Branch::class, 'assigned_branch_id');

@@ -4,9 +4,15 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use App\Models\Scopes\FacilityScope;
 
 class FireDrillTemplate extends Model
 {
+    protected static function booted()
+    {
+        static::addGlobalScope(new FacilityScope);
+    }
+
     protected $fillable = [
         'branch_id',
         'name',
@@ -19,7 +25,7 @@ class FireDrillTemplate extends Model
     ];
 
     protected $casts = [
-        'scheduled_time' => 'datetime',
+        'scheduled_time' => 'string',
     ];
 
     public function branch(): BelongsTo

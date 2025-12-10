@@ -18,6 +18,9 @@ class IncidentController extends BaseApiController
         }
 
         $query = Incident::with(['resident', 'branch', 'reportedBy', 'assignedTo', 'resolvedBy']);
+
+        // Facility scoping
+        $this->applyFacilityFilter($query, $request->user());
         
         // Apply branch filter for caregivers
         $this->applyBranchFilter($query, $request);
@@ -107,6 +110,10 @@ class IncidentController extends BaseApiController
             'resolvedBy',
             'attachments.uploadedBy'
         ])->findOrFail($id);
+
+        if (!$this->checkFacilityAccess($incident)) {
+            return response()->json(['message' => 'Incident not found'], 404);
+        }
 
         return response()->json($incident);
     }
@@ -264,6 +271,10 @@ class IncidentController extends BaseApiController
         }
 
         $incident = Incident::findOrFail($id);
+
+        if (!$this->checkFacilityAccess($incident)) {
+            return response()->json(['message' => 'Incident not found'], 404);
+        }
         
         // Check branch access for caregivers
         if (!$this->checkBranchAccess($incident)) {
@@ -327,6 +338,10 @@ class IncidentController extends BaseApiController
 
         $incident = Incident::findOrFail($id);
         
+        if (!$this->checkFacilityAccess($incident)) {
+            return response()->json(['message' => 'Incident not found'], 404);
+        }
+        
         // Check branch access for caregivers
         if (!$this->checkBranchAccess($incident)) {
             return $this->error('You do not have access to this incident.', 403);
@@ -347,11 +362,19 @@ class IncidentController extends BaseApiController
 
     public function markResolved(Request $request, $id): JsonResponse
     {
+        if ($error = $this->requireModuleAccess(\App\Constants\Modules::INCIDENTS)) {
+            return $error;
+        }
+
         $request->validate([
             'notes' => 'nullable|string',
         ]);
 
         $incident = Incident::findOrFail($id);
+        if (!$this->checkFacilityAccess($incident)) {
+            return response()->json(['message' => 'Incident not found'], 404);
+        }
+
         $incident->markAsResolved(auth()->user(), $request->get('notes'));
 
         return response()->json($incident->load(['resident', 'branch', 'reportedBy', 'assignedTo', 'resolvedBy']));
@@ -359,11 +382,19 @@ class IncidentController extends BaseApiController
 
     public function markClosed(Request $request, $id): JsonResponse
     {
+        if ($error = $this->requireModuleAccess(\App\Constants\Modules::INCIDENTS)) {
+            return $error;
+        }
+
         $request->validate([
             'notes' => 'nullable|string',
         ]);
 
         $incident = Incident::findOrFail($id);
+        if (!$this->checkFacilityAccess($incident)) {
+            return response()->json(['message' => 'Incident not found'], 404);
+        }
+
         $incident->markAsClosed(auth()->user(), $request->get('notes'));
 
         return response()->json($incident->load(['resident', 'branch', 'reportedBy', 'assignedTo', 'resolvedBy']));

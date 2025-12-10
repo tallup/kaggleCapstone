@@ -10,3 +10,7 @@ Artisan::command('inspire', function () {
 
 // Schedule notifications to be generated every hour
 Schedule::command('notifications:generate')->hourly();
+
+// Reminders
+Schedule::command('reminders:generate')->everyThirtyMinutes();
+Schedule::command('reminders:dispatch')->everyFiveMinutes();

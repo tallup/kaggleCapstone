@@ -5,11 +5,17 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use App\Traits\Loggable;
+use App\Models\Scopes\FacilityScope;
 use Carbon\Carbon;
 
 class GroceryStatusUpdate extends Model
 {
     use Loggable;
+
+    protected static function booted()
+    {
+        static::addGlobalScope(new FacilityScope);
+    }
 
     protected $fillable = [
         'branch_id',

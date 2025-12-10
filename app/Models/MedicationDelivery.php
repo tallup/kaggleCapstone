@@ -5,10 +5,16 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use App\Traits\Loggable;
+use App\Models\Scopes\FacilityScope;
 
 class MedicationDelivery extends Model
 {
     use Loggable;
+
+    protected static function booted()
+    {
+        static::addGlobalScope(new FacilityScope);
+    }
 
     protected $fillable = [
         'resident_id',

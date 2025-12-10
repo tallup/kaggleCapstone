@@ -41,6 +41,8 @@ use App\Http\Controllers\Api\VisitorController;
 use App\Http\Controllers\Api\FacilitySettingsController;
 use App\Http\Controllers\Api\DatabaseManagementController;
 use App\Http\Controllers\Api\TLogController;
+use App\Http\Controllers\Api\ReminderController;
+use App\Http\Controllers\Api\ReminderEventController;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Session\Middleware\StartSession;
@@ -120,6 +122,7 @@ Route::prefix('v1')->middleware([\App\Http\Middleware\SetFacilityContext::class]
 
     // Fire Drills
     Route::apiResource('fire-drills', \App\Http\Controllers\Api\FireDrillController::class)->middleware('auth:sanctum');
+    Route::post('/fire-drills/from-template', [\App\Http\Controllers\Api\FireDrillController::class, 'createFromTemplate'])->middleware('auth:sanctum');
     Route::post('/fire-drills/{id}/mark-complete', [\App\Http\Controllers\Api\FireDrillController::class, 'markComplete'])->middleware('auth:sanctum');
     Route::post('/fire-drills/{id}/cancel', [\App\Http\Controllers\Api\FireDrillController::class, 'cancel'])->middleware('auth:sanctum');
     
@@ -205,6 +208,18 @@ Route::prefix('v1')->middleware([\App\Http\Middleware\SetFacilityContext::class]
     Route::get('/notifications/count', [NotificationController::class, 'count'])->middleware('auth:sanctum');
     Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead'])->middleware('auth:sanctum');
     Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead'])->middleware('auth:sanctum');
+
+    // Reminders
+    Route::get('/reminders', [ReminderController::class, 'index'])->middleware('auth:sanctum');
+    Route::get('/reminders/upcoming', [ReminderController::class, 'upcoming'])->middleware('auth:sanctum');
+    Route::post('/reminders', [ReminderController::class, 'store'])->middleware('auth:sanctum');
+    Route::get('/reminders/{id}', [ReminderController::class, 'show'])->middleware('auth:sanctum');
+    Route::put('/reminders/{id}', [ReminderController::class, 'update'])->middleware('auth:sanctum');
+    Route::delete('/reminders/{id}', [ReminderController::class, 'destroy'])->middleware('auth:sanctum');
+    Route::post('/reminders/{id}/pause', [ReminderController::class, 'pause'])->middleware('auth:sanctum');
+    Route::post('/reminders/{id}/resume', [ReminderController::class, 'resume'])->middleware('auth:sanctum');
+    Route::post('/reminder-events/{id}/acknowledge', [ReminderEventController::class, 'acknowledge'])->middleware('auth:sanctum');
+    Route::post('/reminder-events/{id}/snooze', [ReminderEventController::class, 'snooze'])->middleware('auth:sanctum');
 
     // Activity Logs
     Route::get('/activity-logs', [ActivityLogController::class, 'index'])->middleware('auth:sanctum');

@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
-import { Flame, Plus, Search, Filter, Edit, Trash2, Calendar, Clock, CheckCircle, XCircle, AlertTriangle, List, Grid, X } from 'lucide-react';
+import { toast } from 'sonner';
+import { Flame, Plus, Search, Filter, Edit, Trash2, Calendar, Clock, CheckCircle, XCircle, AlertTriangle, List, Grid, X, Sparkles, ClipboardList } from 'lucide-react';
 import SectionCard from '../components/SectionCard';
 import Card from '../components/Card';
 import CalendarView from '../components/CalendarView';
@@ -18,6 +19,8 @@ export default function FireDrills() {
     const [showForm, setShowForm] = useState(false);
     const [editing, setEditing] = useState(null);
     const [currentUser, setCurrentUser] = useState(null);
+    const [showTemplateModal, setShowTemplateModal] = useState(false);
+    const [showCreateFromTemplateModal, setShowCreateFromTemplateModal] = useState(false);
 
     // Fetch current user
     React.useEffect(() => {
@@ -53,6 +56,18 @@ export default function FireDrills() {
         queryFn: async () => (await api.get('/branches', { params: { per_page: 100 } })).data,
     });
 
+    // Fetch templates (scope by branch filter if not all)
+    const { data: templatesData } = useQuery({
+        queryKey: ['fire-drill-templates', branchFilter],
+        queryFn: async () => {
+            const params = { per_page: 100 };
+            if (branchFilter && branchFilter !== 'all') {
+                params.branch_id = branchFilter;
+            }
+            return (await api.get('/fire-drill-templates', { params })).data;
+        },
+    });
+
     // Build query params
     const queryParams = useMemo(() => {
         const params = { per_page: 50 };
@@ -74,7 +89,11 @@ export default function FireDrills() {
             await api.delete(`/fire-drills/${id}`);
         },
         onSuccess: () => {
+            toast.success('Fire drill deleted');
             queryClient.invalidateQueries(['fire-drills']);
+        },
+        onError: (error) => {
+            toast.error(error?.response?.data?.message || 'Delete failed');
         },
     });
 
@@ -83,7 +102,11 @@ export default function FireDrills() {
             await api.post(`/fire-drills/${id}/mark-complete`);
         },
         onSuccess: () => {
+            toast.success('Fire drill marked complete');
             queryClient.invalidateQueries(['fire-drills']);
+        },
+        onError: (error) => {
+            toast.error(error?.response?.data?.message || 'Action failed');
         },
     });
 
@@ -92,12 +115,30 @@ export default function FireDrills() {
             await api.post(`/fire-drills/${id}/cancel`);
         },
         onSuccess: () => {
+            toast.success('Fire drill cancelled');
             queryClient.invalidateQueries(['fire-drills']);
+        },
+        onError: (error) => {
+            toast.error(error?.response?.data?.message || 'Action failed');
+        },
+    });
+
+    const createFromTemplateMutation = useMutation({
+        mutationFn: async (payload) => {
+            return (await api.post('/fire-drills/from-template', payload)).data;
+        },
+        onSuccess: () => {
+            toast.success('Fire drills scheduled from template');
+            queryClient.invalidateQueries(['fire-drills']);
+        },
+        onError: (error) => {
+            toast.error(error?.response?.data?.message || 'Could not create from template');
         },
     });
 
     const drills = data?.data || [];
     const branches = branchesData?.data || [];
+    const templates = templatesData?.data || [];
 
     // Filter drills by search
     const filteredDrills = useMemo(() => {
@@ -184,6 +225,7 @@ export default function FireDrills() {
                 <FireDrillForm
                     record={editing}
                     branches={branches}
+                    templates={templates}
                     isCaregiver={isCaregiver}
                     caregiverBranchId={currentUser?.assigned_branch_id}
                     onClose={handleCloseForm}
@@ -191,6 +233,7 @@ export default function FireDrills() {
                         handleCloseForm();
                         queryClient.invalidateQueries(['fire-drills']);
                     }}
+                    onOpenTemplateModal={() => setShowTemplateModal(true)}
                 />
             </div>
         );
@@ -205,16 +248,32 @@ export default function FireDrills() {
                         <p className="text-gray-600">Schedule and track fire drill exercises.</p>
                     </div>
                     {!isCaregiver && (
-                        <button
-                            onClick={() => {
-                                setEditing(null);
-                                setShowForm(true);
-                            }}
-                            className="w-full sm:w-auto px-4 py-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] rounded-lg hover:bg-[var(--theme-primary-hover)] transition-colors flex items-center justify-center space-x-2"
-                        >
-                            <Plus className="w-4 h-4" />
-                            <span>Schedule Fire Drill</span>
-                        </button>
+                        <div className="flex flex-col sm:flex-row gap-2">
+                            <button
+                                onClick={() => setShowCreateFromTemplateModal(true)}
+                                className="w-full sm:w-auto px-4 py-2 border border-[var(--theme-primary)] text-[var(--theme-primary)] rounded-lg hover:bg-[var(--theme-primary-bg-light)] transition-colors flex items-center justify-center space-x-2"
+                            >
+                                <Sparkles className="w-4 h-4" />
+                                <span>Schedule from Template</span>
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setEditing(null);
+                                    setShowForm(true);
+                                }}
+                                className="w-full sm:w-auto px-4 py-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] rounded-lg hover:bg-[var(--theme-primary-hover)] transition-colors flex items-center justify-center space-x-2"
+                            >
+                                <Plus className="w-4 h-4" />
+                                <span>Schedule Fire Drill</span>
+                            </button>
+                            <button
+                                onClick={() => setShowTemplateModal(true)}
+                                className="w-full sm:w-auto px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center space-x-2"
+                            >
+                                <ClipboardList className="w-4 h-4" />
+                                <span>Create Template</span>
+                            </button>
+                        </div>
                     )}
                 </div>
 
@@ -477,6 +536,7 @@ export default function FireDrills() {
                 <FireDrillForm
                     record={editing}
                     branches={branches}
+                    templates={templates}
                     isCaregiver={isCaregiver}
                     caregiverBranchId={currentUser?.assigned_branch_id}
                     onClose={handleCloseForm}
@@ -484,13 +544,38 @@ export default function FireDrills() {
                         queryClient.invalidateQueries(['fire-drills']);
                         handleCloseForm();
                     }}
+                    onOpenTemplateModal={() => setShowTemplateModal(true)}
+                />
+            )}
+
+            {!isCaregiver && showTemplateModal && (
+                <FireDrillTemplateModal
+                    branches={branches}
+                    onClose={() => setShowTemplateModal(false)}
+                    onCreated={() => {
+                        queryClient.invalidateQueries(['fire-drill-templates']);
+                        setShowTemplateModal(false);
+                    }}
+                />
+            )}
+
+            {!isCaregiver && showCreateFromTemplateModal && (
+                <CreateFromTemplateModal
+                    templates={templates}
+                    isLoading={createFromTemplateMutation.isLoading}
+                    onClose={() => setShowCreateFromTemplateModal(false)}
+                    onSubmit={async (payload) => {
+                        await createFromTemplateMutation.mutateAsync(payload);
+                        queryClient.invalidateQueries(['fire-drills']);
+                        setShowCreateFromTemplateModal(false);
+                    }}
                 />
             )}
         </div>
     );
 }
 
-function FireDrillForm({ record, branches, isCaregiver, caregiverBranchId, onClose, onSuccess }) {
+function FireDrillForm({ record, branches, templates = [], isCaregiver, caregiverBranchId, onClose, onSuccess, onOpenTemplateModal }) {
     const [formData, setFormData] = useState({
         branch_id: record?.branch_id || caregiverBranchId || null,
         scheduled_date: record?.scheduled_date || new Date().toISOString().split('T')[0],
@@ -499,8 +584,36 @@ function FireDrillForm({ record, branches, isCaregiver, caregiverBranchId, onClo
         notes: record?.notes || '',
     });
 
+    const [selectedTemplateId, setSelectedTemplateId] = useState(null);
+
     const [errors, setErrors] = useState({});
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const applyTemplate = (templateId) => {
+        const template = templates.find(t => t.id === Number(templateId));
+        if (!template) return;
+
+        const time = template.scheduled_time ? template.scheduled_time.toString().slice(0,5) : '10:00';
+        const today = new Date();
+        let nextDate = new Date(today);
+        if (template.day_of_month) {
+            nextDate.setDate(template.day_of_month);
+            if (nextDate < today) {
+                nextDate.setMonth(nextDate.getMonth() + 1);
+            }
+        }
+
+        setFormData((prev) => ({
+            ...prev,
+            branch_id: template.branch_id,
+            scheduled_time: time,
+            scheduled_date: nextDate.toISOString().split('T')[0],
+            notes: template.notes || prev.notes,
+            status: prev.status || 'scheduled',
+        }));
+        setSelectedTemplateId(templateId);
+        toast.success('Template applied');
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -551,6 +664,44 @@ function FireDrillForm({ record, branches, isCaregiver, caregiverBranchId, onClo
                         {errors.general && (
                             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
                                 {errors.general[0]}
+                            </div>
+                        )}
+
+                        {templates.length > 0 && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Apply Template</label>
+                                    <div className="flex gap-2">
+                                        <Select
+                                            value={selectedTemplateId?.toString() || ''}
+                                            onValueChange={(value) => setSelectedTemplateId(value || null)}
+                                            placeholder="Choose a template"
+                                            options={templates.map(t => ({
+                                                value: t.id.toString(),
+                                                label: `${t.name} (${t.frequency})`,
+                                            }))}
+                                            className="w-full"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => selectedTemplateId && applyTemplate(selectedTemplateId)}
+                                            className="px-3 py-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] rounded-lg disabled:opacity-50"
+                                            disabled={!selectedTemplateId}
+                                        >
+                                            Apply
+                                        </button>
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-1">Prefill branch, date, time, and notes from a saved template.</p>
+                                </div>
+                                <div className="flex items-end">
+                                    <button
+                                        type="button"
+                                        onClick={onOpenTemplateModal}
+                                        className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 w-full md:w-auto"
+                                    >
+                                        + New Template
+                                    </button>
+                                </div>
                             </div>
                         )}
 
@@ -642,6 +793,242 @@ function FireDrillForm({ record, branches, isCaregiver, caregiverBranchId, onClo
                             </button>
                         </div>
                     </form>
+        </div>
+    );
+}
+
+function FireDrillTemplateModal({ branches, onClose, onCreated }) {
+    const [formData, setFormData] = useState({
+        branch_id: null,
+        name: '',
+        description: '',
+        frequency: 'monthly',
+        day_of_month: '',
+        scheduled_time: '10:00',
+        notes: '',
+    });
+    const [errors, setErrors] = useState({});
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setErrors({});
+        setIsSubmitting(true);
+        try {
+            await api.post('/fire-drill-templates', {
+                ...formData,
+                scheduled_time: `${formData.scheduled_time}:00`,
+                day_of_month: formData.day_of_month ? Number(formData.day_of_month) : null,
+            });
+            toast.success('Template created');
+            onCreated();
+        } catch (error) {
+            setErrors(error?.response?.data?.errors || { general: [error?.response?.data?.message || 'Failed to save template'] });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl p-6">
+                <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900">Create Fire Drill Template</h3>
+                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+                        <X className="w-5 h-5" />
+                    </button>
+                </div>
+
+                {errors.general && <p className="text-sm text-red-600 mb-2">{errors.general[0]}</p>}
+
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+                            <input
+                                type="text"
+                                value={formData.name}
+                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
+                                required
+                            />
+                            {errors.name && <p className="text-xs text-red-600 mt-1">{errors.name[0]}</p>}
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Branch *</label>
+                            <Select
+                                value={formData.branch_id?.toString() || ''}
+                                onValueChange={(value) => setFormData({ ...formData, branch_id: value ? Number(value) : null })}
+                                placeholder="Select Branch"
+                                options={branches.map(branch => ({ value: branch.id.toString(), label: branch.name }))}
+                                className="w-full"
+                            />
+                            {errors.branch_id && <p className="text-xs text-red-600 mt-1">{errors.branch_id[0]}</p>}
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Frequency *</label>
+                            <Select
+                                value={formData.frequency}
+                                onValueChange={(value) => setFormData({ ...formData, frequency: value })}
+                                options={[
+                                    { value: 'monthly', label: 'Monthly' },
+                                    { value: 'quarterly', label: 'Quarterly' },
+                                ]}
+                            />
+                            {errors.frequency && <p className="text-xs text-red-600 mt-1">{errors.frequency[0]}</p>}
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Day of Month</label>
+                            <input
+                                type="number"
+                                min="1"
+                                max="31"
+                                value={formData.day_of_month}
+                                onChange={(e) => setFormData({ ...formData, day_of_month: e.target.value })}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
+                                placeholder="e.g., 15"
+                            />
+                            {errors.day_of_month && <p className="text-xs text-red-600 mt-1">{errors.day_of_month[0]}</p>}
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Time *</label>
+                            <input
+                                type="time"
+                                value={formData.scheduled_time}
+                                onChange={(e) => setFormData({ ...formData, scheduled_time: e.target.value })}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
+                                required
+                            />
+                            {errors.scheduled_time && <p className="text-xs text-red-600 mt-1">{errors.scheduled_time[0]}</p>}
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                        <textarea
+                            value={formData.notes}
+                            onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                            rows={3}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
+                            placeholder="Guidelines, assembly points, etc."
+                        />
+                        {errors.notes && <p className="text-xs text-red-600 mt-1">{errors.notes[0]}</p>}
+                    </div>
+
+                    <div className="flex items-center justify-end gap-3 pt-2">
+                        <button type="button" onClick={onClose} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={isSubmitting}
+                            className="px-4 py-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] rounded-lg hover:bg-[var(--theme-primary-hover)] disabled:opacity-50"
+                        >
+                            {isSubmitting ? 'Saving...' : 'Save Template'}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+}
+
+function CreateFromTemplateModal({ templates, isLoading, onClose, onSubmit }) {
+    const [templateId, setTemplateId] = useState('');
+    const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
+    const [occurrences, setOccurrences] = useState(3);
+    const [errors, setErrors] = useState({});
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setErrors({});
+        if (!templateId) {
+            setErrors({ template_id: ['Please select a template'] });
+            return;
+        }
+        try {
+            await onSubmit({
+                template_id: Number(templateId),
+                start_date: startDate,
+                occurrences: Number(occurrences),
+            });
+        } catch (error) {
+            setErrors(error?.response?.data?.errors || { general: [error?.response?.data?.message || 'Failed to schedule from template'] });
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-xl p-6">
+                <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900">Schedule from Template</h3>
+                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+                        <X className="w-5 h-5" />
+                    </button>
+                </div>
+
+                {errors.general && <p className="text-sm text-red-600 mb-2">{errors.general[0]}</p>}
+
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Template *</label>
+                        <Select
+                            value={templateId}
+                            onValueChange={(value) => setTemplateId(value)}
+                            options={templates.map(t => ({
+                                value: t.id.toString(),
+                                label: `${t.name} (${t.frequency})`,
+                            }))}
+                            placeholder={templates.length ? 'Select template' : 'No templates available'}
+                            className="w-full"
+                            disabled={!templates.length}
+                        />
+                        {errors.template_id && <p className="text-xs text-red-600 mt-1">{errors.template_id[0]}</p>}
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Start Date *</label>
+                            <input
+                                type="date"
+                                value={startDate}
+                                onChange={(e) => setStartDate(e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
+                                required
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Occurrences</label>
+                            <input
+                                type="number"
+                                min="1"
+                                max="12"
+                                value={occurrences}
+                                onChange={(e) => setOccurrences(e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
+                            />
+                        </div>
+                    </div>
+
+                    <p className="text-xs text-gray-600">We’ll schedule future drills based on the template frequency (monthly or quarterly).</p>
+
+                    <div className="flex items-center justify-end gap-3">
+                        <button type="button" onClick={onClose} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={isLoading || !templates.length}
+                            className="px-4 py-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] rounded-lg hover:bg-[var(--theme-primary-hover)] disabled:opacity-50"
+                        >
+                            {isLoading ? 'Scheduling...' : 'Schedule'}
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
     );
 }

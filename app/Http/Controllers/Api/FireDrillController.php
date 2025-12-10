@@ -4,6 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\FireDrill;
+use App\Models\FireDrillTemplate;
+use App\Models\Branch;
+use App\Constants\Modules;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
@@ -16,29 +19,17 @@ class FireDrillController extends BaseApiController
      */
     public function index(Request $request): JsonResponse
     {
+        if ($error = $this->requireModuleAccess(Modules::FIRE_DRILLS)) {
+            return $error;
+        }
+
         $query = FireDrill::with(['branch', 'createdBy']);
         $user = $request->user();
         $currentUser = Auth::user();
         $isCaregiver = $user && in_array($user->role, ['caregiver', 'care_giver', 'nurse', 'registered_nurse', 'licensed_nurse']);
 
-        // Apply facility filtering for non-super admins
-        if ($currentUser && $currentUser->role !== 'super_admin') {
-            // Filter fire drills by branches that belong to the user's facility
-            if ($currentUser->facility_id) {
-                $query->whereHas('branch', function($q) use ($currentUser) {
-                    $q->where('facility_id', $currentUser->facility_id);
-                });
-            } else {
-                // User has no facility assigned, return empty results
-                return response()->json([
-                    'data' => [],
-                    'current_page' => 1,
-                    'last_page' => 1,
-                    'per_page' => $request->get('per_page', 50),
-                    'total' => 0
-                ]);
-            }
-        }
+        // Facility scoping via helper (covers super-admin context switching)
+        $this->applyFacilityFilter($query, $currentUser);
         
         // Filter by branch for caregivers
         if ($isCaregiver && $user->assigned_branch_id) {
@@ -82,9 +73,9 @@ class FireDrillController extends BaseApiController
      */
     public function store(Request $request): JsonResponse
     {
-        // Fire drills might not have specific permissions, but we can check for general safety permissions
-        // For now, we'll skip permission check for fire drills as they may be handled differently
-        // If needed, add: if ($error = $this->requirePermission('create_fire_drills')) { return $error; }
+        if ($error = $this->requireModuleAccess(Modules::FIRE_DRILLS)) {
+            return $error;
+        }
 
         $validated = $request->validate([
             'branch_id' => 'required|exists:branches,id',
@@ -94,6 +85,17 @@ class FireDrillController extends BaseApiController
             'notes' => 'nullable|string',
             'completed_at' => 'nullable|date',
         ]);
+
+        // Ensure branch belongs to the current facility (except super admins without context)
+        $facility = $this->getCurrentFacility($request->user());
+        if ($facility) {
+            $branch = Branch::find($validated['branch_id']);
+            if (!$branch || $branch->facility_id !== $facility->id) {
+                return response()->json([
+                    'message' => 'The selected branch does not belong to your facility.',
+                ], 403);
+            }
+        }
 
         $validated['created_by'] = auth()->id();
 
@@ -114,18 +116,12 @@ class FireDrillController extends BaseApiController
     {
         $drill = FireDrill::with(['branch', 'createdBy'])->findOrFail($id);
 
-        // Check facility access for non-super admins
-        $currentUser = Auth::user();
-        if ($currentUser && $currentUser->role !== 'super_admin') {
-            if ($currentUser->facility_id) {
-                // Verify the fire drill's branch belongs to the user's facility
-                if (!$drill->branch || $drill->branch->facility_id !== $currentUser->facility_id) {
-                    return response()->json(['message' => 'Fire drill not found'], 404);
-                }
-            } else {
-                // User has no facility assigned
-                return response()->json(['message' => 'Fire drill not found'], 404);
-            }
+        if ($error = $this->requireModuleAccess(Modules::FIRE_DRILLS)) {
+            return $error;
+        }
+
+        if (!$this->checkFacilityAccess($drill)) {
+            return response()->json(['message' => 'Fire drill not found'], 404);
         }
 
         return response()->json($drill);
@@ -136,7 +132,15 @@ class FireDrillController extends BaseApiController
      */
     public function update(Request $request, $id): JsonResponse
     {
+        if ($error = $this->requireModuleAccess(Modules::FIRE_DRILLS)) {
+            return $error;
+        }
+
         $drill = FireDrill::findOrFail($id);
+
+        if (!$this->checkFacilityAccess($drill)) {
+            return response()->json(['message' => 'Fire drill not found'], 404);
+        }
 
         $validated = $request->validate([
             'branch_id' => 'sometimes|required|exists:branches,id',
@@ -157,6 +161,19 @@ class FireDrillController extends BaseApiController
             $validated['completed_at'] = null;
         }
 
+        // Ensure branch stays within facility context when changed
+        if (isset($validated['branch_id'])) {
+            $facility = $this->getCurrentFacility($request->user());
+            if ($facility) {
+                $branch = Branch::find($validated['branch_id']);
+                if (!$branch || $branch->facility_id !== $facility->id) {
+                    return response()->json([
+                        'message' => 'The selected branch does not belong to your facility.',
+                    ], 403);
+                }
+            }
+        }
+
         $drill->update($validated);
 
         return response()->json($drill->load(['branch', 'createdBy']));
@@ -167,7 +184,15 @@ class FireDrillController extends BaseApiController
      */
     public function markComplete($id): JsonResponse
     {
+        if ($error = $this->requireModuleAccess(Modules::FIRE_DRILLS)) {
+            return $error;
+        }
+
         $drill = FireDrill::findOrFail($id);
+
+        if (!$this->checkFacilityAccess($drill)) {
+            return response()->json(['message' => 'Fire drill not found'], 404);
+        }
         
         if ($drill->status !== 'scheduled') {
             return response()->json([
@@ -188,7 +213,15 @@ class FireDrillController extends BaseApiController
      */
     public function cancel($id): JsonResponse
     {
+        if ($error = $this->requireModuleAccess(Modules::FIRE_DRILLS)) {
+            return $error;
+        }
+
         $drill = FireDrill::findOrFail($id);
+
+        if (!$this->checkFacilityAccess($drill)) {
+            return response()->json(['message' => 'Fire drill not found'], 404);
+        }
         
         if ($drill->status !== 'scheduled') {
             return response()->json([
@@ -208,9 +241,71 @@ class FireDrillController extends BaseApiController
      */
     public function destroy($id): JsonResponse
     {
+        if ($error = $this->requireModuleAccess(Modules::FIRE_DRILLS)) {
+            return $error;
+        }
+
         $drill = FireDrill::findOrFail($id);
+
+        if (!$this->checkFacilityAccess($drill)) {
+            return response()->json(['message' => 'Fire drill not found'], 404);
+        }
         $drill->delete();
 
         return response()->json(['message' => 'Fire drill deleted successfully']);
+    }
+
+    /**
+     * Create fire drills from a template (supports recurring generation)
+     */
+    public function createFromTemplate(Request $request): JsonResponse
+    {
+        if ($error = $this->requireModuleAccess(Modules::FIRE_DRILLS)) {
+            return $error;
+        }
+
+        $validated = $request->validate([
+            'template_id' => 'required|exists:fire_drill_templates,id',
+            'start_date' => 'required|date',
+            'occurrences' => 'nullable|integer|min:1|max:12',
+        ]);
+
+        $template = FireDrillTemplate::with('branch')->findOrFail($validated['template_id']);
+
+        if (!$this->checkFacilityAccess($template)) {
+            return response()->json(['message' => 'Template not found'], 404);
+        }
+
+        $occurrences = $validated['occurrences'] ?? 1;
+        $startDate = Carbon::parse($validated['start_date']);
+        $dayOfMonth = $template->day_of_month ?? $startDate->day;
+
+        $createdIds = [];
+        for ($i = 0; $i < $occurrences; $i++) {
+            $date = $startDate->copy();
+            if ($i > 0) {
+                $incrementMonths = $template->frequency === 'quarterly' ? 3 * $i : 1 * $i;
+                $date->addMonths($incrementMonths);
+            }
+            $date->day($dayOfMonth);
+
+            $drill = FireDrill::create([
+                'branch_id' => $template->branch_id,
+                'scheduled_date' => $date->toDateString(),
+                'scheduled_time' => $template->scheduled_time ?? '10:00:00',
+                'status' => 'scheduled',
+                'notes' => $template->notes,
+                'created_by' => auth()->id(),
+            ]);
+
+            $createdIds[] = $drill->id;
+        }
+
+        $created = FireDrill::with(['branch', 'createdBy'])->whereIn('id', $createdIds)->get();
+
+        return response()->json([
+            'message' => 'Fire drills created from template.',
+            'data' => $created,
+        ], 201);
     }
 }

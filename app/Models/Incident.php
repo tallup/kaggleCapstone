@@ -8,11 +8,17 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\Loggable;
+use App\Models\Scopes\FacilityScope;
 use Carbon\Carbon;
 
 class Incident extends Model
 {
     use HasFactory, SoftDeletes, Loggable;
+
+    protected static function booted()
+    {
+        static::addGlobalScope(new FacilityScope);
+    }
 
     // Constants for Status
     public const STATUS_OPEN = 'open';

@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\GroceryStatusUpdate;
+use App\Models\Branch;
+use App\Constants\Modules;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
@@ -16,29 +18,17 @@ class GroceryStatusUpdateController extends BaseApiController
      */
     public function index(Request $request): JsonResponse
     {
+        if ($error = $this->requireModuleAccess(Modules::GROCERY_STATUS)) {
+            return $error;
+        }
+
         $query = GroceryStatusUpdate::with(['branch', 'updatedBy']);
         $user = $request->user();
         $currentUser = Auth::user();
         $isCaregiver = $user && in_array($user->role, ['caregiver', 'care_giver', 'nurse', 'registered_nurse', 'licensed_nurse']);
 
-        // Apply facility filtering for non-super admins
-        if ($currentUser && $currentUser->role !== 'super_admin') {
-            // Filter grocery status updates by branches that belong to the user's facility
-            if ($currentUser->facility_id) {
-                $query->whereHas('branch', function($q) use ($currentUser) {
-                    $q->where('facility_id', $currentUser->facility_id);
-                });
-            } else {
-                // User has no facility assigned, return empty results
-                return response()->json([
-                    'data' => [],
-                    'current_page' => 1,
-                    'last_page' => 1,
-                    'per_page' => $request->get('per_page', 50),
-                    'total' => 0
-                ]);
-            }
-        }
+        // Facility scoping
+        $this->applyFacilityFilter($query, $currentUser);
         
         // Filter by branch for caregivers
         if ($isCaregiver && $user->assigned_branch_id) {
@@ -76,6 +66,10 @@ class GroceryStatusUpdateController extends BaseApiController
      */
     public function store(Request $request): JsonResponse
     {
+        if ($error = $this->requireModuleAccess(Modules::GROCERY_STATUS)) {
+            return $error;
+        }
+
         $validated = $request->validate([
             'branch_id' => 'required|exists:branches,id',
             'week_start_date' => 'required|date',
@@ -96,6 +90,17 @@ class GroceryStatusUpdateController extends BaseApiController
             $validated['completed_at'] = now();
         }
 
+        // Enforce branch facility alignment
+        $facility = $this->getCurrentFacility($request->user());
+        if ($facility) {
+            $branch = Branch::find($validated['branch_id']);
+            if (!$branch || $branch->facility_id !== $facility->id) {
+                return response()->json([
+                    'message' => 'The selected branch does not belong to your facility.',
+                ], 403);
+            }
+        }
+
         $update = GroceryStatusUpdate::create($validated);
 
         return response()->json($update->load(['branch', 'updatedBy']), 201);
@@ -106,21 +111,15 @@ class GroceryStatusUpdateController extends BaseApiController
      */
     public function show(string $id): JsonResponse
     {
+        if ($error = $this->requireModuleAccess(Modules::GROCERY_STATUS)) {
+            return $error;
+        }
+
         $update = GroceryStatusUpdate::with(['branch', 'updatedBy'])
             ->findOrFail($id);
 
-        // Check facility access for non-super admins
-        $currentUser = Auth::user();
-        if ($currentUser && $currentUser->role !== 'super_admin') {
-            if ($currentUser->facility_id) {
-                // Verify the grocery status update's branch belongs to the user's facility
-                if (!$update->branch || $update->branch->facility_id !== $currentUser->facility_id) {
-                    return response()->json(['message' => 'Grocery status update not found'], 404);
-                }
-            } else {
-                // User has no facility assigned
-                return response()->json(['message' => 'Grocery status update not found'], 404);
-            }
+        if (!$this->checkFacilityAccess($update)) {
+            return response()->json(['message' => 'Grocery status update not found'], 404);
         }
 
         // Check caregiver branch access
@@ -140,7 +139,15 @@ class GroceryStatusUpdateController extends BaseApiController
      */
     public function update(Request $request, string $id): JsonResponse
     {
+        if ($error = $this->requireModuleAccess(Modules::GROCERY_STATUS)) {
+            return $error;
+        }
+
         $update = GroceryStatusUpdate::findOrFail($id);
+
+        if (!$this->checkFacilityAccess($update)) {
+            return response()->json(['message' => 'Grocery status update not found'], 404);
+        }
 
         // Check permissions
         $user = request()->user();
@@ -166,6 +173,18 @@ class GroceryStatusUpdateController extends BaseApiController
             $validated['week_start_date'] = $date->startOfWeek(Carbon::MONDAY)->toDateString();
         }
 
+        if (isset($validated['branch_id'])) {
+            $facility = $this->getCurrentFacility($request->user());
+            if ($facility) {
+                $branch = Branch::find($validated['branch_id']);
+                if (!$branch || $branch->facility_id !== $facility->id) {
+                    return response()->json([
+                        'message' => 'The selected branch does not belong to your facility.',
+                    ], 403);
+                }
+            }
+        }
+
         // Set completed_at if status is completed
         if (isset($validated['status']) && $validated['status'] === 'completed' && !$update->completed_at) {
             $validated['completed_at'] = now();
@@ -181,7 +200,15 @@ class GroceryStatusUpdateController extends BaseApiController
      */
     public function updateStatus(Request $request, string $id): JsonResponse
     {
+        if ($error = $this->requireModuleAccess(Modules::GROCERY_STATUS)) {
+            return $error;
+        }
+
         $update = GroceryStatusUpdate::findOrFail($id);
+
+        if (!$this->checkFacilityAccess($update)) {
+            return response()->json(['message' => 'Grocery status update not found'], 404);
+        }
 
         $validated = $request->validate([
             'status' => 'required|in:pending,in_progress,completed,needs_attention',
@@ -206,7 +233,15 @@ class GroceryStatusUpdateController extends BaseApiController
      */
     public function destroy(string $id): JsonResponse
     {
+        if ($error = $this->requireModuleAccess(Modules::GROCERY_STATUS)) {
+            return $error;
+        }
+
         $update = GroceryStatusUpdate::findOrFail($id);
+
+        if (!$this->checkFacilityAccess($update)) {
+            return response()->json(['message' => 'Grocery status update not found'], 404);
+        }
         
         // Only admins can delete
         $user = request()->user();

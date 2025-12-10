@@ -4,7 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\MedicationDelivery;
-use App\Models\Facility;
+use App\Models\Branch;
+use App\Constants\Modules;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
@@ -15,27 +16,16 @@ class MedicationDeliveryController extends BaseApiController
      */
     public function index(Request $request): JsonResponse
     {
+        if ($error = $this->requireModuleAccess(Modules::PHARMACY)) {
+            return $error;
+        }
+
         $query = MedicationDelivery::with(['branch', 'resident', 'medication', 'receivedBy']);
         $user = $request->user();
         $isCaregiver = $user && in_array($user->role, ['caregiver', 'care_giver', 'nurse', 'registered_nurse', 'licensed_nurse']);
         
-        // Facility scoping for non-super admins
-        if ($user && $user->role !== 'super_admin') {
-            $facility = null;
-            try {
-                $facility = app()->bound('facility') ? app('facility') : null;
-            } catch (\Exception $e) {
-                $facility = null;
-            }
-            if (!$facility && $user->facility_id) {
-                $facility = Facility::find($user->facility_id);
-            }
-            if ($facility) {
-                $query->whereHas('branch', function ($q) use ($facility) {
-                    $q->where('facility_id', $facility->id);
-                });
-            }
-        }
+        // Facility scoping
+        $this->applyFacilityFilter($query, $user);
         
         // Filter by branch for caregivers
         if ($isCaregiver && $user->assigned_branch_id) {
@@ -77,6 +67,10 @@ class MedicationDeliveryController extends BaseApiController
      */
     public function store(Request $request): JsonResponse
     {
+        if ($error = $this->requireModuleAccess(Modules::PHARMACY)) {
+            return $error;
+        }
+
         $validated = $request->validate([
             'branch_id' => 'required|exists:branches,id',
             'delivery_type' => 'required|in:individual,batch',
@@ -91,24 +85,13 @@ class MedicationDeliveryController extends BaseApiController
         ]);
 
         // Facility enforcement for non-super admins
-        $user = $request->user();
-        if ($user && $user->role !== 'super_admin') {
-            $facility = null;
-            try {
-                $facility = app()->bound('facility') ? app('facility') : null;
-            } catch (\Exception $e) {
-                $facility = null;
-            }
-            if (!$facility && $user->facility_id) {
-                $facility = Facility::find($user->facility_id);
-            }
-            if ($facility) {
-                $branch = \App\Models\Branch::find($validated['branch_id']);
-                if (!$branch || $branch->facility_id !== $facility->id) {
-                    return response()->json([
-                        'message' => 'The selected branch does not belong to your facility.',
-                    ], 403);
-                }
+        $facility = $this->getCurrentFacility($request->user());
+        if ($facility) {
+            $branch = Branch::find($validated['branch_id']);
+            if (!$branch || $branch->facility_id !== $facility->id) {
+                return response()->json([
+                    'message' => 'The selected branch does not belong to your facility.',
+                ], 403);
             }
         }
 
@@ -132,8 +115,16 @@ class MedicationDeliveryController extends BaseApiController
      */
     public function show(string $id): JsonResponse
     {
+        if ($error = $this->requireModuleAccess(Modules::PHARMACY)) {
+            return $error;
+        }
+
         $delivery = MedicationDelivery::with(['branch', 'resident', 'medication', 'receivedBy'])
             ->findOrFail($id);
+
+        if (!$this->checkFacilityAccess($delivery)) {
+            return response()->json(['message' => 'Medication delivery not found'], 404);
+        }
 
         $user = request()->user();
         $isCaregiver = $user && in_array($user->role, ['caregiver', 'care_giver', 'nurse', 'registered_nurse', 'licensed_nurse']);
@@ -151,7 +142,15 @@ class MedicationDeliveryController extends BaseApiController
      */
     public function update(Request $request, string $id): JsonResponse
     {
+        if ($error = $this->requireModuleAccess(Modules::PHARMACY)) {
+            return $error;
+        }
+
         $delivery = MedicationDelivery::findOrFail($id);
+
+        if (!$this->checkFacilityAccess($delivery)) {
+            return response()->json(['message' => 'Medication delivery not found'], 404);
+        }
 
         $validated = $request->validate([
             'branch_id' => 'sometimes|exists:branches,id',
@@ -173,6 +172,18 @@ class MedicationDeliveryController extends BaseApiController
             ], 422);
         }
 
+        if (isset($validated['branch_id'])) {
+            $facility = $this->getCurrentFacility($request->user());
+            if ($facility) {
+                $branch = Branch::find($validated['branch_id']);
+                if (!$branch || $branch->facility_id !== $facility->id) {
+                    return response()->json([
+                        'message' => 'The selected branch does not belong to your facility.',
+                    ], 403);
+                }
+            }
+        }
+
         $delivery->update($validated);
 
         return response()->json($delivery->load(['branch', 'resident', 'medication', 'receivedBy']));
@@ -183,6 +194,10 @@ class MedicationDeliveryController extends BaseApiController
      */
     public function bulkStore(Request $request): JsonResponse
     {
+        if ($error = $this->requireModuleAccess(Modules::PHARMACY)) {
+            return $error;
+        }
+
         $validated = $request->validate([
             'deliveries' => 'required|array|min:1',
             'deliveries.*.branch_id' => 'required|exists:branches,id',
@@ -197,18 +212,7 @@ class MedicationDeliveryController extends BaseApiController
             'deliveries.*.notes' => 'nullable|string',
         ]);
 
-        $user = $request->user();
-        $facility = null;
-        if ($user && $user->role !== 'super_admin') {
-            try {
-                $facility = app()->bound('facility') ? app('facility') : null;
-            } catch (\Exception $e) {
-                $facility = null;
-            }
-            if (!$facility && $user->facility_id) {
-                $facility = Facility::find($user->facility_id);
-            }
-        }
+        $facility = $this->getCurrentFacility($request->user());
 
         $created = [];
         $errors = [];
@@ -225,7 +229,7 @@ class MedicationDeliveryController extends BaseApiController
 
             // Facility enforcement for non-super admins
             if ($facility) {
-                $branch = \App\Models\Branch::find($deliveryData['branch_id']);
+                $branch = Branch::find($deliveryData['branch_id']);
                 if (!$branch || $branch->facility_id !== $facility->id) {
                     $errors[] = [
                         'index' => $index,
@@ -263,7 +267,15 @@ class MedicationDeliveryController extends BaseApiController
      */
     public function destroy(string $id): JsonResponse
     {
+        if ($error = $this->requireModuleAccess(Modules::PHARMACY)) {
+            return $error;
+        }
+
         $delivery = MedicationDelivery::findOrFail($id);
+
+        if (!$this->checkFacilityAccess($delivery)) {
+            return response()->json(['message' => 'Medication delivery not found'], 404);
+        }
         $delivery->delete();
 
         return response()->json(['message' => 'Medication delivery deleted successfully']);
