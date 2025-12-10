@@ -148,14 +148,14 @@ class ReminderController extends BaseApiController
 
     private function validateReminder(Request $request, ?Reminder $reminder = null): array
     {
-        $scheduleTypeRule = $reminder ? 'in:one_time,recurring' : 'required|in:one_time,recurring';
-
         $rules = [
             'title' => ['required', 'string', 'max:255'],
             'category' => ['nullable', 'string', Rule::in(['medication', 'bill', 'appointment', 'renewal', 'general'])],
             'description' => ['nullable', 'string'],
             'channel' => ['nullable', Rule::in(['in_app', 'email'])],
-            'schedule_type' => [$scheduleTypeRule],
+            'schedule_type' => $reminder
+                ? ['sometimes', Rule::in(['one_time', 'recurring'])]
+                : ['required', Rule::in(['one_time', 'recurring'])],
             'due_at' => ['nullable', 'date'],
             'recurrence_pattern' => ['nullable', 'array'],
             'recurrence_pattern.frequency' => ['required_if:schedule_type,recurring', Rule::in(['daily', 'weekly', 'monthly', 'interval'])],
