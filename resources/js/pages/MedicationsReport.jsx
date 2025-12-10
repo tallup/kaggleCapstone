@@ -233,15 +233,37 @@ export default function MedicationsReport() {
                             <tbody className="bg-white divide-y divide-gray-200">
                                 {administrations.map((item) => (
                                     <tr key={item.id} className="hover:bg-gray-50">
-                                        <td className="px-4 py-3 text-sm text-[var(--theme-primary)] font-semibold">
+                                        <td className="px-4 py-3 text-sm">
                                             {(() => {
                                                 const r = item.resident || {};
-                                                const name = r.name || r.full_name || [r.first_name, r.last_name].filter(Boolean).join(' ').trim();
-                                                if (!r.id) return name || 'N/A';
+                                                const name = r.name || r.full_name || [r.first_name, r.last_name].filter(Boolean).join(' ').trim() || 'Resident';
+                                                const initials = (r.first_name?.[0] || '') + (r.last_name?.[0] || '');
+                                                const avatarSrc = r.profile_image_url
+                                                    || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=25603E&color=fff&size=128`;
+
+                                                const avatar = (
+                                                    <img
+                                                        src={avatarSrc}
+                                                        alt={name}
+                                                        className="w-10 h-10 rounded-full object-cover border border-gray-200"
+                                                        onError={(e) => {
+                                                            e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=25603E&color=fff&size=128`;
+                                                        }}
+                                                        title={name}
+                                                    />
+                                                );
+
+                                                if (r.id) {
+                                                    return (
+                                                        <a href={`/medications/residents/${r.id}`} className="inline-flex items-center" title={name} aria-label={name}>
+                                                            {avatar}
+                                                        </a>
+                                                    );
+                                                }
                                                 return (
-                                                    <a href={`/medications/residents/${r.id}`} className="hover:underline">
-                                                        {name || 'N/A'}
-                                                    </a>
+                                                    <div className="w-10 h-10 rounded-full bg-[var(--theme-primary)] text-white flex items-center justify-center font-semibold" title={name} aria-label={name}>
+                                                        {initials.toUpperCase() || 'R'}
+                                                    </div>
                                                 );
                                             })()}
                                         </td>
