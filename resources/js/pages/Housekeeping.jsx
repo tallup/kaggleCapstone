@@ -269,25 +269,38 @@ export default function Housekeeping() {
             {/* Skip Notes Modal */}
             {skipNotesModal.open && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-                    <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Skip Task</h3>
-                        <p className="text-sm text-gray-600 mb-4">
-                            Add a note explaining why this task is being skipped (optional):
-                        </p>
-                        <textarea
-                            value={skipNotesModal.notes}
-                            onChange={(e) => setSkipNotesModal({ ...skipNotesModal, notes: e.target.value })}
-                            placeholder="Enter reason for skipping..."
-                            rows={4}
-                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:border-[var(--theme-primary)]"
-                            style={{ '--tw-ring-color': 'var(--theme-primary-bg)' }}
-                            maxLength={1000}
-                        />
-                        <div className="mt-6 flex items-center justify-end gap-3">
+                    <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
+                        <div className="mb-6">
+                            <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--theme-primary)' }}>
+                                Skip Task
+                            </p>
+                            <h3 className="text-xl font-semibold text-gray-900">Enter reason for skipping</h3>
+                            <p className="mt-1 text-sm text-gray-500">
+                                Add a note explaining why this task is being skipped (optional)
+                            </p>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-semibold text-gray-900 mb-2">
+                                Reason
+                            </label>
+                            <textarea
+                                value={skipNotesModal.notes}
+                                onChange={(e) => setSkipNotesModal({ ...skipNotesModal, notes: e.target.value })}
+                                placeholder="Enter reason for skipping..."
+                                rows={4}
+                                className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:border-[var(--theme-primary)]"
+                                style={{ '--tw-ring-color': 'var(--theme-primary-bg)' }}
+                                maxLength={1000}
+                            />
+                            <p className="mt-1 text-xs text-gray-400">
+                                {skipNotesModal.notes.length}/1000 characters
+                            </p>
+                        </div>
+                        <div className="mt-6 flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
                             <button
                                 type="button"
                                 onClick={() => setSkipNotesModal({ open: false, taskId: null, notes: '' })}
-                                className="px-4 py-2 text-sm font-medium text-gray-700 rounded-lg border border-gray-300 hover:bg-gray-50 transition"
+                                className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
                             >
                                 Cancel
                             </button>
@@ -295,7 +308,8 @@ export default function Housekeeping() {
                                 type="button"
                                 onClick={handleSkipSubmit}
                                 disabled={mutation.isLoading}
-                                className="px-4 py-2 text-sm font-semibold text-white bg-amber-600 rounded-lg hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-2"
+                                className="inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[var(--theme-primary-hover)] disabled:opacity-50 disabled:cursor-not-allowed"
+                                style={{ backgroundColor: 'var(--theme-primary)' }}
                             >
                                 {mutation.isLoading ? (
                                     <>
@@ -303,7 +317,10 @@ export default function Housekeeping() {
                                         Skipping...
                                     </>
                                 ) : (
-                                    'Skip Task'
+                                    <>
+                                        <XCircle className="h-4 w-4" />
+                                        Skip Task
+                                    </>
                                 )}
                             </button>
                         </div>
