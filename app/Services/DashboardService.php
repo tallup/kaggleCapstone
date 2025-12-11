@@ -247,15 +247,19 @@ class DashboardService
             });
         }
 
-        // If no facility found, return zeros (administrator should have facility context)
-        if (!$facilityId) {
+        // If no facility found, log warning but try to get data anyway (for super admins or debugging)
+        if (!$facilityId && $user && $user->role !== 'super_admin') {
             Log::warning('DashboardService: No facility context found for administrator', [
-                'user_id' => $user?->id,
-                'user_role' => $user?->role,
-                'user_facility_id' => $user?->facility_id,
-                'user_assigned_branch_id' => $user?->assigned_branch_id,
+                'user_id' => $user->id,
+                'user_role' => $user->role,
+                'user_facility_id' => $user->facility_id,
+                'user_assigned_branch_id' => $user->assigned_branch_id,
             ]);
-            
+        }
+        
+        // For super admins without facility context, show all data
+        // For regular admins without facility context, show zeros with warning
+        if (!$facilityId && $user && $user->role !== 'super_admin') {
             return [
                 'total_residents' => 0,
                 'active_residents' => 0,
@@ -272,6 +276,7 @@ class DashboardService
                 'upcoming_appointments_list' => [],
                 'resident_list' => [],
                 'medication_reminders' => [],
+                'facility_context_missing' => true,
             ];
         }
 
@@ -291,6 +296,9 @@ class DashboardService
             ->whereBetween('created_at', [$rangeStart, now()])
             ->count();
 
+        // Calculate new metrics
+        $newMetrics = $this->calculateNewMetrics($facilityId);
+
         return [
             'total_residents' => $totalResidents,
             'active_residents' => $totalResidents,
@@ -309,6 +317,12 @@ class DashboardService
             'upcoming_appointments_list' => $this->getAdminUpcomingAppointments(),
             'resident_list' => $this->getAdminResidentList(),
             'medication_reminders' => $this->getAdminMedicationReminders(),
+            // New metrics
+            'occupancy_rate' => $newMetrics['occupancy_rate'],
+            'compliance_score' => $newMetrics['compliance_score'],
+            'medication_adherence_rate' => $newMetrics['medication_adherence_rate'],
+            'average_incident_response_time' => $newMetrics['average_incident_response_time'],
+            'staff_utilization' => $newMetrics['staff_utilization'],
         ];
     }
 
@@ -684,6 +698,141 @@ class DashboardService
         
         return $activities;
         });
+    }
+
+    /**
+     * Calculate new metrics: occupancy, compliance, adherence, response time, staff utilization
+     */
+    private function calculateNewMetrics(?int $facilityId): array
+    {
+        $metrics = [
+            'occupancy_rate' => 0,
+            'compliance_score' => 0,
+            'medication_adherence_rate' => 0,
+            'average_incident_response_time' => 0,
+            'staff_utilization' => 0,
+        ];
+
+        if (!$facilityId) {
+            return $metrics;
+        }
+
+        // 1. Occupancy Rate: Calculate average residents per branch
+        $branches = \App\Models\Branch::withoutGlobalScopes()
+            ->where('facility_id', $facilityId)
+            ->where('is_active', true)
+            ->get();
+        
+        $totalResidents = Resident::withoutGlobalScopes()
+            ->where('is_active', true)
+            ->where(function ($q) use ($facilityId) {
+                $q->where('facility_id', $facilityId)
+                    ->orWhereHas('branch', function ($b) use ($facilityId) {
+                        $b->where('facility_id', $facilityId);
+                    });
+            })
+            ->count();
+        
+        $activeBranches = $branches->count();
+        if ($activeBranches > 0) {
+            // Calculate average residents per branch (as a simple occupancy metric)
+            $avgResidentsPerBranch = $totalResidents / $activeBranches;
+            // Normalize to percentage (assuming ~10-15 residents per branch is typical)
+            $metrics['occupancy_rate'] = min(100, round(($avgResidentsPerBranch / 12) * 100, 1));
+        }
+
+        // 2. Compliance Score: Completed assessments / Total assessments (last 30 days)
+        $rangeStart = now()->subDays(30)->startOfDay();
+        $totalAssessments = Assessment::withoutGlobalScopes()
+            ->whereHas('resident', function ($q) use ($facilityId) {
+                $q->where(function ($r) use ($facilityId) {
+                    $r->where('facility_id', $facilityId)
+                        ->orWhereHas('branch', function ($b) use ($facilityId) {
+                            $b->where('facility_id', $facilityId);
+                        });
+                })->where('is_active', true);
+            })
+            ->whereBetween('created_at', [$rangeStart, now()])
+            ->count();
+        
+        $completedAssessments = Assessment::withoutGlobalScopes()
+            ->whereHas('resident', function ($q) use ($facilityId) {
+                $q->where(function ($r) use ($facilityId) {
+                    $r->where('facility_id', $facilityId)
+                        ->orWhereHas('branch', function ($b) use ($facilityId) {
+                            $b->where('facility_id', $facilityId);
+                        });
+                })->where('is_active', true);
+            })
+            ->whereBetween('created_at', [$rangeStart, now()])
+            ->whereIn('status', ['approved', 'completed'])
+            ->count();
+        
+        if ($totalAssessments > 0) {
+            $metrics['compliance_score'] = round(($completedAssessments / $totalAssessments) * 100, 1);
+        }
+
+        // 3. Medication Adherence Rate: Completed administrations / Total due (last 7 days)
+        $weekStart = now()->subDays(7)->startOfDay();
+        $totalMedicationsDue = Medication::withoutGlobalScopes()
+            ->where('is_active', true)
+            ->whereHas('resident', function ($q) use ($facilityId) {
+                $q->where(function ($r) use ($facilityId) {
+                    $r->where('facility_id', $facilityId)
+                        ->orWhereHas('branch', function ($b) use ($facilityId) {
+                            $b->where('facility_id', $facilityId);
+                        });
+                })->where('is_active', true);
+            })
+            ->count();
+        
+        $completedAdministrations = \App\Models\MedicationAdministration::withoutGlobalScopes()
+            ->whereBetween('administered_at', [$weekStart, now()])
+            ->where('status', 'completed')
+            ->whereHas('resident', function ($q) use ($facilityId) {
+                $q->where(function ($r) use ($facilityId) {
+                    $r->where('facility_id', $facilityId)
+                        ->orWhereHas('branch', function ($b) use ($facilityId) {
+                            $b->where('facility_id', $facilityId);
+                        });
+                })->where('is_active', true);
+            })
+            ->count();
+        
+        // Estimate total due based on active medications and frequency
+        // For simplicity, assume each medication needs administration daily
+        $estimatedTotalDue = $totalMedicationsDue * 7; // 7 days
+        if ($estimatedTotalDue > 0) {
+            $metrics['medication_adherence_rate'] = round(($completedAdministrations / $estimatedTotalDue) * 100, 1);
+        }
+
+        // 4. Average Incident Response Time: Average time from creation to resolution (last 30 days)
+        $resolvedIncidents = \App\Models\Incident::withoutGlobalScopes()
+            ->whereHas('branch', function ($q) use ($facilityId) {
+                $q->where('facility_id', $facilityId);
+            })
+            ->whereBetween('created_at', [$rangeStart, now()])
+            ->whereNotNull('resolved_at')
+            ->get();
+        
+        if ($resolvedIncidents->count() > 0) {
+            $totalResponseTime = $resolvedIncidents->sum(function ($incident) {
+                return $incident->created_at->diffInHours($incident->resolved_at);
+            });
+            $metrics['average_incident_response_time'] = round($totalResponseTime / $resolvedIncidents->count(), 1);
+        }
+
+        // 5. Staff Utilization: Active staff / Total staff (as percentage)
+        $totalStaff = User::withoutGlobalScopes()
+            ->where('facility_id', $facilityId)
+            ->where('is_active', true)
+            ->where('role', '!=', 'super_admin')
+            ->count();
+        
+        // For now, utilization is just the count (can be enhanced with capacity later)
+        $metrics['staff_utilization'] = $totalStaff;
+
+        return $metrics;
     }
 }
 

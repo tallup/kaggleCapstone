@@ -27,10 +27,22 @@ import { DashboardSkeleton } from '../components/ui/SkeletonLoader';
 import MiniCalendar from '../components/ui/MiniCalendar';
 import { useStaggerAnimation } from '../hooks/useStaggerAnimation';
 import { countUp, shouldAnimate } from '../utils/animationPresets';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Select from '../components/ui/radix/Select';
 import Tooltip from '../components/ui/Tooltip';
 import ScrollReveal from '../components/ui/ScrollReveal';
+// New dashboard components
+import DashboardLayout from '../components/dashboard/DashboardLayout';
+import DashboardSidebar from '../components/dashboard/DashboardSidebar';
+import StatCard from '../components/dashboard/StatCard';
+import ActionableItemsSection from '../components/dashboard/ActionableItemsSection';
+import ActionableItemsWidget from '../components/dashboard/ActionableItemsWidget';
+import QuickActionsWidget from '../components/dashboard/QuickActionsWidget';
+import UpcomingTasksWidget from '../components/dashboard/UpcomingTasksWidget';
+import AlertsWidget from '../components/dashboard/AlertsWidget';
+import MiniCalendarWidget from '../components/dashboard/MiniCalendarWidget';
+import MobileDashboard from '../components/dashboard/MobileDashboard';
+import InsightsWidget from '../components/dashboard/InsightsWidget';
 
 // Register Chart.js components
 ChartJS.register(
@@ -384,12 +396,196 @@ export default function Dashboard() {
         },
     ];
 
+    // Build actionable items from stats
+    const actionableItems = useMemo(() => {
+        const items = [];
+        
+        // Pending assessments
+        if (stats?.pending_assessments > 0) {
+            items.push({
+                id: 'pending-assessments',
+                type: 'assessment',
+                title: `${stats.pending_assessments} Pending Assessment${stats.pending_assessments > 1 ? 's' : ''}`,
+                description: 'Requires your attention',
+                priority: stats.pending_assessments > 5 ? 'urgent' : 'soon',
+                link: '/assessments',
+                metadata: { count: stats.pending_assessments },
+            });
+        }
+
+        // Today's appointments
+        const todayAppts = isCaregiver ? stats?.todays_appointments : stats?.today_appointments;
+        if (todayAppts > 0) {
+            items.push({
+                id: 'today-appointments',
+                type: 'appointment',
+                title: `${todayAppts} Appointment${todayAppts > 1 ? 's' : ''} Today`,
+                description: 'Scheduled for today',
+                priority: 'soon',
+                link: '/appointments',
+                metadata: { count: todayAppts, date: new Date().toLocaleDateString() },
+            });
+        }
+
+        // Upcoming fire drills (from upcomingFireDrills)
+        if (upcomingFireDrills?.data && upcomingFireDrills.data.length > 0) {
+            const todayDrills = upcomingFireDrills.data.filter(drill => {
+                const drillDate = new Date(drill.scheduled_date);
+                return drillDate.toDateString() === new Date().toDateString();
+            });
+            if (todayDrills.length > 0) {
+                items.push({
+                    id: 'today-fire-drills',
+                    type: 'fire_drill',
+                    title: `${todayDrills.length} Fire Drill${todayDrills.length > 1 ? 's' : ''} Today`,
+                    description: todayDrills[0].branch?.name || 'Scheduled for today',
+                    priority: 'urgent',
+                    link: '/fire-drills',
+                    metadata: { count: todayDrills.length },
+                });
+            }
+        }
+
+        // Medication reminders
+        if (stats?.medication_reminders && stats.medication_reminders.length > 0) {
+            const dueToday = stats.medication_reminders.filter(m => {
+                const dueDate = new Date(m.due_at || m.scheduled_for);
+                return dueDate.toDateString() === new Date().toDateString();
+            });
+            if (dueToday.length > 0) {
+                items.push({
+                    id: 'medication-reminders',
+                    type: 'medication',
+                    title: `${dueToday.length} Medication${dueToday.length > 1 ? 's' : ''} Due Today`,
+                    description: 'Requires administration',
+                    priority: 'urgent',
+                    link: '/medications',
+                    metadata: { count: dueToday.length },
+                });
+            }
+        }
+
+        // Pending leave requests (for admins)
+        if (!isCaregiver && stats?.pending_leave_requests > 0) {
+            items.push({
+                id: 'pending-leave-requests',
+                type: 'leave_request',
+                title: `${stats.pending_leave_requests} Leave Request${stats.pending_leave_requests > 1 ? 's' : ''} Pending`,
+                description: 'Awaiting approval',
+                priority: 'info',
+                link: '/administration/leave-requests',
+                metadata: { count: stats.pending_leave_requests },
+            });
+        }
+
+        return items.sort((a, b) => {
+            const priorityOrder = { urgent: 0, soon: 1, info: 2 };
+            return (priorityOrder[a.priority] || 2) - (priorityOrder[b.priority] || 2);
+        });
+    }, [stats, isCaregiver, upcomingFireDrills]);
+
+    // Build upcoming tasks
+    const upcomingTasks = useMemo(() => {
+        const tasks = [];
+        
+        // Today's appointments
+        const todayAppts = isCaregiver ? stats?.todays_appointments : stats?.today_appointments;
+        if (todayAppts > 0) {
+            tasks.push({
+                id: 'task-appointments',
+                type: 'appointment',
+                title: `${todayAppts} Appointment${todayAppts > 1 ? 's' : ''}`,
+                time: new Date().toISOString(),
+                link: '/appointments',
+            });
+        }
+
+        // Upcoming fire drills
+        if (upcomingFireDrills?.data && upcomingFireDrills.data.length > 0) {
+            upcomingFireDrills.data.slice(0, 3).forEach(drill => {
+                const drillDateTime = new Date(`${drill.scheduled_date}T${drill.scheduled_time || '10:00:00'}`);
+                tasks.push({
+                    id: `fire-drill-${drill.id}`,
+                    type: 'fire_drill',
+                    title: `Fire Drill: ${drill.branch?.name || 'Unknown'}`,
+                    time: drillDateTime.toISOString(),
+                    link: '/fire-drills',
+                });
+            });
+        }
+
+        return tasks.sort((a, b) => new Date(a.time) - new Date(b.time));
+    }, [stats, isCaregiver, upcomingFireDrills]);
+
+    // Build alerts
+    const alerts = useMemo(() => {
+        const alertList = [];
+        
+        if (stats?.facility_context_missing) {
+            alertList.push({
+                id: 'facility-context-missing',
+                severity: 'warning',
+                title: 'Facility Context Missing',
+                message: 'Dashboard stats may be incomplete. Please contact support.',
+            });
+        }
+
+        return alertList;
+    }, [stats]);
+
+    // Detect mobile view
+    const [isMobile, setIsMobile] = useState(false);
+    useEffect(() => {
+        const checkMobile = () => {
+            setIsMobile(window.innerWidth < 1024);
+        };
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
+
+    // Mobile view
+    if (isMobile && !isLoading) {
+        return (
+            <MobileDashboard
+                greeting={greeting}
+                userName={currentUser?.first_name || currentUser?.name || 'User'}
+                statCards={statCards}
+                actionableItems={actionableItems}
+                isCaregiver={isCaregiver}
+                onStatClick={(card) => card.link && navigate(card.link)}
+                onItemClick={(item) => item.link && navigate(item.link)}
+            />
+        );
+    }
+
     return (
-        <div className="min-h-screen bg-white">
-            {/* Main Content */}
-            <div className="max-w-7xl mx-auto px-4 md:px-6 py-4 md:py-8">
+        <DashboardLayout
+            sidebar={
+                <DashboardSidebar>
+                    <QuickActionsWidget isCaregiver={isCaregiver} />
+                    <ActionableItemsWidget items={actionableItems} />
+                    <UpcomingTasksWidget tasks={upcomingTasks} />
+                    <AlertsWidget alerts={alerts} />
+                    {!isCaregiver && stats && (
+                        <InsightsWidget metrics={{
+                            occupancy_rate: stats.occupancy_rate,
+                            compliance_score: stats.compliance_score,
+                            medication_adherence_rate: stats.medication_adherence_rate,
+                            average_incident_response_time: stats.average_incident_response_time,
+                            staff_utilization: stats.staff_utilization,
+                        }} />
+                    )}
+                    <MiniCalendarWidget 
+                        calendarData={calendarData}
+                        onDateSelect={handleCalendarDateSelect}
+                    />
+                </DashboardSidebar>
+            }
+        >
+            <div className="space-y-6">
                 {error && (
-                    <div className="mb-6 bg-white rounded-xl shadow-lg border-l-4 border-amber-500 p-4">
+                    <div className="bg-white rounded-xl shadow-sm border-l-4 border-amber-500 p-4">
                         <div className="flex items-center space-x-3">
                             <AlertCircle className="w-5 h-5 text-amber-600" />
                             <p className="text-amber-800 text-sm">
@@ -405,99 +601,60 @@ export default function Dashboard() {
                 
                 {!isLoading && (
                     <>
-                        {/* Modern Welcome Card with Quick Stats */}
-                        <div className="mb-6 rounded-2xl shadow-xl border overflow-hidden" style={{
-                            background: `linear-gradient(to bottom right, var(--theme-primary), var(--theme-primary-light), var(--theme-primary-dark))`,
-                            borderColor: 'var(--theme-primary-bg)',
-                        }}>
-                            <div className="p-4 sm:p-6">
-                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-3 mb-2">
-                                            <h1 className="text-xl sm:text-2xl font-bold text-white">
-                                                {greeting}, {currentUser?.first_name || currentUser?.name || 'User'} 👋
-                                            </h1>
-                                            <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-white/20 text-white backdrop-blur-sm border border-white/30">
-                                                {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                                            </span>
-                                        </div>
-                                        <p className="text-white/90 text-sm sm:text-base mb-3">
-                                            {isCaregiver ? 'Welcome to your Care Dashboard' : 'Managing care with compassion and excellence'}
-                                        </p>
-                                        
-                                        {/* Quick Stats Summary for Admins */}
-                                        {!isCaregiver && (
-                                            <div className="grid grid-cols-3 gap-2 sm:gap-3 mt-3">
-                                                <div className="bg-white/10 backdrop-blur-sm rounded-lg px-2 sm:px-3 py-2 border border-white/20">
-                                                    <div className="text-xs text-white/90 mb-0.5">Residents</div>
-                                                    <div className="text-lg sm:text-xl font-bold text-white">{stats?.total_residents || 0}</div>
-                                                </div>
-                                                <div className="bg-white/10 backdrop-blur-sm rounded-lg px-2 sm:px-3 py-2 border border-white/20">
-                                                    <div className="text-xs text-white/90 mb-0.5">Last 30d Appts</div>
-                                                    <div className="text-lg sm:text-xl font-bold text-white">{stats?.last_30_appointments || 0}</div>
-                                                </div>
-                                                <div className="bg-white/10 backdrop-blur-sm rounded-lg px-2 sm:px-3 py-2 border border-white/20">
-                                                    <div className="text-xs text-white/90 mb-0.5">Last 30d Vitals</div>
-                                                    <div className="text-lg sm:text-xl font-bold text-white">{stats?.last_30_vitals || 0}</div>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                    
-                                    <div className="hidden md:flex flex-col items-end space-y-2">
-                                        <div className="text-right">
-                                            <p className="text-white/90 text-xs font-medium">{new Date().toLocaleDateString('en-US', { weekday: 'long' })}</p>
-                                            <p className="text-white text-lg font-semibold">{new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
-                                            <p className="text-white/80 text-sm">{new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</p>
-                                        </div>
-                                        <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm border border-white/30 shadow-lg">
-                                            <Sparkles className="w-7 h-7 text-white" />
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                        {/* Minimal Welcome Header */}
+                        <div className="bg-gradient-to-br from-[var(--theme-primary)] to-[var(--theme-primary-dark)] rounded-xl shadow-sm p-6 text-white">
+                            <h1 className="text-2xl font-bold mb-1">
+                                {greeting}, {currentUser?.first_name || currentUser?.name || 'User'} 👋
+                            </h1>
+                            <p className="text-white/90 text-sm">
+                                {isCaregiver ? 'Welcome to your Care Dashboard' : 'Managing care with compassion and excellence'}
+                            </p>
                         </div>
 
-                        {/* Stat Cards Grid */}
-                        <ScrollReveal animationType="fade" threshold={0.1}>
-                            <StatCardsGrid 
-                                statCards={statCards} 
-                                isCaregiver={isCaregiver}
-                                onCardClick={(link) => link && navigate(link)}
+                        {/* Actionable Items Section */}
+                        {actionableItems.length > 0 && (
+                            <ActionableItemsSection 
+                                items={actionableItems}
+                                onItemClick={(item) => item.link && navigate(item.link)}
                             />
-                        </ScrollReveal>
+                        )}
+
+                        {/* Stat Cards Grid */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {statCards.map((card, index) => (
+                                <StatCard
+                                    key={index}
+                                    {...card}
+                                    onClick={() => card.link && navigate(card.link)}
+                                />
+                            ))}
+                        </div>
 
                         {/* Trends Chart for Admins */}
                         {!isCaregiver && trendsData && (
-                            <div className="mb-6">
-                                <TrendsChartWidget data={trendsData} />
-                            </div>
+                            <TrendsChartWidget data={trendsData} />
                         )}
 
                         {/* Modules Overview for Admins */}
                         {!isCaregiver && (
-                            <div className="mb-6">
-                                <ModulesOverview 
-                                    stats={stats}
-                                    moduleStats={moduleStats}
-                                    navigate={navigate}
-                                />
-                            </div>
+                            <ModulesOverview 
+                                stats={stats}
+                                moduleStats={moduleStats}
+                                navigate={navigate}
+                            />
                         )}
 
                         {/* Resident Vitals Trend Chart - Only for Caregivers */}
                         {isCaregiver && stats?.resident_list && stats.resident_list.length > 0 && (
-                            <div className="mb-6">
-                                <ResidentVitalsTrendSection 
-                                    residents={stats.resident_list}
-                                    defaultTrend={stats.resident_vitals_trend}
-                                />
-                            </div>
+                            <ResidentVitalsTrendSection 
+                                residents={stats.resident_list}
+                                defaultTrend={stats.resident_vitals_trend}
+                            />
                         )}
 
                         {/* Upcoming Fire Drills Widget */}
                         {upcomingFireDrills?.data && upcomingFireDrills.data.length > 0 && (
-                            <div className="mt-6">
+                            <div>
                                 <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
                                     <div className="px-6 py-4 border-b border-gray-200">
                                         <div className="flex items-center justify-between">
@@ -579,7 +736,7 @@ export default function Dashboard() {
                     </>
                 )}
             </div>
-        </div>
+        </DashboardLayout>
     );
 }
 
