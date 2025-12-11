@@ -249,14 +249,15 @@ class DashboardService
 
         // If no facility found, log warning and try to get data without facility filter
         if (!$facilityId && $user && $user->role !== 'super_admin') {
-            Log::warning('DashboardService: No facility context found for administrator - attempting to query without facility filter', [
+            Log::warning('DashboardService: No facility context found for administrator - querying all data', [
                 'user_id' => $user->id,
                 'user_role' => $user->role,
                 'user_facility_id' => $user->facility_id,
                 'user_assigned_branch_id' => $user->assigned_branch_id,
                 'app_facility_bound' => app()->bound('facility'),
             ]);
-            // Continue without facility filter - let queries run without facility scoping
+            // For administrators without facility context, query all data (no filters)
+            // This allows them to see data even if facility context isn't set
         }
 
         // Execute queries and log results for debugging

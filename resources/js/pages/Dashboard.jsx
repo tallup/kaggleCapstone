@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Line, Chart } from 'react-chartjs-2';
@@ -27,22 +27,14 @@ import { DashboardSkeleton } from '../components/ui/SkeletonLoader';
 import MiniCalendar from '../components/ui/MiniCalendar';
 import { useStaggerAnimation } from '../hooks/useStaggerAnimation';
 import { countUp, shouldAnimate } from '../utils/animationPresets';
-import { useEffect, useRef, useState } from 'react';
+import { useRef } from 'react';
 import Select from '../components/ui/radix/Select';
 import Tooltip from '../components/ui/Tooltip';
 import ScrollReveal from '../components/ui/ScrollReveal';
 // New dashboard components
-import DashboardLayout from '../components/dashboard/DashboardLayout';
-import DashboardSidebar from '../components/dashboard/DashboardSidebar';
 import StatCard from '../components/dashboard/StatCard';
 import ActionableItemsSection from '../components/dashboard/ActionableItemsSection';
-import ActionableItemsWidget from '../components/dashboard/ActionableItemsWidget';
-import QuickActionsWidget from '../components/dashboard/QuickActionsWidget';
-import UpcomingTasksWidget from '../components/dashboard/UpcomingTasksWidget';
-import AlertsWidget from '../components/dashboard/AlertsWidget';
-import MiniCalendarWidget from '../components/dashboard/MiniCalendarWidget';
 import MobileDashboard from '../components/dashboard/MobileDashboard';
-import InsightsWidget from '../components/dashboard/InsightsWidget';
 
 // Register Chart.js components
 ChartJS.register(
@@ -74,7 +66,7 @@ export default function Dashboard() {
     });
 
     // Redirect super admins to super admin dashboard
-    React.useEffect(() => {
+    useEffect(() => {
         if (currentUser && (currentUser.role === 'super_admin' || currentUser.role === 'Super Admin')) {
             navigate('/super-admin/dashboard', { replace: true });
         }
@@ -85,25 +77,19 @@ export default function Dashboard() {
         queryFn: async () => {
             try {
                 const response = await api.get('/dashboard/stats');
+                console.log('Dashboard stats response:', response.data);
+                if (response.data && response.data.data) {
+                    return response.data.data;
+                }
                 return response.data;
             } catch (err) {
                 console.error('Dashboard API error:', err);
-                // Keep stale stats if available so dashboard doesn't flash zeros
-                return stats ?? {
-                    total_residents: 0,
-                    today_appointments: 0,
-                    today_vitals: 0,
-                    total_staff: 0,
-                    assigned_residents: 0,
-                    todays_appointments: 0,
-                    pending_assessments: 0,
-                    pending_leave_requests: 0,
-                    week_appointments: 0,
-                    user_type: 'caregiver',
-                };
+                console.error('Error details:', err.response?.data);
+                // Return null to show error state instead of zeros
+                return null;
             }
         },
-        retry: false,
+        retry: 1,
         refetchInterval: 60000, // Poll every 60 seconds for real-time updates
         refetchIntervalInBackground: false, // Don't poll in background to save resources
     });
@@ -595,30 +581,9 @@ export default function Dashboard() {
     }
 
     return (
-        <DashboardLayout
-            sidebar={
-                <DashboardSidebar>
-                    <QuickActionsWidget isCaregiver={isCaregiver} />
-                    <ActionableItemsWidget items={actionableItems} />
-                    <UpcomingTasksWidget tasks={upcomingTasks} />
-                    {!isCaregiver && stats && (
-                        <InsightsWidget metrics={{
-                            occupancy_rate: stats.occupancy_rate,
-                            compliance_score: stats.compliance_score,
-                            medication_adherence_rate: stats.medication_adherence_rate,
-                            average_incident_response_time: stats.average_incident_response_time,
-                            staff_utilization: stats.staff_utilization,
-                        }} />
-                    )}
-                    <AlertsWidget alerts={alerts} />
-                    <MiniCalendarWidget 
-                        calendarData={calendarData}
-                        onDateSelect={handleCalendarDateSelect}
-                    />
-                </DashboardSidebar>
-            }
-        >
-            <div className="space-y-6">
+        <div className="min-h-screen bg-gray-50">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+                <div className="space-y-6">
                 {error && (
                     <div className="bg-white rounded-xl shadow-sm border-l-4 border-amber-500 p-4">
                         <div className="flex items-center space-x-3">
@@ -798,20 +763,92 @@ export default function Dashboard() {
                                 navigate={navigate}
                             />
                         )}
+
+                        {/* Key Insights Section - Moved from Sidebar */}
+                        {!isCaregiver && stats && (
+                            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+                                <div className="px-6 py-4 border-b border-gray-200">
+                                    <div className="flex items-center gap-2">
+                                        <TrendingUp className="w-5 h-5 text-[var(--theme-primary)]" />
+                                        <h2 className="text-lg font-bold text-[var(--theme-primary)]">Key Insights</h2>
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-1">Performance metrics and analytics</p>
+                                </div>
+                                <div className="p-6">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                                        <div className="flex items-center gap-3 p-4 rounded-lg border border-gray-200">
+                                            <div className="bg-blue-50 text-blue-600 p-2 rounded-lg">
+                                                <Users className="w-5 h-5" />
+                                            </div>
+                                            <div>
+                                                <p className="text-xs text-gray-600">Occupancy Rate</p>
+                                                <p className="text-lg font-semibold text-gray-900">
+                                                    {(stats.occupancy_rate ?? 0).toFixed(1)}%
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-3 p-4 rounded-lg border border-gray-200">
+                                            <div className="bg-green-50 text-green-600 p-2 rounded-lg">
+                                                <ClipboardList className="w-5 h-5" />
+                                            </div>
+                                            <div>
+                                                <p className="text-xs text-gray-600">Compliance Score</p>
+                                                <p className="text-lg font-semibold text-gray-900">
+                                                    {(stats.compliance_score ?? 0).toFixed(1)}%
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-3 p-4 rounded-lg border border-gray-200">
+                                            <div className="bg-purple-50 text-purple-600 p-2 rounded-lg">
+                                                <Pill className="w-5 h-5" />
+                                            </div>
+                                            <div>
+                                                <p className="text-xs text-gray-600">Medication Adherence</p>
+                                                <p className="text-lg font-semibold text-gray-900">
+                                                    {(stats.medication_adherence_rate ?? 0).toFixed(1)}%
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-3 p-4 rounded-lg border border-gray-200">
+                                            <div className="bg-orange-50 text-orange-600 p-2 rounded-lg">
+                                                <Clock className="w-5 h-5" />
+                                            </div>
+                                            <div>
+                                                <p className="text-xs text-gray-600">Avg Response Time</p>
+                                                <p className="text-lg font-semibold text-gray-900">
+                                                    {(stats.average_incident_response_time ?? 0).toFixed(1)} hrs
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-3 p-4 rounded-lg border border-gray-200">
+                                            <div className="bg-indigo-50 text-indigo-600 p-2 rounded-lg">
+                                                <UserCheck className="w-5 h-5" />
+                                            </div>
+                                            <div>
+                                                <p className="text-xs text-gray-600">Staff Count</p>
+                                                <p className="text-lg font-semibold text-gray-900">
+                                                    {stats.staff_utilization ?? 0}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </>
                 )}
             </div>
-        </DashboardLayout>
+        </div>
     );
 }
 
 // Resident Vitals Trend Section Component
-function ResidentVitalsTrendSection({ residents, defaultTrend }) {
-    const [selectedResident, setSelectedResident] = React.useState(residents[0]?.id || null);
-    const [vitalsData, setVitalsData] = React.useState(defaultTrend);
-    const [isLoading, setIsLoading] = React.useState(false);
+const ResidentVitalsTrendSection = ({ residents, defaultTrend }) => {
+    const [selectedResident, setSelectedResident] = useState(residents[0]?.id || null);
+    const [vitalsData, setVitalsData] = useState(defaultTrend);
+    const [isLoading, setIsLoading] = useState(false);
 
-    React.useEffect(() => {
+    useEffect(() => {
         if (residents[0]?.id) {
             setSelectedResident(residents[0].id);
             setVitalsData(defaultTrend);
