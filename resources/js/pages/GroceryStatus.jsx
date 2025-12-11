@@ -269,16 +269,16 @@ export default function GroceryStatus() {
                         <p className="text-gray-600">Track weekly grocery status updates for each branch.</p>
                     </div>
                     <div className="flex flex-col sm:flex-row gap-2">
-                        <button
-                            onClick={() => {
-                                setEditing(null);
-                                setShowForm(true);
-                            }}
-                            className="w-full sm:w-auto px-4 py-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] rounded-lg hover:bg-[var(--theme-primary-hover)] transition-colors flex items-center justify-center space-x-2"
-                        >
-                            <Plus className="w-4 h-4" />
-                            <span>Add Update</span>
-                        </button>
+                    <button
+                        onClick={() => {
+                            setEditing(null);
+                            setShowForm(true);
+                        }}
+                        className="w-full sm:w-auto px-4 py-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] rounded-lg hover:bg-[var(--theme-primary-hover)] transition-colors flex items-center justify-center space-x-2"
+                    >
+                        <Plus className="w-4 h-4" />
+                        <span>Add Update</span>
+                    </button>
                         <button
                             onClick={() => {
                                 setEditing({

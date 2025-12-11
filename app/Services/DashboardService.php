@@ -9,7 +9,6 @@ use App\Models\LeaveRequest;
 use App\Models\Medication;
 use App\Models\MedicationAdministration;
 use App\Models\Resident;
-use App\Models\Branch;
 use App\Models\User;
 use App\Models\VitalSign;
 use Carbon\Carbon;
@@ -42,25 +41,6 @@ class DashboardService
     {
         $userId = $user->id;
         $branchId = $user->assigned_branch_id;
-
-        // Fallback: if caregiver has no assigned branch, attempt to use facility's first active branch
-        if (!$branchId) {
-            $facilityId = $user->facility_id;
-            if (!$facilityId) {
-                try {
-                    $facility = app()->bound('facility') ? app('facility') : null;
-                    $facilityId = $facility?->id;
-                } catch (\Exception $e) {
-                    $facilityId = null;
-                }
-            }
-
-            if ($facilityId) {
-                $branchId = Branch::where('facility_id', $facilityId)
-                    ->where('is_active', true)
-                    ->value('id');
-            }
-        }
 
         // If no branch assigned, return empty stats
         if (!$branchId) {
@@ -211,10 +191,26 @@ class DashboardService
             $totalResidents = $residentsQuery->count();
         }
         
+        $rangeStart = now()->subDays(30)->startOfDay();
         $appointmentsQuery = Appointment::query();
         $vitalsQuery = VitalSign::query();
         $staffQuery = User::where('is_active', true)->where('role', '!=', 'super_admin');
         $assessmentsQuery = Assessment::whereNotIn('status', ['approved', 'archived']);
+        $activeMedicationsQuery = Medication::where('is_active', true);
+
+        // Last 30 days filters
+        $appointmentsLast30 = (clone $appointmentsQuery)
+            ->whereBetween('appointment_date', [$rangeStart, now()])
+            ->where('status', '!=', 'cancelled')
+            ->count();
+
+        $vitalsLast30 = (clone $vitalsQuery)
+            ->whereBetween('measurement_date', [$rangeStart->toDateString(), now()->toDateString()])
+            ->count();
+
+        $assessmentsLast30 = (clone $assessmentsQuery)
+            ->whereBetween('created_at', [$rangeStart, now()])
+            ->count();
 
         return [
             'total_residents' => $totalResidents,
@@ -224,8 +220,12 @@ class DashboardService
                 ->whereNotIn('status', ['cancelled', 'completed'])
                 ->count(),
             'today_vitals' => $vitalsQuery->whereDate('measurement_date', today())->count(),
+            'last_30_appointments' => $appointmentsLast30,
+            'last_30_vitals' => $vitalsLast30,
+            'last_30_assessments' => $assessmentsLast30,
             'total_staff' => $staffQuery->count(),
             'pending_assessments' => $assessmentsQuery->count(),
+            'active_medications' => $activeMedicationsQuery->count(),
             'user_type' => 'admin',
             'upcoming_appointments_list' => $this->getAdminUpcomingAppointments(),
             'resident_list' => $this->getAdminResidentList(),

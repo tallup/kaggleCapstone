@@ -327,25 +327,25 @@ export default function Dashboard() {
             trend: 'positive',
         },
         {
-            title: "Today's Appointments",
-            value: Number(stats?.today_appointments ?? 0),
+            title: 'Last 30 Days Appointments',
+            value: Number(stats?.last_30_appointments ?? 0),
             icon: Calendar,
             gradient: 'from-[var(--theme-primary)] to-[var(--theme-primary-light)]',
             iconBg: 'bg-[var(--theme-primary-bg-light)]',
             iconColor: 'text-[var(--theme-primary)]',
             link: '/appointments',
-            description: 'Scheduled today',
+            description: 'Scheduled in last 30 days',
             trend: 'positive',
         },
         {
-            title: 'Today Vitals',
-            value: Number(stats?.today_vitals ?? 0),
+            title: 'Last 30 Days Vitals',
+            value: Number(stats?.last_30_vitals ?? 0),
             icon: Activity,
             gradient: 'from-[var(--theme-secondary)] to-[var(--theme-secondary-light)]',
             iconBg: 'bg-[var(--theme-primary-bg-light)]',
             iconColor: 'text-[var(--theme-secondary)]',
             link: '/vitals',
-            description: 'Recorded today',
+            description: 'Recorded in last 30 days',
             trend: 'positive',
         },
         {
@@ -432,12 +432,12 @@ export default function Dashboard() {
                                                     <div className="text-lg sm:text-xl font-bold text-white">{stats?.total_residents || 0}</div>
                                                 </div>
                                                 <div className="bg-white/10 backdrop-blur-sm rounded-lg px-2 sm:px-3 py-2 border border-white/20">
-                                                    <div className="text-xs text-white/90 mb-0.5">Today</div>
-                                                    <div className="text-lg sm:text-xl font-bold text-white">{stats?.today_appointments || 0}</div>
+                                                    <div className="text-xs text-white/90 mb-0.5">Last 30d Appts</div>
+                                                    <div className="text-lg sm:text-xl font-bold text-white">{stats?.last_30_appointments || 0}</div>
                                                 </div>
                                                 <div className="bg-white/10 backdrop-blur-sm rounded-lg px-2 sm:px-3 py-2 border border-white/20">
-                                                    <div className="text-xs text-white/90 mb-0.5">Pending</div>
-                                                    <div className="text-lg sm:text-xl font-bold text-white">{stats?.pending_assessments || 0}</div>
+                                                    <div className="text-xs text-white/90 mb-0.5">Last 30d Vitals</div>
+                                                    <div className="text-lg sm:text-xl font-bold text-white">{stats?.last_30_vitals || 0}</div>
                                                 </div>
                                             </div>
                                         )}

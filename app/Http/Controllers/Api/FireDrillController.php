@@ -121,7 +121,7 @@ class FireDrillController extends BaseApiController
         }
 
         if (!$this->checkFacilityAccess($drill)) {
-            return response()->json(['message' => 'Fire drill not found'], 404);
+                return response()->json(['message' => 'Fire drill not found'], 404);
         }
 
         return response()->json($drill);

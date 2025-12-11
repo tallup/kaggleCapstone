@@ -256,16 +256,16 @@ export default function FireDrills() {
                                 <Sparkles className="w-4 h-4" />
                                 <span>Schedule from Template</span>
                             </button>
-                            <button
-                                onClick={() => {
-                                    setEditing(null);
-                                    setShowForm(true);
-                                }}
-                                className="w-full sm:w-auto px-4 py-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] rounded-lg hover:bg-[var(--theme-primary-hover)] transition-colors flex items-center justify-center space-x-2"
-                            >
-                                <Plus className="w-4 h-4" />
-                                <span>Schedule Fire Drill</span>
-                            </button>
+                        <button
+                            onClick={() => {
+                                setEditing(null);
+                                setShowForm(true);
+                            }}
+                            className="w-full sm:w-auto px-4 py-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] rounded-lg hover:bg-[var(--theme-primary-hover)] transition-colors flex items-center justify-center space-x-2"
+                        >
+                            <Plus className="w-4 h-4" />
+                            <span>Schedule Fire Drill</span>
+                        </button>
                             <button
                                 onClick={() => setShowTemplateModal(true)}
                                 className="w-full sm:w-auto px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center space-x-2"

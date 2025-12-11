@@ -119,7 +119,7 @@ class GroceryStatusUpdateController extends BaseApiController
             ->findOrFail($id);
 
         if (!$this->checkFacilityAccess($update)) {
-            return response()->json(['message' => 'Grocery status update not found'], 404);
+                return response()->json(['message' => 'Grocery status update not found'], 404);
         }
 
         // Check caregiver branch access

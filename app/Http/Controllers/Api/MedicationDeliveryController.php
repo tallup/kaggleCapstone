@@ -86,12 +86,12 @@ class MedicationDeliveryController extends BaseApiController
 
         // Facility enforcement for non-super admins
         $facility = $this->getCurrentFacility($request->user());
-        if ($facility) {
+            if ($facility) {
             $branch = Branch::find($validated['branch_id']);
-            if (!$branch || $branch->facility_id !== $facility->id) {
-                return response()->json([
-                    'message' => 'The selected branch does not belong to your facility.',
-                ], 403);
+                if (!$branch || $branch->facility_id !== $facility->id) {
+                    return response()->json([
+                        'message' => 'The selected branch does not belong to your facility.',
+                    ], 403);
             }
         }
 

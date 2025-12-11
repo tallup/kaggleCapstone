@@ -18,7 +18,7 @@ class IncidentController extends BaseApiController
         }
 
         $query = Incident::with(['resident', 'branch', 'reportedBy', 'assignedTo', 'resolvedBy']);
-
+        
         // Facility scoping
         $this->applyFacilityFilter($query, $request->user());
         

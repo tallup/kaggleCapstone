@@ -23,7 +23,7 @@ class FireDrillTemplateController extends BaseApiController
         
         // Facility scoping
         $this->applyFacilityFilter($query, $user);
-
+        
         // Filter by branch for caregivers
         if ($isCaregiver && $user->assigned_branch_id) {
             $query->where('branch_id', $user->assigned_branch_id);
