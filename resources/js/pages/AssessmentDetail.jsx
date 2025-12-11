@@ -198,8 +198,8 @@ export default function AssessmentDetail() {
         })));
         
         data.sections.forEach((section) => {
-            // Only process demographic and medical_history sections
-            if (!section.questions || (section.section_type !== 'demographic' && section.section_type !== 'medical_history')) {
+            // Only process medical_history sections (skip demographic section entirely)
+            if (!section.questions || section.section_type !== 'medical_history') {
                 console.log('AssessmentDetail: Skipping section', section.section_type, 'questions:', section.questions?.length);
                 return;
             }
@@ -425,7 +425,12 @@ export default function AssessmentDetail() {
 
             <div className="space-y-6">
                 {assessment.sections?.length ? (
-                    assessment.sections.map((section) => {
+                    assessment.sections
+                        .filter((section) => {
+                            const title = (section.title || section.section_title || '').toLowerCase();
+                            return section.section_type !== 'demographic' && title !== 'demographic information';
+                        })
+                        .map((section) => {
                         const sectionProgress = getSectionProgress(section);
                         return (
                             <div key={section.id} className="bg-white rounded-lg shadow p-6">

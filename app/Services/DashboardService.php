@@ -164,6 +164,7 @@ class DashboardService
         if ($user && $user->facility_id) {
             $facilityId = $user->facility_id;
         } else {
+            // Try facility from current request context
             try {
                 $facility = app()->bound('facility') ? app('facility') : null;
                 if ($facility) {
@@ -171,6 +172,14 @@ class DashboardService
                 }
             } catch (\Exception $e) {
                 // Facility not bound, continue without it
+            }
+
+            // Derive facility from assigned branch if still unknown
+            if (!$facilityId && $user && $user->assigned_branch_id) {
+                $branchFacilityId = \App\Models\Branch::where('id', $user->assigned_branch_id)->value('facility_id');
+                if ($branchFacilityId) {
+                    $facilityId = $branchFacilityId;
+                }
             }
         }
         
