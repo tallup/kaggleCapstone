@@ -15,7 +15,9 @@ class HousekeepingReportController extends BaseApiController
     {
         $user = $request->user();
 
-        if (!$user || !$user->hasPermission('view_cleaning_areas')) {
+        $isAdmin = in_array(strtolower($user->role ?? ''), ['super_admin', 'administrator', 'admin'], true);
+
+        if (!$user || (!$isAdmin && !$user->hasPermission('view_cleaning_areas'))) {
             abort(403, 'You do not have permission to view housekeeping reports.');
         }
 
@@ -130,7 +132,9 @@ class HousekeepingReportController extends BaseApiController
     {
         $user = $request->user();
 
-        if (!$user || !$user->hasPermission('view_cleaning_areas')) {
+        $isAdmin = in_array(strtolower($user->role ?? ''), ['super_admin', 'administrator', 'admin'], true);
+
+        if (!$user || (!$isAdmin && !$user->hasPermission('view_cleaning_areas'))) {
             abort(403, 'You do not have permission to view housekeeping reports.');
         }
 
