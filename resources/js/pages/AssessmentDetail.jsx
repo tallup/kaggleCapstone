@@ -199,7 +199,8 @@ export default function AssessmentDetail() {
         
         data.sections.forEach((section) => {
             // Only process medical_history sections (skip demographic section entirely)
-            if (!section.questions || section.section_type !== 'medical_history') {
+            const title = (section.title || section.section_title || '').toLowerCase();
+            if (!section.questions || section.section_type !== 'medical_history' || title === 'demographic information') {
                 console.log('AssessmentDetail: Skipping section', section.section_type, 'questions:', section.questions?.length);
                 return;
             }
