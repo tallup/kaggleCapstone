@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Branch;
 use App\Models\CleaningArea;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -57,6 +58,7 @@ class CleaningAreaController extends BaseApiController
         }
 
         try {
+            $user = $request->user();
             $data = $request->validate([
                 'branch_id' => 'required|exists:branches,id',
                 'name' => 'required|string|max:255',
@@ -66,6 +68,16 @@ class CleaningAreaController extends BaseApiController
                 'display_order' => 'nullable|integer|min:0',
                 'is_active' => 'boolean',
             ]);
+
+            // Validate branch access for facility admins
+            if ($user && $user->facility_id && $user->role !== 'super_admin') {
+                $branch = Branch::find($data['branch_id']);
+                if (!$branch || $branch->facility_id !== $user->facility_id) {
+                    return response()->json([
+                        'message' => 'You can only create cleaning areas for branches in your facility.',
+                    ], 403);
+                }
+            }
 
             $area = CleaningArea::create($data);
 
@@ -92,7 +104,9 @@ class CleaningAreaController extends BaseApiController
     {
         $this->ensureCanManage($request, 'edit_cleaning_areas');
 
+        $user = $request->user();
         $data = $request->validate([
+            'branch_id' => 'sometimes|required|exists:branches,id',
             'name' => 'sometimes|required|string|max:255',
             'shift_label' => 'nullable|string|max:255',
             'location' => 'nullable|string|max:255',
@@ -100,6 +114,16 @@ class CleaningAreaController extends BaseApiController
             'display_order' => 'nullable|integer|min:0',
             'is_active' => 'boolean',
         ]);
+
+        // Validate branch access for facility admins if branch_id is being updated
+        if (isset($data['branch_id']) && $user && $user->facility_id && $user->role !== 'super_admin') {
+            $branch = \App\Models\Branch::find($data['branch_id']);
+            if (!$branch || $branch->facility_id !== $user->facility_id) {
+                return response()->json([
+                    'message' => 'You can only assign cleaning areas to branches in your facility.',
+                ], 403);
+            }
+        }
 
         $cleaningArea->update($data);
 

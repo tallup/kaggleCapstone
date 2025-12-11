@@ -21,6 +21,7 @@ import { getLocalDateString } from '../utils/pacificTime';
 import FormInput from '../components/forms/FormInput';
 import FormTextarea from '../components/forms/FormTextarea';
 import FormCheckbox from '../components/forms/FormCheckbox';
+import FormSelect from '../components/forms/FormSelect';
 
 const frequencyOptions = [
     { value: 'daily', label: 'Daily' },
@@ -273,7 +274,7 @@ const closeAssignmentModal = () => {
                                 setEditingArea(null);
                                 setIsAreaModalOpen(true);
                             }}
-                            disabled={!branchId}
+                            disabled={!branchId && !currentUser?.facility_id}
                             className="inline-flex items-center gap-1 rounded-xl border-2 bg-white px-3 py-1.5 text-xs font-bold transition-colors hover:bg-[var(--theme-primary-bg-light)] disabled:cursor-not-allowed disabled:opacity-60 shadow-sm"
                             style={{ borderColor: 'var(--theme-primary-bg)', color: 'var(--theme-primary)' }}
                         >
@@ -514,6 +515,7 @@ const closeAssignmentModal = () => {
                         setEditingArea(null);
                     }}
                     branchId={branchId}
+                    currentUser={currentUser}
                     initialValues={editingArea}
                     onSuccess={async () => {
                         await queryClient.invalidateQueries({ queryKey: ['cleaning-areas'] });
@@ -634,41 +636,41 @@ function TaskModal({ onClose, onSubmit, initialValues, isSaving }) {
                     </button>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-5">
+                <form onSubmit={handleSubmit} className="space-y-6">
                     <div>
-                        <label className="text-sm font-semibold text-gray-900">Task Title</label>
+                        <label className="block text-sm font-semibold text-gray-900 mb-2">Task Title *</label>
                         <input
                             type="text"
                             name="title"
                             value={formValues.title}
                             onChange={handleChange}
                             required
-                            className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:border-[var(--theme-primary)]"
+                            className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:border-[var(--theme-primary)]"
                             style={{ '--tw-ring-color': 'var(--theme-primary-bg)' }}
                         />
                     </div>
 
                     <div>
-                        <label className="text-sm font-semibold text-gray-900">Instructions</label>
+                        <label className="block text-sm font-semibold text-gray-900 mb-2">Instructions</label>
                         <textarea
                             name="instructions"
                             value={formValues.instructions}
                             onChange={handleChange}
                             rows={3}
-                            className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:border-[var(--theme-primary)]"
+                            className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:border-[var(--theme-primary)]"
                             style={{ '--tw-ring-color': 'var(--theme-primary-bg)' }}
                         />
                     </div>
 
                     <div className="grid gap-4 md:grid-cols-3">
                         <div>
-                            <label className="text-sm font-semibold text-gray-900">Frequency</label>
+                            <label className="block text-sm font-semibold text-gray-900 mb-2">Frequency</label>
                             <select
                                 name="frequency"
                                 value={formValues.frequency}
                                 onChange={handleChange}
-                                className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:border-[var(--theme-primary)]"
-                            style={{ '--tw-ring-color': 'var(--theme-primary-bg)' }}
+                                className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:border-[var(--theme-primary)]"
+                                style={{ '--tw-ring-color': 'var(--theme-primary-bg)' }}
                             >
                                 {frequencyOptions.map((option) => (
                                     <option key={option.value} value={option.value}>
@@ -678,60 +680,60 @@ function TaskModal({ onClose, onSubmit, initialValues, isSaving }) {
                             </select>
                         </div>
                         <div>
-                            <label className="text-sm font-semibold text-gray-900">Start Window</label>
+                            <label className="block text-sm font-semibold text-gray-900 mb-2">Start Window</label>
                             <input
                                 type="time"
                                 name="window_start"
                                 value={formValues.window_start || ''}
                                 onChange={handleChange}
-                                className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:border-[var(--theme-primary)]"
-                            style={{ '--tw-ring-color': 'var(--theme-primary-bg)' }}
+                                className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:border-[var(--theme-primary)]"
+                                style={{ '--tw-ring-color': 'var(--theme-primary-bg)' }}
                             />
                         </div>
                         <div>
-                            <label className="text-sm font-semibold text-gray-900">End Window</label>
+                            <label className="block text-sm font-semibold text-gray-900 mb-2">End Window</label>
                             <input
                                 type="time"
                                 name="window_end"
                                 value={formValues.window_end || ''}
                                 onChange={handleChange}
-                                className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:border-[var(--theme-primary)]"
-                            style={{ '--tw-ring-color': 'var(--theme-primary-bg)' }}
+                                className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:border-[var(--theme-primary)]"
+                                style={{ '--tw-ring-color': 'var(--theme-primary-bg)' }}
                             />
                         </div>
                     </div>
 
-                    <div className="grid gap-4 md:grid-cols-3">
+                    <div className="grid gap-4 md:grid-cols-2">
                         <div>
-                            <label className="text-sm font-semibold text-gray-900">Display Order</label>
+                            <label className="block text-sm font-semibold text-gray-900 mb-2">Display Order</label>
                             <input
                                 type="number"
                                 name="display_order"
                                 value={formValues.display_order}
                                 onChange={handleChange}
                                 min={0}
-                                className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:border-[var(--theme-primary)]"
-                            style={{ '--tw-ring-color': 'var(--theme-primary-bg)' }}
+                                className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:border-[var(--theme-primary)]"
+                                style={{ '--tw-ring-color': 'var(--theme-primary-bg)' }}
                             />
                         </div>
                         <div>
-                            <label className="text-sm font-semibold text-gray-900">Estimated Minutes</label>
+                            <label className="block text-sm font-semibold text-gray-900 mb-2">Estimated Minutes</label>
                             <input
                                 type="number"
                                 name="estimated_minutes"
                                 value={formValues.estimated_minutes}
                                 onChange={handleChange}
                                 min={1}
-                                className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:border-[var(--theme-primary)]"
-                            style={{ '--tw-ring-color': 'var(--theme-primary-bg)' }}
+                                className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:border-[var(--theme-primary)]"
+                                style={{ '--tw-ring-color': 'var(--theme-primary-bg)' }}
                                 placeholder="e.g. 10"
                             />
                         </div>
                     </div>
 
                     <div>
-                        <label className="text-sm font-semibold text-gray-900">Days of week</label>
-                        <p className="text-xs text-gray-400">Leave blank to show on every day.</p>
+                        <label className="block text-sm font-semibold text-gray-900 mb-2">Days of Week</label>
+                        <p className="text-xs text-gray-500 mb-3">Leave blank to show on every day.</p>
                         <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
                             {dayOptions.map((day) => {
                                 const checked = Array.isArray(formValues.days_of_week) && formValues.days_of_week.includes(day.value);
@@ -815,12 +817,33 @@ function TaskModal({ onClose, onSubmit, initialValues, isSaving }) {
     );
 }
 
-function AreaForm({ onClose, branchId, initialValues, onSuccess }) {
+function AreaForm({ onClose, branchId, currentUser, initialValues, onSuccess }) {
     const queryClient = useQueryClient();
     const [isSubmitting, setIsSubmitting] = React.useState(false);
 
+    const isAdmin = currentUser && ['super_admin', 'administrator', 'admin', 'facility_admin'].includes(currentUser.role?.toLowerCase());
+    const isFacilityAdmin = currentUser?.role === 'facility_admin' || currentUser?.role === 'administrator';
+    const canSelectBranch = isAdmin;
+
+    const { data: branchesData } = useQuery({
+        queryKey: ['branches-for-area', currentUser?.facility_id],
+        queryFn: async () => {
+            const params = { per_page: 100, is_active: true };
+            if (isFacilityAdmin && currentUser?.facility_id) {
+                params.facility_id = currentUser.facility_id;
+            }
+            const response = await api.get('/branches', { params });
+            return response.data?.data ?? [];
+        },
+        enabled: canSelectBranch,
+        staleTime: 5 * 60 * 1000,
+    });
+
+    const branches = branchesData ?? [];
+
     const methods = useForm({
         defaultValues: {
+            branch_id: initialValues?.branch_id ?? branchId ?? '',
             name: initialValues?.name ?? '',
             shift_label: initialValues?.shift_label ?? '',
             location: initialValues?.location ?? '',
@@ -830,9 +853,13 @@ function AreaForm({ onClose, branchId, initialValues, onSuccess }) {
         },
     });
 
+    const selectedBranchId = methods.watch('branch_id');
+
     const onSubmit = async (data) => {
-        if (!branchId) {
-            window.alert('Please assign a branch to your profile first.');
+        const finalBranchId = data.branch_id || branchId;
+        
+        if (!finalBranchId) {
+            window.alert('Please select a branch or assign one to your profile first.');
             return;
         }
 
@@ -840,7 +867,7 @@ function AreaForm({ onClose, branchId, initialValues, onSuccess }) {
         try {
             const payload = {
                 ...data,
-                branch_id: branchId,
+                branch_id: finalBranchId,
                 name: data.name.trim(),
                 shift_label: data.shift_label?.trim() || null,
                 location: data.location?.trim() || null,
@@ -888,22 +915,35 @@ function AreaForm({ onClose, branchId, initialValues, onSuccess }) {
                             color: 'var(--theme-text-on-primary)',
                         }}
                     >
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                            <div>
-                                <h2 className="text-2xl font-semibold leading-6">Cleaning Area</h2>
-                                <p className="text-sm opacity-90">
-                                    Define the space and shift label used across the housekeeping schedule.
-                                </p>
-                            </div>
-                            <div className="hidden rounded-xl bg-white/20 px-3 py-1 text-xs font-semibold sm:inline-block">
-                                Branch required
-                            </div>
+                        <div>
+                            <h2 className="text-2xl font-semibold leading-6">Cleaning Area</h2>
+                            <p className="mt-1 text-sm opacity-90">
+                                Define the space and shift label used across the housekeeping schedule.
+                            </p>
                         </div>
                     </div>
 
                     <div className="space-y-6 px-6 py-6 sm:px-8 sm:py-8">
                         <FormProvider {...methods}>
                             <form onSubmit={methods.handleSubmit(onSubmit)} className="space-y-6">
+                                {canSelectBranch && branches.length > 0 ? (
+                                    <FormSelect
+                                        name="branch_id"
+                                        label="Branch"
+                                        placeholder="Select a branch"
+                                        required
+                                        options={branches.map(branch => ({
+                                            value: branch.id,
+                                            label: branch.name,
+                                        }))}
+                                    />
+                                ) : !branchId ? (
+                                    <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                                        <p className="font-semibold">Branch Required</p>
+                                        <p className="mt-1 text-xs">Please assign a branch to your profile or select one above to create a cleaning area.</p>
+                                    </div>
+                                ) : null}
+
                                 <FormInput
                                     name="name"
                                     label="Area Name"
