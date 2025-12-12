@@ -21,30 +21,21 @@ class Dashboard extends Page
 
     public function mount(): void
     {
-        // Redirect users to their appropriate dashboard based on role
-        if (Auth::check()) {
-            $user = Auth::user();
-            // Super admins go to SuperAdminDashboard
-            if ($user->role === 'super_admin' || $user->hasRole('super_admin')) {
-                $this->redirect(route('filament.admin.pages.super-admin-dashboard'));
-            } elseif ($user->hasRole('administrator') || $user->role === 'administrator' || $user->role === 'admin') {
-                $this->redirect(route('filament.admin.pages.admin-dashboard'));
-            } elseif (
-                $user->hasRole('caregiver') ||
-                $user->role === 'caregiver' ||
-                $user->role === 'care_giver' ||
-                $user->role === 'nurse' ||
-                $user->role === 'registered_nurse' ||
-                $user->role === 'licensed_nurse'
-            ) {
-                $this->redirect(route('filament.admin.pages.caregiver-dashboard'));
-            } else {
-                // Default fallback - redirect to admin dashboard
-                $this->redirect(route('filament.admin.pages.admin-dashboard'));
-            }
-        } else {
-            // Not authenticated, redirect to login
+        // Redirect all non-super-admin users to the React dashboard to avoid dual dashboards
+        if (!Auth::check()) {
             $this->redirect(route('filament.admin.auth.login'));
+            return;
         }
+
+        $user = Auth::user();
+
+        // Super admins keep the Filament experience; everyone else goes to React /dashboard
+        if ($user->role === 'super_admin' || $user->hasRole('super_admin')) {
+            $this->redirect(route('filament.admin.pages.super-admin-dashboard'));
+            return;
+        }
+
+        // All other roles: send to SPA dashboard
+        $this->redirect(url('/dashboard'));
     }
 }
