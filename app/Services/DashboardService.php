@@ -1545,6 +1545,193 @@ class DashboardService
 
         return $facility;
     }
+
+    /**
+     * Get today's schedule (appointments, vitals, medications) for a user
+     */
+    public function getTodaysSchedule(User $user, int $limit = 10): array
+    {
+        $schedule = [];
+        $facility = $this->getCurrentFacility($user);
+        $facilityId = $facility ? $facility->id : null;
+        $isCaregiver = UserRoles::isCaregiverRole($user->role);
+        $branchId = $isCaregiver ? $user->assigned_branch_id : null;
+
+        // Get all branch IDs in the facility for more efficient and reliable querying
+        $facilityBranchIds = null;
+        if ($facilityId) {
+            $facilityBranchIds = \App\Models\Branch::where('facility_id', $facilityId)->pluck('id')->toArray();
+        } elseif ($branchId) {
+            $assignedBranch = \App\Models\Branch::find($branchId);
+            if ($assignedBranch && $assignedBranch->facility_id) {
+                $facilityBranchIds = \App\Models\Branch::where('facility_id', $assignedBranch->facility_id)->pluck('id')->toArray();
+            }
+        }
+
+        // 1. Appointments for today
+        if (Schema::hasTable('appointments')) {
+            $appointmentsQuery = Appointment::withoutGlobalScopes()
+                ->with(['resident', 'appointmentType', 'branch'])
+                ->whereDate('appointment_date', today())
+                ->whereNotIn('status', ['cancelled', 'completed']);
+
+            if ($facilityBranchIds && !empty($facilityBranchIds)) {
+                $appointmentsQuery->whereIn('branch_id', $facilityBranchIds);
+            } elseif ($facilityId) {
+                $appointmentsQuery->whereHas('branch', function ($q) use ($facilityId) {
+                    $q->where('facility_id', $facilityId);
+                });
+            } elseif ($branchId) {
+                $appointmentsQuery->where('branch_id', $branchId);
+            }
+
+            $appointmentsQuery->orderBy('appointment_time', 'asc')
+                ->limit($limit)
+                ->get()
+                ->each(function ($appointment) use (&$schedule) {
+                    $residentName = 'Unknown';
+                    if ($appointment->resident) {
+                        $name = trim(($appointment->resident->first_name ?? '') . ' ' . ($appointment->resident->last_name ?? ''));
+                        $residentName = !empty($name) ? $name : ($appointment->resident->name ?? 'Unknown');
+                    }
+                    $time = $appointment->appointment_time ? Carbon::parse($appointment->appointment_time)->format('g:i A') : 'TBD';
+                    $time24h = $appointment->appointment_time ? Carbon::parse($appointment->appointment_time)->format('H:i') : '00:00';
+                    $schedule[] = [
+                        'id' => 'appointment_' . $appointment->id,
+                        'type' => 'appointment',
+                        'title' => $appointment->title ?? ($appointment->appointmentType?->name ?? 'Appointment'),
+                        'resident_name' => $residentName,
+                        'time' => $time,
+                        'time_24h' => $time24h,
+                        'time_short' => $appointment->appointment_time ? Carbon::parse($appointment->appointment_time)->format('g:i A') : 'TBD',
+                        'location' => $appointment->location ?? ($appointment->branch?->name ?? 'N/A'),
+                        'category' => $appointment->appointmentType?->name ?? 'Appointment',
+                        'category_color' => 'blue',
+                        'link' => '/appointments',
+                    ];
+                });
+        }
+
+        // 2. Vitals due today (for residents in context) - limit to 5
+        if (Schema::hasTable('vital_signs')) {
+            $vitalsQuery = Resident::withoutGlobalScopes()
+                ->where('is_active', true)
+                ->whereDoesntHave('vitalSigns', function ($q) {
+                    $q->whereDate('measurement_date', today());
+                });
+
+            if ($facilityBranchIds && !empty($facilityBranchIds)) {
+                $vitalsQuery->whereIn('branch_id', $facilityBranchIds);
+            } elseif ($facilityId) {
+                $vitalsQuery->whereHas('branch', function ($q) use ($facilityId) {
+                    $q->where('facility_id', $facilityId);
+                });
+            } elseif ($branchId) {
+                $vitalsQuery->where('branch_id', $branchId);
+            }
+
+            $vitalsQuery->limit(5)
+                ->get()
+                ->each(function ($resident) use (&$schedule) {
+                    $name = trim(($resident->first_name ?? '') . ' ' . ($resident->last_name ?? ''));
+                    $residentName = !empty($name) ? $name : ($resident->name ?? 'Unknown');
+                    $schedule[] = [
+                        'id' => 'vitals_resident_' . $resident->id,
+                        'type' => 'vitals',
+                        'title' => 'Record Vitals',
+                        'resident_name' => $residentName,
+                        'time' => 'Anytime',
+                        'time_24h' => '00:00',
+                        'time_short' => 'Anytime',
+                        'location' => $resident->room_number ?? $resident->room ?? 'N/A',
+                        'category' => 'Vitals',
+                        'category_color' => 'green',
+                        'link' => '/residents/' . $resident->id . '/vitals',
+                    ];
+                });
+        }
+
+        // 3. Medications due today (for residents in context) - limit to first 10 medications, only show times for today
+        if (Schema::hasTable('medications')) {
+            $medicationsQuery = Medication::withoutGlobalScopes()
+                ->with(['resident', 'drug'])
+                ->where('is_active', true)
+                ->where(function ($q) {
+                    $q->whereNull('start_date')->orWhere('start_date', '<=', today());
+                })
+                ->where(function ($q) {
+                    $q->whereNull('end_date')->orWhere('end_date', '>=', today());
+                });
+
+            if ($facilityBranchIds && !empty($facilityBranchIds)) {
+                $medicationsQuery->whereHas('resident', function ($q) use ($facilityBranchIds) {
+                    $q->whereIn('branch_id', $facilityBranchIds)->where('is_active', true);
+                });
+            } elseif ($facilityId) {
+                $medicationsQuery->whereHas('resident', function ($q) use ($facilityId) {
+                    $q->whereHas('branch', function ($b) use ($facilityId) {
+                        $b->where('facility_id', $facilityId);
+                    });
+                });
+            } elseif ($branchId) {
+                $medicationsQuery->whereHas('resident', function ($q) use ($branchId) {
+                    $q->where('branch_id', $branchId);
+                });
+            }
+
+            // Limit medications to prevent too many entries
+            $medicationsQuery->limit(10)
+                ->get()
+                ->each(function ($medication) use (&$schedule) {
+                    $times = [];
+                    for ($i = 1; $i <= 4; $i++) {
+                        if ($medication->{"time_{$i}"}) {
+                            $times[] = Carbon::parse($medication->{"time_{$i}"})->format('g:i A');
+                        }
+                    }
+                    $residentName = 'Unknown';
+                    if ($medication->resident) {
+                        $name = trim(($medication->resident->first_name ?? '') . ' ' . ($medication->resident->last_name ?? ''));
+                        $residentName = !empty($name) ? $name : ($medication->resident->name ?? 'Unknown');
+                    }
+
+                    // Only add one entry per medication (use first time or "Multiple times")
+                    if (count($times) > 0) {
+                        $time = count($times) > 1 ? 'Multiple times' : $times[0];
+                        $time24h = count($times) > 1 ? '00:00' : (Carbon::parse($medication->time_1)->format('H:i'));
+                        $schedule[] = [
+                            'id' => 'medication_' . $medication->id,
+                            'type' => 'medication',
+                            'title' => $medication->drug?->name ?? $medication->name ?? 'Medication',
+                            'resident_name' => $residentName,
+                            'time' => $time,
+                            'time_24h' => $time24h,
+                            'time_short' => $time,
+                            'location' => $medication->resident->room_number ?? $medication->resident->room ?? 'N/A',
+                            'category' => 'Medication',
+                            'category_color' => 'purple',
+                            'link' => '/medications',
+                        ];
+                    }
+                });
+        }
+
+        // Sort all events by time
+        usort($schedule, function ($a, $b) {
+            $timeA = $a['time_24h'] ?? '00:00';
+            $timeB = $b['time_24h'] ?? '00:00';
+            if ($timeA === '00:00' && $a['time'] !== 'TBD' && $a['time'] !== 'Anytime') {
+                $timeA = '23:59'; // Put non-specific times at end
+            }
+            if ($timeB === '00:00' && $b['time'] !== 'TBD' && $b['time'] !== 'Anytime') {
+                $timeB = '23:59';
+            }
+            return strcmp($timeA, $timeB);
+        });
+
+        // Return limited results
+        return array_slice($schedule, 0, $limit);
+    }
 }
 
 
