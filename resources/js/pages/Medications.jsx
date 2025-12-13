@@ -423,11 +423,13 @@ export default function Medications() {
                             )}
                         </div>
 
-                        {/* Medication Times */}
-                        {(medication.time_1 || medication.time_2 || medication.time_3 || medication.time_4) && (
+                        {/* Medication Times and Administration */}
+                        {(medication.time_1 || medication.time_2 || medication.time_3 || medication.time_4 || (medication.instructions && (medication.instructions.toLowerCase().includes('prn') || medication.instructions.toLowerCase().includes('as needed')))) && (
                             <div className="mt-4 p-3 bg-gray-50 rounded-lg">
                                 <div className="mb-2 flex items-center justify-between">
-                                    <p className="text-xs font-medium text-gray-700">Administration Times:</p>
+                                    {(medication.time_1 || medication.time_2 || medication.time_3 || medication.time_4) && (
+                                        <p className="text-xs font-medium text-gray-700">Administration Times:</p>
+                                    )}
                                     {!periodActive && (
                                         <span className="text-xs text-amber-600 font-medium">
                                             Outside administration period
@@ -946,120 +948,120 @@ function MedicationAdministrationForm({ medication, onClose, onSuccess }) {
             )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-900 mb-2">
-                                Medication
-                            </label>
-                            <input
-                                type="text"
-                                value={medication?.name || ''}
-                                disabled
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50"
-                            />
-                        </div>
+                <div>
+                    <label className="block text-sm font-medium text-gray-900 mb-2">
+                        Medication
+                    </label>
+                    <input
+                        type="text"
+                        value={medication?.name || ''}
+                        disabled
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50"
+                    />
+                </div>
 
-                        <div>
-                            <label className="block text-sm font-medium text-gray-900 mb-2">
-                                Resident
-                            </label>
-                            <input
-                                type="text"
-                                value={medication?.resident ? `${medication.resident.first_name} ${medication.resident.last_name}` : ''}
-                                disabled
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50"
-                            />
-                        </div>
+                <div>
+                    <label className="block text-sm font-medium text-gray-900 mb-2">
+                        Resident
+                    </label>
+                    <input
+                        type="text"
+                        value={medication?.resident ? `${medication.resident.first_name} ${medication.resident.last_name}` : ''}
+                        disabled
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50"
+                    />
+                </div>
 
-                        <div>
-                            <label className="block text-sm font-medium text-gray-900 mb-2">
-                                Administered At *
-                            </label>
-                            <input
-                                type="datetime-local"
-                                value={formData.administered_at}
-                                onChange={(e) => setFormData({ ...formData, administered_at: e.target.value })}
-                                required
-                                max={getPacificDateTimeLocalString()}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
-                            />
-                            {errors.administered_at && <p className="text-xs text-red-600 mt-1">{errors.administered_at[0]}</p>}
-                        </div>
+                <div>
+                    <label className="block text-sm font-medium text-gray-900 mb-2">
+                        Administered At *
+                    </label>
+                    <input
+                        type="datetime-local"
+                        value={formData.administered_at}
+                        onChange={(e) => setFormData({ ...formData, administered_at: e.target.value })}
+                        required
+                        max={getPacificDateTimeLocalString()}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
+                    />
+                    {errors.administered_at && <p className="text-xs text-red-600 mt-1">{errors.administered_at[0]}</p>}
+                </div>
 
-                        <div>
-                            <label className="block text-sm font-medium text-gray-900 mb-2">
-                                Status *
-                            </label>
-                            <div className="flex gap-2 mb-2">
-                                {['completed', 'missed', 'refused', 'hospital_admission'].map(s => (
-                                    <button
-                                        key={s}
-                                        type="button"
-                                        onClick={() => setFormData({ ...formData, status: s })}
-                                        className={`px-3 py-1 rounded-lg text-xs border ${formData.status === s ? 'bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] border-[var(--theme-primary)]' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`}
-                                    >
-                                        {s === 'hospital_admission' ? 'Hospital' : s.charAt(0).toUpperCase() + s.slice(1)}
-                                    </button>
-                                ))}
-                            </div>
-                            <select
-                                value={formData.status}
-                                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                                required
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
-                            >
-                                <option value="completed">Completed</option>
-                                <option value="missed">Missed</option>
-                                <option value="refused">Refused</option>
-                                <option value="hospital_admission">Hospital Admission</option>
-                            </select>
-                            {errors.status && <p className="text-xs text-red-600 mt-1">{errors.status[0]}</p>}
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-900 mb-2">
-                                Dosage Given
-                            </label>
-                            <input
-                                type="text"
-                                value={formData.dosage_given}
-                                onChange={(e) => setFormData({ ...formData, dosage_given: e.target.value })}
-                                placeholder="e.g., 1 tablet, 5ml"
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
-                            />
-                            {errors.dosage_given && <p className="text-xs text-red-600 mt-1">{errors.dosage_given[0]}</p>}
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-900 mb-2">
-                                Notes
-                            </label>
-                            <textarea
-                                value={formData.notes}
-                                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                                rows={3}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
-                                placeholder="Additional notes about the administration..."
-                            />
-                            {errors.notes && <p className="text-xs text-red-600 mt-1">{errors.notes[0]}</p>}
-                        </div>
-
-                        <div className="flex justify-end space-x-3 pt-4 border-t">
+                <div>
+                    <label className="block text-sm font-medium text-gray-900 mb-2">
+                        Status *
+                    </label>
+                    <div className="flex gap-2 mb-2">
+                        {['completed', 'missed', 'refused', 'hospital_admission'].map(s => (
                             <button
+                                key={s}
                                 type="button"
-                                onClick={onClose}
-                                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                                onClick={() => setFormData({ ...formData, status: s })}
+                                className={`px-3 py-1 rounded-lg text-xs border ${formData.status === s ? 'bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] border-[var(--theme-primary)]' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`}
                             >
-                                Cancel
+                                {s === 'hospital_admission' ? 'Hospital' : s.charAt(0).toUpperCase() + s.slice(1)}
                             </button>
-                            <button
-                                type="submit"
-                                disabled={isSubmitting}
-                                className="px-4 py-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] rounded-lg hover:bg-[var(--theme-primary-hover)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                {isSubmitting ? 'Recording...' : 'Record Administration'}
-                            </button>
-                        </div>
-                    </form>
+                        ))}
+                    </div>
+                    <select
+                        value={formData.status}
+                        onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                        required
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
+                    >
+                        <option value="completed">Completed</option>
+                        <option value="missed">Missed</option>
+                        <option value="refused">Refused</option>
+                        <option value="hospital_admission">Hospital Admission</option>
+                    </select>
+                    {errors.status && <p className="text-xs text-red-600 mt-1">{errors.status[0]}</p>}
+                </div>
+
+                <div>
+                    <label className="block text-sm font-medium text-gray-900 mb-2">
+                        Dosage Given
+                    </label>
+                    <input
+                        type="text"
+                        value={formData.dosage_given}
+                        onChange={(e) => setFormData({ ...formData, dosage_given: e.target.value })}
+                        placeholder="e.g., 1 tablet, 5ml"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
+                    />
+                    {errors.dosage_given && <p className="text-xs text-red-600 mt-1">{errors.dosage_given[0]}</p>}
+                </div>
+
+                <div>
+                    <label className="block text-sm font-medium text-gray-900 mb-2">
+                        Notes
+                    </label>
+                    <textarea
+                        value={formData.notes}
+                        onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                        rows={3}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
+                        placeholder="Additional notes about the administration..."
+                    />
+                    {errors.notes && <p className="text-xs text-red-600 mt-1">{errors.notes[0]}</p>}
+                </div>
+
+                <div className="flex justify-end space-x-3 pt-4 border-t">
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="submit"
+                        disabled={isSubmitting}
+                        className="px-4 py-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] rounded-lg hover:bg-[var(--theme-primary-hover)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {isSubmitting ? 'Recording...' : 'Record Administration'}
+                    </button>
+                </div>
+            </form>
         </div>
     );
 }
@@ -1237,202 +1239,202 @@ function MedicationForm({ record, residents, branches, currentUser, isCaregiver,
 
             <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-900 mb-2">Branch *</label>
-                                <select
-                                    value={formData.branch_id}
-                                    onChange={(e) => {
-                                        // Clear resident when branch changes
-                                        setFormData({
-                                            ...formData,
-                                            branch_id: e.target.value,
-                                            resident_id: '' // Clear resident selection when branch changes
-                                        });
-                                    }}
-                                    required
-                                    disabled={isCaregiver && currentUser?.assigned_branch_id}
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
-                                >
-                                    <option value="">Select Branch</option>
-                                    {filteredBranches.map(b => (
-                                        <option key={b.id} value={b.id}>{b.name}</option>
-                                    ))}
-                                </select>
-                                {errors.branch_id && <p className="text-xs text-red-600 mt-1">{errors.branch_id[0]}</p>}
-                            </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-900 mb-2">Branch *</label>
+                        <select
+                            value={formData.branch_id}
+                            onChange={(e) => {
+                                // Clear resident when branch changes
+                                setFormData({
+                                    ...formData,
+                                    branch_id: e.target.value,
+                                    resident_id: '' // Clear resident selection when branch changes
+                                });
+                            }}
+                            required
+                            disabled={isCaregiver && currentUser?.assigned_branch_id}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                        >
+                            <option value="">Select Branch</option>
+                            {filteredBranches.map(b => (
+                                <option key={b.id} value={b.id}>{b.name}</option>
+                            ))}
+                        </select>
+                        {errors.branch_id && <p className="text-xs text-red-600 mt-1">{errors.branch_id[0]}</p>}
+                    </div>
 
-                            <div>
-                                <label className="block text-sm font-medium text-gray-900 mb-2">Resident *</label>
-                                <select
-                                    value={formData.resident_id}
-                                    onChange={(e) => setFormData({ ...formData, resident_id: e.target.value })}
-                                    required
-                                    disabled={!formData.branch_id}
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
-                                >
-                                    <option value="">
-                                        {formData.branch_id ? 'Select Resident' : 'Select Branch First'}
-                                    </option>
-                                    {filteredResidents
-                                        .filter(r => !formData.branch_id || r.branch_id == formData.branch_id)
-                                        .map(r => (
-                                            <option key={r.id} value={r.id}>{r.first_name} {r.last_name}</option>
-                                        ))}
-                                </select>
-                                {errors.resident_id && <p className="text-xs text-red-600 mt-1">{errors.resident_id[0]}</p>}
-                            </div>
-
-                            <div className="col-span-2">
-                                <label className="block text-sm font-medium text-gray-900 mb-2">Drug *</label>
-                                <select
-                                    value={formData.drug_id}
-                                    onChange={(e) => {
-                                        const selectedDrug = uniqueDrugs.find(d => d.id == e.target.value);
-                                        setFormData({
-                                            ...formData,
-                                            drug_id: e.target.value,
-                                            name: selectedDrug ? selectedDrug.name : formData.name
-                                        });
-                                    }}
-                                    required
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
-                                >
-                                    <option value="">Select Drug</option>
-                                    {uniqueDrugs.map(d => (
-                                        <option key={d.id} value={d.id}>
-                                            {d.name}{d.generic_name ? ` (${d.generic_name})` : ''}
-                                        </option>
-                                    ))}
-                                </select>
-                                {errors.drug_id && <p className="text-xs text-red-600 mt-1">{errors.drug_id[0]}</p>}
-                            </div>
-                            {formData.drug_id && (
-                                <div className="col-span-2">
-                                    <label className="block text-sm font-medium text-gray-900 mb-2">Medication Name (Optional - auto-filled from drug)</label>
-                                    <input
-                                        type="text"
-                                        value={formData.name}
-                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
-                                        placeholder="Will use drug name if not provided"
-                                    />
-                                </div>
-                            )}
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-900 mb-2">Quantity</label>
-                                <input
-                                    type="text"
-                                    value={formData.quantity}
-                                    onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
-                                    placeholder="e.g., 30 tablets"
-                                />
-                                {errors.quantity && <p className="text-xs text-red-600 mt-1">{errors.quantity[0]}</p>}
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-900 mb-2">Select Instructions *</label>
-                                <select
-                                    value={formData.instructions}
-                                    onChange={(e) => setFormData({ ...formData, instructions: e.target.value })}
-                                    required
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
-                                >
-                                    <option value="">Choose dosage instructions</option>
-                                    <option value="t.i.d">t.i.d — Thrice daily</option>
-                                    <option value="q.i.d">q.i.d — Four times a day</option>
-                                    <option value="b.i.d">b.i.d — Twice daily</option>
-                                    <option value="PRN">PRN — As needed</option>
-                                    <option value="h.s">h.s — Hour of sleep</option>
-                                    <option value="a.m">a.m — Morning</option>
-                                    <option value="p.m">p.m — Evening</option>
-                                </select>
-                                {errors.instructions && <p className="text-xs text-red-600 mt-1">{errors.instructions[0]}</p>}
-                            </div>
-
-                            <div className="col-span-2">
-                                <p className="text-xs text-gray-500 mb-1">
-                                    {(() => {
-                                        const needed = getTimesNeeded(formData.instructions);
-                                        if (needed === 0) return 'No scheduled times required for PRN/unspecified.';
-                                        if (needed === 1) return 'Select one time for administration.';
-                                        return `Select ${needed} times spread across the day.`;
-                                    })()}
-                                </p>
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-900 mb-2">Start Date *</label>
-                                <input
-                                    type="date"
-                                    value={formData.start_date}
-                                    onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                                    required
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
-                                />
-                                {errors.start_date && <p className="text-xs text-red-600 mt-1">{errors.start_date[0]}</p>}
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-900 mb-2">End Date</label>
-                                <input
-                                    type="date"
-                                    value={formData.end_date}
-                                    onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
-                                    min={formData.start_date || ''}
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
-                                />
-                                {errors.end_date && <p className="text-xs text-red-600 mt-1">{errors.end_date[0]}</p>}
-                            </div>
-
-                            <div className="col-span-2">
-                                <label className="block text-sm font-medium text-gray-900 mb-2">Diagnosis</label>
-                                <input
-                                    type="text"
-                                    value={formData.diagnosis}
-                                    onChange={(e) => setFormData({ ...formData, diagnosis: e.target.value })}
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
-                                    placeholder="Enter diagnosis or condition for this medication"
-                                />
-                                {errors.diagnosis && <p className="text-xs text-red-600 mt-1">{errors.diagnosis[0]}</p>}
-                            </div>
-
-                        </div>
-
-                        <div className="border-t pt-4">
-                            <h3 className="text-lg font-semibold text-gray-900 mb-4">Administration Times</h3>
-                            <div className="grid grid-cols-4 gap-4">
-                                {[1, 2, 3, 4].slice(0, getTimesNeeded(formData.instructions)).map((idx) => (
-                                    <div key={idx}>
-                                        <label className="block text-sm font-medium text-gray-900 mb-2">Time {idx}</label>
-                                        <TimePicker
-                                            value={formData[`time_${idx}`] || ''}
-                                            onChange={(value) => setFormData({ ...formData, [`time_${idx}`]: value })}
-                                        />
-                                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-900 mb-2">Resident *</label>
+                        <select
+                            value={formData.resident_id}
+                            onChange={(e) => setFormData({ ...formData, resident_id: e.target.value })}
+                            required
+                            disabled={!formData.branch_id}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                        >
+                            <option value="">
+                                {formData.branch_id ? 'Select Resident' : 'Select Branch First'}
+                            </option>
+                            {filteredResidents
+                                .filter(r => !formData.branch_id || r.branch_id == formData.branch_id)
+                                .map(r => (
+                                    <option key={r.id} value={r.id}>{r.first_name} {r.last_name}</option>
                                 ))}
-                            </div>
-                        </div>
+                        </select>
+                        {errors.resident_id && <p className="text-xs text-red-600 mt-1">{errors.resident_id[0]}</p>}
+                    </div>
 
-                        <div className="flex items-center justify-between pt-4 border-t">
-                            <label className="inline-flex items-center space-x-2 text-sm text-gray-700">
-                                <input
-                                    type="checkbox"
-                                    checked={!!formData.is_active}
-                                    onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                    <div className="col-span-2">
+                        <label className="block text-sm font-medium text-gray-900 mb-2">Drug *</label>
+                        <select
+                            value={formData.drug_id}
+                            onChange={(e) => {
+                                const selectedDrug = uniqueDrugs.find(d => d.id == e.target.value);
+                                setFormData({
+                                    ...formData,
+                                    drug_id: e.target.value,
+                                    name: selectedDrug ? selectedDrug.name : formData.name
+                                });
+                            }}
+                            required
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
+                        >
+                            <option value="">Select Drug</option>
+                            {uniqueDrugs.map(d => (
+                                <option key={d.id} value={d.id}>
+                                    {d.name}{d.generic_name ? ` (${d.generic_name})` : ''}
+                                </option>
+                            ))}
+                        </select>
+                        {errors.drug_id && <p className="text-xs text-red-600 mt-1">{errors.drug_id[0]}</p>}
+                    </div>
+                    {formData.drug_id && (
+                        <div className="col-span-2">
+                            <label className="block text-sm font-medium text-gray-900 mb-2">Medication Name (Optional - auto-filled from drug)</label>
+                            <input
+                                type="text"
+                                value={formData.name}
+                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
+                                placeholder="Will use drug name if not provided"
+                            />
+                        </div>
+                    )}
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-900 mb-2">Quantity</label>
+                        <input
+                            type="text"
+                            value={formData.quantity}
+                            onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
+                            placeholder="e.g., 30 tablets"
+                        />
+                        {errors.quantity && <p className="text-xs text-red-600 mt-1">{errors.quantity[0]}</p>}
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-900 mb-2">Select Instructions *</label>
+                        <select
+                            value={formData.instructions}
+                            onChange={(e) => setFormData({ ...formData, instructions: e.target.value })}
+                            required
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
+                        >
+                            <option value="">Choose dosage instructions</option>
+                            <option value="t.i.d">t.i.d — Thrice daily</option>
+                            <option value="q.i.d">q.i.d — Four times a day</option>
+                            <option value="b.i.d">b.i.d — Twice daily</option>
+                            <option value="PRN">PRN — As needed</option>
+                            <option value="h.s">h.s — Hour of sleep</option>
+                            <option value="a.m">a.m — Morning</option>
+                            <option value="p.m">p.m — Evening</option>
+                        </select>
+                        {errors.instructions && <p className="text-xs text-red-600 mt-1">{errors.instructions[0]}</p>}
+                    </div>
+
+                    <div className="col-span-2">
+                        <p className="text-xs text-gray-500 mb-1">
+                            {(() => {
+                                const needed = getTimesNeeded(formData.instructions);
+                                if (needed === 0) return 'No scheduled times required for PRN/unspecified.';
+                                if (needed === 1) return 'Select one time for administration.';
+                                return `Select ${needed} times spread across the day.`;
+                            })()}
+                        </p>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-900 mb-2">Start Date *</label>
+                        <input
+                            type="date"
+                            value={formData.start_date}
+                            onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                            required
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
+                        />
+                        {errors.start_date && <p className="text-xs text-red-600 mt-1">{errors.start_date[0]}</p>}
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-900 mb-2">End Date</label>
+                        <input
+                            type="date"
+                            value={formData.end_date}
+                            onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
+                            min={formData.start_date || ''}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
+                        />
+                        {errors.end_date && <p className="text-xs text-red-600 mt-1">{errors.end_date[0]}</p>}
+                    </div>
+
+                    <div className="col-span-2">
+                        <label className="block text-sm font-medium text-gray-900 mb-2">Diagnosis</label>
+                        <input
+                            type="text"
+                            value={formData.diagnosis}
+                            onChange={(e) => setFormData({ ...formData, diagnosis: e.target.value })}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
+                            placeholder="Enter diagnosis or condition for this medication"
+                        />
+                        {errors.diagnosis && <p className="text-xs text-red-600 mt-1">{errors.diagnosis[0]}</p>}
+                    </div>
+
+                </div>
+
+                <div className="border-t pt-4">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Administration Times</h3>
+                    <div className="grid grid-cols-4 gap-4">
+                        {[1, 2, 3, 4].slice(0, getTimesNeeded(formData.instructions)).map((idx) => (
+                            <div key={idx}>
+                                <label className="block text-sm font-medium text-gray-900 mb-2">Time {idx}</label>
+                                <TimePicker
+                                    value={formData[`time_${idx}`] || ''}
+                                    onChange={(value) => setFormData({ ...formData, [`time_${idx}`]: value })}
                                 />
-                                <span>Active</span>
-                            </label>
-
-                            <div className="space-x-3">
-                                <button type="button" onClick={onClose} className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">Cancel</button>
-                                <button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] rounded-lg hover:bg-[var(--theme-primary-hover)] transition-colors disabled:opacity-50">
-                                    {isSubmitting ? 'Saving...' : (record ? 'Update Medication' : 'Create Medication')}
-                                </button>
                             </div>
-                        </div>
-                    </form>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-4 border-t">
+                    <label className="inline-flex items-center space-x-2 text-sm text-gray-700">
+                        <input
+                            type="checkbox"
+                            checked={!!formData.is_active}
+                            onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                        />
+                        <span>Active</span>
+                    </label>
+
+                    <div className="space-x-3">
+                        <button type="button" onClick={onClose} className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">Cancel</button>
+                        <button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] rounded-lg hover:bg-[var(--theme-primary-hover)] transition-colors disabled:opacity-50">
+                            {isSubmitting ? 'Saving...' : (record ? 'Update Medication' : 'Create Medication')}
+                        </button>
+                    </div>
+                </div>
+            </form>
         </div>
     );
 }
