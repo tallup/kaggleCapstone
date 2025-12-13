@@ -57,9 +57,11 @@ class DashboardService
     
     /**
      * Clear dashboard cache for a user
+     * Clears all possible cache keys for this user (with different facility_ids)
      */
     public function clearCacheForUser(User $user): void
     {
+        // Clear cache with current facility_id
         $facilityId = $user->facility_id ?? ($user->assigned_branch_id ? 
             (\App\Models\Branch::find($user->assigned_branch_id)?->facility_id ?? 'none') : 'none');
         
@@ -69,6 +71,20 @@ class DashboardService
         // Also clear with old cache key format for backward compatibility
         $oldCacheKey = "dashboard.stats.{$user->id}.{$user->role}";
         Cache::forget($oldCacheKey);
+        
+        // Clear cache with 'none' facility_id (in case it changed)
+        $noneCacheKey = "dashboard.stats.{$user->id}.{$user->role}.none";
+        Cache::forget($noneCacheKey);
+        
+        // Try to clear cache with any facility_id this user might have had
+        // Get all possible facility_ids from branches
+        if ($user->assigned_branch_id) {
+            $branch = \App\Models\Branch::find($user->assigned_branch_id);
+            if ($branch && $branch->facility_id) {
+                $branchCacheKey = "dashboard.stats.{$user->id}.{$user->role}.{$branch->facility_id}";
+                Cache::forget($branchCacheKey);
+            }
+        }
         
         Log::info('DashboardService: Cleared cache for user', [
             'user_id' => $user->id,
