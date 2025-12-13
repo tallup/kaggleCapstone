@@ -4,10 +4,17 @@ namespace App\Observers;
 
 use App\Models\User;
 use App\Models\Notification;
+use App\Services\DashboardService;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
 
 class UserObserver
 {
+    public function __construct(
+        private DashboardService $dashboardService
+    ) {
+    }
+
     /**
      * Handle the User "created" event.
      */
@@ -44,6 +51,28 @@ class UserObserver
                     'facility_id' => $user->facility_id,
                 ],
             ]);
+        }
+    }
+
+    /**
+     * Handle the User "updated" event.
+     */
+    public function updated(User $user): void
+    {
+        // Clear dashboard cache if facility_id or assigned_branch_id changed
+        if ($user->wasChanged(['facility_id', 'assigned_branch_id', 'role'])) {
+            try {
+                $this->dashboardService->clearCacheForUser($user);
+                Log::info('UserObserver: Cleared dashboard cache after user update', [
+                    'user_id' => $user->id,
+                    'changed_fields' => $user->getChanges(),
+                ]);
+            } catch (\Exception $e) {
+                Log::warning('UserObserver: Failed to clear dashboard cache', [
+                    'user_id' => $user->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
     }
 }
