@@ -109,12 +109,13 @@ class VitalSignController extends BaseApiController
     {
         $user = auth()->user();
         
-        // Allow administrators and super admins to create vitals even without specific permission
+        // Allow administrators, super admins, and caregivers to create vitals even without specific permission
         $isSuperAdmin = $user && ($user->role === 'super_admin' || $user->hasRole('super_admin'));
         $isAdmin = $user && ($user->role === 'administrator' || $user->role === 'admin');
+        $isCaregiver = $this->isCaregiver($user);
         
-        // Check permission only if user is not an admin or super admin
-        if (!$isSuperAdmin && !$isAdmin) {
+        // Check permission only if user is not an admin, super admin, or caregiver
+        if (!$isSuperAdmin && !$isAdmin && !$isCaregiver) {
         if ($error = $this->requirePermission('create_vitals')) {
             return $error;
             }
@@ -144,6 +145,23 @@ class VitalSignController extends BaseApiController
             }
         }
 
+        // Check branch access for caregivers
+        if ($isCaregiver && $user->assigned_branch_id) {
+            // Verify the resident belongs to the caregiver's branch
+            $resident = \App\Models\Resident::find($validated['resident_id']);
+            if (!$resident || (int) $resident->branch_id !== (int) $user->assigned_branch_id) {
+                return response()->json([
+                    'message' => 'You do not have permission to create vital signs for residents outside your assigned branch.',
+                ], 403);
+            }
+            // Also verify branch_id matches if provided
+            if (isset($validated['branch_id']) && (int) $validated['branch_id'] !== (int) $user->assigned_branch_id) {
+                return response()->json([
+                    'message' => 'You do not have permission to create vital signs for residents outside your assigned branch.',
+                ], 403);
+            }
+        }
+
         // Set taken_by to current user
         $validated['taken_by'] = auth()->id();
 
@@ -162,18 +180,28 @@ class VitalSignController extends BaseApiController
     {
         $user = auth()->user();
         
-        // Allow administrators and super admins to edit vitals even without specific permission
+        // Allow administrators, super admins, and caregivers to edit vitals even without specific permission
         $isSuperAdmin = $user && ($user->role === 'super_admin' || $user->hasRole('super_admin'));
         $isAdmin = $user && ($user->role === 'administrator' || $user->role === 'admin');
+        $isCaregiver = $this->isCaregiver($user);
         
-        // Check permission only if user is not an admin or super admin
-        if (!$isSuperAdmin && !$isAdmin) {
+        // Check permission only if user is not an admin, super admin, or caregiver
+        if (!$isSuperAdmin && !$isAdmin && !$isCaregiver) {
         if ($error = $this->requirePermission('edit_vitals')) {
             return $error;
             }
         }
 
         $vital = VitalSign::findOrFail($id);
+
+        // Check branch access for caregivers
+        if ($isCaregiver && $user->assigned_branch_id) {
+            if (!$vital->branch_id || (int) $vital->branch_id !== (int) $user->assigned_branch_id) {
+                return response()->json([
+                    'message' => 'You do not have permission to edit vital signs outside your assigned branch.',
+                ], 403);
+            }
+        }
 
         $validated = $request->validate([
             'resident_id' => 'sometimes|exists:residents,id',

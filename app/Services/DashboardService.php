@@ -401,6 +401,19 @@ class DashboardService
                 'branch_ids' => $facilityBranchIds,
                 'branch_count' => count($facilityBranchIds),
             ]);
+        } elseif ($branchId && $isAdministrator) {
+            // If we have a branch but no facility_id, try to get facility from branch
+            $assignedBranch = \App\Models\Branch::find($branchId);
+            if ($assignedBranch && $assignedBranch->facility_id) {
+                // Get all branches in the same facility
+                $facilityBranchIds = \App\Models\Branch::where('facility_id', $assignedBranch->facility_id)->pluck('id')->toArray();
+                Log::info('DashboardService: Facility branches from branch context', [
+                    'branch_id' => $branchId,
+                    'facility_id' => $assignedBranch->facility_id,
+                    'branch_ids' => $facilityBranchIds,
+                    'branch_count' => count($facilityBranchIds),
+                ]);
+            }
         }
 
         if ($facilityId) {
@@ -652,11 +665,17 @@ class DashboardService
             'facility_id' => $facilityId,
             // Only mark as missing if we're an administrator who should have facility access
             // but don't have it set after all resolution attempts
-            'facility_context_missing' => !$facilityId && $user && $user->role !== 'super_admin' && $isAdministrator,
+            // Also check if we have branch-based filtering as an alternative valid context
+            'facility_context_missing' => !$facilityId && 
+                                          !($branchId && $facilityBranchIds && !empty($facilityBranchIds)) && 
+                                          $user && 
+                                          $user->role !== 'super_admin' && 
+                                          $isAdministrator,
             // Add debug info about what was tried
             'facility_resolution_attempted' => $isAdministrator,
             'user_has_facility_id' => (bool)($user->facility_id ?? false),
             'user_has_branch_id' => (bool)($user->assigned_branch_id ?? false),
+            'has_branch_based_filtering' => (bool)($branchId && $facilityBranchIds && !empty($facilityBranchIds)),
         ];
     }
 
