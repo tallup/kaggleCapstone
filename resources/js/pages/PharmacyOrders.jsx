@@ -67,6 +67,20 @@ export default function PharmacyOrders() {
         },
     });
 
+    const updateStatusMutation = useMutation({
+        mutationFn: async ({ id, status }) => {
+            const response = await api.put(`/pharmacy-orders/${id}`, { status });
+            return response.data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries(['pharmacy-orders']);
+        },
+        onError: (error) => {
+            console.error('Failed to update order status:', error);
+            alert(error.response?.data?.message || 'Failed to update order status. Please try again.');
+        },
+    });
+
     const createMutation = useMutation({
         mutationFn: async (data) => {
             const response = await api.post('/pharmacy-orders', data);
@@ -602,7 +616,38 @@ export default function PharmacyOrders() {
                                     <div className="flex-1">
                                         <div className="flex items-center space-x-3 mb-2">
                                             <h3 className="text-lg font-semibold text-gray-900">{order.order_number}</h3>
-                                            {getStatusBadge(order.status)}
+                                            <select
+                                                value={order.status}
+                                                onChange={(e) => {
+                                                    const newStatus = e.target.value;
+                                                    if (newStatus !== order.status) {
+                                                        updateStatusMutation.mutate({ id: order.id, status: newStatus });
+                                                    }
+                                                }}
+                                                disabled={updateStatusMutation.isLoading}
+                                                className="px-3 py-1 text-sm font-medium rounded-lg border bg-white hover:bg-gray-50 focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                                                style={{
+                                                    color: order.status === 'draft' ? '#6B7280' :
+                                                           order.status === 'pending' ? '#D97706' :
+                                                           order.status === 'confirmed' ? '#059669' :
+                                                           order.status === 'partially_received' ? '#0284C7' :
+                                                           order.status === 'received' ? '#16A34A' :
+                                                           order.status === 'cancelled' ? '#DC2626' : '#6B7280',
+                                                    borderColor: order.status === 'draft' ? '#D1D5DB' :
+                                                                order.status === 'pending' ? '#FBBF24' :
+                                                                order.status === 'confirmed' ? '#10B981' :
+                                                                order.status === 'partially_received' ? '#0EA5E9' :
+                                                                order.status === 'received' ? '#22C55E' :
+                                                                order.status === 'cancelled' ? '#EF4444' : '#D1D5DB',
+                                                }}
+                                            >
+                                                <option value="draft">Draft</option>
+                                                <option value="pending">Pending</option>
+                                                <option value="confirmed">Confirmed</option>
+                                                <option value="partially_received">Partially Received</option>
+                                                <option value="received">Received</option>
+                                                <option value="cancelled">Cancelled</option>
+                                            </select>
                                         </div>
                                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-600">
                                             <div>
