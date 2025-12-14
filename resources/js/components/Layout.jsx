@@ -118,8 +118,9 @@ const navigation = [
     { 
         name: 'Pharmacy', 
         icon: Building2, 
-        path: '/pharmacy/suppliers', 
+        path: '/pharmacy/dashboard', 
         children: [
+            { name: 'Dashboard', path: '/pharmacy/dashboard' },
             { name: 'Suppliers', path: '/pharmacy/suppliers' },
             { name: 'Inventory', path: '/pharmacy/inventory' },
             { name: 'Orders', path: '/pharmacy/orders' },

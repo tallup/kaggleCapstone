@@ -138,6 +138,7 @@ Route::prefix('v1')->middleware([\App\Http\Middleware\SetFacilityContext::class]
     Route::apiResource('pharmacy-templates', \App\Http\Controllers\Api\PharmacyTemplateController::class)->middleware('auth:sanctum');
     
     // Pharmacy Management
+    Route::get('/pharmacy/dashboard/stats', [\App\Http\Controllers\Api\PharmacyDashboardController::class, 'stats'])->middleware('auth:sanctum');
     Route::apiResource('pharmacy-suppliers', \App\Http\Controllers\Api\PharmacySupplierController::class)->middleware('auth:sanctum');
     Route::apiResource('pharmacy-inventory', \App\Http\Controllers\Api\PharmacyInventoryController::class)->middleware('auth:sanctum');
     Route::apiResource('pharmacy-orders', \App\Http\Controllers\Api\PharmacyOrderController::class)->middleware('auth:sanctum');
