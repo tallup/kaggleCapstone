@@ -12,6 +12,17 @@ class EditFacility extends EditRecord
     protected static string $resource = FacilityResource::class;
 
     /**
+     * Mount the page with the record
+     */
+    public function mount(int | string $record): void
+    {
+        parent::mount($record);
+        
+        // Load the owner relationship
+        $this->record->load('owner');
+    }
+
+    /**
      * Get the header actions for the edit page
      */
     protected function getHeaderActions(): array
@@ -40,8 +51,11 @@ class EditFacility extends EditRecord
      */
     protected function mutateFormDataBeforeSave(array $data): array
     {
-        // Remove enabled_modules from data as it's not a database field
+        // Remove enabled_modules and owner account fields from data as they're not database fields
         unset($data['enabled_modules']);
+        // Keep owner fields for afterSave() to process if creating new owner
+        // unset($data['owner_name'], $data['owner_email'], $data['owner_role'], $data['owner_password']);
+        
         return $data;
     }
 
@@ -50,8 +64,10 @@ class EditFacility extends EditRecord
      */
     protected function afterSave(): void
     {
+        $formData = $this->form->getState();
+        
         // Get current and previous module states
-        $enabledModules = $this->form->getState()['enabled_modules'] ?? [];
+        $enabledModules = $formData['enabled_modules'] ?? [];
         $allModules = array_keys(\App\Constants\Modules::all());
         
         $enabledCount = 0;
@@ -77,6 +93,39 @@ class EditFacility extends EditRecord
                     $changedModules[] = \App\Constants\Modules::getDisplayName($module) . ' (disabled)';
                 }
             }
+        }
+
+        // Create owner account if provided and facility doesn't have one
+        if (!$this->record->owner && 
+            !empty($formData['owner_email']) && 
+            !empty($formData['owner_name']) && 
+            !empty($formData['owner_password'])) {
+            
+            // Get or create initial branch
+            $branch = $this->record->branches()->first();
+            if (!$branch) {
+                $branch = $this->record->branches()->create([
+                    'name' => 'Main Branch',
+                    'address' => $this->record->address,
+                    'is_active' => true,
+                ]);
+            }
+
+            // Create owner account
+            $owner = \App\Models\User::create([
+                'name' => $formData['owner_name'],
+                'email' => $formData['owner_email'],
+                'password' => \Illuminate\Support\Facades\Hash::make($formData['owner_password']),
+                'role' => $formData['owner_role'] ?? 'administrator',
+                'facility_id' => $this->record->id,
+                'assigned_branch_id' => $branch->id,
+                'is_active' => true,
+            ]);
+
+            // Update facility with owner reference
+            $this->record->update([
+                'registered_by_user_id' => $owner->id,
+            ]);
         }
 
         // Send detailed success notification

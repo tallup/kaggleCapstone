@@ -78,190 +78,278 @@ class FacilityResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\Section::make('Facility Information')
-                    ->schema([
-                        Forms\Components\TextInput::make('name')
-                            ->label('Facility Name')
-                            ->required()
-                            ->maxLength(255)
-                            ->placeholder('Enter facility name'),
-                        Forms\Components\TextInput::make('location')
-                            ->label('Location')
-                            ->required()
-                            ->maxLength(255)
-                            ->placeholder('Enter city, state'),
-                        Forms\Components\Textarea::make('description')
-                            ->label('Description')
-                            ->rows(4)
-                            ->placeholder('Enter facility description...'),
-                    ])
-                    ->columns(2),
+                Forms\Components\Tabs::make('FacilityTabs')
+                    ->tabs([
+                        Forms\Components\Tabs\Tab::make('Overview')
+                            ->icon('heroicon-o-home')
+                            ->schema([
+                                Forms\Components\Section::make('Facility Information')
+                                    ->schema([
+                                        Forms\Components\TextInput::make('name')
+                                            ->label('Facility Name')
+                                            ->required()
+                                            ->maxLength(255)
+                                            ->placeholder('Enter facility name'),
+                                        Forms\Components\TextInput::make('location')
+                                            ->label('Location')
+                                            ->required()
+                                            ->maxLength(255)
+                                            ->placeholder('Enter city, state'),
+                                        Forms\Components\Textarea::make('description')
+                                            ->label('Description')
+                                            ->rows(4)
+                                            ->placeholder('Enter facility description...'),
+                                    ])
+                                    ->columns(2),
 
-                Forms\Components\Section::make('Contact Information')
-                    ->schema([
-                        Forms\Components\Textarea::make('address')
-                            ->label('Address')
-                            ->rows(3)
-                            ->placeholder('Enter full address...'),
-                        Forms\Components\TextInput::make('phone')
-                            ->label('Phone')
-                            ->tel()
-                            ->placeholder('(206) 555-0123'),
-                        Forms\Components\TextInput::make('email')
-                            ->label('Email')
-                            ->email()
-                            ->placeholder('info@example.com'),
-                    ])
-                    ->columns(2),
+                                Forms\Components\Section::make('Contact Information')
+                                    ->schema([
+                                        Forms\Components\Textarea::make('address')
+                                            ->label('Address')
+                                            ->rows(3)
+                                            ->placeholder('Enter full address...'),
+                                        Forms\Components\TextInput::make('phone')
+                                            ->label('Phone')
+                                            ->tel()
+                                            ->placeholder('(206) 555-0123'),
+                                        Forms\Components\TextInput::make('email')
+                                            ->label('Email')
+                                            ->email()
+                                            ->placeholder('info@example.com'),
+                                    ])
+                                    ->columns(2),
 
-                Forms\Components\Section::make('Marketing Information')
-                    ->schema([
-                        Forms\Components\TextInput::make('brochure_url')
-                            ->label('Brochure URL')
-                            ->url()
-                            ->placeholder('https://example.com/brochure.pdf'),
-                        Forms\Components\Select::make('brochure_color')
-                            ->label('Brochure Color Theme')
-                            ->options([
-                                'blue' => 'Blue',
-                                'green' => 'Green',
-                                'purple' => 'Purple',
-                                'red' => 'Red',
-                            ])
-                            ->default('blue')
-                            ->required(),
-                        Forms\Components\Toggle::make('is_active')
-                            ->label('Active Facility')
-                            ->default(true)
-                            ->helperText('Enable this facility for use'),
-                    ])
-                    ->columns(2),
+                                Forms\Components\Section::make('Marketing Information')
+                                    ->schema([
+                                        Forms\Components\TextInput::make('brochure_url')
+                                            ->label('Brochure URL')
+                                            ->url()
+                                            ->placeholder('https://example.com/brochure.pdf'),
+                                        Forms\Components\Select::make('brochure_color')
+                                            ->label('Brochure Color Theme')
+                                            ->options([
+                                                'blue' => 'Blue',
+                                                'green' => 'Green',
+                                                'purple' => 'Purple',
+                                                'red' => 'Red',
+                                            ])
+                                            ->default('blue')
+                                            ->required(),
+                                        Forms\Components\Toggle::make('is_active')
+                                            ->label('Active Facility')
+                                            ->default(true)
+                                            ->helperText('Enable this facility for use'),
+                                    ])
+                                    ->columns(2),
 
-                Forms\Components\Section::make('Branding & Customization')
-                    ->schema([
-                        Forms\Components\FileUpload::make('logo')
-                            ->label('Facility Logo')
-                            ->image()
-                            ->directory('facilities/logos')
-                            ->disk('public')
-                            ->imageEditor()
-                            ->helperText('Upload a logo for this facility. Will be displayed in the admin panel.'),
-                        Forms\Components\TextInput::make('subdomain')
-                            ->label('Subdomain')
-                            ->maxLength(255)
-                            ->unique(ignoreRecord: true)
-                            ->helperText('Optional subdomain for facility-specific URL (e.g., evergreen.yourapp.com)'),
-                        Forms\Components\TextInput::make('provider_code')
-                            ->label('Provider Code')
-                            ->maxLength(255)
-                            ->unique(ignoreRecord: true)
-                            ->helperText('Optional provider code used for login identification. Users can enter this code during login to identify their facility.'),
-                        Forms\Components\ColorPicker::make('primary_color')
-                            ->label('Primary Color')
-                            ->helperText('Main brand color for the admin panel'),
-                        Forms\Components\ColorPicker::make('secondary_color')
-                            ->label('Secondary Color')
-                            ->helperText('Secondary brand color'),
-                        Forms\Components\ColorPicker::make('accent_color')
-                            ->label('Accent Color')
-                            ->helperText('Accent color for highlights'),
-                    ])
-                    ->columns(2)
-                    ->visible(fn () => auth()->user()->role === 'super_admin'),
+                                Forms\Components\Section::make('Location Coordinates')
+                                    ->description('Coordinates are used for location-based login restrictions. Click "Geocode from Address" to automatically populate coordinates.')
+                                    ->schema([
+                                        Forms\Components\TextInput::make('latitude')
+                                            ->label('Latitude')
+                                            ->numeric()
+                                            ->step(0.00000001)
+                                            ->minValue(-90)
+                                            ->maxValue(90)
+                                            ->placeholder('e.g., 47.6062')
+                                            ->helperText('Latitude coordinate (-90 to 90)'),
+                                        Forms\Components\TextInput::make('longitude')
+                                            ->label('Longitude')
+                                            ->numeric()
+                                            ->step(0.00000001)
+                                            ->minValue(-180)
+                                            ->maxValue(180)
+                                            ->placeholder('e.g., -122.3321')
+                                            ->helperText('Longitude coordinate (-180 to 180)'),
+                                        Forms\Components\Actions::make([
+                                            Forms\Components\Actions\Action::make('geocode')
+                                                ->label('Geocode from Address')
+                                                ->icon('heroicon-o-map-pin')
+                                                ->color('primary')
+                                                ->action(function (Forms\Get $get, Forms\Set $set) {
+                                                    $address = $get('address');
+                                                    if (empty($address)) {
+                                                        \Filament\Notifications\Notification::make()
+                                                            ->title('Address Required')
+                                                            ->body('Please enter an address before geocoding.')
+                                                            ->warning()
+                                                            ->send();
+                                                        return;
+                                                    }
 
-                Forms\Components\Section::make('Module Access')
-                    ->schema([
-                        Forms\Components\CheckboxList::make('enabled_modules')
-                            ->label('Enabled Modules')
-                            ->options(\App\Constants\Modules::all())
-                            ->columns(2)
-                            ->gridDirection('row')
-                            ->bulkToggleable()
-                            ->helperText('Select which modules are available for this facility. Users must have both role permissions and facility module access.')
-                            ->default(function ($record) {
-                                if (!$record) {
-                                    return array_keys(\App\Constants\Modules::all());
-                                }
-                                return $record->modules()
-                                    ->where('is_enabled', true)
-                                    ->pluck('module')
-                                    ->toArray();
-                            })
-                            ->dehydrated(true),
-                    ])
-                    ->visible(fn () => auth()->user()->role === 'super_admin')
-                    ->collapsible(),
+                                                    try {
+                                                        $locationService = app(LocationService::class);
+                                                        $coordinates = $locationService->geocodeAddress($address);
+                                                        
+                                                        if ($coordinates) {
+                                                            $set('latitude', $coordinates['latitude']);
+                                                            $set('longitude', $coordinates['longitude']);
+                                                            \Filament\Notifications\Notification::make()
+                                                                ->title('Geocoding Successful')
+                                                                ->body('Coordinates have been populated from the address.')
+                                                                ->success()
+                                                                ->send();
+                                                        } else {
+                                                            \Filament\Notifications\Notification::make()
+                                                                ->title('Geocoding Failed')
+                                                                ->body('Unable to geocode the address. Please enter coordinates manually.')
+                                                                ->warning()
+                                                                ->send();
+                                                        }
+                                                    } catch (\Exception $e) {
+                                                        Log::error('Geocoding error in FacilityResource', [
+                                                            'error' => $e->getMessage(),
+                                                            'address' => $address,
+                                                        ]);
+                                                        \Filament\Notifications\Notification::make()
+                                                            ->title('Geocoding Error')
+                                                            ->body('An error occurred while geocoding. Please try again or enter coordinates manually.')
+                                                            ->danger()
+                                                            ->send();
+                                                    }
+                                                }),
+                                        ]),
+                                    ])
+                                    ->columns(2)
+                                    ->collapsible(),
+                            ]),
 
-                Forms\Components\Section::make('Location Coordinates')
-                    ->description('Coordinates are used for location-based login restrictions. Click "Geocode from Address" to automatically populate coordinates.')
-                    ->schema([
-                        Forms\Components\TextInput::make('latitude')
-                            ->label('Latitude')
-                            ->numeric()
-                            ->step(0.00000001)
-                            ->minValue(-90)
-                            ->maxValue(90)
-                            ->placeholder('e.g., 47.6062')
-                            ->helperText('Latitude coordinate (-90 to 90)'),
-                        Forms\Components\TextInput::make('longitude')
-                            ->label('Longitude')
-                            ->numeric()
-                            ->step(0.00000001)
-                            ->minValue(-180)
-                            ->maxValue(180)
-                            ->placeholder('e.g., -122.3321')
-                            ->helperText('Longitude coordinate (-180 to 180)'),
-                        Forms\Components\Actions::make([
-                            Forms\Components\Actions\Action::make('geocode')
-                                ->label('Geocode from Address')
-                                ->icon('heroicon-o-map-pin')
-                                ->color('primary')
-                                ->action(function (Forms\Get $get, Forms\Set $set) {
-                                    $address = $get('address');
-                                    if (empty($address)) {
-                                        \Filament\Notifications\Notification::make()
-                                            ->title('Address Required')
-                                            ->body('Please enter an address before geocoding.')
-                                            ->warning()
-                                            ->send();
-                                        return;
-                                    }
+                        Forms\Components\Tabs\Tab::make('Branding')
+                            ->icon('heroicon-o-paint-brush')
+                            ->visible(fn () => auth()->user()->role === 'super_admin')
+                            ->schema([
+                                Forms\Components\Section::make('Branding & Customization')
+                                    ->schema([
+                                        Forms\Components\FileUpload::make('logo')
+                                            ->label('Facility Logo')
+                                            ->image()
+                                            ->directory('facilities/logos')
+                                            ->disk('public')
+                                            ->imageEditor()
+                                            ->helperText('Upload a logo for this facility. Will be displayed in the admin panel.'),
+                                        Forms\Components\TextInput::make('subdomain')
+                                            ->label('Subdomain')
+                                            ->maxLength(255)
+                                            ->unique(ignoreRecord: true)
+                                            ->helperText('Optional subdomain for facility-specific URL (e.g., evergreen.yourapp.com)'),
+                                        Forms\Components\TextInput::make('provider_code')
+                                            ->label('Provider Code')
+                                            ->maxLength(255)
+                                            ->unique(ignoreRecord: true)
+                                            ->helperText('Optional provider code used for login identification. Users can enter this code during login to identify their facility.'),
+                                        Forms\Components\ColorPicker::make('primary_color')
+                                            ->label('Primary Color')
+                                            ->helperText('Main brand color for the admin panel'),
+                                        Forms\Components\ColorPicker::make('secondary_color')
+                                            ->label('Secondary Color')
+                                            ->helperText('Secondary brand color'),
+                                        Forms\Components\ColorPicker::make('accent_color')
+                                            ->label('Accent Color')
+                                            ->helperText('Accent color for highlights'),
+                                    ])
+                                    ->columns(2),
+                            ]),
 
-                                    try {
-                                        $locationService = app(LocationService::class);
-                                        $coordinates = $locationService->geocodeAddress($address);
-                                        
-                                        if ($coordinates) {
-                                            $set('latitude', $coordinates['latitude']);
-                                            $set('longitude', $coordinates['longitude']);
-                                            \Filament\Notifications\Notification::make()
-                                                ->title('Geocoding Successful')
-                                                ->body('Coordinates have been populated from the address.')
-                                                ->success()
-                                                ->send();
-                                        } else {
-                                            \Filament\Notifications\Notification::make()
-                                                ->title('Geocoding Failed')
-                                                ->body('Unable to geocode the address. Please enter coordinates manually.')
-                                                ->warning()
-                                                ->send();
-                                        }
-                                    } catch (\Exception $e) {
-                                        Log::error('Geocoding error in FacilityResource', [
-                                            'error' => $e->getMessage(),
-                                            'address' => $address,
-                                        ]);
-                                        \Filament\Notifications\Notification::make()
-                                            ->title('Geocoding Error')
-                                            ->body('An error occurred while geocoding. Please try again or enter coordinates manually.')
-                                            ->danger()
-                                            ->send();
-                                    }
-                                }),
-                        ]),
-                    ])
-                    ->columns(2)
-                    ->collapsible(),
+                        Forms\Components\Tabs\Tab::make('Module Access')
+                            ->icon('heroicon-o-cog-6-tooth')
+                            ->visible(fn () => auth()->user()->role === 'super_admin')
+                            ->schema([
+                                Forms\Components\Section::make('Module Access')
+                                    ->schema([
+                                        Forms\Components\CheckboxList::make('enabled_modules')
+                                            ->label('Enabled Modules')
+                                            ->options(\App\Constants\Modules::all())
+                                            ->columns(2)
+                                            ->gridDirection('row')
+                                            ->bulkToggleable()
+                                            ->helperText('Select which modules are available for this facility. Users must have both role permissions and facility module access.')
+                                            ->default(function ($record) {
+                                                if (!$record) {
+                                                    return array_keys(\App\Constants\Modules::all());
+                                                }
+                                                return $record->modules()
+                                                    ->where('is_enabled', true)
+                                                    ->pluck('module')
+                                                    ->toArray();
+                                            })
+                                            ->dehydrated(true),
+                                    ])
+                                    ->collapsible(),
+                            ]),
+
+                        Forms\Components\Tabs\Tab::make('Owner Account')
+                            ->icon('heroicon-o-user')
+                            ->visible(fn () => auth()->user()->role === 'super_admin')
+                            ->schema([
+                                Forms\Components\Section::make('Facility Owner Account')
+                                    ->description('Manage the facility owner account. This is the primary administrator account for this facility.')
+                                    ->schema([
+                                        Forms\Components\Placeholder::make('current_owner')
+                                            ->label('Current Owner')
+                                            ->content(function ($record) {
+                                                if (!$record) {
+                                                    return 'No owner account set. Create one below.';
+                                                }
+                                                
+                                                $owner = $record->owner;
+                                                if (!$owner) {
+                                                    return 'No owner account set. Create one below.';
+                                                }
+                                                
+                                                return "**{$owner->name}** ({$owner->email}) - {$owner->role}";
+                                            })
+                                            ->visible(fn ($record) => $record && $record->owner),
+
+                                        Forms\Components\TextInput::make('owner_name')
+                                            ->label('Owner Name')
+                                            ->maxLength(255)
+                                            ->placeholder('Enter owner full name')
+                                            ->helperText('Full name of the facility owner/administrator')
+                                            ->visible(fn ($record) => !$record || !$record->owner),
+
+                                        Forms\Components\TextInput::make('owner_email')
+                                            ->label('Owner Email')
+                                            ->email()
+                                            ->maxLength(255)
+                                            ->placeholder('owner@example.com')
+                                            ->helperText('Email address for the owner account (used for login)')
+                                            ->unique(\App\Models\User::class, 'email', ignoreRecord: function ($record) {
+                                                // If editing and facility has owner, ignore owner's email
+                                                if ($record && $record->owner) {
+                                                    return $record->owner;
+                                                }
+                                                return null;
+                                            })
+                                            ->visible(fn ($record) => !$record || !$record->owner),
+
+                                        Forms\Components\Select::make('owner_role')
+                                            ->label('Owner Role')
+                                            ->options([
+                                                'administrator' => 'Administrator',
+                                                'admin' => 'Admin',
+                                                'manager' => 'Manager',
+                                            ])
+                                            ->default('administrator')
+                                            ->required()
+                                            ->helperText('Role assigned to the owner account')
+                                            ->visible(fn ($record) => !$record || !$record->owner),
+
+                                        Forms\Components\TextInput::make('owner_password')
+                                            ->label('Owner Password')
+                                            ->password()
+                                            ->revealable()
+                                            ->minLength(8)
+                                            ->helperText('Password for the owner account (minimum 8 characters). Leave blank when editing to keep current password.')
+                                            ->visible(fn ($record) => !$record || !$record->owner),
+
+                                        Forms\Components\Placeholder::make('owner_info')
+                                            ->label('Note')
+                                            ->content('To update an existing owner account, use the "Accounts" tab or edit the user directly.')
+                                            ->visible(fn ($record) => $record && $record->owner),
+                                    ])
+                                    ->columns(2),
+                            ]),
+                    ]),
             ]);
     }
 

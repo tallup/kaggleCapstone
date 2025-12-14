@@ -34,11 +34,13 @@ class CreateFacility extends CreateRecord
         $data['is_active'] = $data['is_active'] ?? true;
         $data['brochure_color'] = $data['brochure_color'] ?? 'blue';
         
-        // Set the registered_by_user_id to current user
+        // Set the registered_by_user_id to current user (will be updated if owner is created)
         $data['registered_by_user_id'] = auth()->id();
         
-        // Remove enabled_modules from data as it's not a database field
+        // Remove enabled_modules and owner account fields from data as they're not database fields
         unset($data['enabled_modules']);
+        // Keep owner fields for afterCreate() to process
+        // unset($data['owner_name'], $data['owner_email'], $data['owner_role'], $data['owner_password']);
         
         return $data;
     }
@@ -48,8 +50,10 @@ class CreateFacility extends CreateRecord
      */
     protected function afterCreate(): void
     {
+        $formData = $this->form->getState();
+        
         // Sync modules after facility is created
-        $enabledModules = $this->form->getState()['enabled_modules'] ?? [];
+        $enabledModules = $formData['enabled_modules'] ?? [];
         $allModules = array_keys(\App\Constants\Modules::all());
         
         $enabledCount = 0;
@@ -62,11 +66,43 @@ class CreateFacility extends CreateRecord
             }
         }
 
+        // Create owner account if provided
+        $owner = null;
+        if (!empty($formData['owner_email']) && !empty($formData['owner_name']) && !empty($formData['owner_password'])) {
+            // Create initial branch first
+            $branch = $this->record->branches()->create([
+                'name' => 'Main Branch',
+                'address' => $this->record->address,
+                'is_active' => true,
+            ]);
+
+            // Create owner account
+            $owner = \App\Models\User::create([
+                'name' => $formData['owner_name'],
+                'email' => $formData['owner_email'],
+                'password' => \Illuminate\Support\Facades\Hash::make($formData['owner_password']),
+                'role' => $formData['owner_role'] ?? 'administrator',
+                'facility_id' => $this->record->id,
+                'assigned_branch_id' => $branch->id,
+                'is_active' => true,
+            ]);
+
+            // Update facility with owner reference
+            $this->record->update([
+                'registered_by_user_id' => $owner->id,
+            ]);
+        }
+
         // Send success notification with details
+        $body = "**{$this->record->name}** has been created with {$enabledCount} module(s) enabled.";
+        if ($owner) {
+            $body .= " Owner account ({$owner->email}) has been created.";
+        }
+
         Notification::make()
             ->success()
             ->title('Facility Created Successfully')
-            ->body("**{$this->record->name}** has been created with {$enabledCount} module(s) enabled.")
+            ->body($body)
             ->icon('heroicon-o-check-circle')
             ->iconColor('success')
             ->duration(5000)
