@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Building2, Home, Sparkles, Info, Mail, Shield, DollarSign, FileText, Grid3x3 } from 'lucide-react';
+import { Building2, Home, Sparkles, Info, Mail, Shield, DollarSign, FileText, UserPlus } from 'lucide-react';
 
 export default function PublicNavigation() {
     const navigate = useNavigate();
@@ -10,8 +10,8 @@ export default function PublicNavigation() {
         { path: '/', label: 'Home', icon: Home },
         { path: '/about', label: 'About', icon: Info },
         { path: '/features', label: 'Features', icon: Sparkles },
-        { path: '/modules', label: 'Modules', icon: Grid3x3 },
         { path: '/pricing', label: 'Pricing', icon: DollarSign },
+        { path: '/register-facility', label: 'Register Facility', icon: UserPlus },
         { path: '/contact', label: 'Contact', icon: Mail },
     ];
 
