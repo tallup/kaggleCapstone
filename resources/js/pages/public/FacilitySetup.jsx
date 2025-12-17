@@ -22,7 +22,6 @@ export default function FacilitySetup() {
         { label: 'Email Address', required: true },
         { label: 'Subdomain (optional)', required: false, note: 'e.g., yourfacility.homelogic360.net' },
       ],
-      color: 'from-blue-500 to-cyan-500'
     },
     {
       icon: Building2,
@@ -31,7 +30,6 @@ export default function FacilitySetup() {
         { label: 'Branch Name', required: true, note: 'e.g., "Main Branch" or facility name' },
         { label: 'Branch Address (if different)', required: false },
       ],
-      color: 'from-purple-500 to-pink-500'
     },
     {
       icon: User,
@@ -42,7 +40,6 @@ export default function FacilitySetup() {
         { label: 'Administrator Role', required: true, note: 'Administrator, Manager, or Clinical Supervisor' },
         { label: 'Initial Password', required: true, note: 'Minimum 8 characters' },
       ],
-      color: 'from-green-500 to-emerald-500'
     },
   ];
 
@@ -57,7 +54,6 @@ export default function FacilitySetup() {
         { label: 'Accent Color', note: 'Hex code (e.g., #FFFFFF)' },
         { label: 'Provider Code', note: 'If applicable' },
       ],
-      color: 'from-orange-500 to-amber-500'
     },
     {
       icon: FileText,
@@ -67,7 +63,6 @@ export default function FacilitySetup() {
         { label: 'Number of Beds/Capacity' },
         { label: 'Years in Operation' },
       ],
-      color: 'from-indigo-500 to-violet-500'
     },
     {
       icon: Mail,
@@ -78,7 +73,6 @@ export default function FacilitySetup() {
         { label: 'From Name', note: 'e.g., "Your Facility Name"' },
         { label: 'SMTP Details (if using SMTP)', note: 'Host, port, username, password' },
       ],
-      color: 'from-red-500 to-rose-500'
     },
   ];
 
@@ -117,7 +111,7 @@ export default function FacilitySetup() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Header */}
         <div className="text-center mb-12">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-r from-blue-500 to-cyan-500 mb-4">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-600 mb-4">
             <FileText className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
@@ -132,7 +126,7 @@ export default function FacilitySetup() {
         {/* Quick Start Section */}
         <div className="bg-white rounded-2xl shadow-lg p-8 mb-12 border border-gray-200">
           <div className="flex items-center gap-3 mb-6">
-            <div className="w-12 h-12 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-lg bg-blue-600 flex items-center justify-center">
               <CheckCircle className="w-6 h-6 text-white" />
             </div>
             <h2 className="text-2xl font-bold text-gray-900">Quick Start Checklist</h2>
@@ -143,7 +137,7 @@ export default function FacilitySetup() {
           <div className="grid md:grid-cols-2 gap-3">
             {quickStartChecklist.map((item, index) => (
               <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                <Check className="w-5 h-5 text-green-500 flex-shrink-0" />
+                <Check className="w-5 h-5 text-blue-600 flex-shrink-0" />
                 <span className="text-gray-700">{item}</span>
               </div>
             ))}
@@ -153,7 +147,7 @@ export default function FacilitySetup() {
         {/* Required Information */}
         <div className="mb-12">
           <div className="flex items-center gap-3 mb-8">
-            <div className="w-12 h-12 rounded-lg bg-gradient-to-r from-red-500 to-rose-500 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-lg bg-blue-600 flex items-center justify-center">
               <AlertCircle className="w-6 h-6 text-white" />
             </div>
             <h2 className="text-3xl font-bold text-gray-900">Required Information</h2>
@@ -164,9 +158,9 @@ export default function FacilitySetup() {
               const Icon = section.icon;
               return (
                 <div key={index} className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
-                  <div className={`bg-gradient-to-r ${section.color} p-6`}>
+                  <div className="bg-blue-600 p-6">
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                      <div className="w-12 h-12 rounded-lg bg-blue-700 flex items-center justify-center">
                         <Icon className="w-6 h-6 text-white" />
                       </div>
                       <h3 className="text-xl font-bold text-white">{section.title}</h3>
@@ -177,14 +171,14 @@ export default function FacilitySetup() {
                       {section.items.map((item, itemIndex) => (
                         <li key={itemIndex} className="flex items-start gap-3">
                           {item.required ? (
-                            <X className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                            <Check className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
                           ) : (
                             <Check className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" />
                           )}
                           <div className="flex-1">
                             <span className={`font-medium ${item.required ? 'text-gray-900' : 'text-gray-600'}`}>
                               {item.label}
-                              {item.required && <span className="text-red-500 ml-1">*</span>}
+                              {item.required && <span className="text-blue-600 ml-1">*</span>}
                             </span>
                             {item.note && (
                               <p className="text-sm text-gray-500 mt-1">{item.note}</p>
@@ -203,7 +197,7 @@ export default function FacilitySetup() {
         {/* Optional Information */}
         <div className="mb-12">
           <div className="flex items-center gap-3 mb-8">
-            <div className="w-12 h-12 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-lg bg-gray-600 flex items-center justify-center">
               <Info className="w-6 h-6 text-white" />
             </div>
             <h2 className="text-3xl font-bold text-gray-900">Optional Information (Recommended)</h2>
@@ -214,9 +208,9 @@ export default function FacilitySetup() {
               const Icon = section.icon;
               return (
                 <div key={index} className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
-                  <div className={`bg-gradient-to-r ${section.color} p-6`}>
+                  <div className="bg-gray-600 p-6">
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                      <div className="w-12 h-12 rounded-lg bg-gray-700 flex items-center justify-center">
                         <Icon className="w-6 h-6 text-white" />
                       </div>
                       <h3 className="text-xl font-bold text-white">{section.title}</h3>
@@ -246,7 +240,7 @@ export default function FacilitySetup() {
         {/* Module Access */}
         <div className="bg-white rounded-2xl shadow-lg p-8 mb-12 border border-gray-200">
           <div className="flex items-center gap-3 mb-6">
-            <div className="w-12 h-12 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-lg bg-blue-600 flex items-center justify-center">
               <Settings className="w-6 h-6 text-white" />
             </div>
             <h2 className="text-2xl font-bold text-gray-900">Module Access Preferences</h2>
@@ -258,7 +252,7 @@ export default function FacilitySetup() {
           <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
             {modules.map((module, index) => (
               <div key={index} className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
-                <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
+                <Check className="w-4 h-4 text-blue-600 flex-shrink-0" />
                 <span className="text-sm text-gray-700">{module}</span>
               </div>
             ))}
@@ -266,7 +260,7 @@ export default function FacilitySetup() {
         </div>
 
         {/* What Happens Next */}
-        <div className="bg-gradient-to-r from-blue-500 to-cyan-500 rounded-2xl shadow-lg p-8 mb-12 text-white">
+        <div className="bg-blue-600 rounded-2xl shadow-lg p-8 mb-12 text-white">
           <h2 className="text-2xl font-bold mb-6">What Happens Next?</h2>
           <div className="space-y-4">
             <div className="flex items-start gap-4">
@@ -331,7 +325,7 @@ export default function FacilitySetup() {
         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
           <button
             onClick={() => navigate('/register-facility')}
-            className="w-full sm:w-auto bg-gradient-to-r from-blue-500 to-cyan-500 text-white px-8 py-4 rounded-lg font-semibold hover:from-blue-600 hover:to-cyan-600 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
+            className="w-full sm:w-auto bg-blue-600 text-white px-8 py-4 rounded-lg font-semibold hover:bg-blue-700 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
           >
             <Send className="w-5 h-5" />
             Register Your Facility
@@ -348,7 +342,7 @@ export default function FacilitySetup() {
         {/* Questions Section */}
         <div className="bg-gray-50 rounded-2xl p-8 border border-gray-200">
           <div className="flex items-center gap-3 mb-4">
-            <Info className="w-6 h-6 text-blue-500" />
+            <Info className="w-6 h-6 text-blue-600" />
             <h2 className="text-2xl font-bold text-gray-900">Questions?</h2>
           </div>
           <p className="text-gray-600 mb-4">
@@ -357,14 +351,14 @@ export default function FacilitySetup() {
           <div className="flex flex-col sm:flex-row gap-4">
             <button
               onClick={() => navigate('/contact')}
-              className="text-blue-600 hover:text-blue-700 font-medium flex items-center gap-2"
+              className="text-blue-600 hover:text-blue-800 font-medium flex items-center gap-2"
             >
               <Mail className="w-4 h-4" />
               Contact Support
             </button>
             <button
               onClick={() => navigate('/support')}
-              className="text-blue-600 hover:text-blue-700 font-medium flex items-center gap-2"
+              className="text-blue-600 hover:text-blue-800 font-medium flex items-center gap-2"
             >
               <FileText className="w-4 h-4" />
               Visit Support Center
