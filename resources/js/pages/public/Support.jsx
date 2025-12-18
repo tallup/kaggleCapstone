@@ -40,7 +40,8 @@ export default function Support() {
       icon: Book,
       title: 'Documentation',
       description: 'Comprehensive guides and tutorials',
-      link: '#'
+      link: '/documentation',
+      onClick: () => navigate('/documentation')
     },
     {
       icon: Video,
@@ -86,7 +87,7 @@ export default function Support() {
               <div
                 key={index}
                 className="bg-white p-6 rounded-xl border border-gray-200 hover:shadow-lg transition-all cursor-pointer"
-                onClick={() => window.open(resource.link, '_blank')}
+                onClick={() => resource.onClick ? resource.onClick() : window.open(resource.link, '_blank')}
               >
                 <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center mb-4">
                   <resource.icon className="w-6 h-6 text-white" />

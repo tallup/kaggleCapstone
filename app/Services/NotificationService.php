@@ -13,10 +13,14 @@ use Illuminate\Support\Facades\Log;
 class NotificationService
 {
     protected MailConfigurationService $mailConfigService;
+    protected EmailPreferenceService $emailPreferenceService;
 
-    public function __construct(MailConfigurationService $mailConfigService)
-    {
+    public function __construct(
+        MailConfigurationService $mailConfigService,
+        EmailPreferenceService $emailPreferenceService
+    ) {
         $this->mailConfigService = $mailConfigService;
+        $this->emailPreferenceService = $emailPreferenceService;
     }
 
     /**
@@ -35,7 +39,14 @@ class NotificationService
             $this->mailConfigService->configureForFacility($facility);
         }
         
-        foreach ($caregivers as $caregiver) {
+        // Filter caregivers based on email preferences
+        $caregiversToNotify = $this->emailPreferenceService->filterUsersForEmail(
+            $caregivers,
+            'late_medication',
+            $facility
+        );
+        
+        foreach ($caregiversToNotify as $caregiver) {
             if ($caregiver->email) {
                 try {
                     Mail::to($caregiver->email)->send(
@@ -75,7 +86,14 @@ class NotificationService
             $this->mailConfigService->configureForFacility($facility);
         }
         
-        foreach ($caregivers as $caregiver) {
+        // Filter caregivers based on email preferences
+        $caregiversToNotify = $this->emailPreferenceService->filterUsersForEmail(
+            $caregivers,
+            'late_vital_sign',
+            $facility
+        );
+        
+        foreach ($caregiversToNotify as $caregiver) {
             if ($caregiver->email) {
                 try {
                     Mail::to($caregiver->email)->send(

@@ -33,6 +33,7 @@ use App\Http\Controllers\Api\ExpenseController;
 use App\Http\Controllers\Api\BillingInvoiceController;
 use App\Http\Controllers\Api\ExpenseReportController;
 use App\Http\Controllers\Api\PaymentNotificationPreferenceController;
+use App\Http\Controllers\Api\StaffEmailPreferenceController;
 use App\Http\Controllers\Api\GeocodingController;
 use App\Http\Controllers\Api\StaffClockInController;
 use App\Http\Controllers\Api\PublicStaffClockInController;
@@ -201,6 +202,15 @@ Route::prefix('v1')->middleware([\App\Http\Middleware\SetFacilityContext::class]
     // Allow POST for file uploads (browser compatibility) - must come before apiResource
     Route::post('/users/{id}', [UserController::class, 'update'])->middleware('auth:sanctum');
     Route::apiResource('users', UserController::class)->middleware('auth:sanctum');
+
+    // Staff Email Preferences
+    Route::prefix('staff-email-preferences')->middleware('auth:sanctum')->group(function () {
+        Route::get('/', [StaffEmailPreferenceController::class, 'index']);
+        Route::post('/', [StaffEmailPreferenceController::class, 'store']);
+        Route::put('/{id}', [StaffEmailPreferenceController::class, 'update']);
+        Route::get('/facility-defaults', [StaffEmailPreferenceController::class, 'facilityDefaults']);
+        Route::post('/facility-defaults', [StaffEmailPreferenceController::class, 'updateFacilityDefaults']);
+    });
 
     // Employee Documents
     Route::apiResource('employee-documents', EmployeeDocumentController::class)->middleware('auth:sanctum');

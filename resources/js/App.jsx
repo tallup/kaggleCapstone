@@ -165,6 +165,7 @@ const CookiePolicy = lazyWithRetry(() => import('./pages/public/CookiePolicy'));
 const RegisterFacility = lazyWithRetry(() => import('./pages/public/RegisterFacility'));
 const RegisterFacilitySuccess = lazyWithRetry(() => import('./pages/public/RegisterFacilitySuccess'));
 const FacilitySetup = lazyWithRetry(() => import('./pages/public/FacilitySetup'));
+const Documentation = lazyWithRetry(() => import('./pages/public/Documentation'));
 
 function App() {
     // Make toast available globally for backward compatibility
@@ -195,6 +196,7 @@ function App() {
             <Route path="/register-facility" element={<Suspense fallback={<PageLoader />}><RegisterFacility /></Suspense>} />
             <Route path="/register-facility/success" element={<Suspense fallback={<PageLoader />}><RegisterFacilitySuccess /></Suspense>} />
             <Route path="/facility-setup" element={<Suspense fallback={<PageLoader />}><FacilitySetup /></Suspense>} />
+            <Route path="/documentation" element={<Suspense fallback={<PageLoader />}><Documentation /></Suspense>} />
             {/* Protected routes - dashboard and app pages */}
             {/* Match all paths that aren't public routes (defined above) */}
             {/* React Router matches in order, so / won't match here since it's defined above */}
