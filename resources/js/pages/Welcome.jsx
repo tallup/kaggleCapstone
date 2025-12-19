@@ -252,21 +252,6 @@ export default function Welcome() {
               </button>
               </div>
 
-              {/* Trust Indicators - Compact */}
-              <div className="flex flex-wrap items-center gap-3 justify-center lg:justify-start pt-2">
-                <div className="flex items-center gap-1.5 bg-white/10 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-white/20">
-                  <CheckCircle className="w-4 h-4 text-white" />
-                  <span className="text-xs font-medium text-white">14-Day Trial</span>
-                </div>
-                <div className="flex items-center gap-1.5 bg-white/10 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-white/20">
-                  <Shield className="w-4 h-4 text-white" />
-                  <span className="text-xs font-medium text-white">HIPAA</span>
-                </div>
-                <div className="flex items-center gap-1.5 bg-white/10 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-white/20">
-                  <Zap className="w-4 h-4 text-white" />
-                  <span className="text-xs font-medium text-white">No Card</span>
-                </div>
-              </div>
             </div>
 
             {/* Right Column - Sophisticated Visual */}
