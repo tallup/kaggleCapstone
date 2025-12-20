@@ -75,11 +75,22 @@ export default function Reports() {
                     return assessDate >= startOfMonth && assessDate <= endOfMonth;
                 }).length || 0;
                 
+                // Get sleep records for the month
+                const sleepRes = await api.get('/sleep-records', {
+                    params: {
+                        per_page: 1000,
+                        date_from: startDateStr,
+                        date_to: endDateStr,
+                    }
+                });
+                const sleepCount = sleepRes.data?.total || sleepRes.data?.data?.length || 0;
+                
                 return {
                     appointments: appointmentsCount,
                     vitals: vitalsCount,
                     residents: residentsCount,
                     assessments: assessmentsCount,
+                    sleep: sleepCount,
                 };
             } catch (error) {
                 console.error('Error fetching monthly stats:', error);
@@ -163,7 +174,7 @@ export default function Reports() {
                     description: 'Sleep patterns and quality analysis',
                     icon: Moon,
                     link: '/reports/sleep-charts',
-                    value: 0,
+                    value: statsData?.sleep || 0,
                     gradient: 'from-slate-500 to-slate-600',
                     iconBg: 'bg-slate-50',
                     iconColor: 'text-slate-600',

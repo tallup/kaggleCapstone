@@ -12,6 +12,25 @@ class AppointmentController extends BaseApiController
     public function index(Request $request): JsonResponse
     {
         $query = Appointment::with(['resident', 'healthcareProvider', 'appointmentType']);
+        $user = $request->user();
+
+        // Apply facility filtering for non-super admins
+        if ($user && $user->role !== 'super_admin') {
+            if ($user->facility_id) {
+                $query->whereHas('branch', function($q) use ($user) {
+                    $q->where('facility_id', $user->facility_id);
+                });
+            } else {
+                // User has no facility assigned, return empty results
+                return response()->json([
+                    'data' => [],
+                    'current_page' => 1,
+                    'last_page' => 1,
+                    'per_page' => $request->get('per_page', 15),
+                    'total' => 0
+                ]);
+            }
+        }
 
         // Filter by date
         if ($request->has('date_filter')) {
