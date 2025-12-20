@@ -20,21 +20,27 @@ import {
     ChevronDown,
     ChevronUp,
     Building2,
-    Award
+    Award,
+    Activity,
+    FileText
 } from 'lucide-react';
 
 export default function StaffCharts() {
-    const [expandedCards, setExpandedCards] = useState({});
+    const [expandedSections, setExpandedSections] = useState({
+        assignments: true,
+        leave: true,
+        attendance: true
+    });
 
     const { data, isLoading, refetch } = useQuery({
         queryKey: ['charts-staff'],
         queryFn: async () => (await api.get('/charts/staff')).data,
     });
 
-    const toggleCard = (cardId) => {
-        setExpandedCards(prev => ({
+    const toggleSection = (sectionId) => {
+        setExpandedSections(prev => ({
             ...prev,
-            [cardId]: !prev[cardId]
+            [sectionId]: !prev[sectionId]
         }));
     };
 
@@ -102,50 +108,34 @@ export default function StaffCharts() {
                     </div>
                 </div>
 
-                {/* Statistics Cards - Row 1 */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6">
-                    <div className="group relative bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100 hover:border-transparent">
+                {/* Key Statistics Cards - Reduced to 4 main cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
+                    <div className="group relative bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100">
                         <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-indigo-500 to-indigo-600"></div>
                         <div className="p-6">
                             <div className="flex items-start justify-between mb-3">
                                 <div className="flex-1">
                                     <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-2">Total Staff</p>
                                     <p className="text-3xl font-bold text-gray-900">{(data?.total_staff || 0).toLocaleString()}</p>
-                                    {data?.staff_by_role && data.staff_by_role.length > 0 && (
-                                        <p className="text-xs text-gray-500 mt-1">
-                                            {data.staff_by_role.length} role{data.staff_by_role.length !== 1 ? 's' : ''}
-                                        </p>
-                                    )}
+                                    <div className="mt-2 flex items-center gap-4 text-xs">
+                                        <span className="text-gray-600">
+                                            <span className="font-semibold text-blue-600">{data?.total_caregivers || 0}</span> caregivers
+                                        </span>
+                                        {data?.staff_by_role && data.staff_by_role.length > 0 && (
+                                            <span className="text-gray-600">
+                                                <span className="font-semibold text-indigo-600">{data.staff_by_role.length}</span> roles
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
-                                <div className="bg-indigo-50 p-3 rounded-xl group-hover:scale-110 transition-transform duration-300">
+                                <div className="bg-indigo-50 p-3 rounded-xl">
                                     <UserCheck className="w-6 h-6 text-indigo-600" />
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <div className="group relative bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100 hover:border-transparent">
-                        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-blue-500 to-blue-600"></div>
-                        <div className="p-6">
-                            <div className="flex items-start justify-between mb-3">
-                                <div className="flex-1">
-                                    <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-2">Caregivers</p>
-                                    <p className="text-3xl font-bold text-gray-900">{(data?.total_caregivers || 0).toLocaleString()}</p>
-                                    {data?.total_staff > 0 && (
-                                        <p className="text-xs text-gray-500 mt-1">
-                                            {Math.round((data.total_caregivers / data.total_staff) * 100)}% of total staff
-                                        </p>
-                                    )}
-                                </div>
-                                <div className="bg-blue-50 p-3 rounded-xl group-hover:scale-110 transition-transform duration-300">
-                                    <Users className="w-6 h-6 text-blue-600" />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Enhanced Active Assignments Card */}
-                    <div className="group relative bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100 hover:border-transparent">
+                    <div className="group relative bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100">
                         <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-green-500 to-green-600"></div>
                         <div className="p-6">
                             <div className="flex items-start justify-between mb-3">
@@ -153,327 +143,387 @@ export default function StaffCharts() {
                                     <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-2">Active Assignments</p>
                                     <p className="text-3xl font-bold text-gray-900">{(data?.active_assignments || 0).toLocaleString()}</p>
                                     {data?.assignments_by_caregiver && data.assignments_by_caregiver.length > 0 && (
-                                        <p className="text-xs text-gray-500 mt-1">
-                                            {data.assignments_by_caregiver.length} caregiver{data.assignments_by_caregiver.length !== 1 ? 's' : ''} assigned
+                                        <p className="text-xs text-gray-500 mt-2">
+                                            Across <span className="font-semibold">{data.assignments_by_caregiver.length}</span> caregiver{data.assignments_by_caregiver.length !== 1 ? 's' : ''}
                                         </p>
                                     )}
                                 </div>
-                                <div className="bg-green-50 p-3 rounded-xl group-hover:scale-110 transition-transform duration-300">
+                                <div className="bg-green-50 p-3 rounded-xl">
                                     <CheckCircle2 className="w-6 h-6 text-green-600" />
                                 </div>
                             </div>
-                            {(data?.assignments_by_branch?.length > 0 || data?.assignments_by_caregiver?.length > 0) && (
-                                <button
-                                    onClick={() => toggleCard('assignments')}
-                                    className="w-full mt-3 flex items-center justify-between text-xs text-gray-600 hover:text-gray-900 transition"
-                                >
-                                    <span>View details</span>
-                                    {expandedCards.assignments ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                                </button>
-                            )}
-                            {expandedCards.assignments && (
-                                <div className="mt-4 pt-4 border-t border-gray-200 space-y-3">
-                                    {data?.assignments_by_branch && data.assignments_by_branch.length > 0 && (
-                                        <div>
-                                            <p className="text-xs font-semibold text-gray-700 mb-2">By Branch:</p>
-                                            <div className="space-y-1">
-                                                {data.assignments_by_branch.map((item, idx) => (
-                                                    <div key={idx} className="flex items-center justify-between text-xs">
-                                                        <span className="text-gray-600">{item.branch?.name || 'Unknown'}</span>
-                                                        <span className="font-semibold text-gray-900">{item.count}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-                                    {data?.assignments_by_caregiver && data.assignments_by_caregiver.length > 0 && (
-                                        <div>
-                                            <p className="text-xs font-semibold text-gray-700 mb-2">Top Caregivers:</p>
-                                            <div className="space-y-1">
-                                                {data.assignments_by_caregiver.slice(0, 3).map((item, idx) => (
-                                                    <div key={idx} className="flex items-center justify-between text-xs">
-                                                        <span className="text-gray-600 truncate">{item.caregiver?.name || 'Unknown'}</span>
-                                                        <span className="font-semibold text-gray-900">{item.count}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
                         </div>
                     </div>
 
-                    {/* Enhanced Pending Leave Card */}
-                    <div className="group relative bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100 hover:border-transparent">
+                    <div className="group relative bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100">
                         <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-orange-500 to-orange-600"></div>
                         <div className="p-6">
                             <div className="flex items-start justify-between mb-3">
                                 <div className="flex-1">
-                                    <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-2">Pending Leave</p>
+                                    <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-2">Leave Requests</p>
                                     <p className="text-3xl font-bold text-gray-900">{(data?.pending_leave || 0).toLocaleString()}</p>
-                                    {data?.approved_leave > 0 && (
-                                        <p className="text-xs text-gray-500 mt-1">
-                                            {data.approved_leave} approved
-                                        </p>
-                                    )}
+                                    <div className="mt-2 flex items-center gap-4 text-xs">
+                                        <span className="text-gray-600">
+                                            <span className="font-semibold text-orange-600">{data?.pending_leave || 0}</span> pending
+                                        </span>
+                                        <span className="text-gray-600">
+                                            <span className="font-semibold text-green-600">{data?.approved_leave || 0}</span> approved
+                                        </span>
+                                    </div>
                                 </div>
-                                <div className="bg-orange-50 p-3 rounded-xl group-hover:scale-110 transition-transform duration-300">
+                                <div className="bg-orange-50 p-3 rounded-xl">
                                     <Clock className="w-6 h-6 text-orange-600" />
                                 </div>
                             </div>
-                            {data?.recent_pending_leave && data.recent_pending_leave.length > 0 && (
-                                <button
-                                    onClick={() => toggleCard('leave')}
-                                    className="w-full mt-3 flex items-center justify-between text-xs text-gray-600 hover:text-gray-900 transition"
-                                >
-                                    <span>View requests</span>
-                                    {expandedCards.leave ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                                </button>
-                            )}
-                            {expandedCards.leave && data?.recent_pending_leave && data.recent_pending_leave.length > 0 && (
-                                <div className="mt-4 pt-4 border-t border-gray-200 space-y-2 max-h-48 overflow-y-auto">
-                                    {data.recent_pending_leave.map((leave, idx) => (
-                                        <div key={idx} className="text-xs">
-                                            <div className="flex items-center justify-between">
-                                                <span className="font-medium text-gray-900">{leave.staff?.name || 'Unknown'}</span>
-                                                <span className="text-gray-500">
-                                                    {new Date(leave.start_date).toLocaleDateString()} - {new Date(leave.end_date).toLocaleDateString()}
-                                                </span>
-                                            </div>
-                                            <p className="text-gray-600 truncate">{leave.leave_type || 'Personal'}</p>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-
-                {/* Statistics Cards - Row 2 (New Cards) */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
-                    <div className="group relative bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100 hover:border-transparent">
-                        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-purple-500 to-purple-600"></div>
-                        <div className="p-6">
-                            <div className="flex items-start justify-between mb-3">
-                                <div className="flex-1">
-                                    <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-2">Approved Leave</p>
-                                    <p className="text-3xl font-bold text-gray-900">{(data?.approved_leave || 0).toLocaleString()}</p>
-                                    {data?.pending_leave > 0 && (
-                                        <p className="text-xs text-gray-500 mt-1">
-                                            {data.pending_leave} pending
-                                        </p>
-                                    )}
-                                </div>
-                                <div className="bg-purple-50 p-3 rounded-xl group-hover:scale-110 transition-transform duration-300">
-                                    <CheckCircle2 className="w-6 h-6 text-purple-600" />
-                                </div>
-                            </div>
                         </div>
                     </div>
 
-                    <div className="group relative bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100 hover:border-transparent">
+                    <div className="group relative bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100">
                         <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-teal-500 to-teal-600"></div>
                         <div className="p-6">
                             <div className="flex items-start justify-between mb-3">
                                 <div className="flex-1">
-                                    <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-2">Today Clock-ins</p>
+                                    <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-2">Attendance Today</p>
                                     <p className="text-3xl font-bold text-gray-900">{(data?.today_clock_ins || 0).toLocaleString()}</p>
-                                    <p className="text-xs text-gray-500 mt-1">
-                                        {data?.active_clock_ins || 0} currently active
+                                    <p className="text-xs text-gray-500 mt-2">
+                                        <span className="font-semibold text-teal-600">{data?.active_clock_ins || 0}</span> currently active
                                     </p>
                                 </div>
-                                <div className="bg-teal-50 p-3 rounded-xl group-hover:scale-110 transition-transform duration-300">
-                                    <Clock className="w-6 h-6 text-teal-600" />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="group relative bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100 hover:border-transparent">
-                        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-cyan-500 to-cyan-600"></div>
-                        <div className="p-6">
-                            <div className="flex items-start justify-between mb-3">
-                                <div className="flex-1">
-                                    <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-2">Active Clock-ins</p>
-                                    <p className="text-3xl font-bold text-gray-900">{(data?.active_clock_ins || 0).toLocaleString()}</p>
-                                    <p className="text-xs text-gray-500 mt-1">
-                                        Currently working
-                                    </p>
-                                </div>
-                                <div className="bg-cyan-50 p-3 rounded-xl group-hover:scale-110 transition-transform duration-300">
-                                    <TrendingUp className="w-6 h-6 text-cyan-600" />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="group relative bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100 hover:border-transparent">
-                        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-rose-500 to-rose-600"></div>
-                        <div className="p-6">
-                            <div className="flex items-start justify-between mb-3">
-                                <div className="flex-1">
-                                    <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-2">Staff by Role</p>
-                                    <p className="text-3xl font-bold text-gray-900">{data?.staff_by_role?.length || 0}</p>
-                                    <p className="text-xs text-gray-500 mt-1">
-                                        Different roles
-                                    </p>
-                                </div>
-                                <div className="bg-rose-50 p-3 rounded-xl group-hover:scale-110 transition-transform duration-300">
-                                    <UserCog className="w-6 h-6 text-rose-600" />
+                                <div className="bg-teal-50 p-3 rounded-xl">
+                                    <TrendingUp className="w-6 h-6 text-teal-600" />
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Charts Grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                        <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-                                <PieChart className="h-5 w-5 text-indigo-600" />
-                                Leave Requests by Status
-                            </h2>
-                        </div>
-                        <div className="h-80">
-                            {data?.leave_by_status?.length ? (
-                                <Doughnut
-                                    data={{
-                                        labels: data.leave_by_status.map(l => l.status.charAt(0).toUpperCase() + l.status.slice(1)),
-                                        datasets: [{
-                                            data: data.leave_by_status.map(l => l.count),
-                                            backgroundColor: [
-                                                colors.primary + '80',
-                                                colors.success + '80',
-                                                colors.warning + '80',
-                                            ],
-                                            borderColor: [
-                                                colors.primary,
-                                                colors.success,
-                                                colors.warning,
-                                            ],
-                                            borderWidth: 2,
-                                        }],
-                                    }}
-                                    options={{
-                                        ...defaultOptions,
-                                        maintainAspectRatio: false,
-                                    }}
-                                />
-                            ) : (
-                                <div className="h-80 flex items-center justify-center text-gray-500">
-                                    <div className="text-center">
-                                        <PieChart className="h-12 w-12 text-gray-300 mx-auto mb-2" />
-                                        <p>No data available</p>
+                {/* Detailed Sections */}
+                <div className="space-y-6">
+                    {/* Assignments Section */}
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+                        <button
+                            onClick={() => toggleSection('assignments')}
+                            className="w-full p-6 flex items-center justify-between hover:bg-gray-50 transition rounded-t-xl"
+                        >
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-green-100 rounded-lg">
+                                    <CheckCircle2 className="h-5 w-5 text-green-600" />
+                                </div>
+                                <div className="text-left">
+                                    <h2 className="text-xl font-semibold text-gray-900">Active Assignments</h2>
+                                    <p className="text-sm text-gray-500">Caregiver-resident assignments overview</p>
+                                </div>
+                            </div>
+                            {expandedSections.assignments ? <ChevronUp className="h-5 w-5 text-gray-400" /> : <ChevronDown className="h-5 w-5 text-gray-400" />}
+                        </button>
+                        {expandedSections.assignments && (
+                            <div className="px-6 pb-6 border-t border-gray-200">
+                                {data?.active_assignments > 0 ? (
+                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+                                        {data?.assignments_by_branch && data.assignments_by_branch.length > 0 && (
+                                            <div>
+                                                <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
+                                                    <Building2 className="h-4 w-4 text-indigo-600" />
+                                                    By Branch
+                                                </h3>
+                                                <div className="space-y-3">
+                                                    {data.assignments_by_branch.map((item, idx) => (
+                                                        <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
+                                                                    <Building2 className="w-5 h-5 text-indigo-600" />
+                                                                </div>
+                                                                <div>
+                                                                    <p className="font-medium text-gray-900">{item.branch?.name || 'Unknown Branch'}</p>
+                                                                    <p className="text-xs text-gray-500">Branch assignments</p>
+                                                                </div>
+                                                            </div>
+                                                            <div className="text-right">
+                                                                <p className="text-2xl font-bold text-indigo-600">{item.count}</p>
+                                                                <p className="text-xs text-gray-500">assignments</p>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                        {data?.assignments_by_caregiver && data.assignments_by_caregiver.length > 0 && (
+                                            <div>
+                                                <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
+                                                    <Award className="h-4 w-4 text-green-600" />
+                                                    Top Caregivers
+                                                </h3>
+                                                <div className="space-y-3">
+                                                    {data.assignments_by_caregiver.map((item, idx) => (
+                                                        <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                                                                    <Users className="w-5 h-5 text-green-600" />
+                                                                </div>
+                                                                <div>
+                                                                    <p className="font-medium text-gray-900">{item.caregiver?.name || 'Unknown Caregiver'}</p>
+                                                                    <p className="text-xs text-gray-500">Active assignments</p>
+                                                                </div>
+                                                            </div>
+                                                            <div className="text-right">
+                                                                <p className="text-2xl font-bold text-green-600">{item.count}</p>
+                                                                <p className="text-xs text-gray-500">residents</p>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div className="py-12 text-center">
+                                        <CheckCircle2 className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                                        <p className="text-gray-500">No active assignments</p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Leave Management Section */}
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+                        <button
+                            onClick={() => toggleSection('leave')}
+                            className="w-full p-6 flex items-center justify-between hover:bg-gray-50 transition rounded-t-xl"
+                        >
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-orange-100 rounded-lg">
+                                    <Clock className="h-5 w-5 text-orange-600" />
+                                </div>
+                                <div className="text-left">
+                                    <h2 className="text-xl font-semibold text-gray-900">Leave Management</h2>
+                                    <p className="text-sm text-gray-500">Pending and approved leave requests</p>
+                                </div>
+                            </div>
+                            {expandedSections.leave ? <ChevronUp className="h-5 w-5 text-gray-400" /> : <ChevronDown className="h-5 w-5 text-gray-400" />}
+                        </button>
+                        {expandedSections.leave && (
+                            <div className="px-6 pb-6 border-t border-gray-200">
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+                                    <div>
+                                        <h3 className="text-sm font-semibold text-gray-700 mb-4">Leave Requests by Status</h3>
+                                        <div className="h-64">
+                                            {data?.leave_by_status?.length ? (
+                                                <Doughnut
+                                                    data={{
+                                                        labels: data.leave_by_status.map(l => l.status.charAt(0).toUpperCase() + l.status.slice(1)),
+                                                        datasets: [{
+                                                            data: data.leave_by_status.map(l => l.count),
+                                                            backgroundColor: [
+                                                                colors.warning + '80',
+                                                                colors.success + '80',
+                                                                colors.danger + '80',
+                                                            ],
+                                                            borderColor: [
+                                                                colors.warning,
+                                                                colors.success,
+                                                                colors.danger,
+                                                            ],
+                                                            borderWidth: 2,
+                                                        }],
+                                                    }}
+                                                    options={{
+                                                        ...defaultOptions,
+                                                        maintainAspectRatio: false,
+                                                    }}
+                                                />
+                                            ) : (
+                                                <div className="h-64 flex items-center justify-center text-gray-500">
+                                                    <div className="text-center">
+                                                        <PieChart className="h-12 w-12 text-gray-300 mx-auto mb-2" />
+                                                        <p>No leave data available</p>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <h3 className="text-sm font-semibold text-gray-700 mb-4">Recent Pending Requests</h3>
+                                        {data?.recent_pending_leave && data.recent_pending_leave.length > 0 ? (
+                                            <div className="space-y-3 max-h-64 overflow-y-auto">
+                                                {data.recent_pending_leave.map((leave, idx) => (
+                                                    <div key={idx} className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                                                        <div className="flex items-start justify-between mb-2">
+                                                            <div>
+                                                                <p className="font-medium text-gray-900">{leave.staff?.name || 'Unknown Staff'}</p>
+                                                                <p className="text-xs text-gray-500">{leave.staff?.email || ''}</p>
+                                                            </div>
+                                                            <span className="px-2 py-1 bg-orange-100 text-orange-700 text-xs font-semibold rounded">
+                                                                {leave.leave_type || 'Personal'}
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex items-center gap-4 text-xs text-gray-600 mt-2">
+                                                            <span className="flex items-center gap-1">
+                                                                <Calendar className="h-3 w-3" />
+                                                                {new Date(leave.start_date).toLocaleDateString()} - {new Date(leave.end_date).toLocaleDateString()}
+                                                            </span>
+                                                        </div>
+                                                        {leave.reason && (
+                                                            <p className="text-xs text-gray-500 mt-2 line-clamp-2">{leave.reason}</p>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <div className="py-12 text-center">
+                                                <Clock className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                                                <p className="text-gray-500">No pending leave requests</p>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
-                            )}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Staff Overview Section */}
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+                        <div className="p-6 border-b border-gray-200">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-indigo-100 rounded-lg">
+                                    <Users className="h-5 w-5 text-indigo-600" />
+                                </div>
+                                <div>
+                                    <h2 className="text-xl font-semibold text-gray-900">Staff Overview</h2>
+                                    <p className="text-sm text-gray-500">Staff distribution and roles</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="p-6">
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                {data?.staff_by_role && data.staff_by_role.length > 0 ? (
+                                    <div>
+                                        <h3 className="text-sm font-semibold text-gray-700 mb-4">Staff by Role</h3>
+                                        <div className="h-64">
+                                            <Bar
+                                                data={{
+                                                    labels: data.staff_by_role.map(r => r.role.charAt(0).toUpperCase() + r.role.slice(1)),
+                                                    datasets: [{
+                                                        label: 'Count',
+                                                        data: data.staff_by_role.map(r => r.count),
+                                                        backgroundColor: colors.primary + '80',
+                                                        borderColor: colors.primary,
+                                                        borderWidth: 2,
+                                                    }],
+                                                }}
+                                                options={{
+                                                    ...defaultOptions,
+                                                    maintainAspectRatio: false,
+                                                    scales: {
+                                                        y: {
+                                                            beginAtZero: true,
+                                                            title: {
+                                                                display: true,
+                                                                text: 'Number of Staff'
+                                                            }
+                                                        }
+                                                    }
+                                                }}
+                                            />
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="h-64 flex items-center justify-center text-gray-500">
+                                        <div className="text-center">
+                                            <UserCog className="h-12 w-12 text-gray-300 mx-auto mb-2" />
+                                            <p>No role data available</p>
+                                        </div>
+                                    </div>
+                                )}
+                                <div>
+                                    <h3 className="text-sm font-semibold text-gray-700 mb-4">Staff Summary</h3>
+                                    <div className="space-y-4">
+                                        <div className="p-4 bg-indigo-50 rounded-lg border border-indigo-100">
+                                            <div className="flex items-center justify-between">
+                                                <div>
+                                                    <p className="text-sm text-gray-600">Total Staff</p>
+                                                    <p className="text-2xl font-bold text-indigo-600">{data?.total_staff || 0}</p>
+                                                </div>
+                                                <UserCheck className="h-8 w-8 text-indigo-400" />
+                                            </div>
+                                        </div>
+                                        <div className="p-4 bg-blue-50 rounded-lg border border-blue-100">
+                                            <div className="flex items-center justify-between">
+                                                <div>
+                                                    <p className="text-sm text-gray-600">Caregivers</p>
+                                                    <p className="text-2xl font-bold text-blue-600">{data?.total_caregivers || 0}</p>
+                                                    {data?.total_staff > 0 && (
+                                                        <p className="text-xs text-gray-500 mt-1">
+                                                            {Math.round((data.total_caregivers / data.total_staff) * 100)}% of total
+                                                        </p>
+                                                    )}
+                                                </div>
+                                                <Users className="h-8 w-8 text-blue-400" />
+                                            </div>
+                                        </div>
+                                        <div className="p-4 bg-teal-50 rounded-lg border border-teal-100">
+                                            <div className="flex items-center justify-between">
+                                                <div>
+                                                    <p className="text-sm text-gray-600">Active Today</p>
+                                                    <p className="text-2xl font-bold text-teal-600">{data?.active_clock_ins || 0}</p>
+                                                    <p className="text-xs text-gray-500 mt-1">
+                                                        Currently working
+                                                    </p>
+                                                </div>
+                                                <TrendingUp className="h-8 w-8 text-teal-400" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    {data?.staff_by_role && data.staff_by_role.length > 0 && (
-                        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                            <div className="flex items-center justify-between mb-4">
-                                <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-                                    <BarChart3 className="h-5 w-5 text-indigo-600" />
-                                    Staff by Role
-                                </h2>
+                    {/* Attendance Section */}
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+                        <button
+                            onClick={() => toggleSection('attendance')}
+                            className="w-full p-6 flex items-center justify-between hover:bg-gray-50 transition rounded-t-xl"
+                        >
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-teal-100 rounded-lg">
+                                    <Activity className="h-5 w-5 text-teal-600" />
+                                </div>
+                                <div className="text-left">
+                                    <h2 className="text-xl font-semibold text-gray-900">Attendance</h2>
+                                    <p className="text-sm text-gray-500">Today's clock-ins and active staff</p>
+                                </div>
                             </div>
-                            <div className="h-80">
-                                <Bar
-                                    data={{
-                                        labels: data.staff_by_role.map(r => r.role.charAt(0).toUpperCase() + r.role.slice(1)),
-                                        datasets: [{
-                                            label: 'Count',
-                                            data: data.staff_by_role.map(r => r.count),
-                                            backgroundColor: colors.primary + '80',
-                                            borderColor: colors.primary,
-                                            borderWidth: 2,
-                                        }],
-                                    }}
-                                    options={{
-                                        ...defaultOptions,
-                                        scales: {
-                                            y: {
-                                                beginAtZero: true,
-                                                title: {
-                                                    display: true,
-                                                    text: 'Number of Staff'
-                                                }
-                                            }
-                                        }
-                                    }}
-                                />
+                            {expandedSections.attendance ? <ChevronUp className="h-5 w-5 text-gray-400" /> : <ChevronDown className="h-5 w-5 text-gray-400" />}
+                        </button>
+                        {expandedSections.attendance && (
+                            <div className="px-6 pb-6 border-t border-gray-200">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                                    <div className="p-6 bg-gradient-to-br from-teal-50 to-teal-100 rounded-xl border border-teal-200">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <div>
+                                                <p className="text-sm font-semibold text-gray-700 mb-1">Today's Clock-ins</p>
+                                                <p className="text-3xl font-bold text-teal-700">{data?.today_clock_ins || 0}</p>
+                                            </div>
+                                            <Clock className="h-10 w-10 text-teal-500" />
+                                        </div>
+                                        <p className="text-xs text-gray-600">Staff members who clocked in today</p>
+                                    </div>
+                                    <div className="p-6 bg-gradient-to-br from-green-50 to-green-100 rounded-xl border border-green-200">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <div>
+                                                <p className="text-sm font-semibold text-gray-700 mb-1">Currently Active</p>
+                                                <p className="text-3xl font-bold text-green-700">{data?.active_clock_ins || 0}</p>
+                                            </div>
+                                            <TrendingUp className="h-10 w-10 text-green-500" />
+                                        </div>
+                                        <p className="text-xs text-gray-600">Staff members currently clocked in</p>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                    )}
+                        )}
+                    </div>
                 </div>
-
-                {/* Additional Details Section */}
-                {(data?.assignments_by_branch?.length > 0 || data?.assignments_by_caregiver?.length > 0) && (
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        {data?.assignments_by_branch && data.assignments_by_branch.length > 0 && (
-                            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                                <div className="flex items-center justify-between mb-4">
-                                    <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-                                        <Building2 className="h-5 w-5 text-indigo-600" />
-                                        Assignments by Branch
-                                    </h2>
-                                </div>
-                                <div className="space-y-3">
-                                    {data.assignments_by_branch.map((item, idx) => (
-                                        <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
-                                                    <Building2 className="w-5 h-5 text-indigo-600" />
-                                                </div>
-                                                <div>
-                                                    <p className="font-medium text-gray-900">{item.branch?.name || 'Unknown Branch'}</p>
-                                                    <p className="text-xs text-gray-500">Branch assignments</p>
-                                                </div>
-                                            </div>
-                                            <div className="text-right">
-                                                <p className="text-2xl font-bold text-indigo-600">{item.count}</p>
-                                                <p className="text-xs text-gray-500">assignments</p>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {data?.assignments_by_caregiver && data.assignments_by_caregiver.length > 0 && (
-                            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                                <div className="flex items-center justify-between mb-4">
-                                    <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-                                        <Award className="h-5 w-5 text-indigo-600" />
-                                        Top Caregivers by Assignments
-                                    </h2>
-                                </div>
-                                <div className="space-y-3">
-                                    {data.assignments_by_caregiver.map((item, idx) => (
-                                        <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                                                    <Users className="w-5 h-5 text-green-600" />
-                                                </div>
-                                                <div>
-                                                    <p className="font-medium text-gray-900">{item.caregiver?.name || 'Unknown Caregiver'}</p>
-                                                    <p className="text-xs text-gray-500">Active assignments</p>
-                                                </div>
-                                            </div>
-                                            <div className="text-right">
-                                                <p className="text-2xl font-bold text-green-600">{item.count}</p>
-                                                <p className="text-xs text-gray-500">residents</p>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                )}
             </div>
         </div>
     );
