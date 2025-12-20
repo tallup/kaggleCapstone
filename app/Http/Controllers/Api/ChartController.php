@@ -577,13 +577,25 @@ class ChartController extends BaseApiController
         // Apply facility filtering for non-super admins
         if ($user && $user->role !== 'super_admin') {
             if ($user->facility_id) {
+                $facilityBranchIds = \App\Models\Branch::where('facility_id', $user->facility_id)->pluck('id')->toArray();
+                
                 // Check if facility_id column exists
                 if (Schema::hasColumn('users', 'facility_id')) {
-                    $staffQuery->where('facility_id', $user->facility_id);
-                    $caregiverQuery->where('facility_id', $user->facility_id);
+                    // Include users with direct facility_id match OR users with assigned_branch_id in facility branches
+                    $staffQuery->where(function($q) use ($user, $facilityBranchIds) {
+                        $q->where('facility_id', $user->facility_id);
+                        if (!empty($facilityBranchIds)) {
+                            $q->orWhereIn('assigned_branch_id', $facilityBranchIds);
+                        }
+                    });
+                    $caregiverQuery->where(function($q) use ($user, $facilityBranchIds) {
+                        $q->where('facility_id', $user->facility_id);
+                        if (!empty($facilityBranchIds)) {
+                            $q->orWhereIn('assigned_branch_id', $facilityBranchIds);
+                        }
+                    });
                 } else {
                     // Fallback: filter by assigned_branch_id if facility_id column doesn't exist
-                    $facilityBranchIds = \App\Models\Branch::where('facility_id', $user->facility_id)->pluck('id')->toArray();
                     if (!empty($facilityBranchIds)) {
                         $staffQuery->whereIn('assigned_branch_id', $facilityBranchIds);
                         $caregiverQuery->whereIn('assigned_branch_id', $facilityBranchIds);
@@ -630,7 +642,10 @@ class ChartController extends BaseApiController
             if (!empty($facilityBranchIds)) {
                 $leaveQuery->whereHas('user', function($q) use ($user, $facilityBranchIds) {
                     if (Schema::hasColumn('users', 'facility_id')) {
-                        $q->where('facility_id', $user->facility_id);
+                        $q->where(function($subQ) use ($user, $facilityBranchIds) {
+                            $subQ->where('facility_id', $user->facility_id);
+                            $subQ->orWhereIn('assigned_branch_id', $facilityBranchIds);
+                        });
                     } else {
                         $q->whereIn('assigned_branch_id', $facilityBranchIds);
                     }
@@ -646,7 +661,10 @@ class ChartController extends BaseApiController
             if (!empty($facilityBranchIds)) {
                 $leaveByStatusQuery->whereHas('user', function($q) use ($user, $facilityBranchIds) {
                     if (Schema::hasColumn('users', 'facility_id')) {
-                        $q->where('facility_id', $user->facility_id);
+                        $q->where(function($subQ) use ($user, $facilityBranchIds) {
+                            $subQ->where('facility_id', $user->facility_id);
+                            $subQ->orWhereIn('assigned_branch_id', $facilityBranchIds);
+                        });
                     } else {
                         $q->whereIn('assigned_branch_id', $facilityBranchIds);
                     }
