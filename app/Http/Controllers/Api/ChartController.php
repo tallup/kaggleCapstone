@@ -39,8 +39,31 @@ class ChartController extends BaseApiController
     {
         $branchId = $request->get('branch_id');
         $residentId = $request->get('resident_id');
+        $user = $request->user();
         
         $query = VitalSign::query();
+        
+        // Apply facility filtering for non-super admins
+        if ($user && $user->role !== 'super_admin') {
+            if ($user->facility_id) {
+                $query->whereHas('resident', function($q) use ($user) {
+                    $q->whereHas('branch', function($b) use ($user) {
+                        $b->where('facility_id', $user->facility_id);
+                    })->where('is_active', true);
+                });
+            } else {
+                // User has no facility assigned, return empty results
+                return response()->json([
+                    'total_vitals' => 0,
+                    'today_vitals' => 0,
+                    'week_vitals' => 0,
+                    'month_vitals' => 0,
+                    'trends' => [],
+                    'blood_pressure' => ['labels' => [], 'systolic' => [], 'diastolic' => []],
+                    'temperature' => ['labels' => [], 'temperature' => []],
+                ]);
+            }
+        }
         
         if ($branchId) {
             $query->whereHas('resident', function($q) use ($branchId) {
@@ -54,23 +77,32 @@ class ChartController extends BaseApiController
         
         $stats = [
             'total_vitals' => $query->count(),
-            'today_vitals' => $query->whereDate('measurement_date', today())->count(),
-            'week_vitals' => $query->whereBetween('measurement_date', [Carbon::now()->startOfWeek(), Carbon::now()->endOfWeek()])->count(),
-            'month_vitals' => $query->whereMonth('measurement_date', Carbon::now()->month)->count(),
-            'trends' => $this->getVitalsTrends($branchId, $residentId),
-            'blood_pressure' => $this->getBloodPressureData($branchId, $residentId),
-            'temperature' => $this->getTemperatureData($branchId, $residentId),
+            'today_vitals' => (clone $query)->whereDate('measurement_date', today())->count(),
+            'week_vitals' => (clone $query)->whereBetween('measurement_date', [Carbon::now()->startOfWeek(), Carbon::now()->endOfWeek()])->count(),
+            'month_vitals' => (clone $query)->whereMonth('measurement_date', Carbon::now()->month)->count(),
+            'trends' => $this->getVitalsTrends($branchId, $residentId, $user),
+            'blood_pressure' => $this->getBloodPressureData($branchId, $residentId, $user),
+            'temperature' => $this->getTemperatureData($branchId, $residentId, $user),
         ];
 
         return response()->json($stats);
     }
 
-    private function getVitalsTrends($branchId = null, $residentId = null): array
+    private function getVitalsTrends($branchId = null, $residentId = null, $user = null): array
     {
         $last7Days = [];
         for ($i = 6; $i >= 0; $i--) {
             $date = Carbon::now()->subDays($i);
             $query = VitalSign::whereDate('measurement_date', $date);
+            
+            // Apply facility filtering for non-super admins
+            if ($user && $user->role !== 'super_admin' && $user->facility_id) {
+                $query->whereHas('resident', function($q) use ($user) {
+                    $q->whereHas('branch', function($b) use ($user) {
+                        $b->where('facility_id', $user->facility_id);
+                    })->where('is_active', true);
+                });
+            }
             
             if ($branchId) {
                 $query->whereHas('resident', function($q) use ($branchId) {
@@ -91,10 +123,19 @@ class ChartController extends BaseApiController
         return $last7Days;
     }
 
-    private function getBloodPressureData($branchId = null, $residentId = null): array
+    private function getBloodPressureData($branchId = null, $residentId = null, $user = null): array
     {
         $query = VitalSign::whereNotNull('systolic')
             ->whereNotNull('diastolic');
+        
+        // Apply facility filtering for non-super admins
+        if ($user && $user->role !== 'super_admin' && $user->facility_id) {
+            $query->whereHas('resident', function($q) use ($user) {
+                $q->whereHas('branch', function($b) use ($user) {
+                    $b->where('facility_id', $user->facility_id);
+                })->where('is_active', true);
+            });
+        }
         
         if ($branchId) {
             $query->whereHas('resident', function($q) use ($branchId) {
@@ -117,9 +158,18 @@ class ChartController extends BaseApiController
         ];
     }
 
-    private function getTemperatureData($branchId = null, $residentId = null): array
+    private function getTemperatureData($branchId = null, $residentId = null, $user = null): array
     {
         $query = VitalSign::whereNotNull('temperature');
+        
+        // Apply facility filtering for non-super admins
+        if ($user && $user->role !== 'super_admin' && $user->facility_id) {
+            $query->whereHas('resident', function($q) use ($user) {
+                $q->whereHas('branch', function($b) use ($user) {
+                    $b->where('facility_id', $user->facility_id);
+                })->where('is_active', true);
+            });
+        }
         
         if ($branchId) {
             $query->whereHas('resident', function($q) use ($branchId) {
