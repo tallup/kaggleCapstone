@@ -640,11 +640,11 @@ export default function GroceryStatus() {
                                                         
                                                         <div className="flex items-center gap-2 ml-4 flex-col sm:flex-row">
                                                             {/* Quick Status Update Buttons */}
-                                                            <div className="flex items-center gap-1 flex-wrap">
+                                                            <div className="flex items-center gap-2 flex-wrap">
                                                                 {update.status !== 'pending' && (
                                                                     <button
                                                                         onClick={() => handleQuickStatusUpdate(update.id, 'pending')}
-                                                                        className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+                                                                        className="px-4 py-2 text-sm font-semibold text-white bg-gray-600 hover:bg-gray-700 active:bg-gray-800 rounded-lg transition-colors shadow-md hover:shadow-lg"
                                                                         title="Mark as Pending"
                                                                     >
                                                                         Pending
@@ -653,7 +653,7 @@ export default function GroceryStatus() {
                                                                 {update.status !== 'in_progress' && (
                                                                     <button
                                                                         onClick={() => handleQuickStatusUpdate(update.id, 'in_progress')}
-                                                                        className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+                                                                        className="px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded-lg transition-colors shadow-md hover:shadow-lg"
                                                                         title="Mark as In Progress"
                                                                     >
                                                                         In Progress
@@ -662,7 +662,7 @@ export default function GroceryStatus() {
                                                                 {update.status !== 'completed' && (
                                                                     <button
                                                                         onClick={() => handleQuickStatusUpdate(update.id, 'completed')}
-                                                                        className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors"
+                                                                        className="px-4 py-2 text-sm font-semibold text-white bg-green-600 hover:bg-green-700 active:bg-green-800 rounded-lg transition-colors shadow-md hover:shadow-lg"
                                                                         title="Mark as Completed"
                                                                     >
                                                                         Complete
@@ -671,7 +671,7 @@ export default function GroceryStatus() {
                                                                 {update.status !== 'needs_attention' && (
                                                                     <button
                                                                         onClick={() => handleQuickStatusUpdate(update.id, 'needs_attention')}
-                                                                        className="px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"
+                                                                        className="px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 active:bg-red-800 rounded-lg transition-colors shadow-md hover:shadow-lg"
                                                                         title="Mark as Needs Attention"
                                                                     >
                                                                         Needs Attention
