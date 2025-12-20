@@ -203,7 +203,16 @@ class UserResource extends Resource
                             ->options(User::getRoleOptions())
                             ->searchable()
                             ->required()
-                            ->placeholder('Choose role'),
+                            ->placeholder('Choose role')
+                            ->live()
+                            ->afterStateUpdated(function ($state, Forms\Set $set) {
+                                // If admin role is selected, ensure assigned_branch_id is required
+                                if ($state === 'admin') {
+                                    // The validation will be handled by the rules
+                                } else {
+                                    // Clear any validation errors if switching away from admin
+                                }
+                            }),
                         Forms\Components\Select::make('facility_id')
                             ->label('Facility')
                             ->relationship('facility', 'name')

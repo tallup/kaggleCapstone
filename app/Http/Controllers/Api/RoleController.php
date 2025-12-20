@@ -14,12 +14,12 @@ class RoleController extends BaseApiController
     {
         $query = Role::with('permissions');
         
-        // Filter to only show allowed roles: administrator, caregiver, and nurse
-        $allowedRoles = ['administrator', 'caregiver', 'nurse', 'registered_nurse', 'licensed_nurse', 'care_giver'];
+        // Filter to only show allowed roles: administrator, admin, caregiver, and nurse
+        $allowedRoles = ['administrator', 'admin', 'caregiver', 'nurse', 'registered_nurse', 'licensed_nurse', 'care_giver'];
         $query->whereIn('name', $allowedRoles);
         
-        // Exclude 'admin' and 'duty roster' roles
-        $query->whereNotIn('name', ['admin', 'duty_roster', 'duty roster']);
+        // Exclude 'duty roster' roles
+        $query->whereNotIn('name', ['duty_roster', 'duty roster']);
         
         if ($request->has('search')) {
             $search = $request->get('search');
