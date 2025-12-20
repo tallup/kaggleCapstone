@@ -197,6 +197,16 @@ class LeaveRequestController extends BaseApiController
             }
         }
         
+        // If status is being changed to approved or declined, set approved_by and approved_at
+        if (isset($validated['status']) && in_array($validated['status'], ['approved', 'declined'])) {
+            if (!isset($validated['approved_by'])) {
+                $validated['approved_by'] = auth()->id();
+            }
+            if (!isset($validated['approved_at'])) {
+                $validated['approved_at'] = now();
+            }
+        }
+        
         $leave->update($validated);
         return response()->json($leave->load(['staff', 'approvedBy']));
     }
