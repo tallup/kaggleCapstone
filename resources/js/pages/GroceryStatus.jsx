@@ -731,7 +731,6 @@ function GroceryStatusForm({ record, branches, templates = [], isCaregiver, care
 
     const [errors, setErrors] = useState({});
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [selectedTemplateId, setSelectedTemplateId] = useState('');
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -796,43 +795,6 @@ function GroceryStatusForm({ record, branches, templates = [], isCaregiver, care
                                     className="w-full"
                                 />
                                 {errors.branch_id && <p className="text-xs text-red-600 mt-1">{errors.branch_id[0]}</p>}
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Apply Template</label>
-                                <div className="flex gap-2">
-                                    <Select
-                                        value={selectedTemplateId}
-                                        onValueChange={(value) => setSelectedTemplateId(value || '')}
-                                        placeholder="Choose a template"
-                                        options={templates.map(t => ({
-                                            value: t.id.toString(),
-                                            label: t.name + (t.category ? ` (${t.category})` : ''),
-                                        }))}
-                                        className="w-full"
-                                        disabled={!templates.length}
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            if (!selectedTemplateId) return;
-                                            const tpl = templates.find(t => t.id === Number(selectedTemplateId));
-                                            if (tpl) {
-                                                setFormData((prev) => ({
-                                                    ...prev,
-                                                    branch_id: tpl.branch_id || prev.branch_id,
-                                                    items_needed: tpl.items_list || prev.items_needed,
-                                                }));
-                                                toast.success('Template applied');
-                                            }
-                                        }}
-                                        className="px-3 py-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] rounded-lg disabled:opacity-50"
-                                        disabled={!selectedTemplateId}
-                                    >
-                                        Apply
-                                    </button>
-                                </div>
-                                <p className="text-xs text-gray-500 mt-1">Templates prefill items needed for a week.</p>
                             </div>
 
                             <div>
