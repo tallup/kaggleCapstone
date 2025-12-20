@@ -196,8 +196,30 @@ class ChartController extends BaseApiController
     {
         $branchId = $request->get('branch_id');
         $residentId = $request->get('resident_id');
+        $user = $request->user();
         
         $query = Assessment::query();
+        
+        // Apply facility filtering for non-super admins
+        if ($user && $user->role !== 'super_admin') {
+            if ($user->facility_id) {
+                $query->whereHas('resident', function($q) use ($user) {
+                    $q->whereHas('branch', function($b) use ($user) {
+                        $b->where('facility_id', $user->facility_id);
+                    })->where('is_active', true);
+                });
+            } else {
+                // User has no facility assigned, return empty results
+                return response()->json([
+                    'total_assessments' => 0,
+                    'completed_assessments' => 0,
+                    'pending_assessments' => 0,
+                    'this_month' => 0,
+                    'by_type' => [],
+                    'completion_trends' => [],
+                ]);
+            }
+        }
         
         if ($branchId) {
             $query->whereHas('resident', function($q) use ($branchId) {
@@ -211,24 +233,33 @@ class ChartController extends BaseApiController
         
         $stats = [
             'total_assessments' => $query->count(),
-            'completed_assessments' => $query->where('status', 'approved')->count(),
+            'completed_assessments' => (clone $query)->where('status', 'approved')->count(),
             'pending_assessments' => (clone $query)->whereNotIn('status', ['approved', 'archived'])->count(),
             'this_month' => (clone $query)->whereMonth('created_at', Carbon::now()->month)->count(),
             'by_type' => (clone $query)->selectRaw('assessment_type, COUNT(*) as count')
                 ->groupBy('assessment_type')
                 ->get(),
-            'completion_trends' => $this->getAssessmentTrends($branchId, $residentId),
+            'completion_trends' => $this->getAssessmentTrends($branchId, $residentId, $user),
         ];
 
         return response()->json($stats);
     }
 
-    private function getAssessmentTrends($branchId = null, $residentId = null): array
+    private function getAssessmentTrends($branchId = null, $residentId = null, $user = null): array
     {
         $last7Days = [];
         for ($i = 6; $i >= 0; $i--) {
             $date = Carbon::now()->subDays($i);
             $query = Assessment::whereDate('assessment_date', $date);
+            
+            // Apply facility filtering for non-super admins
+            if ($user && $user->role !== 'super_admin' && $user->facility_id) {
+                $query->whereHas('resident', function($q) use ($user) {
+                    $q->whereHas('branch', function($b) use ($user) {
+                        $b->where('facility_id', $user->facility_id);
+                    })->where('is_active', true);
+                });
+            }
             
             if ($branchId) {
                 $query->whereHas('resident', function($q) use ($branchId) {
@@ -254,13 +285,31 @@ class ChartController extends BaseApiController
     {
         $branchId = $request->get('branch_id');
         $residentId = $request->get('resident_id');
+        $user = $request->user();
         
         $query = Appointment::query();
         
+        // Apply facility filtering for non-super admins
+        if ($user && $user->role !== 'super_admin') {
+            if ($user->facility_id) {
+                $query->whereHas('branch', function($q) use ($user) {
+                    $q->where('facility_id', $user->facility_id);
+                });
+            } else {
+                // User has no facility assigned, return empty results
+                return response()->json([
+                    'total_appointments' => 0,
+                    'upcoming' => 0,
+                    'completed' => 0,
+                    'pending' => 0,
+                    'by_status' => [],
+                    'trends' => [],
+                ]);
+            }
+        }
+        
         if ($branchId) {
-            $query->whereHas('resident', function($q) use ($branchId) {
-                $q->where('branch_id', $branchId);
-            });
+            $query->where('branch_id', $branchId);
         }
         
         if ($residentId) {
@@ -275,23 +324,28 @@ class ChartController extends BaseApiController
             'by_status' => (clone $query)->selectRaw('status, COUNT(*) as count')
                 ->groupBy('status')
                 ->get(),
-            'trends' => $this->getAppointmentTrends($branchId, $residentId),
+            'trends' => $this->getAppointmentTrends($branchId, $residentId, $user),
         ];
 
         return response()->json($stats);
     }
 
-    private function getAppointmentTrends($branchId = null, $residentId = null): array
+    private function getAppointmentTrends($branchId = null, $residentId = null, $user = null): array
     {
         $last7Days = [];
         for ($i = 6; $i >= 0; $i--) {
             $date = Carbon::now()->subDays($i);
             $query = Appointment::whereDate('appointment_date', $date);
             
-            if ($branchId) {
-                $query->whereHas('resident', function($q) use ($branchId) {
-                    $q->where('branch_id', $branchId);
+            // Apply facility filtering for non-super admins
+            if ($user && $user->role !== 'super_admin' && $user->facility_id) {
+                $query->whereHas('branch', function($q) use ($user) {
+                    $q->where('facility_id', $user->facility_id);
                 });
+            }
+            
+            if ($branchId) {
+                $query->where('branch_id', $branchId);
             }
             
             if ($residentId) {
