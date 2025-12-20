@@ -124,7 +124,7 @@ export default function LeaveRequests() {
                     <div className="flex-1">
                       <h3 className="text-lg font-bold text-gray-900 mb-1">{lr.staff?.name || 'Staff'}</h3>
                       <div className="flex items-center space-x-2 text-sm text-gray-600 mb-2">
-                        <Calendar className="w-4 h-4" />
+                        <Calendar className="w-4 h-4 text-[var(--theme-primary)]" />
                         <span>{new Date(lr.start_date).toLocaleDateString()} - {new Date(lr.end_date).toLocaleDateString()}</span>
                       </div>
                       <span className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold ${lr.status === 'approved' ? 'bg-green-100 text-green-800' : lr.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>
@@ -133,11 +133,19 @@ export default function LeaveRequests() {
                     </div>
                     {/* Actions */}
                     {(!isCaregiver || lr.staff_id === currentUser?.id) && (
-                      <div className="flex space-x-1">
-                        <button onClick={() => { setEditing(lr); setShowForm(true); }} className="p-2 text-[var(--theme-primary)] hover:bg-green-50 rounded-lg transition-colors" title="Edit">
+                      <div className="flex space-x-2">
+                        <button 
+                          onClick={() => { setEditing(lr); setShowForm(true); }} 
+                          className="p-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] hover:bg-[var(--theme-primary-hover)] rounded-lg transition-colors shadow-md hover:shadow-lg" 
+                          title="Edit"
+                        >
                           <Edit className="w-4 h-4" />
                         </button>
-                        <button onClick={() => window.confirm('Delete leave request?') && deleteMutation.mutate(lr.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete">
+                        <button 
+                          onClick={() => window.confirm('Delete leave request?') && deleteMutation.mutate(lr.id)} 
+                          className="p-2 bg-red-600 text-white hover:bg-red-700 rounded-lg transition-colors shadow-md hover:shadow-lg" 
+                          title="Delete"
+                        >
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
