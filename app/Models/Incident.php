@@ -106,24 +106,51 @@ class Incident extends Model
 
     /**
      * Generate unique incident number in format: INC-YYYY-NNNNN
+     * Uses database locking to prevent race conditions
      */
     protected static function generateIncidentNumber(): string
     {
         $prefix = 'INC';
         $year = now()->format('Y');
+        $maxAttempts = 10;
+        $attempt = 0;
         
-        $lastIncident = static::where('incident_number', 'like', "{$prefix}-{$year}-%")
-            ->orderBy('id', 'desc')
-            ->first();
+        while ($attempt < $maxAttempts) {
+            // Use database transaction with locking to prevent race conditions
+            $incidentNumber = \DB::transaction(function () use ($prefix, $year) {
+                // Lock the table row to prevent concurrent access
+                $lastIncident = static::withoutGlobalScopes()
+                    ->where('incident_number', 'like', "{$prefix}-{$year}-%")
+                    ->lockForUpdate()
+                    ->orderBy('id', 'desc')
+                    ->first();
 
-        if ($lastIncident) {
-            $lastNumber = (int) substr($lastIncident->incident_number, -5);
-            $newNumber = $lastNumber + 1;
-        } else {
-            $newNumber = 1;
+                if ($lastIncident) {
+                    $lastNumber = (int) substr($lastIncident->incident_number, -5);
+                    $newNumber = $lastNumber + 1;
+                } else {
+                    $newNumber = 1;
+                }
+
+                return sprintf('%s-%s-%05d', $prefix, $year, $newNumber);
+            });
+            
+            // Double-check if this incident number already exists
+            $exists = static::withoutGlobalScopes()
+                ->where('incident_number', $incidentNumber)
+                ->exists();
+            
+            if (!$exists) {
+                return $incidentNumber;
+            }
+            
+            // If it exists, wait a bit and try again with next number
+            $attempt++;
+            usleep(50000 + (rand(0, 50000))); // Random wait between 50-100ms
         }
-
-        return sprintf('%s-%s-%05d', $prefix, $year, $newNumber);
+        
+        // If we've exhausted all attempts, use timestamp-based fallback to ensure uniqueness
+        return sprintf('%s-%s-%s-%s', $prefix, $year, now()->format('His'), rand(1000, 9999));
     }
 
     // Relationships
