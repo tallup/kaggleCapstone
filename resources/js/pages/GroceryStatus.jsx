@@ -644,7 +644,17 @@ export default function GroceryStatus() {
                                                                 {update.status !== 'pending' && (
                                                                     <button
                                                                         onClick={() => handleQuickStatusUpdate(update.id, 'pending')}
-                                                                        className="px-3 py-1.5 text-xs font-semibold text-white bg-gray-600 hover:bg-gray-700 active:bg-gray-800 rounded-lg transition-colors shadow-sm hover:shadow-md"
+                                                                        className="px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors shadow-sm hover:shadow-md"
+                                                                        style={{
+                                                                            backgroundColor: 'var(--theme-primary-light)',
+                                                                            color: 'var(--theme-text-on-primary)',
+                                                                        }}
+                                                                        onMouseEnter={(e) => {
+                                                                            e.target.style.backgroundColor = 'var(--theme-primary)';
+                                                                        }}
+                                                                        onMouseLeave={(e) => {
+                                                                            e.target.style.backgroundColor = 'var(--theme-primary-light)';
+                                                                        }}
                                                                         title="Mark as Pending"
                                                                     >
                                                                         Pending
@@ -653,7 +663,17 @@ export default function GroceryStatus() {
                                                                 {update.status !== 'in_progress' && (
                                                                     <button
                                                                         onClick={() => handleQuickStatusUpdate(update.id, 'in_progress')}
-                                                                        className="px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded-lg transition-colors shadow-sm hover:shadow-md"
+                                                                        className="px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors shadow-sm hover:shadow-md"
+                                                                        style={{
+                                                                            backgroundColor: 'var(--theme-primary)',
+                                                                            color: 'var(--theme-text-on-primary)',
+                                                                        }}
+                                                                        onMouseEnter={(e) => {
+                                                                            e.target.style.backgroundColor = 'var(--theme-primary-hover)';
+                                                                        }}
+                                                                        onMouseLeave={(e) => {
+                                                                            e.target.style.backgroundColor = 'var(--theme-primary)';
+                                                                        }}
                                                                         title="Mark as In Progress"
                                                                     >
                                                                         In Progress
@@ -662,7 +682,17 @@ export default function GroceryStatus() {
                                                                 {update.status !== 'completed' && (
                                                                     <button
                                                                         onClick={() => handleQuickStatusUpdate(update.id, 'completed')}
-                                                                        className="px-3 py-1.5 text-xs font-semibold text-white bg-green-600 hover:bg-green-700 active:bg-green-800 rounded-lg transition-colors shadow-sm hover:shadow-md"
+                                                                        className="px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors shadow-sm hover:shadow-md"
+                                                                        style={{
+                                                                            backgroundColor: 'var(--theme-secondary)',
+                                                                            color: 'var(--theme-text-on-secondary)',
+                                                                        }}
+                                                                        onMouseEnter={(e) => {
+                                                                            e.target.style.backgroundColor = 'var(--theme-secondary-hover)';
+                                                                        }}
+                                                                        onMouseLeave={(e) => {
+                                                                            e.target.style.backgroundColor = 'var(--theme-secondary)';
+                                                                        }}
                                                                         title="Mark as Completed"
                                                                     >
                                                                         Complete
@@ -671,7 +701,17 @@ export default function GroceryStatus() {
                                                                 {update.status !== 'needs_attention' && (
                                                                     <button
                                                                         onClick={() => handleQuickStatusUpdate(update.id, 'needs_attention')}
-                                                                        className="px-3 py-1.5 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 active:bg-red-800 rounded-lg transition-colors shadow-sm hover:shadow-md"
+                                                                        className="px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors shadow-sm hover:shadow-md"
+                                                                        style={{
+                                                                            backgroundColor: 'var(--theme-primary-dark)',
+                                                                            color: 'var(--theme-text-on-primary)',
+                                                                        }}
+                                                                        onMouseEnter={(e) => {
+                                                                            e.target.style.backgroundColor = 'var(--theme-primary-hover)';
+                                                                        }}
+                                                                        onMouseLeave={(e) => {
+                                                                            e.target.style.backgroundColor = 'var(--theme-primary-dark)';
+                                                                        }}
                                                                         title="Mark as Needs Attention"
                                                                     >
                                                                         Needs Attention
