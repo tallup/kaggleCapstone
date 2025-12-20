@@ -181,7 +181,9 @@ class ExpenseReportController extends BaseApiController
             ->values()
             ->filter(function ($item) {
                 // Only include categories that have expenses (amount > 0 and count > 0)
-                return ($item['total_amount'] > 0 || $item['count'] > 0);
+                // AND exclude uncategorized entries (category_id is null)
+                return ($item['total_amount'] > 0 || $item['count'] > 0) 
+                    && $item['category_id'] !== null;
             })
             ->sortByDesc('total_amount')
             ->values();
