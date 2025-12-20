@@ -117,6 +117,26 @@ export default function Reports() {
                 });
                 const incidentsCount = incidentsRes.data?.meta?.total || incidentsRes.data?.total || incidentsRes.data?.data?.length || 0;
                 
+                // Get staff stats
+                const staffRes = await api.get('/charts/staff').catch(() => ({ data: { total_staff: 0 } }));
+                const staffCount = staffRes.data?.total_staff || 0;
+                
+                // Get billing/expenses stats
+                const billingRes = await api.get('/billing/expenses', {
+                    params: {
+                        per_page: 1,
+                    }
+                }).catch(() => ({ data: { meta: { total: 0 } } }));
+                const billingCount = billingRes.data?.meta?.total || billingRes.data?.total || billingRes.data?.data?.length || 0;
+                
+                // Get pharmacy inventory stats
+                const pharmacyRes = await api.get('/pharmacy-inventory', {
+                    params: {
+                        per_page: 1,
+                    }
+                }).catch(() => ({ data: { meta: { total: 0 } } }));
+                const pharmacyCount = pharmacyRes.data?.meta?.total || pharmacyRes.data?.total || pharmacyRes.data?.data?.length || 0;
+                
                 return {
                     appointments: appointmentsCount,
                     vitals: vitalsCount,
@@ -127,6 +147,9 @@ export default function Reports() {
                     grocery: groceryCount,
                     fireDrills: fireDrillsCount,
                     incidents: incidentsCount,
+                    staff: staffCount,
+                    billing: billingCount,
+                    pharmacy: pharmacyCount,
                 };
             } catch (error) {
                 console.error('Error fetching monthly stats:', error);
@@ -140,6 +163,9 @@ export default function Reports() {
                     grocery: 0,
                     fireDrills: 0,
                     incidents: 0,
+                    staff: 0,
+                    billing: 0,
+                    pharmacy: 0,
                 };
             }
         },
@@ -297,7 +323,7 @@ export default function Reports() {
                     description: 'Staff performance and statistics',
                     icon: UserCheck,
                     link: '/reports/staff-charts',
-                    value: 0,
+                    value: statsData?.staff || 0,
                     gradient: 'from-[var(--theme-primary)] to-[var(--theme-primary-dark)]',
                     iconBg: 'bg-[var(--theme-primary-bg-light)]',
                     iconColor: 'text-[var(--theme-primary)]',
@@ -307,7 +333,7 @@ export default function Reports() {
                     description: 'Expenses and invoice analytics',
                     icon: DollarSign,
                     link: '/billing/reports',
-                    value: 0,
+                    value: statsData?.billing || 0,
                     gradient: 'from-[var(--theme-primary)] to-[var(--theme-primary-dark)]',
                     iconBg: 'bg-[var(--theme-primary-bg-light)]',
                     iconColor: 'text-[var(--theme-primary)]',
@@ -317,7 +343,7 @@ export default function Reports() {
                     description: 'Inventory and medication tracking',
                     icon: Building2,
                     link: '/pharmacy/inventory',
-                    value: 0,
+                    value: statsData?.pharmacy || 0,
                     gradient: 'from-[var(--theme-primary)] to-[var(--theme-primary-dark)]',
                     iconBg: 'bg-[var(--theme-primary-bg-light)]',
                     iconColor: 'text-[var(--theme-primary)]',
