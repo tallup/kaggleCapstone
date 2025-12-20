@@ -443,9 +443,10 @@ function EmploymentTab({ roles, branches, facilities, isSuperAdmin }) {
                                        roleName !== 'duty roster';
                             })
                             .map(r => {
-                                const displayName = r.name === 'administrator' 
+                                const roleName = r.name?.toLowerCase();
+                                const displayName = roleName === 'administrator' 
                                     ? 'Administrator (Facility-wide)'
-                                    : r.name === 'admin'
+                                    : roleName === 'admin'
                                     ? 'Admin (Branch-level)'
                                     : r.name;
                                 return (

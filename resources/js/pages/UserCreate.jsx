@@ -312,32 +312,37 @@ function EmploymentTab({ roles, branches, facilities, isSuperAdmin }) {
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-[var(--theme-primary)]"
                     >
                         <option value="">Select Role</option>
-                        {roles
-                            .filter(r => {
-                                const roleName = r.name?.toLowerCase();
-                                return roleName === 'administrator' || 
-                                       roleName === 'admin' ||
-                                       roleName === 'caregiver' || 
-                                       roleName === 'care_giver' ||
-                                       roleName === 'nurse' ||
-                                       roleName === 'registered_nurse' ||
-                                       roleName === 'licensed_nurse';
-                            })
-                            .filter(r => {
-                                const roleName = r.name?.toLowerCase();
-                                return roleName !== 'duty_roster' && 
-                                       roleName !== 'duty roster';
-                            })
-                            .map(r => {
-                                const displayName = r.name === 'administrator' 
-                                    ? 'Administrator (Facility-wide)'
-                                    : r.name === 'admin'
-                                    ? 'Admin (Branch-level)'
-                                    : r.name;
-                                return (
-                                    <option key={r.id} value={r.name}>{displayName}</option>
-                                );
-                            })}
+                        {roles && roles.length > 0 ? (
+                            roles
+                                .filter(r => {
+                                    const roleName = r.name?.toLowerCase();
+                                    return roleName === 'administrator' || 
+                                           roleName === 'admin' ||
+                                           roleName === 'caregiver' || 
+                                           roleName === 'care_giver' ||
+                                           roleName === 'nurse' ||
+                                           roleName === 'registered_nurse' ||
+                                           roleName === 'licensed_nurse';
+                                })
+                                .filter(r => {
+                                    const roleName = r.name?.toLowerCase();
+                                    return roleName !== 'duty_roster' && 
+                                           roleName !== 'duty roster';
+                                })
+                                .map(r => {
+                                    const roleName = r.name?.toLowerCase();
+                                    const displayName = roleName === 'administrator' 
+                                        ? 'Administrator (Facility-wide)'
+                                        : roleName === 'admin'
+                                        ? 'Admin (Branch-level)'
+                                        : r.name;
+                                    return (
+                                        <option key={r.id} value={r.name}>{displayName}</option>
+                                    );
+                                })
+                        ) : (
+                            <option value="">Loading roles...</option>
+                        )}
                     </select>
                 </div>
 
