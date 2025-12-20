@@ -1094,8 +1094,7 @@ function AssignmentForm({ task, date, caregivers, onAssign, onRemove, isSaving, 
                                                     await onRemove(assignment.id);
                                                 }}
                                                 disabled={isSaving}
-                                                className="rounded-lg border-2 px-4 py-1.5 text-xs font-semibold transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
-                                                style={{ borderColor: 'var(--theme-primary-bg)', color: 'var(--theme-primary)' }}
+                                                className="rounded-lg px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 active:bg-red-800 transition-colors shadow-md hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-red-600"
                                             >
                                                 {isSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Remove'}
                                             </button>
