@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Models\Reminder;
 use App\Models\ReminderEvent;
 use App\Models\FireDrill;
+use App\Models\Medication;
+use App\Models\MedicationAdministration;
 use App\Services\ReminderService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -185,8 +187,13 @@ class ReminderController extends BaseApiController
             ];
         });
 
+        // Fetch active medication windows
+        $medicationWindows = $this->getActiveMedicationWindows($user);
+
         // Merge and sort by scheduled_for
-        $allEvents = $formattedReminders->concat($formattedFireDrills)
+        $allEvents = $formattedReminders
+            ->concat($formattedFireDrills)
+            ->concat($medicationWindows)
             ->sortBy('scheduled_for')
             ->take($limit)
             ->values();
@@ -245,6 +252,120 @@ class ReminderController extends BaseApiController
         }
 
         return $reminder;
+    }
+
+    private function getActiveMedicationWindows($user): \Illuminate\Support\Collection
+    {
+        $now = Carbon::now(config('app.timezone'));
+        $windowBeforeMinutes = 60;
+        $windowAfterMinutes = 60;
+        
+        // Get active medications
+        $medications = Medication::with(['resident', 'branch'])
+            ->where('is_active', true)
+            ->where(function ($q) use ($now) {
+                $q->whereNull('start_date')
+                  ->orWhere('start_date', '<=', $now->toDateString());
+            })
+            ->where(function ($q) use ($now) {
+                $q->whereNull('end_date')
+                  ->orWhere('end_date', '>=', $now->toDateString());
+            })
+            ->get();
+
+        // Apply facility scope if needed
+        if ($user->role !== 'super_admin' && $user->facility_id) {
+            $medications = $medications->filter(function ($medication) use ($user) {
+                return $medication->branch && $medication->branch->facility_id === $user->facility_id;
+            });
+        }
+
+        // Filter by caregiver branch if applicable
+        if (in_array($user->role, ['caregiver', 'care_giver', 'nurse', 'registered_nurse', 'licensed_nurse']) && $user->assigned_branch_id) {
+            $medications = $medications->filter(function ($medication) use ($user) {
+                return $medication->branch_id === $user->assigned_branch_id;
+            });
+        }
+
+        $windows = collect();
+
+        foreach ($medications as $medication) {
+            $times = array_filter([
+                $medication->time_1,
+                $medication->time_2,
+                $medication->time_3,
+                $medication->time_4,
+            ]);
+
+            if (empty($times)) {
+                continue; // Skip PRN medications without scheduled times
+            }
+
+            // Check today and tomorrow for each scheduled time
+            foreach ([0, 1] as $dayOffset) {
+                $targetDate = $now->copy()->addDays($dayOffset)->startOfDay();
+
+                foreach ($times as $timeValue) {
+                    if (empty($timeValue)) {
+                        continue;
+                    }
+
+                    // Parse time (format: "HH:MM" or "HH:MM:SS")
+                    try {
+                        $timeParts = explode(':', $timeValue);
+                        $hour = (int) $timeParts[0];
+                        $minute = (int) ($timeParts[1] ?? 0);
+                        
+                        $scheduledTime = $targetDate->copy()->setTime($hour, $minute, 0);
+                        
+                        // Calculate window
+                        $windowStart = $scheduledTime->copy()->subMinutes($windowBeforeMinutes);
+                        $windowEnd = $scheduledTime->copy()->addMinutes($windowAfterMinutes);
+                        
+                        // Check if window is currently open
+                        if ($now->greaterThanOrEqualTo($windowStart) && $now->lessThanOrEqualTo($windowEnd)) {
+                            // Check if already administered
+                            $hasAdministration = MedicationAdministration::where('medication_id', $medication->id)
+                                ->whereBetween('administered_at', [
+                                    $windowStart->copy()->subMinutes(30),
+                                    $windowEnd->copy()->addMinutes(30)
+                                ])
+                                ->where('status', 'completed')
+                                ->exists();
+
+                            if (!$hasAdministration) {
+                                $windows->push([
+                                    'id' => 'medication_window_' . $medication->id . '_' . $scheduledTime->format('Y-m-d_H-i'),
+                                    'type' => 'medication_window',
+                                    'medication_id' => $medication->id,
+                                    'title' => $medication->name . ' - ' . ($medication->resident?->first_name ?? 'Unknown') . ' ' . ($medication->resident?->last_name ?? ''),
+                                    'category' => 'medication',
+                                    'status' => 'active',
+                                    'scheduled_for' => $scheduledTime->toIso8601String(),
+                                    'window_closes_at' => $windowEnd->toIso8601String(),
+                                    'snoozed_until' => null,
+                                    'action_url' => '/medications',
+                                    'metadata' => [
+                                        'medication_id' => $medication->id,
+                                        'resident_id' => $medication->resident_id,
+                                        'resident_name' => ($medication->resident?->first_name ?? '') . ' ' . ($medication->resident?->last_name ?? ''),
+                                        'branch_name' => $medication->branch?->name ?? '',
+                                        'scheduled_time' => $scheduledTime->format('H:i'),
+                                        'window_start' => $windowStart->toIso8601String(),
+                                        'window_end' => $windowEnd->toIso8601String(),
+                                    ],
+                                ]);
+                            }
+                        }
+                    } catch (\Exception $e) {
+                        // Skip invalid time formats
+                        continue;
+                    }
+                }
+            }
+        }
+
+        return $windows;
     }
 }
 

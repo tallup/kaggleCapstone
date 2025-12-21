@@ -2014,15 +2014,126 @@ function QuickAdminister({ medication, onSuccess }) {
             <div className="flex items-center gap-2">
                 <select
                     value={status}
-                    onChange={(e) => {
+                    onChange={async (e) => {
                         const newStatus = e.target.value;
                         if (newStatus === 'hospital_admission') {
                             setIsHospitalModalOpen(true);
+                        } else if (newStatus === 'missed' || newStatus === 'refused') {
+                            // Automatically log missed/refused medications without requiring dosage modal
+                            setStatus(newStatus);
+                            setSubmitting(true);
+                            setError('');
+                            
+                            try {
+                                // Find the scheduled time that should be marked as missed/refused
+                                const now = getPacificNow();
+                                const times = [
+                                    medication.time_1,
+                                    medication.time_2,
+                                    medication.time_3,
+                                    medication.time_4,
+                                ].filter(t => t);
+                                
+                                // Get scheduled times for today
+                                const scheduledTimes = times
+                                    .map(timeValue => toPacificDateFromTime(timeValue, { referenceDate: now, dayOffset: 0 }))
+                                    .filter(t => t)
+                                    .sort((a, b) => a.getTime() - b.getTime());
+                                
+                                // Find the first scheduled time that hasn't been administered yet
+                                // Priority: past scheduled times that haven't been administered
+                                let targetScheduledTime = null;
+                                const windowAfterMs = 60 * 60 * 1000; // 60 minutes
+                                
+                                // First, try to find a past scheduled time that hasn't been administered
+                                for (const scheduledTime of scheduledTimes) {
+                                    const windowStart = scheduledTime.getTime() - (60 * 60 * 1000); // 1 hour before
+                                    const windowEnd = scheduledTime.getTime() + windowAfterMs;
+                                    
+                                    const hasAdministration = todayAdminData?.data?.some(admin => {
+                                        const adminTime = new Date(admin.administered_at);
+                                        const adminTimeMs = adminTime.getTime();
+                                        return adminTimeMs >= windowStart && adminTimeMs <= windowEnd;
+                                    });
+                                    
+                                    // If this scheduled time has passed and has no administration, use it
+                                    if (!hasAdministration && scheduledTime.getTime() < now.getTime()) {
+                                        targetScheduledTime = scheduledTime;
+                                        break;
+                                    }
+                                }
+                                
+                                // If no past unadministered time found, use the next upcoming scheduled time
+                                if (!targetScheduledTime) {
+                                    for (const scheduledTime of scheduledTimes) {
+                                        const windowStart = scheduledTime.getTime() - (60 * 60 * 1000);
+                                        const windowEnd = scheduledTime.getTime() + windowAfterMs;
+                                        
+                                        const hasAdministration = todayAdminData?.data?.some(admin => {
+                                            const adminTime = new Date(admin.administered_at);
+                                            const adminTimeMs = adminTime.getTime();
+                                            return adminTimeMs >= windowStart && adminTimeMs <= windowEnd;
+                                        });
+                                        
+                                        if (!hasAdministration) {
+                                            targetScheduledTime = scheduledTime;
+                                            break;
+                                        }
+                                    }
+                                }
+                                
+                                // If still no time found, use the first scheduled time for today (or current time for PRN)
+                                if (!targetScheduledTime) {
+                                    targetScheduledTime = scheduledTimes.length > 0 ? scheduledTimes[0] : now;
+                                }
+                                
+                                // Create the administration record
+                                const administeredAt = targetScheduledTime.toISOString();
+                                
+                                const payload = {
+                                    medication_id: medication.id,
+                                    resident_id: medication.resident_id,
+                                    branch_id: medication.branch_id,
+                                    administered_at: administeredAt,
+                                    status: newStatus,
+                                    dosage_given: newStatus === 'missed' ? 'N/A - Missed' : (newStatus === 'refused' ? 'N/A - Refused' : ''),
+                                    notes: newStatus === 'missed' ? 'Marked as missed' : (newStatus === 'refused' ? 'Marked as refused' : ''),
+                                };
+                                
+                                // Make API call
+                                await api.post('/medication-administrations', payload);
+                                
+                                // Invalidate queries to refresh the UI
+                                queryClient.invalidateQueries({ queryKey: ['medication-administrations-today', medication.id] });
+                                queryClient.invalidateQueries({ queryKey: ['medication-administrations-today-check', medication.id] });
+                                queryClient.invalidateQueries({ queryKey: ['medications'] });
+                                
+                                // Show success message
+                                const statusLabel = newStatus.charAt(0).toUpperCase() + newStatus.slice(1);
+                                setSuccessMessage(`Medication marked as ${statusLabel.toLowerCase()} and logged in history.`);
+                                
+                                // Reset status to completed for next use
+                                setTimeout(() => {
+                                    setStatus('completed');
+                                    setSuccessMessage('');
+                                }, 3000);
+                                
+                                if (onSuccess) {
+                                    onSuccess();
+                                }
+                            } catch (error) {
+                                console.error('Error logging missed/refused medication:', error);
+                                setError(error.response?.data?.message || 'Failed to log medication status');
+                                setStatus('completed'); // Reset on error
+                            } finally {
+                                setSubmitting(false);
+                            }
                         } else {
                             setStatus(newStatus);
                         }
                     }}
                     className="px-2 py-1 text-xs border rounded"
+                    disabled={submitting}
                 >
                     <option value="completed">Completed</option>
                     <option value="missed">Missed</option>

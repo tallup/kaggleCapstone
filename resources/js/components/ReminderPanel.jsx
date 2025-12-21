@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Bell, Clock3, Check, AlarmClockOff, Flame } from 'lucide-react';
+import { Bell, Clock3, Check, AlarmClockOff, Flame, Pill } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import { formatPacificTime, getPacificNow } from '../utils/pacificTime';
 
 export default function ReminderPanel() {
     const [isOpen, setIsOpen] = useState(false);
@@ -48,7 +49,7 @@ export default function ReminderPanel() {
     };
     
     const handleEventClick = (event) => {
-        if (event.type === 'fire_drill' && event.action_url) {
+        if ((event.type === 'fire_drill' || event.type === 'medication_window') && event.action_url) {
             setIsOpen(false);
             navigate(event.action_url);
         }
@@ -63,6 +64,26 @@ export default function ReminderPanel() {
             hour: 'numeric',
             minute: '2-digit',
         });
+    };
+
+    const formatTimeUntilClose = (closeTime) => {
+        if (!closeTime) return '';
+        const now = getPacificNow();
+        const close = new Date(closeTime);
+        const diffMs = close.getTime() - now.getTime();
+        
+        if (diffMs <= 0) return 'Closed';
+        
+        const minutes = Math.floor(diffMs / (1000 * 60));
+        const hours = Math.floor(minutes / 60);
+        
+        if (hours > 0) {
+            return `Closes in ${hours}h ${minutes % 60}m`;
+        } else if (minutes > 0) {
+            return `Closes in ${minutes}m`;
+        } else {
+            return 'Closes soon';
+        }
     };
 
     return (
@@ -116,27 +137,56 @@ export default function ReminderPanel() {
                                 <div className="divide-y divide-gray-200">
                                     {events.map((event) => {
                                         const isFireDrill = event.type === 'fire_drill';
+                                        const isMedicationWindow = event.type === 'medication_window';
+                                        const isClickable = isFireDrill || isMedicationWindow;
+                                        
                                         return (
                                             <div 
                                                 key={event.id} 
-                                                className={`p-4 transition-colors ${isFireDrill ? 'hover:bg-orange-50 cursor-pointer' : 'hover:bg-gray-50'}`}
-                                                onClick={() => isFireDrill && handleEventClick(event)}
+                                                className={`p-4 transition-colors ${
+                                                    isFireDrill 
+                                                        ? 'hover:bg-orange-50 cursor-pointer' 
+                                                        : isMedicationWindow 
+                                                            ? 'hover:bg-blue-50 cursor-pointer' 
+                                                            : 'hover:bg-gray-50'
+                                                }`}
+                                                onClick={() => isClickable && handleEventClick(event)}
                                             >
                                             <div className="flex items-start justify-between space-x-3">
                                                     <div className="flex-1 flex items-start gap-2">
                                                         {isFireDrill && (
                                                             <Flame className="w-4 h-4 text-orange-500 mt-0.5 flex-shrink-0" />
                                                         )}
+                                                        {isMedicationWindow && (
+                                                            <Pill className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
+                                                        )}
                                                 <div className="flex-1">
-                                                            <p className={`text-sm font-semibold ${isFireDrill ? 'text-orange-900' : 'text-gray-900'}`}>
+                                                            <p className={`text-sm font-semibold ${
+                                                                isFireDrill 
+                                                                    ? 'text-orange-900' 
+                                                                    : isMedicationWindow 
+                                                                        ? 'text-blue-900' 
+                                                                        : 'text-gray-900'
+                                                            }`}>
                                                                 {event.title}
                                                             </p>
-                                                            <p className={`text-xs capitalize ${isFireDrill ? 'text-orange-600' : 'text-gray-500'}`}>
-                                                                {event.category === 'fire_drill' ? 'Fire Drill' : event.category || 'general'} • {formatWhen(event.scheduled_for)}
+                                                            <p className={`text-xs capitalize ${
+                                                                isFireDrill 
+                                                                    ? 'text-orange-600' 
+                                                                    : isMedicationWindow 
+                                                                        ? 'text-blue-600' 
+                                                                        : 'text-gray-500'
+                                                            }`}>
+                                                                {isMedicationWindow 
+                                                                    ? `Medication Window • ${formatWhen(event.scheduled_for)}`
+                                                                    : event.category === 'fire_drill' 
+                                                                        ? 'Fire Drill' 
+                                                                        : event.category || 'general'
+                                                                } {isMedicationWindow && event.window_closes_at && ` • ${formatTimeUntilClose(event.window_closes_at)}`}
                                                     </p>
                                                 </div>
                                                     </div>
-                                                    {!isFireDrill && (
+                                                    {!isFireDrill && !isMedicationWindow && (
                                                 <div className="flex items-center space-x-2">
                                                     <button
                                                                 onClick={(e) => {
@@ -162,8 +212,19 @@ export default function ReminderPanel() {
                                                     )}
                                                 </div>
                                                 {(event.metadata?.note || event.metadata?.notes) && (
-                                                    <p className={`mt-2 text-xs ${isFireDrill ? 'text-orange-700' : 'text-gray-600'}`}>
+                                                    <p className={`mt-2 text-xs ${
+                                                        isFireDrill 
+                                                            ? 'text-orange-700' 
+                                                            : isMedicationWindow 
+                                                                ? 'text-blue-700' 
+                                                                : 'text-gray-600'
+                                                    }`}>
                                                         {event.metadata.note || event.metadata.notes}
+                                                    </p>
+                                                )}
+                                                {isMedicationWindow && event.metadata?.scheduled_time && (
+                                                    <p className="mt-1 text-xs text-blue-600">
+                                                        Scheduled: {event.metadata.scheduled_time} • Window closes: {formatWhen(event.window_closes_at)}
                                                     </p>
                                                 )}
                                             </div>
