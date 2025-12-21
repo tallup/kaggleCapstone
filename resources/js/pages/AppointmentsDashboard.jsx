@@ -14,7 +14,8 @@ import {
     Stethoscope,
     ChevronRight,
     FileText,
-    List
+    List,
+    Search
 } from 'lucide-react';
 import Card from '../components/Card';
 import SectionCard from '../components/SectionCard';
@@ -31,6 +32,7 @@ export default function AppointmentsDashboard() {
     const navigate = useNavigate();
     const [dateFilter, setDateFilter] = useState('upcoming');
     const [activeTab, setActiveTab] = useState('upcoming'); // 'today', 'upcoming', 'completed', 'this_month'
+    const [search, setSearch] = useState('');
 
     // Fetch current user
     const { data: currentUser } = useQuery({
@@ -65,7 +67,7 @@ export default function AppointmentsDashboard() {
 
     // Fetch appointments based on filters
     const { data: appointmentsData, isLoading: appointmentsLoading, refetch } = useQuery({
-        queryKey: ['appointments-dashboard', dateFilter, activeTab],
+        queryKey: ['appointments-dashboard', dateFilter, activeTab, search],
         queryFn: async () => {
             const params = {
                 per_page: 50,
@@ -93,6 +95,10 @@ export default function AppointmentsDashboard() {
                 endOfMonth.setHours(23, 59, 59, 999);
                 params.date_from = startOfMonth.toISOString().split('T')[0];
                 params.date_to = endOfMonth.toISOString().split('T')[0];
+            }
+            
+            if (search) {
+                params.search = search;
             }
             
             const response = await api.get('/appointments', { params });
@@ -308,27 +314,40 @@ export default function AppointmentsDashboard() {
                 </Card>
             </div>
 
-            {/* Tab Navigation */}
-            <nav className="flex flex-wrap gap-2 rounded-2xl bg-white p-2 shadow-sm ring-1 ring-gray-100">
-                {tabs.map(({ id, label, icon: Icon }) => {
-                    const isActive = activeTab === id;
-                    return (
-                        <button
-                            key={id}
-                            type="button"
-                            onClick={() => handleTabClick(id)}
-                            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition whitespace-nowrap ${
-                                isActive
-                                    ? 'bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] shadow-sm'
-                                    : 'text-gray-600 hover:bg-gray-50'
-                            }`}
-                        >
-                            <Icon className="h-4 w-4" />
-                            <span>{label}</span>
-                        </button>
-                    );
-                })}
-            </nav>
+            {/* Tab Navigation with Search */}
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 rounded-2xl bg-white p-2 shadow-sm ring-1 ring-gray-100">
+                <nav className="flex flex-wrap gap-2">
+                    {tabs.map(({ id, label, icon: Icon }) => {
+                        const isActive = activeTab === id;
+                        return (
+                            <button
+                                key={id}
+                                type="button"
+                                onClick={() => handleTabClick(id)}
+                                className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition whitespace-nowrap ${
+                                    isActive
+                                        ? 'bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] shadow-sm'
+                                        : 'text-gray-600 hover:bg-gray-50'
+                                }`}
+                            >
+                                <Icon className="h-4 w-4" />
+                                <span>{label}</span>
+                            </button>
+                        );
+                    })}
+                </nav>
+                
+                <div className="relative w-full md:w-auto">
+                    <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input
+                        type="text"
+                        placeholder="Search appointments..."
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm w-full md:w-64 focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
+                    />
+                </div>
+            </div>
 
             {/* Appointments List */}
             <SectionCard>
@@ -351,7 +370,7 @@ export default function AppointmentsDashboard() {
                         <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                         <p className="text-gray-600">No appointments found</p>
                         <p className="text-gray-500 text-sm mt-2">
-                            Create a new appointment to get started
+                            {search ? 'Try adjusting your search' : 'Create a new appointment to get started'}
                         </p>
                     </div>
                 ) : (
