@@ -454,9 +454,9 @@ export default function Medications() {
                                             navigate('/medication-history');
                                         }
                                     }}
-                                    className="mt-3 w-full sm:w-auto px-4 py-2 text-sm font-semibold text-[var(--theme-primary)] bg-[var(--theme-primary)]/10 border border-[var(--theme-primary)] rounded-lg hover:bg-[var(--theme-primary)]/20 hover:border-[var(--theme-primary-hover)] transition-colors flex items-center justify-center gap-2"
+                                    className="mt-2 px-3 py-1.5 text-xs font-semibold text-white bg-[var(--theme-primary)] border border-[var(--theme-primary)] rounded-md hover:bg-[var(--theme-primary-hover)] hover:border-[var(--theme-primary-hover)] transition-colors flex items-center justify-center gap-1.5 shadow-sm"
                                 >
-                                    <Calendar className="w-4 h-4" />
+                                    <Calendar className="w-3.5 h-3.5" />
                                     Medication History
                                 </button>
                             </div>
