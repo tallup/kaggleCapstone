@@ -85,7 +85,7 @@ class AnalyticsController extends BaseApiController
             if (!empty($branchIds)) {
                 $query->whereHas('resident', function($q) use ($branchIds) {
                     $q->whereIn('branch_id', $branchIds)->where('is_active', true);
-                });
+            });
             } else {
                 // No branches for facility, return empty summary
                 return [
@@ -132,7 +132,7 @@ class AnalyticsController extends BaseApiController
             if (!empty($branchIds)) {
                 $query->whereHas('resident', function($q) use ($branchIds) {
                     $q->whereIn('branch_id', $branchIds)->where('is_active', true);
-                });
+            });
             } else {
                 // No branches for facility, return empty summary
                 return [
@@ -174,7 +174,7 @@ class AnalyticsController extends BaseApiController
             if (!empty($branchIds)) {
                 $complianceQuery->whereHas('resident', function($q) use ($branchIds) {
                     $q->whereIn('branch_id', $branchIds)->where('is_active', true);
-                });
+            });
             } else {
                 // No branches for facility, return zero compliance
                 return [
@@ -255,7 +255,7 @@ class AnalyticsController extends BaseApiController
             if (!empty($branchIds)) {
                 $query->whereHas('resident', function($q) use ($branchIds) {
                     $q->whereIn('branch_id', $branchIds)->where('is_active', true);
-                });
+            });
             } else {
                 // No branches for facility, return empty summary
                 return [
@@ -298,7 +298,7 @@ class AnalyticsController extends BaseApiController
             if (!empty($branchIds)) {
                 $query->whereHas('resident', function($q) use ($branchIds) {
                     $q->whereIn('branch_id', $branchIds)->where('is_active', true);
-                });
+            });
             } else {
                 // No branches for facility, return empty summary
                 return [

@@ -2,12 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import api from '../services/api';
-import { 
-    LayoutDashboard, 
-    Calendar, 
-    Building2, 
-    Users, 
-    FileText, 
+import {
+    LayoutDashboard,
+    Calendar,
+    Building2,
+    Users,
+    FileText,
     Bell,
     Monitor,
     RefreshCw,
@@ -59,40 +59,41 @@ import {
 const navigation = [
     { name: 'Dashboard', icon: LayoutDashboard, path: '/dashboard', children: null },
     { name: 'My Residents', icon: Users, path: '/my-residents', children: null },
+    { name: 'Charts', icon: ClipboardList, path: '/charts', children: null },
     { name: 'Assessments', icon: ClipboardList, path: '/assessments', children: null },
     { name: 'Appointment', icon: Calendar, path: '/appointments/dashboard', children: null },
-    { 
-        name: 'Vitals', 
-        icon: Heart, 
-        path: '/vitals', 
+    {
+        name: 'Vitals',
+        icon: Heart,
+        path: '/vitals',
         children: [
             { name: 'Vitals', path: '/vitals' },
             { name: 'View Vitals', path: '/view-vitals' },
         ]
     },
-    { 
-        name: 'Medication', 
-        icon: Pill, 
-        path: '/medications', 
+    {
+        name: 'Medication',
+        icon: Pill,
+        path: '/medications',
         children: [
             { name: 'Medications', path: '/medications' },
             { name: 'Medication Deliveries', path: '/medication-deliveries' },
             { name: 'Medication Report', path: '/medications/report' },
         ]
     },
-    { 
-        name: 'Sleep', 
-        icon: Moon, 
-        path: '/sleep', 
+    {
+        name: 'Sleep',
+        icon: Moon,
+        path: '/sleep',
         children: [
             { name: 'Sleep Records', path: '/sleep' },
             { name: 'Sleep Pattern', path: '/sleep-patterns' },
         ]
     },
-    { 
-        name: 'Housekeeping', 
-        icon: Sparkles, 
-        path: '/housekeeping', 
+    {
+        name: 'Housekeeping',
+        icon: Sparkles,
+        path: '/housekeeping',
         children: [
             { name: 'Dashboard', path: '/housekeeping/dashboard' },
             { name: 'Checklist', path: '/housekeeping' },
@@ -103,10 +104,10 @@ const navigation = [
     { name: 'Fire Drills', icon: Flame, path: '/fire-drills', children: null },
     { name: 'Incidents', icon: AlertTriangle, path: '/incidents', children: null },
     { name: 'T-Logs', icon: FileText, path: '/t-logs', children: null },
-    { 
-        name: 'Check-In/Out', 
-        icon: UserCheck, 
-        path: '/check-in-dashboard', 
+    {
+        name: 'Check-In/Out',
+        icon: UserCheck,
+        path: '/check-in-dashboard',
         children: [
             { name: 'Dashboard', path: '/check-in-dashboard' },
             { name: 'Staff Clock-In/Out', path: '/staff/clock' },
@@ -115,10 +116,10 @@ const navigation = [
             { name: 'Visitors', path: '/visitors' },
         ]
     },
-    { 
-        name: 'Pharmacy', 
-        icon: Building2, 
-        path: '/pharmacy/dashboard', 
+    {
+        name: 'Pharmacy',
+        icon: Building2,
+        path: '/pharmacy/dashboard',
         children: [
             { name: 'Dashboard', path: '/pharmacy/dashboard' },
             { name: 'Suppliers', path: '/pharmacy/suppliers' },
@@ -126,10 +127,10 @@ const navigation = [
             { name: 'Orders', path: '/pharmacy/orders' },
         ]
     },
-    { 
-        name: 'Billing', 
-        icon: DollarSign, 
-        path: '/billing/expense-categories', 
+    {
+        name: 'Billing',
+        icon: DollarSign,
+        path: '/billing/expense-categories',
         children: [
             { name: 'Expense Categories', path: '/billing/expense-categories' },
             { name: 'Expenses', path: '/billing/expenses' },
@@ -138,14 +139,15 @@ const navigation = [
         ]
     },
     { name: 'Reports', icon: FileText, path: '/reports', children: null },
-    { 
-        name: 'Administration', 
-        icon: Settings, 
-        path: '/administration', 
+    {
+        name: 'Administration',
+        icon: Settings,
+        path: '/administration',
         children: [
             { name: 'Residents', path: '/administration/residents' },
             // Facilities removed - only super admins can access
             { name: 'Branches', path: '/administration/branches' },
+            { name: 'Chart Data', path: '/administration/chart-data' },
             { name: 'Vital Ranges', path: '/administration/vital-ranges' },
             { name: 'Leave Requests', path: '/administration/leave-requests' },
             { name: 'Roles & Permissions', path: '/administration/roles' },
@@ -169,21 +171,22 @@ const superAdminNavigation = [
 const caregiverNavigation = [
     { name: 'Dashboard', icon: LayoutDashboard, path: '/dashboard', children: null },
     { name: 'My Residents', icon: Users, path: '/my-residents', children: null },
+    { name: 'Charts', icon: ClipboardList, path: '/charts', children: null },
     { name: 'Medication Log', icon: Pill, path: '/medications/residents', children: null },
     { name: 'Medication History', icon: ClipboardList, path: '/medication-history', children: null },
-    { 
-        name: 'Vitals', 
-        icon: Heart, 
-        path: '/vitals', 
+    {
+        name: 'Vitals',
+        icon: Heart,
+        path: '/vitals',
         children: [
             { name: 'Vitals', path: '/vitals' },
             { name: 'View Vitals', path: '/view-vitals' },
         ]
     },
-    { 
-        name: 'Sleep', 
-        icon: Moon, 
-        path: '/sleep', 
+    {
+        name: 'Sleep',
+        icon: Moon,
+        path: '/sleep',
         children: [
             { name: 'Sleep Records', path: '/sleep' },
             { name: 'Sleep Pattern', path: '/sleep-patterns' },
@@ -377,7 +380,7 @@ export default function Layout() {
     // Command palette keyboard shortcut (Cmd+K or Ctrl+K) - disabled for caregivers
     useEffect(() => {
         if (isCaregiver) return; // Don't enable keyboard shortcut for caregivers
-        
+
         const handleKeyDown = (e) => {
             if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
                 e.preventDefault();
@@ -391,13 +394,13 @@ export default function Layout() {
 
     const isSuperAdmin = React.useMemo(() => {
         if (!currentUser) return false;
-        
+
         // Check direct role property
         const role = String(currentUser.role || '').toLowerCase().trim();
         if (role === 'super_admin' || role === 'superadmin' || role === 'super admin') {
             return true;
         }
-        
+
         // Check roles array
         if (currentUser.roles) {
             const roles = Array.isArray(currentUser.roles) ? currentUser.roles : (currentUser.roles.data || []);
@@ -409,7 +412,7 @@ export default function Layout() {
                 return true;
             }
         }
-        
+
         return false;
     }, [currentUser]);
 
@@ -434,8 +437,8 @@ export default function Layout() {
         if (!isSuperAdmin) {
             // First filter by module access
             // Ensure enabled_modules is an array
-            const enabledModules = Array.isArray(currentUser?.enabled_modules) 
-                ? currentUser.enabled_modules 
+            const enabledModules = Array.isArray(currentUser?.enabled_modules)
+                ? currentUser.enabled_modules
                 : [];
             if (enabledModules.length > 0) {
                 items = filterNavigationByModuleAccess(
@@ -444,11 +447,11 @@ export default function Layout() {
                     isSuperAdmin
                 );
             }
-            
+
             // Then filter by permissions
             // Ensure permissions is an array
-            const permissions = Array.isArray(currentUser?.permissions) 
-                ? currentUser.permissions 
+            const permissions = Array.isArray(currentUser?.permissions)
+                ? currentUser.permissions
                 : [];
             if (permissions.length > 0) {
                 items = filterNavigationByPermissionAccess(
@@ -489,7 +492,7 @@ export default function Layout() {
                 accent_color: '#FFFFFF',
             };
         }
-        
+
         // For regular users, use theme from ThemeProvider or user's facility branding
         if (theme.theme.name && theme.theme.name !== 'HomeLogic360') {
             return {
@@ -500,7 +503,7 @@ export default function Layout() {
                 accent_color: theme.theme.accent_color || '#FFFFFF',
             };
         }
-        
+
         // Fallback to user's facility branding
         if (currentUser?.facility_branding) {
             return {
@@ -511,7 +514,7 @@ export default function Layout() {
                 accent_color: currentUser.facility_branding.accent_color || '#FFFFFF',
             };
         }
-        
+
         // Default
         return {
             name: 'HomeLogic360',
@@ -526,17 +529,16 @@ export default function Layout() {
         <div className="flex h-screen bg-gray-50">
             {/* Mobile menu backdrop */}
             {mobileMenuOpen && (
-                <div 
+                <div
                     className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
                     onClick={() => setMobileMenuOpen(false)}
                 ></div>
             )}
-            
+
             {/* Sidebar */}
-            <aside 
-                className={`fixed md:relative inset-y-0 left-0 z-50 transform transition-transform duration-300 ease-in-out ${
-                    mobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
-                } w-64 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] flex flex-col`}
+            <aside
+                className={`fixed md:relative inset-y-0 left-0 z-50 transform transition-transform duration-300 ease-in-out ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+                    } w-64 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] flex flex-col`}
             >
                 {/* Mobile close button */}
                 <button
@@ -546,15 +548,15 @@ export default function Layout() {
                     <X className="w-6 h-6" />
                 </button>
                 {/* Logo */}
-                <div 
+                <div
                     className="p-6 border-b border-[var(--theme-primary-light)]"
                 >
                     <div className="flex items-center space-x-3">
-                        <div 
+                        <div
                             className="w-12 h-12 bg-[var(--theme-primary)] rounded-full flex items-center justify-center shadow-lg overflow-hidden"
                         >
-                            <img 
-                                src={facilityBranding.logo} 
+                            <img
+                                src={facilityBranding.logo}
                                 alt={facilityBranding.name}
                                 className="w-full h-full object-cover"
                                 onError={(e) => {
@@ -562,7 +564,7 @@ export default function Layout() {
                                     e.target.nextElementSibling.style.display = 'flex';
                                 }}
                             />
-                            <div 
+                            <div
                                 className="w-full h-full bg-[var(--theme-primary)] rounded-full flex items-center justify-center hidden"
                             >
                                 <span className="text-[var(--theme-text-on-primary)] font-bold text-xl">
@@ -595,95 +597,92 @@ export default function Layout() {
                         </div>
                     ) : (
                         navigationItems.map((item) => {
-                        const Icon = item.icon;
-                        const hasChildren = item.children && item.children.length > 0;
-                        
-                        // For parent items with children, only mark active if a child is active
-                        // For items without children, check exact match or path starts with
-                        let isActive;
-                        if (hasChildren) {
-                            // Parent is active only if a child is active
-                            isActive = item.children.some(child => 
-                                location.pathname === child.path || 
-                                location.pathname.startsWith(child.path + '/')
-                            );
-                        } else {
-                            // For items without children, check exact match or starts with path + '/'
-                            // But exclude cases where a more specific path exists
-                            isActive = location.pathname === item.path || 
-                                location.pathname.startsWith(item.path + '/');
-                            
-                            // If this path is a prefix of another navigation item's path, don't mark active
-                            // unless we're on the exact path
-                            if (isActive && location.pathname !== item.path) {
-                                const hasMoreSpecificMatch = navigationItems.some(otherItem => 
-                                    otherItem.path !== item.path &&
-                                    otherItem.path.startsWith(item.path + '/') &&
-                                    location.pathname.startsWith(otherItem.path)
+                            const Icon = item.icon;
+                            const hasChildren = item.children && item.children.length > 0;
+
+                            // For parent items with children, only mark active if a child is active
+                            // For items without children, check exact match or path starts with
+                            let isActive;
+                            if (hasChildren) {
+                                // Parent is active only if a child is active
+                                isActive = item.children.some(child =>
+                                    location.pathname === child.path ||
+                                    location.pathname.startsWith(child.path + '/')
                                 );
-                                if (hasMoreSpecificMatch) {
-                                    isActive = false;
+                            } else {
+                                // For items without children, check exact match or starts with path + '/'
+                                // But exclude cases where a more specific path exists
+                                isActive = location.pathname === item.path ||
+                                    location.pathname.startsWith(item.path + '/');
+
+                                // If this path is a prefix of another navigation item's path, don't mark active
+                                // unless we're on the exact path
+                                if (isActive && location.pathname !== item.path) {
+                                    const hasMoreSpecificMatch = navigationItems.some(otherItem =>
+                                        otherItem.path !== item.path &&
+                                        otherItem.path.startsWith(item.path + '/') &&
+                                        location.pathname.startsWith(otherItem.path)
+                                    );
+                                    if (hasMoreSpecificMatch) {
+                                        isActive = false;
+                                    }
                                 }
                             }
-                        }
-                        
-                        const isExpanded = expandedMenus[item.name] ?? (isActive && hasChildren);
-                        
-                        return (
-                            <div key={item.name}>
-                                {hasChildren ? (
-                                    <div>
-                                        <button
-                                            onClick={() => setExpandedMenus({...expandedMenus, [item.name]: !isExpanded})}
-                                            className={`w-full flex items-center justify-between space-x-3 px-4 py-3 rounded-lg transition-colors ${
-                                                isActive ? 'bg-white shadow-md text-[var(--theme-text-on-white)]' : 'text-[var(--theme-text-on-primary)] hover:text-[var(--theme-text-on-primary)] hover:bg-[var(--theme-primary-light)]'
-                                            }`}
-                                        >
-                                            <div className="flex items-center space-x-3">
-                                                <Icon className="w-5 h-5" />
-                                                <span>{item.name}</span>
-                                            </div>
-                                            {isExpanded ? (
-                                                <ChevronDown className="w-4 h-4" />
-                                            ) : (
-                                                <ChevronRight className="w-4 h-4" />
+
+                            const isExpanded = expandedMenus[item.name] ?? (isActive && hasChildren);
+
+                            return (
+                                <div key={item.name}>
+                                    {hasChildren ? (
+                                        <div>
+                                            <button
+                                                onClick={() => setExpandedMenus({ ...expandedMenus, [item.name]: !isExpanded })}
+                                                className={`w-full flex items-center justify-between space-x-3 px-4 py-3 rounded-lg transition-colors ${isActive ? 'bg-white shadow-md text-[var(--theme-text-on-white)]' : 'text-[var(--theme-text-on-primary)] hover:text-[var(--theme-text-on-primary)] hover:bg-[var(--theme-primary-light)]'
+                                                    }`}
+                                            >
+                                                <div className="flex items-center space-x-3">
+                                                    <Icon className="w-5 h-5" />
+                                                    <span>{item.name}</span>
+                                                </div>
+                                                {isExpanded ? (
+                                                    <ChevronDown className="w-4 h-4" />
+                                                ) : (
+                                                    <ChevronRight className="w-4 h-4" />
+                                                )}
+                                            </button>
+                                            {isExpanded && (
+                                                <div className="ml-8 mt-2 space-y-1">
+                                                    {item.children.map((child) => {
+                                                        const isChildActive = location.pathname === child.path || location.pathname.startsWith(child.path + '/');
+                                                        return (
+                                                            <Link
+                                                                key={child.path}
+                                                                to={child.path}
+                                                                onClick={() => setMobileMenuOpen(false)}
+                                                                className={`block px-4 py-2 rounded-lg transition-colors text-sm ${isChildActive ? 'bg-white shadow-md text-[var(--theme-text-on-white)]' : 'text-[var(--theme-text-on-primary)] hover:text-[var(--theme-text-on-primary)] hover:bg-[var(--theme-primary-light)]'
+                                                                    }`}
+                                                            >
+                                                                {child.name}
+                                                            </Link>
+                                                        );
+                                                    })}
+                                                </div>
                                             )}
-                                        </button>
-                                        {isExpanded && (
-                                            <div className="ml-8 mt-2 space-y-1">
-                                                {item.children.map((child) => {
-                                                    const isChildActive = location.pathname === child.path || location.pathname.startsWith(child.path + '/');
-                                                    return (
-                                                        <Link
-                                                            key={child.path}
-                                                            to={child.path}
-                                                            onClick={() => setMobileMenuOpen(false)}
-                                                                className={`block px-4 py-2 rounded-lg transition-colors text-sm ${
-                                                                    isChildActive ? 'bg-white shadow-md text-[var(--theme-text-on-white)]' : 'text-[var(--theme-text-on-primary)] hover:text-[var(--theme-text-on-primary)] hover:bg-[var(--theme-primary-light)]'
-                                                                }`}
-                                                        >
-                                                            {child.name}
-                                                        </Link>
-                                                    );
-                                                })}
-                                            </div>
-                                        )}
-                                    </div>
-                                ) : (
-                                    <Link
-                                        to={item.path}
-                                        onClick={() => setMobileMenuOpen(false)}
-                                        className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
-                                            isActive ? 'bg-white shadow-md text-[var(--theme-text-on-white)]' : 'text-[var(--theme-text-on-primary)] hover:text-[var(--theme-text-on-primary)] hover:bg-[var(--theme-primary-light)]'
-                                        }`}
-                                    >
-                                        <Icon className="w-5 h-5" />
-                                        <span>{item.name}</span>
-                                    </Link>
-                                )}
-                            </div>
-                        );
-                    })
+                                        </div>
+                                    ) : (
+                                        <Link
+                                            to={item.path}
+                                            onClick={() => setMobileMenuOpen(false)}
+                                            className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${isActive ? 'bg-white shadow-md text-[var(--theme-text-on-white)]' : 'text-[var(--theme-text-on-primary)] hover:text-[var(--theme-text-on-primary)] hover:bg-[var(--theme-primary-light)]'
+                                                }`}
+                                        >
+                                            <Icon className="w-5 h-5" />
+                                            <span>{item.name}</span>
+                                        </Link>
+                                    )}
+                                </div>
+                            );
+                        })
                     )}
                 </nav>
             </aside>
@@ -775,14 +774,14 @@ export default function Layout() {
                     </div>
                 </header>
 
-                    {/* Page Content */}
-                    <main className="flex-1 overflow-y-auto bg-gray-50 p-4 md:p-6">
-                        <PageTransition>
-                            <Outlet />
-                        </PageTransition>
-                    </main>
+                {/* Page Content */}
+                <main className="flex-1 overflow-y-auto bg-gray-50 p-4 md:p-6">
+                    <PageTransition>
+                        <Outlet />
+                    </PageTransition>
+                </main>
             </div>
-            
+
             {/* Command Palette */}
             <CommandPalette isOpen={commandPaletteOpen} onClose={() => setCommandPaletteOpen(false)} />
         </div>

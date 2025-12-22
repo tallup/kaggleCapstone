@@ -161,7 +161,7 @@ class ChartController extends BaseApiController
             if (!empty($branchIds)) {
                 $query->whereHas('resident', function($q) use ($branchIds) {
                     $q->whereIn('branch_id', $branchIds)->where('is_active', true);
-                });
+            });
             } else {
                 // No branches for facility, return empty data
                 return [
@@ -204,7 +204,7 @@ class ChartController extends BaseApiController
             if (!empty($branchIds)) {
                 $query->whereHas('resident', function($q) use ($branchIds) {
                     $q->whereIn('branch_id', $branchIds)->where('is_active', true);
-                });
+            });
             } else {
                 // No branches for facility, return empty data
                 return [
@@ -251,7 +251,7 @@ class ChartController extends BaseApiController
                 if (!empty($branchIds)) {
                     $query->whereHas('resident', function($q) use ($branchIds) {
                         $q->whereIn('branch_id', $branchIds)->where('is_active', true);
-                    });
+                });
                 } else {
                     // No branches for facility, return empty results
                     return response()->json([

@@ -145,6 +145,8 @@ const AppointmentsCharts = lazyWithRetry(() => import('./pages/reports/Appointme
 const VitalsHistory = lazyWithRetry(() => import('./pages/reports/VitalsHistory'));
 const SleepCharts = lazyWithRetry(() => import('./pages/reports/SleepCharts'));
 const StaffCharts = lazyWithRetry(() => import('./pages/reports/StaffCharts'));
+const ChartData = lazyWithRetry(() => import('./pages/ChartData'));
+const CaregiverChartsPage = lazyWithRetry(() => import('./pages/caregiver/CaregiverChartsPage'));
 const PublicStaffClockIn = lazyWithRetry(() => import('./pages/public/PublicStaffClockIn'));
 const StaffClock = lazyWithRetry(() => import('./pages/StaffClock'));
 const StaffClockInsView = lazyWithRetry(() => import('./pages/StaffClockInsView'));
@@ -256,6 +258,7 @@ function App() {
                 <Route path="visitors/view-all" element={<Suspense fallback={<PageLoader />}><VisitorsView /></Suspense>} />
                 <Route path="my-residents" element={<Suspense fallback={<PageLoader />}><MyResidentsPage /></Suspense>} />
                 <Route path="my-residents/:residentId" element={<Suspense fallback={<PageLoader />}><ResidentDetailPage /></Suspense>} />
+                <Route path="charts" element={<Suspense fallback={<PageLoader />}><CaregiverChartsPage /></Suspense>} />
 
                 {/* Reports */}
                 <Route path="reports" element={<Suspense fallback={<PageLoader />}><Reports /></Suspense>} />
@@ -300,6 +303,7 @@ function App() {
                 <Route path="administration/users/create" element={<Suspense fallback={<PageLoader />}><UserCreate /></Suspense>} />
                 <Route path="administration/users/:id/edit" element={<Suspense fallback={<PageLoader />}><UserEdit /></Suspense>} />
                 <Route path="administration/users/:id" element={<Suspense fallback={<PageLoader />}><ViewUser /></Suspense>} />
+                <Route path="administration/chart-data" element={<Suspense fallback={<PageLoader />}><ChartData /></Suspense>} />
                 <Route path="administration/drugs" element={<Suspense fallback={<PageLoader />}><Drugs /></Suspense>} />
                 <Route path="administration/employee-documents" element={<Suspense fallback={<PageLoader />}><EmployeeDocuments /></Suspense>} />
                 <Route path="administration/activity-logs" element={<Suspense fallback={<PageLoader />}><ActivityLogs /></Suspense>} />

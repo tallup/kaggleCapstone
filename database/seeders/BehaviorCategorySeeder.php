@@ -14,6 +14,9 @@ class BehaviorCategorySeeder extends Seeder
     {
         // Create basic behavior categories
         $categoryNames = [
+            'Resistive',
+            'Behavior',
+            'Others',
             'Aggressive Behavior',
             'Wandering',
             'Sleep Disturbance',
