@@ -99,13 +99,15 @@ export default function CaregiverChartsPage() {
                             <div className="flex gap-2">
                                 <button
                                     onClick={() => handleOpenChart(resident)}
-                                    className="flex-1 px-4 py-2 border border-[var(--theme-primary)] text-[var(--theme-primary)] rounded-lg text-sm font-semibold hover:bg-[var(--theme-primary-bg)] transition-colors"
+                                    className="flex-1 px-4 py-2.5 bg-[var(--theme-primary)] text-white rounded-xl text-xs font-bold hover:bg-[var(--theme-primary-hover)] transition-all shadow-sm active:scale-95 flex items-center justify-center gap-2"
                                 >
+                                    <Plus className="w-4 h-4" />
                                     New Charts
                                 </button>
                                 <button
-                                    className="flex-1 px-4 py-2 border border-[var(--theme-primary)] text-[var(--theme-primary)] rounded-lg text-sm font-semibold hover:bg-[var(--theme-primary-bg)] transition-colors"
+                                    className="flex-1 px-4 py-2.5 border-2 border-gray-200 text-gray-700 rounded-xl text-xs font-bold hover:bg-gray-50 hover:border-gray-300 transition-all active:scale-95 flex items-center justify-center gap-2"
                                 >
+                                    <Clock className="w-4 h-4 text-gray-400" />
                                     Pending Charts
                                 </button>
                             </div>
