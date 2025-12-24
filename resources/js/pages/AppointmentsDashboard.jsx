@@ -723,7 +723,7 @@ export default function AppointmentsDashboard() {
                         </div>
                         <div className="p-6 space-y-6">
                             <div>
-                                <label className="block text-base font-bold text-gray-900 mb-2">
+                                <label className="block text-base font-bold mb-2" style={{ color: '#111827' }}>
                                     Appointment Outcome / Comments (Optional)
                                 </label>
                                 <textarea
@@ -739,7 +739,7 @@ export default function AppointmentsDashboard() {
                             <div>
                                 <div className="flex items-center justify-between mb-4">
                                     <div>
-                                        <label className="block text-base font-bold text-gray-900 mb-2">
+                                        <label className="block text-base font-bold mb-2" style={{ color: '#111827' }}>
                                             Upload Documents (Optional)
                                         </label>
                                         <p className="text-sm text-gray-600">Attach consultation documents, medical reports, or other files related to this appointment</p>
@@ -779,7 +779,7 @@ export default function AppointmentsDashboard() {
                                                 </div>
                                                 <div className="grid grid-cols-2 gap-4">
                                                     <div>
-                                                        <label className="block text-base font-bold text-gray-900 mb-2">
+                                                        <label className="block text-base font-bold mb-2" style={{ color: '#111827' }}>
                                                             Document Name *
                                                         </label>
                                                         <input
@@ -796,7 +796,7 @@ export default function AppointmentsDashboard() {
                                                         />
                                                     </div>
                                                     <div>
-                                                        <label className="block text-base font-bold text-gray-900 mb-2">
+                                                        <label className="block text-base font-bold mb-2" style={{ color: '#111827' }}>
                                                             Type *
                                                         </label>
                                                         <select
@@ -818,7 +818,7 @@ export default function AppointmentsDashboard() {
                                                         </select>
                                                     </div>
                                                     <div className="col-span-2">
-                                                        <label className="block text-base font-bold text-gray-900 mb-2">
+                                                        <label className="block text-base font-bold mb-2" style={{ color: '#111827' }}>
                                                             File *
                                                         </label>
                                                         <input
@@ -835,7 +835,7 @@ export default function AppointmentsDashboard() {
                                                         <p className="text-xs text-gray-600 mt-1">Max size: 10MB</p>
                                                     </div>
                                                     <div className="col-span-2">
-                                                        <label className="block text-base font-bold text-gray-900 mb-2">
+                                                        <label className="block text-base font-bold mb-2" style={{ color: '#111827' }}>
                                                             Notes
                                                         </label>
                                                         <textarea
