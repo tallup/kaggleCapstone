@@ -779,7 +779,7 @@ export default function AppointmentsDashboard() {
                                                 </div>
                                                 <div className="grid grid-cols-2 gap-4">
                                                     <div>
-                                                        <label className="block text-base font-bold mb-2" style={{ color: '#111827' }}>
+                                                        <label className="block text-sm font-medium text-gray-900 mb-1">
                                                             Document Name *
                                                         </label>
                                                         <input
