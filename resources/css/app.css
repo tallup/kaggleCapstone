@@ -878,9 +878,18 @@ label[htmlFor],
 .fixed label,
 .z-50 label,
 .z-[50] label,
-.z-[9999] label {
+.z-[9999] label,
+.fixed div.bg-white label,
+.fixed .bg-white label,
+.backdrop-blur label,
+div.backdrop-blur-md label,
+div[class*="backdrop-blur"] label,
+.modal-content label,
+div.modal-content label {
     color: #111827 !important;
     font-weight: 600 !important;
+    opacity: 1 !important;
+    visibility: visible !important;
 }
 
 div[class*="bg-gray-50"] input[type="text"],

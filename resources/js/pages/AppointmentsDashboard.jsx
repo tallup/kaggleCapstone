@@ -716,7 +716,7 @@ export default function AppointmentsDashboard() {
             {/* Completion Notes Modal */}
             {completingAppointment && (
                 <div className="fixed inset-0 backdrop-blur-md bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-                    <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                    <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto modal-content">
                         <div className="p-6 border-b">
                             <h3 className="text-xl font-semibold text-gray-900">Complete Appointment</h3>
                             <p className="text-sm text-gray-600 mt-1">Add appointment details, consultation documents, and comments</p>
