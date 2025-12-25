@@ -624,6 +624,25 @@ function TaskForm({ onClose, onSubmit, initialValues, isSaving, currentUser, bra
         enabled: Boolean(selectedBranchId),
     });
 
+    const methods = useForm({
+        defaultValues: {
+            branch_id: getInitialBranchId(),
+            cleaning_area_id: initialValues?.cleaning_area_id ? initialValues.cleaning_area_id.toString() : '',
+            title: initialValues?.title ?? '',
+            instructions: initialValues?.instructions ?? '',
+            frequency: initialValues?.frequency ?? 'daily',
+            window_start: initialValues?.window_start ?? '',
+            window_end: initialValues?.window_end ?? '',
+            days_of_week: initialValues?.days_of_week ?? [],
+            estimated_minutes: initialValues?.estimated_minutes ?? '',
+            display_order: initialValues?.display_order ?? 0,
+            is_required: initialValues?.is_required ?? true,
+            is_active: initialValues?.is_active ?? true,
+        },
+    });
+
+    const { setValue } = methods;
+
     // Fetch all areas to find branch_id when editing (if area doesn't have branch_id in relationship)
     const { data: allAreasData } = useQuery({
         queryKey: ['cleaning-areas-all'],
@@ -651,23 +670,6 @@ function TaskForm({ onClose, onSubmit, initialValues, isSaving, currentUser, bra
             }
         }
     }, [initialValues, selectedBranchId, allAreasData, setValue]);
-
-    const methods = useForm({
-        defaultValues: {
-            branch_id: getInitialBranchId(),
-            cleaning_area_id: initialValues?.cleaning_area_id ? initialValues.cleaning_area_id.toString() : '',
-            title: initialValues?.title ?? '',
-            instructions: initialValues?.instructions ?? '',
-            frequency: initialValues?.frequency ?? 'daily',
-            window_start: initialValues?.window_start ?? '',
-            window_end: initialValues?.window_end ?? '',
-            days_of_week: initialValues?.days_of_week ?? [],
-            estimated_minutes: initialValues?.estimated_minutes ?? '',
-            display_order: initialValues?.display_order ?? 0,
-            is_required: initialValues?.is_required ?? true,
-            is_active: initialValues?.is_active ?? true,
-        },
-    });
 
     const { watch, setValue } = methods;
     const daysOfWeek = watch('days_of_week') || [];
