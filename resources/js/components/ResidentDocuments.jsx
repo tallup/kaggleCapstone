@@ -472,13 +472,16 @@ function DocumentFormInline({ residentId, appointments, record, onClose, onSucce
             let response;
             if (record) {
                 response = await api.put(`/resident-documents/${record.id}`, formDataToSend);
+                console.log('Update response:', response.data);
+                
                 // Update the cache optimistically with the response data
                 queryClient.setQueryData(['resident-documents', residentId, search, typeFilter, currentPage], (oldData) => {
-                    if (!oldData) return oldData;
+                    if (!oldData || !oldData.data) return oldData;
+                    const updatedDoc = response.data;
                     return {
                         ...oldData,
                         data: oldData.data.map(doc => 
-                            doc.id === record.id ? response.data : doc
+                            doc.id === record.id ? updatedDoc : doc
                         )
                     };
                 });

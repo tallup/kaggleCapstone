@@ -174,10 +174,10 @@ function RangeForm({ record, onClose, onSuccess }) {
     try {
       if (record) {
         await api.put(`/vital-ranges/${record.id}`, data);
-        toast.success('Vital range updated successfully');
+        toast.success('Vital range updated successfully', '', { isFormSubmission: true });
       } else {
         await api.post('/vital-ranges', data);
-        toast.success('Vital range created successfully');
+        toast.success('Vital range created successfully', '', { isFormSubmission: true });
       }
       onSuccess();
     } catch (error) {

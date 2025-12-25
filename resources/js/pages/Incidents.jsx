@@ -163,7 +163,7 @@ export default function Incidents() {
         onSuccess: () => {
             queryClient.invalidateQueries(['incidents']);
             handleCloseForm();
-            toast.success('Incident created successfully');
+            toast.success('Incident created successfully', '', { isFormSubmission: true });
         },
         onError: (error) => {
             console.error('Error creating incident:', error);
@@ -193,7 +193,7 @@ export default function Incidents() {
         onSuccess: () => {
             queryClient.invalidateQueries(['incidents']);
             handleCloseForm();
-            toast.success('Incident updated successfully');
+            toast.success('Incident updated successfully', '', { isFormSubmission: true });
         },
         onError: (error) => {
             console.error('Error updating incident:', error);

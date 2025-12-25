@@ -417,10 +417,10 @@ function VitalSignForm({ record, residents, branches = [], isFacilityAdmin = fal
 
             if (record) {
                 await api.put(`/vitals/${record.id}`, payload);
-                toast.success('Success', 'Vital sign updated successfully');
+                toast.success('Success', 'Vital sign updated successfully', { isFormSubmission: true });
             } else {
                 await api.post('/vitals', payload);
-                toast.success('Success', 'Vital sign recorded successfully');
+                toast.success('Success', 'Vital sign recorded successfully', { isFormSubmission: true });
             }
             onSuccess();
         } catch (error) {

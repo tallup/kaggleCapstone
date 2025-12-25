@@ -28,7 +28,9 @@ import {
     AlertCircle,
     TrendingUp,
     FileText,
-    Star
+    Star,
+    Bell,
+    BellOff
 } from 'lucide-react';
 
 export default function Profile() {
@@ -51,6 +53,12 @@ export default function Profile() {
     });
     const [successMessage, setSuccessMessage] = useState(null);
     const [errorMessage, setErrorMessage] = useState(null);
+    const [disableSuccessToasts, setDisableSuccessToasts] = useState(() => {
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem('disable_success_toasts') === 'true';
+        }
+        return false;
+    });
     
     // Get current user from local storage or API
     const { data: user, isLoading, error } = useQuery({
@@ -142,6 +150,15 @@ export default function Profile() {
             setTimeout(() => setErrorMessage(null), 5000);
         },
     });
+
+    const handleToggleSuccessToasts = (enabled) => {
+        setDisableSuccessToasts(!enabled);
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('disable_success_toasts', (!enabled).toString());
+        }
+        setSuccessMessage(enabled ? 'Success notifications disabled' : 'Success notifications enabled');
+        setTimeout(() => setSuccessMessage(null), 3000);
+    };
 
     const handleSave = async () => {
         try {
@@ -586,6 +603,51 @@ export default function Profile() {
                                     {user.notes || <span className="text-gray-400 italic">No additional notes</span>}
                                 </p>
                                 )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Preferences Section */}
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden border-l-4 border-l-indigo-500 hover:shadow-xl transition-shadow mb-6">
+                <div className="p-6">
+                    <h3 className="text-lg font-bold text-[var(--theme-primary)] mb-4 flex items-center">
+                        <Bell className="w-5 h-5 mr-2" />
+                        Notification Preferences
+                    </h3>
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+                            <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                    {disableSuccessToasts ? (
+                                        <BellOff className="w-5 h-5 text-gray-500" />
+                                    ) : (
+                                        <Bell className="w-5 h-5 text-[var(--theme-primary)]" />
+                                    )}
+                                    <label className="text-sm font-semibold text-gray-900">
+                                        Success Task Notifications
+                                    </label>
+                                </div>
+                                <p className="text-xs text-gray-600 mt-1">
+                                    {disableSuccessToasts 
+                                        ? 'Success notifications are disabled for routine operations. Form submissions will still show success messages.'
+                                        : 'Show success notifications after completing tasks (create, update, delete). Form submissions always show success messages.'}
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => handleToggleSuccessToasts(!disableSuccessToasts)}
+                                className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)] focus:ring-offset-2 ${
+                                    disableSuccessToasts ? 'bg-gray-300' : 'bg-[var(--theme-primary)]'
+                                }`}
+                                role="switch"
+                                aria-checked={!disableSuccessToasts}
+                            >
+                                <span
+                                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                                        disableSuccessToasts ? 'translate-x-0' : 'translate-x-5'
+                                    }`}
+                                />
+                            </button>
                         </div>
                     </div>
                 </div>

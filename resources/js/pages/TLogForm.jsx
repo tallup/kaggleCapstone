@@ -173,7 +173,7 @@ export default function TLogForm({ tLog, onClose, onSuccess }) {
         },
         onSuccess: () => {
             queryClient.invalidateQueries(['t-logs']);
-            toast.success('T-Log created successfully');
+            toast.success('T-Log created successfully', '', { isFormSubmission: true });
             onSuccess?.();
         },
         onError: (error) => {
@@ -190,7 +190,7 @@ export default function TLogForm({ tLog, onClose, onSuccess }) {
         },
         onSuccess: () => {
             queryClient.invalidateQueries(['t-logs']);
-            toast.success('T-Log updated successfully');
+            toast.success('T-Log updated successfully', '', { isFormSubmission: true });
             onSuccess?.();
         },
         onError: (error) => {

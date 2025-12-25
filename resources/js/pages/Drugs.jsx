@@ -225,10 +225,10 @@ function DrugForm({ record, onClose, onSuccess }) {
     try {
       if (record) {
         await api.put(`/drugs/${record.id}`, data);
-        toast.success('Drug updated successfully');
+        toast.success('Drug updated successfully', '', { isFormSubmission: true });
       } else {
         await api.post('/drugs', data);
-        toast.success('Drug created successfully');
+        toast.success('Drug created successfully', '', { isFormSubmission: true });
       }
       onSuccess();
     } catch (error) {
