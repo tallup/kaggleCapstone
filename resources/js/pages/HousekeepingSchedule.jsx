@@ -93,10 +93,8 @@ export default function HousekeepingSchedule() {
     const { data: areasData, isLoading: areasLoading, error: areasError } = useQuery({
         queryKey: ['cleaning-areas', selectedBranchId],
         queryFn: async () => {
-            const params = {};
-            if (selectedBranchId) {
-                params.branch_id = selectedBranchId;
-            }
+            // Always include branch_id when selectedBranchId is available
+            const params = { branch_id: selectedBranchId };
             const response = await api.get('/cleaning/areas', { params });
             return response.data.data || [];
         },
@@ -713,7 +711,12 @@ function TaskForm({ onClose, onSubmit, initialValues, isSaving, currentUser, bra
     const { data: allAreasData } = useQuery({
         queryKey: ['cleaning-areas-all'],
         queryFn: async () => {
-            const response = await api.get('/cleaning/areas');
+            // Use current user's assigned branch as fallback to ensure we only fetch areas for their branch
+            const params = {};
+            if (currentUser?.assigned_branch_id) {
+                params.branch_id = currentUser.assigned_branch_id;
+            }
+            const response = await api.get('/cleaning/areas', { params });
             return response.data.data || [];
         },
         enabled: shouldFetchAllAreas,
