@@ -16,7 +16,9 @@ import {
     FileText,
     List,
     Search,
-    Upload
+    Upload,
+    X,
+    CalendarClock
 } from 'lucide-react';
 import Card from '../components/Card';
 import SectionCard from '../components/SectionCard';
@@ -49,6 +51,11 @@ export default function AppointmentsDashboard() {
     const [expandedAppointment, setExpandedAppointment] = useState(null);
     const [appointmentNotes, setAppointmentNotes] = useState({});
     const [appointmentDocuments, setAppointmentDocuments] = useState({});
+    const [reschedulingAppointment, setReschedulingAppointment] = useState(null);
+    const [rescheduleFormData, setRescheduleFormData] = useState({
+        appointment_date: '',
+        appointment_time: '',
+    });
 
     // Fetch current user
     const { data: currentUser } = useQuery({
@@ -271,6 +278,70 @@ export default function AppointmentsDashboard() {
             id: appointmentId, 
             notes, 
             documents: validDocuments 
+        });
+    };
+
+    // Cancel appointment mutation
+    const cancelMutation = useMutation({
+        mutationFn: async ({ id, notes }) => {
+            const formData = new FormData();
+            formData.append('status', 'cancelled');
+            if (notes) {
+                formData.append('notes', notes);
+            }
+
+            return await api.patch(`/appointments/${id}/status`, formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                },
+            });
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries(['appointments-dashboard']);
+            queryClient.invalidateQueries(['appointments-statistics']);
+        },
+    });
+
+    // Reschedule appointment mutation
+    const rescheduleMutation = useMutation({
+        mutationFn: async ({ id, appointment_date, appointment_time }) => {
+            return await api.put(`/appointments/${id}`, {
+                appointment_date,
+                appointment_time,
+            });
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries(['appointments-dashboard']);
+            queryClient.invalidateQueries(['appointments-statistics']);
+            setReschedulingAppointment(null);
+            setRescheduleFormData({ appointment_date: '', appointment_time: '' });
+        },
+    });
+
+    const handleCancel = (appointment) => {
+        const notes = window.prompt('Enter cancellation reason (optional):');
+        if (notes !== null) {
+            cancelMutation.mutate({ id: appointment.id, notes: notes || '' });
+        }
+    };
+
+    const handleReschedule = (appointment) => {
+        setReschedulingAppointment(appointment);
+        setRescheduleFormData({
+            appointment_date: appointment.appointment_date || '',
+            appointment_time: appointment.appointment_time || '',
+        });
+    };
+
+    const handleRescheduleSubmit = async (e) => {
+        e.preventDefault();
+        if (!rescheduleFormData.appointment_date || !rescheduleFormData.appointment_time) {
+            alert('Please select both date and time');
+            return;
+        }
+        rescheduleMutation.mutate({
+            id: reschedulingAppointment.id,
+            ...rescheduleFormData,
         });
     };
 
@@ -590,15 +661,35 @@ export default function AppointmentsDashboard() {
 
                                     <div className="flex items-center gap-2 ml-4">
                                         {isAdmin && appointment.status === 'scheduled' && (
-                                            <button
-                                                onClick={() => handleToggleComplete(appointment.id)}
-                                                disabled={completeMutation.isPending}
-                                                className="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium flex items-center gap-1.5 disabled:opacity-50"
-                                                title="Mark as Complete"
-                                            >
-                                                <CheckCircle className="w-4 h-4" />
-                                                Complete
-                                            </button>
+                                            <>
+                                                <button
+                                                    onClick={() => handleToggleComplete(appointment.id)}
+                                                    disabled={completeMutation.isPending}
+                                                    className="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium flex items-center gap-1.5 disabled:opacity-50"
+                                                    title="Mark as Complete"
+                                                >
+                                                    <CheckCircle className="w-4 h-4" />
+                                                    Complete
+                                                </button>
+                                                <button
+                                                    onClick={() => handleReschedule(appointment)}
+                                                    disabled={rescheduleMutation.isPending}
+                                                    className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium flex items-center gap-1.5 disabled:opacity-50"
+                                                    title="Reschedule Appointment"
+                                                >
+                                                    <CalendarClock className="w-4 h-4" />
+                                                    Reschedule
+                                                </button>
+                                                <button
+                                                    onClick={() => handleCancel(appointment)}
+                                                    disabled={cancelMutation.isPending}
+                                                    className="px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium flex items-center gap-1.5 disabled:opacity-50"
+                                                    title="Cancel Appointment"
+                                                >
+                                                    <XCircle className="w-4 h-4" />
+                                                    Cancel
+                                                </button>
+                                            </>
                                         )}
                                         <Link
                                             to={`/appointments/${appointment.id}`}
@@ -940,6 +1031,76 @@ export default function AppointmentsDashboard() {
                                     className="px-4 py-2 bg-[var(--theme-primary)] text-white rounded-lg hover:bg-[var(--theme-primary-hover)] transition-all disabled:opacity-50"
                                 >
                                     {createMutation.isPending ? 'Creating...' : 'Create Appointment'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Reschedule Appointment Modal */}
+            {reschedulingAppointment && (
+                <div className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50 p-4" style={{ backgroundColor: 'rgba(0, 0, 0, 0.1)' }}>
+                    <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+                        <div className="p-6 border-b flex items-center justify-between">
+                            <h3 className="text-xl font-semibold text-gray-900">Reschedule Appointment</h3>
+                            <button 
+                                onClick={() => {
+                                    setReschedulingAppointment(null);
+                                    setRescheduleFormData({ appointment_date: '', appointment_time: '' });
+                                }} 
+                                className="text-gray-500 hover:text-gray-700 text-2xl"
+                            >
+                                ×
+                            </button>
+                        </div>
+                        <form onSubmit={handleRescheduleSubmit}>
+                            <div className="p-6 space-y-4">
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-900 mb-1">Date *</label>
+                                    <input
+                                        type="date"
+                                        value={rescheduleFormData.appointment_date}
+                                        onChange={(e) => setRescheduleFormData({ ...rescheduleFormData, appointment_date: e.target.value })}
+                                        required
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-900 mb-1">Time *</label>
+                                    <input
+                                        type="time"
+                                        value={rescheduleFormData.appointment_time}
+                                        onChange={(e) => setRescheduleFormData({ ...rescheduleFormData, appointment_time: e.target.value })}
+                                        required
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
+                                    />
+                                </div>
+                                {reschedulingAppointment && (
+                                    <div className="text-sm text-gray-600">
+                                        <p><strong>Resident:</strong> {reschedulingAppointment.resident?.name || reschedulingAppointment.resident?.first_name + ' ' + reschedulingAppointment.resident?.last_name}</p>
+                                        <p><strong>Current Date:</strong> {new Date(reschedulingAppointment.appointment_date).toLocaleDateString()}</p>
+                                        <p><strong>Current Time:</strong> {reschedulingAppointment.appointment_time}</p>
+                                    </div>
+                                )}
+                            </div>
+                            <div className="p-6 border-t flex items-center justify-end space-x-3">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setReschedulingAppointment(null);
+                                        setRescheduleFormData({ appointment_date: '', appointment_time: '' });
+                                    }}
+                                    className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-all"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={rescheduleMutation.isPending}
+                                    className="px-4 py-2 bg-[var(--theme-primary)] text-white rounded-lg hover:bg-[var(--theme-primary-hover)] transition-all disabled:opacity-50"
+                                >
+                                    {rescheduleMutation.isPending ? 'Rescheduling...' : 'Reschedule'}
                                 </button>
                             </div>
                         </form>
