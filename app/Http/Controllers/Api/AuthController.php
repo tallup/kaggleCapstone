@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Services\ActivityLogService;
 use App\Services\LocationService;
 use App\Models\Facility;
+use App\Models\StaffClockIn;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -184,6 +185,9 @@ class AuthController extends Controller
                 'user_agent' => $request->userAgent(),
             ]);
 
+            // Automatically clock in the user if they have an assigned branch
+            $this->autoClockIn($user, $request);
+
             return response()->json([
                 'user' => $this->transformUser($user),
                 'token' => $token,
@@ -199,8 +203,11 @@ class AuthController extends Controller
     {
         $user = $request->user();
         
-        // Log logout before deleting tokens
+        // Automatically clock out the user if they're clocked in
         if ($user) {
+            $this->autoClockOut($user, $request);
+            
+            // Log logout before deleting tokens
             ActivityLogService::logout($user, [
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),
@@ -565,6 +572,260 @@ class AuthController extends Controller
         ]);
 
         return null;
+    }
+
+    /**
+     * Automatically clock in user after successful login
+     * 
+     * @param \App\Models\User $user
+     * @param \Illuminate\Http\Request $request
+     * @return void
+     */
+    protected function autoClockIn(\App\Models\User $user, Request $request): void
+    {
+        // Only clock in users who have an assigned branch (staff members)
+        if (!$user->assigned_branch_id) {
+            return;
+        }
+
+        // Check if user is already clocked in
+        if ($user->hasActiveClockIn()) {
+            Log::info('User already clocked in, skipping auto clock-in', [
+                'user_id' => $user->id,
+            ]);
+            return;
+        }
+
+        try {
+            $locationService = app(LocationService::class);
+            
+            // Get location from request (may be null if not provided)
+            $latitude = $request->input('latitude');
+            $longitude = $request->input('longitude');
+
+            // If location not provided in request, try to get from IP
+            if ($latitude === null || $longitude === null) {
+                $ipLocation = $locationService->getLocationFromIp($request->ip());
+                if ($ipLocation) {
+                    $latitude = $ipLocation['latitude'];
+                    $longitude = $ipLocation['longitude'];
+                }
+            }
+
+            // Validate location if provided (optional for auto clock-in)
+            if ($latitude !== null && $longitude !== null) {
+                $locationError = $locationService->validateCheckInLocation(
+                    $user,
+                    $latitude,
+                    $longitude
+                );
+
+                // If location validation fails, still clock in but log warning
+                // This allows auto clock-in even if location check fails
+                if ($locationError) {
+                    Log::warning('Auto clock-in location validation failed, clocking in anyway', [
+                        'user_id' => $user->id,
+                        'error' => $locationError['message'] ?? 'Unknown error',
+                    ]);
+                }
+            } else {
+                // No location available - log but still allow clock-in
+                Log::info('Auto clock-in without location coordinates', [
+                    'user_id' => $user->id,
+                    'ip' => $request->ip(),
+                ]);
+            }
+
+            // Create clock-in record
+            $clockIn = StaffClockIn::create([
+                'staff_id' => $user->id,
+                'branch_id' => $user->assigned_branch_id,
+                'facility_id' => $user->facility_id,
+                'clock_in_at' => now(),
+                'clock_in_latitude' => $latitude,
+                'clock_in_longitude' => $longitude,
+                'is_active' => true,
+                'clock_method' => 'auto_login',
+            ]);
+
+            $clockIn->load(['staff', 'branch', 'facility']);
+
+            // Create notifications for admins
+            $this->notifyStaffClockIn($clockIn);
+
+            Log::info('User automatically clocked in on login', [
+                'user_id' => $user->id,
+                'clock_in_id' => $clockIn->id,
+            ]);
+        } catch (\Exception $e) {
+            // Log error but don't fail login if clock-in fails
+            Log::error('Failed to auto clock-in user on login', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+        }
+    }
+
+    /**
+     * Notify admins about staff clock-in
+     */
+    private function notifyStaffClockIn(StaffClockIn $clockIn): void
+    {
+        $clockIn->load(['staff', 'branch', 'facility']);
+        
+        // Get admins and facility admins
+        $users = \App\Models\User::where(function($query) use ($clockIn) {
+            $query->whereIn('role', ['super_admin', 'administrator', 'admin', 'manager']);
+            
+            // Filter by facility if applicable
+            if ($clockIn->facility_id) {
+                $query->where(function($q) use ($clockIn) {
+                    $q->where('facility_id', $clockIn->facility_id)
+                      ->orWhereNull('facility_id'); // Super admins
+                });
+            }
+        })
+        ->where('is_active', true)
+        ->where('id', '!=', $clockIn->staff_id) // Don't notify the staff member themselves
+        ->get();
+
+        $branchName = $clockIn->branch?->name ?? 'Unknown Branch';
+        $staffName = $clockIn->staff?->name ?? 'Unknown Staff';
+        $time = Carbon::parse($clockIn->clock_in_at)->format('g:i A');
+
+        foreach ($users as $admin) {
+            \App\Models\Notification::create([
+                'user_id' => $admin->id,
+                'type' => 'staff_clock_in',
+                'title' => 'Staff Clocked In',
+                'message' => "{$staffName} clocked in at {$branchName} at {$time}",
+                'icon' => 'clock',
+                'icon_color' => 'text-green-600',
+                'action_url' => '/check-in-dashboard',
+                'metadata' => [
+                    'clock_in_id' => $clockIn->id,
+                    'staff_id' => $clockIn->staff_id,
+                    'branch_id' => $clockIn->branch_id,
+                    'facility_id' => $clockIn->facility_id,
+                ],
+            ]);
+        }
+
+        // Send email notifications
+        try {
+            $notificationService = app(\App\Services\NotificationService::class);
+            $notificationService->sendStaffClockInEmail($clockIn, $users, 'clocked_in');
+        } catch (\Exception $e) {
+            Log::warning('Failed to send clock-in email notification', [
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Automatically clock out user on logout
+     * 
+     * @param \App\Models\User $user
+     * @param \Illuminate\Http\Request $request
+     * @return void
+     */
+    protected function autoClockOut(\App\Models\User $user, Request $request): void
+    {
+        // Check if user has an active clock-in
+        if (!$user->hasActiveClockIn()) {
+            return;
+        }
+
+        try {
+            $activeClockIn = $user->activeClockIn;
+
+            // Get location from request (optional)
+            $latitude = $request->input('latitude');
+            $longitude = $request->input('longitude');
+
+            // Clock out
+            $activeClockIn->clockOut($latitude, $longitude);
+
+            // Reload relationships
+            $activeClockIn->load(['staff', 'branch', 'facility']);
+
+            // Notify admins
+            $this->notifyStaffClockOut($activeClockIn, $user);
+
+            Log::info('User automatically clocked out on logout', [
+                'user_id' => $user->id,
+                'clock_in_id' => $activeClockIn->id,
+            ]);
+        } catch (\Exception $e) {
+            // Log error but don't fail logout if clock-out fails
+            Log::error('Failed to auto clock-out user on logout', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+        }
+    }
+
+    /**
+     * Notify admins about staff clock-out
+     */
+    private function notifyStaffClockOut(StaffClockIn $clockIn, ?\App\Models\User $actionBy = null): void
+    {
+        $clockIn->load(['staff', 'branch', 'facility']);
+        
+        // Get admins and facility admins
+        $users = \App\Models\User::where(function($query) use ($clockIn) {
+            $query->whereIn('role', ['super_admin', 'administrator', 'admin', 'manager']);
+            
+            // Filter by facility if applicable
+            if ($clockIn->facility_id) {
+                $query->where(function($q) use ($clockIn) {
+                    $q->where('facility_id', $clockIn->facility_id)
+                      ->orWhereNull('facility_id'); // Super admins
+                });
+            }
+        })
+        ->where('is_active', true)
+        ->where('id', '!=', $clockIn->staff_id) // Don't notify the staff member themselves
+        ->get();
+
+        $branchName = $clockIn->branch?->name ?? 'Unknown Branch';
+        $staffName = $clockIn->staff?->name ?? 'Unknown Staff';
+        $time = Carbon::parse($clockIn->clock_out_at)->format('g:i A');
+        $duration = $clockIn->total_hours ? round($clockIn->total_hours, 2) . ' hours' : 'N/A';
+        
+        $actionByText = $actionBy && $actionBy->id !== $clockIn->staff_id 
+            ? " by {$actionBy->name}" 
+            : '';
+
+        foreach ($users as $admin) {
+            \App\Models\Notification::create([
+                'user_id' => $admin->id,
+                'type' => 'staff_clock_out',
+                'title' => 'Staff Clocked Out',
+                'message' => "{$staffName} clocked out{$actionByText} at {$branchName} at {$time} (Duration: {$duration})",
+                'icon' => 'clock',
+                'icon_color' => 'text-blue-600',
+                'action_url' => '/check-in-dashboard',
+                'metadata' => [
+                    'clock_in_id' => $clockIn->id,
+                    'staff_id' => $clockIn->staff_id,
+                    'branch_id' => $clockIn->branch_id,
+                    'facility_id' => $clockIn->facility_id,
+                ],
+            ]);
+        }
+
+        // Send email notifications
+        try {
+            $notificationService = app(\App\Services\NotificationService::class);
+            $notificationService->sendStaffClockInEmail($clockIn, $users, 'clocked_out');
+        } catch (\Exception $e) {
+            Log::warning('Failed to send clock-out email notification', [
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 }
 
