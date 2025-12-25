@@ -523,14 +523,14 @@ export default function MedicationDeliveries() {
                                     <div className="flex items-center gap-2 ml-4">
                                         <button
                                             onClick={() => handleEdit(delivery)}
-                                            className="p-2 bg-blue-50 border border-blue-200 text-blue-600 hover:bg-blue-100 hover:border-blue-300 rounded-lg transition-colors"
+                                            className="p-2.5 bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition-colors shadow-md hover:shadow-lg"
                                             title="Edit"
                                         >
                                             <Edit className="w-5 h-5" />
                                         </button>
                                         <button
                                             onClick={() => handleDelete(delivery.id)}
-                                            className="p-2 bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 hover:border-red-300 rounded-lg transition-colors"
+                                            className="p-2.5 bg-red-600 text-white hover:bg-red-700 rounded-lg transition-colors shadow-md hover:shadow-lg"
                                             title="Delete"
                                         >
                                             <Trash2 className="w-5 h-5" />
