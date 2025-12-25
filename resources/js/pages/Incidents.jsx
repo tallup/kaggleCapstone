@@ -64,6 +64,7 @@ export default function Incidents() {
     const [showViewModal, setShowViewModal] = useState(false);
     const [selectedIncident, setSelectedIncident] = useState(null);
     const [viewMode, setViewMode] = useState('list');
+    const [currentUser, setCurrentUser] = useState(null);
     const [filters, setFilters] = useState({
         status: searchParams.get('status') || 'all',
         priority: searchParams.get('priority') || 'all',
@@ -145,6 +146,104 @@ export default function Incidents() {
             };
         },
     });
+
+    // Fetch current user
+    React.useEffect(() => {
+        const fetchUser = async () => {
+            try {
+                const response = await api.get('/user');
+                setCurrentUser(response.data);
+            } catch (err) {
+                console.error('Failed to fetch current user:', err);
+            }
+        };
+        fetchUser();
+    }, []);
+
+    // Check if user is a caregiver
+    const isCaregiver = React.useMemo(() => {
+        if (!currentUser) return false;
+
+        const truthyValues = [
+            currentUser.is_caregiver,
+            currentUser.isCaregiver,
+            currentUser.caregiver,
+            currentUser.is_care_giver,
+        ];
+
+        const normalizeToBoolean = (value) => {
+            if (typeof value === 'boolean') return value;
+            if (typeof value === 'number') return value === 1;
+            if (typeof value === 'string') {
+                const normalized = value.trim().toLowerCase();
+                return ['1', 'true', 'yes', 'y', 'caregiver', 'care_giver'].includes(normalized);
+            }
+            return false;
+        };
+
+        if (truthyValues.some(normalizeToBoolean)) {
+            return true;
+        }
+
+        const candidateValues = [];
+        const collectCandidate = (value) => {
+            if (value !== null && value !== undefined && value !== '') {
+                candidateValues.push(String(value));
+            }
+        };
+
+        collectCandidate(currentUser.role);
+        collectCandidate(currentUser.position);
+        collectCandidate(currentUser.primary_role);
+        collectCandidate(currentUser.job_title);
+        collectCandidate(currentUser.primaryRole);
+        collectCandidate(currentUser.title);
+
+        const roles = currentUser.roles;
+        if (Array.isArray(roles)) {
+            roles.forEach((roleItem) => {
+                if (!roleItem) return;
+                if (typeof roleItem === 'string') {
+                    collectCandidate(roleItem);
+                } else {
+                    collectCandidate(roleItem.name);
+                    collectCandidate(roleItem.title);
+                    if (roleItem?.pivot?.role_name) {
+                        collectCandidate(roleItem.pivot.role_name);
+                    }
+                }
+            });
+        } else if (roles?.data && Array.isArray(roles.data)) {
+            roles.data.forEach((roleItem) => {
+                if (!roleItem) return;
+                if (typeof roleItem === 'string') {
+                    collectCandidate(roleItem);
+                } else {
+                    collectCandidate(roleItem.name);
+                    collectCandidate(roleItem.title);
+                    if (roleItem?.pivot?.role_name) {
+                        collectCandidate(roleItem.pivot.role_name);
+                    }
+                }
+            });
+        }
+
+        return candidateValues.some((value) => {
+            const lower = value.toLowerCase().trim();
+            if (!lower) return false;
+            const normalized = lower.replace(/[\s_-]/g, '');
+            return normalized === 'caregiver' || (lower.includes('care') && lower.includes('giver'));
+        });
+    }, [currentUser]);
+
+    // Filter branches for caregivers - only show their assigned branch
+    const availableBranches = React.useMemo(() => {
+        const branches = branchesData?.data || [];
+        if (isCaregiver && currentUser?.assigned_branch_id) {
+            return branches.filter(b => b.id === currentUser.assigned_branch_id);
+        }
+        return branches;
+    }, [branchesData, isCaregiver, currentUser]);
 
     // Fetch users for assignment
     const { data: usersData } = useQuery({
@@ -255,9 +354,11 @@ export default function Incidents() {
             });
         } else {
             setSelectedIncident(null);
+            // Prefill branch for caregivers
+            const caregiverBranchId = isCaregiver && currentUser?.assigned_branch_id ? currentUser.assigned_branch_id : '';
             methods.reset({
                 resident_id: '',
-                branch_id: '',
+                branch_id: caregiverBranchId,
                 incident_type: '',
                 description: '',
                 incident_date: new Date().toISOString().slice(0, 16),
@@ -643,7 +744,8 @@ function IncidentForm({ record, branches, residents, users, attachments, setAtta
                                     label="Branch"
                                     required
                                     placeholder="Select Branch"
-                                    options={branches.map(branch => ({ value: branch.id, label: branch.name }))}
+                                    options={availableBranches.map(branch => ({ value: branch.id, label: branch.name }))}
+                                    disabled={isCaregiver && currentUser?.assigned_branch_id}
                                 />
 
                                 <FormSelect

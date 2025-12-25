@@ -327,9 +327,25 @@ export default function AppointmentsDashboard() {
 
     const handleReschedule = (appointment) => {
         setReschedulingAppointment(appointment);
+        
+        // Format date for input (YYYY-MM-DD)
+        let formattedDate = '';
+        if (appointment.appointment_date) {
+            const date = new Date(appointment.appointment_date);
+            if (!isNaN(date.getTime())) {
+                formattedDate = date.toISOString().split('T')[0];
+            }
+        }
+        
+        // Format time for input (HH:MM) - remove seconds if present
+        let formattedTime = '';
+        if (appointment.appointment_time) {
+            formattedTime = appointment.appointment_time.substring(0, 5); // Take only HH:MM
+        }
+        
         setRescheduleFormData({
-            appointment_date: appointment.appointment_date || '',
-            appointment_time: appointment.appointment_time || '',
+            appointment_date: formattedDate,
+            appointment_time: formattedTime,
         });
     };
 
