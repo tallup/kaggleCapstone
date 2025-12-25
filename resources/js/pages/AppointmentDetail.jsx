@@ -73,9 +73,26 @@ export default function AppointmentDetail() {
         );
     };
 
-    const handleDownloadDocument = (document) => {
-        const url = `/api/v1/resident-documents/${document.id}/download`;
-        window.open(url, '_blank');
+    const handleDownloadDocument = async (document) => {
+        try {
+            const response = await api.get(
+                `/resident-documents/${document.id}/download`,
+                { responseType: 'blob' }
+            );
+            
+            // Create a blob URL and trigger download
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', document.file_name || document.document_name || 'document');
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('Error downloading document:', error);
+            alert(error.response?.data?.message || 'Failed to download document. Please try again.');
+        }
     };
 
     const handleViewDocument = (document) => {
