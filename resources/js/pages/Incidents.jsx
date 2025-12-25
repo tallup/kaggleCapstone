@@ -474,11 +474,13 @@ export default function Incidents() {
         return (
             <IncidentForm
                 record={selectedIncident}
-                branches={branches}
+                branches={availableBranches}
                 residents={residents}
                 users={users}
                 attachments={attachments}
                 setAttachments={setAttachments}
+                currentUser={currentUser}
+                isCaregiver={isCaregiver}
                 onClose={handleCloseForm}
                 onSuccess={() => {
                     handleCloseForm();
@@ -671,7 +673,7 @@ export default function Incidents() {
 }
 
 // Incident Form Component (Full Page Form like Expenses)
-function IncidentForm({ record, branches, residents, users, attachments, setAttachments, onClose, onSuccess, createMutation, updateMutation, methods, branchId }) {
+function IncidentForm({ record, branches, residents, users, attachments, setAttachments, currentUser, isCaregiver, onClose, onSuccess, createMutation, updateMutation, methods, branchId }) {
     const handleSubmit = (data) => {
         if (record) {
             updateMutation.mutate({ id: record.id, data });
@@ -744,7 +746,7 @@ function IncidentForm({ record, branches, residents, users, attachments, setAtta
                                     label="Branch"
                                     required
                                     placeholder="Select Branch"
-                                    options={availableBranches.map(branch => ({ value: branch.id, label: branch.name }))}
+                                    options={branches.map(branch => ({ value: branch.id, label: branch.name }))}
                                     disabled={isCaregiver && currentUser?.assigned_branch_id}
                                 />
 

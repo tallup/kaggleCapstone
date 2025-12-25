@@ -150,7 +150,7 @@ export default function Branches() {
                       {canEdit && (
                         <button
                           onClick={() => { setEditing(b); setShowForm(true); }}
-                          className="p-2 rounded-lg bg-blue-100 text-blue-600 hover:bg-blue-600 hover:text-white transition-colors"
+                          className="p-2.5 rounded-lg border-2 border-blue-500 bg-blue-50 text-blue-700 hover:bg-blue-500 hover:text-white hover:border-blue-600 transition-all shadow-sm hover:shadow-md"
                           title="Edit"
                         >
                           <Edit className="w-5 h-5" />
@@ -159,7 +159,7 @@ export default function Branches() {
                       {canDelete && (
                         <button
                           onClick={() => window.confirm('Delete branch?') && deleteMutation.mutate(b.id)}
-                          className="p-2 rounded-lg bg-red-100 text-red-600 hover:bg-red-600 hover:text-white transition-colors"
+                          className="p-2.5 rounded-lg border-2 border-red-500 bg-red-50 text-red-700 hover:bg-red-500 hover:text-white hover:border-red-600 transition-all shadow-sm hover:shadow-md"
                           title="Delete"
                         >
                           <Trash2 className="w-5 h-5" />
