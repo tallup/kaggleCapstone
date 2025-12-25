@@ -2,10 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
-import { CheckCircle, XCircle, Calendar, Plus, User, Stethoscope, MapPin, ChevronDown, Edit, List, Grid } from 'lucide-react';
+import { CheckCircle, XCircle, Calendar, Plus, User, Stethoscope, MapPin, ChevronDown, Edit, List, Grid, Building2 } from 'lucide-react';
 import Card from '../components/Card';
 import SectionCard from '../components/SectionCard';
 import CalendarView from '../components/CalendarView';
+import BranchSelector from '../components/BranchSelector';
 
 // Profile Image Component with fallback
 function ProfileImage({ resident }) {
@@ -35,9 +36,9 @@ function ProfileImage({ resident }) {
 export default function Appointments() {
     const queryClient = useQueryClient();
     const navigate = useNavigate();
-    const [searchParams, setSearchParams] = useSearchParams();
+    const [searchParams] = useSearchParams();
+    const selectedBranchId = searchParams.get('branch');
     const [residentFilter, setResidentFilter] = useState('');
-    const [branchFilter, setBranchFilter] = useState('');
     const highlightedAppointmentId = useRef(null);
     const appointmentRowRefs = useRef({});
     const urlParamsProcessed = useRef(false);
@@ -177,7 +178,7 @@ export default function Appointments() {
 
     // Define queries FIRST before using them in useEffect
     const { data, isLoading, error: appointmentsError, refetch } = useQuery({
-        queryKey: ['appointments', residentFilter, branchFilter],
+        queryKey: ['appointments', residentFilter, selectedBranchId],
         queryFn: async () => {
             try {
                 const params = {
@@ -186,8 +187,8 @@ export default function Appointments() {
                 if (residentFilter) {
                     params.resident_id = residentFilter;
                 }
-                if (branchFilter) {
-                    params.branch_id = branchFilter;
+                if (selectedBranchId) {
+                    params.branch_id = selectedBranchId;
                 }
                 const response = await api.get('/appointments', { params });
                 return response.data;
@@ -241,12 +242,12 @@ export default function Appointments() {
 
     // All residents for filter dropdown (not filtered by branch)
     const { data: allResidentsData, error: allResidentsError } = useQuery({
-        queryKey: ['all-residents-list', branchFilter],
+        queryKey: ['all-residents-list', selectedBranchId],
         queryFn: async () => {
             try {
                 const params = { per_page: 100 };
-                if (branchFilter) {
-                    params.branch_id = branchFilter;
+                if (selectedBranchId) {
+                    params.branch_id = selectedBranchId;
                 }
                 return (await api.get('/residents', { params })).data;
             } catch (error) {
@@ -464,7 +465,7 @@ export default function Appointments() {
         setFormData(prev => ({
             ...prev,
             resident_id: residentId,
-            branch_id: resident?.branch_id || '',
+            branch_id: branchId ? String(branchId) : (resident?.branch_id || ''),
         }));
         setIsPreFilled(true); // Mark as pre-filled
         setShowForm(true);
@@ -473,7 +474,7 @@ export default function Appointments() {
     // Handle opening form manually (not from resident card)
     const handleOpenFormManually = () => {
         setFormData({
-            branch_id: '',
+            branch_id: branchId ? String(branchId) : '',
             resident_id: '',
             appointment_date: new Date().toISOString().split('T')[0],
             appointment_time: '',
@@ -491,7 +492,7 @@ export default function Appointments() {
         setShowForm(false);
         setIsPreFilled(false);
         setFormData({
-            branch_id: '',
+            branch_id: branchId ? String(branchId) : '',
             resident_id: '',
             appointment_date: new Date().toISOString().split('T')[0],
             appointment_time: '',
@@ -502,8 +503,23 @@ export default function Appointments() {
         });
     };
 
+    // Show branch selector and wait for branch selection (for non-caregivers)
+    if (!isCaregiver && !selectedBranchId) {
+        return (
+            <div>
+                <BranchSelector currentUser={currentUserData} />
+                <div className="bg-white rounded-xl shadow-sm p-8 text-center">
+                    <Building2 className="mx-auto h-12 w-12 text-gray-400" />
+                    <p className="mt-4 text-sm font-semibold text-gray-700">Please select a branch to continue</p>
+                    <p className="mt-2 text-xs text-gray-500">Select a branch from the dropdown above to view and manage appointments.</p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-6">
+            <BranchSelector currentUser={currentUserData} />
             {isCaregiver ? (
                 <>
                     {/* Resident Cards Section */}
@@ -664,29 +680,7 @@ export default function Appointments() {
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                            {/* Branch Filter */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-900 mb-2">Branch:</label>
-                                <div className="relative">
-                                    <MapPin className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                                    <select
-                                        value={branchFilter}
-                                        onChange={(e) => {
-                                            setBranchFilter(e.target.value);
-                                            setResidentFilter('');
-                                        }}
-                                        className="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent appearance-none bg-white"
-                                    >
-                                        <option value="">All Branches</option>
-                                        {(branchesData?.data || branchesData || []).map(branch => (
-                                            <option key={branch.id} value={branch.id}>{branch.name}</option>
-                                        ))}
-                                    </select>
-                                    <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                                </div>
-                            </div>
-
+                        <div className="grid grid-cols-1 md:grid-cols-1 gap-4 mb-6">
                             {/* Resident Filter */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-900 mb-2">Resident:</label>
@@ -989,6 +983,7 @@ export default function Appointments() {
                     currentUser={currentUser}
                     isFacilityAdmin={isFacilityAdmin}
                     isBranchAdmin={isBranchAdmin}
+                    selectedBranchId={branchId}
                 />
             )}
 
@@ -1165,8 +1160,15 @@ export default function Appointments() {
     );
 }
 
-function AddAppointmentModal({ branches, residents, formData, setFormData, onClose, onSubmit, isSubmitting, mutation, isPreFilled = false, appointmentTypes = [], currentUser, isFacilityAdmin, isBranchAdmin }) {
+function AddAppointmentModal({ branches, residents, formData, setFormData, onClose, onSubmit, isSubmitting, mutation, isPreFilled = false, appointmentTypes = [], currentUser, isFacilityAdmin, isBranchAdmin, selectedBranchId }) {
     const [errors, setErrors] = React.useState({});
+    
+    // Ensure branch_id is set from selectedBranchId if provided
+    React.useEffect(() => {
+        if (selectedBranchId && !formData.branch_id) {
+            setFormData(prev => ({ ...prev, branch_id: String(selectedBranchId) }));
+        }
+    }, [selectedBranchId]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -1195,33 +1197,39 @@ function AddAppointmentModal({ branches, residents, formData, setFormData, onClo
                 <form onSubmit={handleSubmit}>
                     <div className="p-6 space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                                <label className="block text-sm font-bold text-gray-900 mb-1">
-                                    Branch
-                                </label>
-                                <div className="relative">
-                                    <select
-                                        value={formData.branch_id}
-                                        onChange={(e) => {
-                                            setFormData({
-                                                ...formData,
-                                                branch_id: e.target.value,
-                                                resident_id: '' // Reset resident when branch changes
-                                            });
-                                            setErrors({ ...errors, branch_id: null, resident_id: null });
-                                        }}
-                                        disabled={isPreFilled || (!isFacilityAdmin && isBranchAdmin && currentUser?.assigned_branch_id)}
-                                        className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent ${isPreFilled || (!isFacilityAdmin && isBranchAdmin && currentUser?.assigned_branch_id) ? 'bg-gray-100 cursor-not-allowed opacity-75' : ''
-                                            }`}
-                                    >
-                                        <option value="">All Branches</option>
-                                        {(branches || []).map(branch => (
-                                            <option key={branch.id} value={branch.id}>{branch.name}</option>
-                                        ))}
-                                    </select>
+                            {/* Branch Selection - Only show if branch not already selected from URL */}
+                            {!selectedBranchId ? (
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-900 mb-1">
+                                        Branch
+                                    </label>
+                                    <div className="relative">
+                                        <select
+                                            value={formData.branch_id}
+                                            onChange={(e) => {
+                                                setFormData({
+                                                    ...formData,
+                                                    branch_id: e.target.value,
+                                                    resident_id: '' // Reset resident when branch changes
+                                                });
+                                                setErrors({ ...errors, branch_id: null, resident_id: null });
+                                            }}
+                                            disabled={isPreFilled || (!isFacilityAdmin && isBranchAdmin && currentUser?.assigned_branch_id)}
+                                            className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent ${isPreFilled || (!isFacilityAdmin && isBranchAdmin && currentUser?.assigned_branch_id) ? 'bg-gray-100 cursor-not-allowed opacity-75' : ''
+                                                }`}
+                                        >
+                                            <option value="">All Branches</option>
+                                            {(branches || []).map(branch => (
+                                                <option key={branch.id} value={branch.id}>{branch.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    {errors.branch_id && <p className="text-xs text-red-600 mt-1">{errors.branch_id}</p>}
                                 </div>
-                                {errors.branch_id && <p className="text-xs text-red-600 mt-1">{errors.branch_id}</p>}
-                            </div>
+                            ) : (
+                                // Branch is selected from URL, use it as hidden field
+                                <input type="hidden" value={selectedBranchId.toString()} />
+                            )}
                             <div>
                                 <label className="block text-sm font-bold text-gray-900 mb-1">
                                     Resident *

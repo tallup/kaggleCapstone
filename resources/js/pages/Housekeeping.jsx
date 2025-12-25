@@ -4,7 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Sparkles, CalendarDays, RefreshCcw, CheckCircle2, XCircle, Loader2, StickyNote, Info, Building2 } from 'lucide-react';
 import api from '../services/api';
 import { getLocalDateString } from '../utils/pacificTime';
-import BranchSelector from '../components/housekeeping/BranchSelector';
+import BranchSelector from '../components/BranchSelector';
 
 const getStatusStyles = (status) => {
     switch (status) {

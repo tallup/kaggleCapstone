@@ -1,20 +1,22 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
-import { Search, Users, Plus, Edit, XCircle, CheckCircle, Filter, Eye, X } from 'lucide-react';
+import { Search, Users, Plus, Edit, XCircle, CheckCircle, Filter, Eye, X, Building2 } from 'lucide-react';
 import Select from '../components/ui/radix/Select';
 import ScrollReveal from '../components/ui/ScrollReveal';
 import Tooltip from '../components/ui/Tooltip';
 import TooltipIcon from '../components/ui/TooltipIcon';
 import EmptyState from '../components/ui/EmptyState';
 import { formatPhoneNumber } from '../utils/phoneFormatter';
+import BranchSelector from '../components/BranchSelector';
 
 export default function Residents() {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const selectedBranchId = searchParams.get('branch');
     const queryClient = useQueryClient();
     const [search, setSearch] = useState('');
-    const [branchFilter, setBranchFilter] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
     const [showForm, setShowForm] = useState(false);
     const [editing, setEditing] = useState(null);
@@ -49,32 +51,41 @@ export default function Residents() {
     const canEdit = isSuperAdmin || isAdmin || permissions.includes('edit_residents');
     const canDelete = isSuperAdmin || isAdmin || permissions.includes('delete_residents');
 
+    const { data: currentUserData } = useQuery({
+        queryKey: ['current-user'],
+        queryFn: async () => {
+            const response = await api.get('/user');
+            return response.data;
+        },
+        staleTime: 5 * 60 * 1000,
+    });
+
     React.useEffect(() => {
-        if (isCaregiver && currentUser?.assigned_branch_id) {
-            setBranchFilter((prev) => prev || String(currentUser.assigned_branch_id));
+        if (currentUserData) {
+            setCurrentUser(currentUserData);
         }
-    }, [isCaregiver, currentUser?.assigned_branch_id]);
+    }, [currentUserData]);
 
     const { data, isLoading, error } = useQuery({
-        queryKey: ['residents', search, branchFilter, statusFilter],
+        queryKey: ['residents', search, selectedBranchId, statusFilter],
         queryFn: async () => {
             try {
                 const params = { per_page: 50 };
                 if (search) params.search = search;
-                if (branchFilter) params.branch_id = branchFilter;
+                if (selectedBranchId) params.branch_id = selectedBranchId;
                 if (statusFilter) params.status = statusFilter;
                 if (!isCaregiver) {
                     params.show_all = true;
                 }
                 
                 const response = await api.get('/residents', { params });
-                console.log('Residents API Response:', response.data); // Debug log
                 return response.data;
             } catch (err) {
                 console.error('Error fetching residents:', err);
                 throw err;
             }
         },
+        enabled: !!selectedBranchId, // Only fetch if branch is selected
     });
 
     const { data: branchesData } = useQuery({
@@ -82,14 +93,8 @@ export default function Residents() {
         queryFn: async () => (await api.get('/branches', { params: { per_page: 100 } })).data,
     });
 
-    const branchOptions = React.useMemo(() => {
-        const options = branchesData?.data || [];
-        if (!isCaregiver || !currentUser?.assigned_branch_id) {
-            return options;
-        }
-
-        return options.filter((branch) => branch.id === currentUser.assigned_branch_id);
-    }, [branchesData?.data, isCaregiver, currentUser?.assigned_branch_id]);
+    // Use selected branch from URL, fallback to user's assigned branch
+    const branchId = selectedBranchId ? parseInt(selectedBranchId) : (currentUser?.assigned_branch_id ?? null);
 
     const toggleActiveMutation = useMutation({
         mutationFn: async ({ id, isActive }) => {
@@ -264,6 +269,7 @@ export default function Residents() {
                 <ResidentForm
                     record={editing}
                     branches={branchesData?.data || []}
+                    selectedBranchId={branchId}
                     onClose={() => {
                         setShowForm(false);
                         setEditing(null);
@@ -278,8 +284,23 @@ export default function Residents() {
         );
     }
 
+    // Show branch selector and wait for branch selection
+    if (!selectedBranchId) {
+        return (
+            <div>
+                <BranchSelector currentUser={currentUserData} />
+                <div className="bg-white rounded-xl shadow-sm p-8 text-center">
+                    <Building2 className="mx-auto h-12 w-12 text-gray-400" />
+                    <p className="mt-4 text-sm font-semibold text-gray-700">Please select a branch to continue</p>
+                    <p className="mt-2 text-xs text-gray-500">Select a branch from the dropdown above to view and manage residents.</p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div>
+            <BranchSelector currentUser={currentUserData} />
             <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
                     <div>
@@ -300,7 +321,7 @@ export default function Residents() {
                     )}
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Search Bar */}
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -311,22 +332,6 @@ export default function Residents() {
                             onChange={(e) => setSearch(e.target.value)}
                             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
                         />
-                    </div>
-
-                    {/* Branch Filter */}
-                    <div className="relative">
-                        <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                        <select
-                            value={branchFilter}
-                            onChange={(e) => setBranchFilter(e.target.value)}
-                            disabled={isCaregiver}
-                            className={`w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent appearance-none ${isCaregiver ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`}
-                        >
-                            {!isCaregiver && <option value="">All Branches</option>}
-                            {branchOptions?.map(branch => (
-                                <option key={branch.id} value={branch.id}>{branch.name}</option>
-                            ))}
-                        </select>
                     </div>
 
                     {/* Status Filter */}
@@ -409,7 +414,7 @@ export default function Residents() {
 }
 
 // Resident Form Component
-function ResidentForm({ record, branches, onClose, onSuccess }) {
+function ResidentForm({ record, branches, onClose, onSuccess, selectedBranchId }) {
     const [formData, setFormData] = useState({
         first_name: record?.first_name || '',
         middle_names: record?.middle_names || '',
@@ -419,7 +424,7 @@ function ResidentForm({ record, branches, onClose, onSuccess }) {
         phone: record?.phone ? formatPhoneNumber(record.phone) : '',
         room: record?.room || '',
         room_number: record?.room_number || '',
-        branch_id: record?.branch_id || '',
+        branch_id: selectedBranchId ? String(selectedBranchId) : (record?.branch_id || ''),
         admission_date: record?.admission_date || new Date().toISOString().split('T')[0],
         emergency_contact_name: record?.emergency_contact_name || '',
         emergency_contact_phone: record?.emergency_contact_phone ? formatPhoneNumber(record.emergency_contact_phone) : '',
@@ -480,7 +485,7 @@ function ResidentForm({ record, branches, onClose, onSuccess }) {
                 phone: record.phone ? formatPhoneNumber(record.phone) : '',
                 room: record.room || '',
                 room_number: record.room_number || '',
-                branch_id: record.branch_id || '',
+                branch_id: selectedBranchId ? String(selectedBranchId) : (record.branch_id || ''),
                 admission_date: formatDateForInput(record.admission_date) || new Date().toISOString().split('T')[0],
                 emergency_contact_name: record.emergency_contact_name || '',
                 emergency_contact_phone: record.emergency_contact_phone ? formatPhoneNumber(record.emergency_contact_phone) : '',
@@ -502,7 +507,7 @@ function ResidentForm({ record, branches, onClose, onSuccess }) {
                 phone: '',
                 room: '',
                 room_number: '',
-                branch_id: '',
+                branch_id: selectedBranchId ? String(selectedBranchId) : '',
                 admission_date: new Date().toISOString().split('T')[0],
                 emergency_contact_name: '',
                 emergency_contact_phone: '',
@@ -565,7 +570,8 @@ function ResidentForm({ record, branches, onClose, onSuccess }) {
         if (!formData.date_of_birth) {
             validationErrors.date_of_birth = ['Date of birth is required'];
         }
-        if (!formData.branch_id) {
+        // Validate branch_id unless it's provided via selectedBranchId prop
+        if (!formData.branch_id && !selectedBranchId) {
             validationErrors.branch_id = ['Branch is required'];
         }
         if (!formData.admission_date) {
@@ -945,23 +951,29 @@ function ResidentForm({ record, branches, onClose, onSuccess }) {
                                     />
                                 </div>
 
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-900 mb-2">
-                                        Branch *
-                                    </label>
-                                    <select
-                                        value={formData.branch_id}
-                                        onChange={(e) => setFormData({...formData, branch_id: e.target.value})}
-                                        required
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
-                                    >
-                                        <option value="">Select Branch</option>
-                                        {branches.map(branch => (
-                                            <option key={branch.id} value={branch.id}>{branch.name}</option>
-                                        ))}
-                                    </select>
-                                    {errors.branch_id && <p className="text-xs text-red-600 mt-1">{errors.branch_id[0]}</p>}
-                                </div>
+                                {/* Branch Selection - Only show if branch not already selected from URL */}
+                                {!selectedBranchId ? (
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-900 mb-2">
+                                            Branch *
+                                        </label>
+                                        <select
+                                            value={formData.branch_id}
+                                            onChange={(e) => setFormData({...formData, branch_id: e.target.value})}
+                                            required
+                                            className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
+                                        >
+                                            <option value="">Select Branch</option>
+                                            {branches.map(branch => (
+                                                <option key={branch.id} value={branch.id}>{branch.name}</option>
+                                            ))}
+                                        </select>
+                                        {errors.branch_id && <p className="text-xs text-red-600 mt-1">{errors.branch_id[0]}</p>}
+                                    </div>
+                                ) : (
+                                    // Branch is selected from URL, use it as hidden field
+                                    <input type="hidden" value={selectedBranchId.toString()} onChange={() => {}} />
+                                )}
 
                                 <div>
                                     <label className="block text-sm font-medium text-gray-900 mb-2">

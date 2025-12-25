@@ -4,7 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Sparkles, RefreshCcw, CalendarDays, CheckCircle2, XCircle, Clock3, ShieldCheck, FileText, User, Building2 } from 'lucide-react';
 import api from '../services/api';
 import { getLocalDateString } from '../utils/pacificTime';
-import BranchSelector from '../components/housekeeping/BranchSelector';
+import BranchSelector from '../components/BranchSelector';
 
 const statusOptions = [
     { value: '', label: 'All statuses' },

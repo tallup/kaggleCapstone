@@ -23,7 +23,7 @@ import FormInput from '../components/forms/FormInput';
 import FormTextarea from '../components/forms/FormTextarea';
 import FormCheckbox from '../components/forms/FormCheckbox';
 import FormSelect from '../components/forms/FormSelect';
-import BranchSelector from '../components/housekeeping/BranchSelector';
+import BranchSelector from '../components/BranchSelector';
 
 const frequencyOptions = [
     { value: 'daily', label: 'Daily' },

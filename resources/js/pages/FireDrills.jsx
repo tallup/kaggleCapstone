@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm, FormProvider } from 'react-hook-form';
+import { useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import { toast } from 'sonner';
-import { Flame, Plus, Search, Filter, Edit, Trash2, Calendar, Clock, CheckCircle, XCircle, AlertTriangle, List, Grid, X, ArrowLeft, Loader2 } from 'lucide-react';
+import { Flame, Plus, Search, Filter, Edit, Trash2, Calendar, Clock, CheckCircle, XCircle, AlertTriangle, List, Grid, X, ArrowLeft, Loader2, Building2 } from 'lucide-react';
 import SectionCard from '../components/SectionCard';
 import Card from '../components/Card';
 import CalendarView from '../components/CalendarView';
@@ -11,11 +12,13 @@ import Select from '../components/ui/radix/Select';
 import FormInput from '../components/forms/FormInput';
 import FormTextarea from '../components/forms/FormTextarea';
 import FormSelect from '../components/forms/FormSelect';
+import BranchSelector from '../components/BranchSelector';
 
 export default function FireDrills() {
     const queryClient = useQueryClient();
+    const [searchParams] = useSearchParams();
+    const selectedBranchId = searchParams.get('branch');
     const [search, setSearch] = useState('');
-    const [branchFilter, setBranchFilter] = useState('all');
     const [statusFilter, setStatusFilter] = useState('all');
     const [dateFrom, setDateFrom] = useState('');
     const [dateTo, setDateTo] = useState('');
@@ -25,17 +28,20 @@ export default function FireDrills() {
     const [currentUser, setCurrentUser] = useState(null);
 
     // Fetch current user
+    const { data: currentUserData } = useQuery({
+        queryKey: ['current-user'],
+        queryFn: async () => {
+            const response = await api.get('/user');
+            return response.data;
+        },
+        staleTime: 5 * 60 * 1000,
+    });
+
     React.useEffect(() => {
-        const fetchUser = async () => {
-            try {
-                const response = await api.get('/user');
-                setCurrentUser(response.data);
-            } catch (err) {
-                console.error('Failed to fetch current user:', err);
-            }
-        };
-        fetchUser();
-    }, []);
+        if (currentUserData) {
+            setCurrentUser(currentUserData);
+        }
+    }, [currentUserData]);
 
     // Check if user is a caregiver
     const isCaregiver = React.useMemo(() => {
@@ -45,29 +51,24 @@ export default function FireDrills() {
         return roleNormalized === 'caregiver' || (role.includes('care') && role.includes('giver'));
     }, [currentUser]);
 
-    // Auto-set branch filter for caregivers
-    React.useEffect(() => {
-        if (isCaregiver && currentUser?.assigned_branch_id) {
-            setBranchFilter(String(currentUser.assigned_branch_id));
-        }
-    }, [isCaregiver, currentUser?.assigned_branch_id]);
-
     // Fetch branches
     const { data: branchesData } = useQuery({
         queryKey: ['branches-options'],
         queryFn: async () => (await api.get('/branches', { params: { per_page: 100 } })).data,
     });
 
+    // Use selected branch from URL
+    const branchId = selectedBranchId ? parseInt(selectedBranchId) : (currentUser?.assigned_branch_id ?? null);
 
     // Build query params
     const queryParams = useMemo(() => {
         const params = { per_page: 50 };
-        if (branchFilter && branchFilter !== 'all') params.branch_id = branchFilter;
+        if (selectedBranchId) params.branch_id = selectedBranchId;
         if (statusFilter && statusFilter !== 'all') params.status = statusFilter;
         if (dateFrom) params.date_from = dateFrom;
         if (dateTo) params.date_to = dateTo;
         return params;
-    }, [branchFilter, statusFilter, dateFrom, dateTo]);
+    }, [selectedBranchId, statusFilter, dateFrom, dateTo]);
 
     // Fetch fire drills
     const { data, isLoading, refetch } = useQuery({
@@ -206,7 +207,8 @@ export default function FireDrills() {
                     record={editing}
                     branches={branches}
                     isCaregiver={isCaregiver}
-                    caregiverBranchId={currentUser?.assigned_branch_id}
+                    caregiverBranchId={branchId}
+                    selectedBranchId={branchId}
                     onClose={handleCloseForm}
                     onSuccess={() => {
                         handleCloseForm();
@@ -218,9 +220,23 @@ export default function FireDrills() {
         );
     }
 
+    // Show branch selector and wait for branch selection
+    if (!selectedBranchId) {
+        return (
+            <div>
+                <BranchSelector currentUser={currentUserData} />
+                <div className="bg-white rounded-xl shadow-sm p-8 text-center">
+                    <Building2 className="mx-auto h-12 w-12 text-gray-400" />
+                    <p className="mt-4 text-sm font-semibold text-gray-700">Please select a branch to continue</p>
+                    <p className="mt-2 text-xs text-gray-500">Select a branch from the dropdown above to view and manage fire drills.</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div>
+            <BranchSelector currentUser={currentUserData} />
             <SectionCard>
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
                     <div>
@@ -272,21 +288,6 @@ export default function FireDrills() {
                         />
                     </div>
 
-                    {!isCaregiver && (
-                        <Select
-                            value={branchFilter || 'all'}
-                            onValueChange={setBranchFilter}
-                            placeholder="All Branches"
-                            options={[
-                                { value: 'all', label: 'All Branches' },
-                                ...branches.map(branch => ({
-                                    value: branch.id.toString(),
-                                    label: branch.name,
-                                }))
-                            ]}
-                            className="w-48"
-                        />
-                    )}
 
                     <Select
                         value={statusFilter || 'all'}
@@ -516,12 +517,12 @@ export default function FireDrills() {
     );
 }
 
-function FireDrillForm({ record, branches, isCaregiver, caregiverBranchId, onClose, onSuccess }) {
+function FireDrillForm({ record, branches, isCaregiver, caregiverBranchId, selectedBranchId, onClose, onSuccess }) {
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const methods = useForm({
         defaultValues: {
-            branch_id: record?.branch_id || caregiverBranchId || null,
+            branch_id: selectedBranchId ? String(selectedBranchId) : (record?.branch_id || (caregiverBranchId ? String(caregiverBranchId) : null)),
             scheduled_date: record?.scheduled_date || new Date().toISOString().split('T')[0],
             scheduled_time: record?.scheduled_time || new Date().toTimeString().slice(0, 5),
             status: record?.status || 'scheduled',
@@ -589,17 +590,23 @@ function FireDrillForm({ record, branches, isCaregiver, caregiverBranchId, onClo
                     <FormProvider {...methods}>
                         <form onSubmit={methods.handleSubmit(onSubmit)} className="space-y-6">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <FormSelect
-                                    name="branch_id"
-                                    label="Branch"
-                                    placeholder="Select Branch"
-                                    required
-                                    disabled={isCaregiver}
-                                    options={branches.map(branch => ({
-                                        value: branch.id.toString(),
-                                        label: branch.name,
-                                    }))}
-                                />
+                                {/* Branch Selection - Only show if branch not already selected from URL */}
+                                {!selectedBranchId ? (
+                                    <FormSelect
+                                        name="branch_id"
+                                        label="Branch"
+                                        placeholder="Select Branch"
+                                        required
+                                        disabled={isCaregiver}
+                                        options={branches.map(branch => ({
+                                            value: branch.id.toString(),
+                                            label: branch.name,
+                                        }))}
+                                    />
+                                ) : (
+                                    // Branch is selected from URL, use it as hidden field
+                                    <input type="hidden" name="branch_id" value={selectedBranchId.toString()} />
+                                )}
 
                                 <FormSelect
                                     name="status"

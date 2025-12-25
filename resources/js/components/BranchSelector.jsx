@@ -2,7 +2,7 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { Building2, ChevronDown } from 'lucide-react';
-import api from '../../services/api';
+import api from '../services/api';
 
 export default function BranchSelector({ currentUser }) {
     const [searchParams, setSearchParams] = useSearchParams();
