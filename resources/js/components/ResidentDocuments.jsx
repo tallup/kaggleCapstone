@@ -392,6 +392,28 @@ function DocumentFormInline({ residentId, appointments, record, onClose, onSucce
     const [errors, setErrors] = useState({});
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // Update form data when record changes (for editing)
+    useEffect(() => {
+        if (record) {
+            setFormData({
+                document_name: record.document_name || '',
+                document_type: record.document_type || '',
+                appointment_id: record.appointment_id || null,
+                notes: record.notes || '',
+            });
+            setFile(null); // Reset file when editing
+        } else {
+            // Reset form for new document
+            setFormData({
+                document_name: '',
+                document_type: '',
+                appointment_id: null,
+                notes: '',
+            });
+            setFile(null);
+        }
+    }, [record]);
+
     const handleFileChange = (e) => {
         if (e.target.files && e.target.files[0]) {
             setFile(e.target.files[0]);

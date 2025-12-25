@@ -193,7 +193,7 @@ class ResidentDocumentController extends BaseApiController
         return response()->json(['message' => 'Resident document deleted successfully']);
     }
 
-    public function download($id): JsonResponse
+    public function download($id)
     {
         $document = ResidentDocument::findOrFail($id);
 
