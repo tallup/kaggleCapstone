@@ -1,12 +1,14 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import { User, MapPin, Clock, AlertTriangle, CheckCircle } from 'lucide-react';
+import { User, MapPin, Clock, AlertTriangle, CheckCircle, History } from 'lucide-react';
 import SectionCard from '../components/SectionCard';
 import EmptyState from '../components/ui/EmptyState';
 
 export default function ResidentSignOut() {
     const queryClient = useQueryClient();
+    const navigate = useNavigate();
     const [showForm, setShowForm] = useState(false);
     const [selectedResident, setSelectedResident] = useState(null);
 
@@ -130,13 +132,22 @@ export default function ResidentSignOut() {
                         <h1 className="text-2xl font-bold text-gray-900">Resident Sign-Outs</h1>
                         <p className="text-gray-600 mt-1">Track when residents leave and return</p>
                     </div>
-                    <button
-                        onClick={() => setShowForm(true)}
-                        className="px-4 py-2 bg-[var(--theme-primary)] text-white rounded-lg hover:bg-[var(--theme-primary-hover)] transition-colors flex items-center gap-2"
-                    >
-                        <User className="w-5 h-5" />
-                        Sign Out Resident
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => navigate('/residents/sign-outs/view-all')}
+                            className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2"
+                        >
+                            <History className="w-5 h-5" />
+                            View History
+                        </button>
+                        <button
+                            onClick={() => setShowForm(true)}
+                            className="px-4 py-2 bg-[var(--theme-primary)] text-white rounded-lg hover:bg-[var(--theme-primary-hover)] transition-colors flex items-center gap-2"
+                        >
+                            <User className="w-5 h-5" />
+                            Sign Out Resident
+                        </button>
+                    </div>
                 </div>
             </SectionCard>
 

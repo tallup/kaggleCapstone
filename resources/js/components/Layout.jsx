@@ -112,6 +112,7 @@ const navigation = [
             { name: 'Staff Clock-In/Out', path: '/staff/clock' },
             { name: 'View All Clock-Ins', path: '/staff/clock-ins' },
             { name: 'Resident Sign-Outs', path: '/residents/sign-out' },
+            { name: 'Sign-Out History', path: '/residents/sign-outs/view-all' },
             { name: 'Visitors', path: '/visitors' },
         ]
     },
