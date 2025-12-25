@@ -161,9 +161,12 @@ export default function AppointmentsDashboard() {
             // Apply status filter based on active tab
             if (activeTab === 'completed') {
                 params.status = 'completed';
+            } else if (activeTab === 'upcoming') {
+                // Set date_filter to upcoming - backend will exclude completed/cancelled
+                params.date_filter = 'upcoming';
             }
             
-            if (dateFilter === 'upcoming') {
+            if (dateFilter === 'upcoming' && activeTab !== 'upcoming') {
                 params.date_filter = 'upcoming';
             } else if (dateFilter === 'past') {
                 params.date_filter = 'past';

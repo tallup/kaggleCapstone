@@ -57,6 +57,8 @@ class AppointmentController extends BaseApiController
             if ($filter === 'upcoming') {
                 // Include today's appointments in upcoming
                 $query->whereDate('appointment_date', '>=', today());
+                // Exclude completed and cancelled appointments from upcoming
+                $query->whereNotIn('status', ['completed', 'cancelled']);
             } elseif ($filter === 'past') {
                 $query->whereDate('appointment_date', '<', today());
             } elseif ($filter === 'today') {
@@ -75,6 +77,13 @@ class AppointmentController extends BaseApiController
         // Filter by status
         if ($request->has('status') && $request->get('status') !== 'all') {
             $query->where('status', $request->get('status'));
+        }
+
+        // Exclude statuses (for upcoming tab to exclude completed/cancelled)
+        if ($request->has('exclude_status')) {
+            $excludeStatuses = explode(',', $request->get('exclude_status'));
+            $excludeStatuses = array_map('trim', $excludeStatuses);
+            $query->whereNotIn('status', $excludeStatuses);
         }
 
         // Filter by resident
