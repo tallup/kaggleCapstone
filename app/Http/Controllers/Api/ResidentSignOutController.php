@@ -273,6 +273,11 @@ class ResidentSignOutController extends Controller
         $query = ResidentSignOut::with(['resident', 'branch', 'createdBy'])
             ->where('is_active', true);
 
+        // Apply facility filtering for non-super admins
+        if ($user->role !== 'super_admin' && $user->facility_id) {
+            $query->where('facility_id', $user->facility_id);
+        }
+
         // Apply branch filter for caregivers
         if ($user->isCaregiver() && $user->assigned_branch_id) {
             $query->where('branch_id', $user->assigned_branch_id);
@@ -299,6 +304,11 @@ class ResidentSignOutController extends Controller
 
         $query = ResidentSignOut::overdue()
             ->with(['resident', 'branch', 'createdBy']);
+
+        // Apply facility filtering for non-super admins
+        if ($user->role !== 'super_admin' && $user->facility_id) {
+            $query->where('facility_id', $user->facility_id);
+        }
 
         // Apply branch filter for caregivers
         if ($user->isCaregiver() && $user->assigned_branch_id) {

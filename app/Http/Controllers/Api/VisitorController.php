@@ -225,8 +225,6 @@ class VisitorController extends Controller
 
         $query = Visitor::with(['branch', 'visitingResident', 'visitingStaff', 'checkedInBy', 'checkedOutBy']);
 
-        $isAdmin = $user->role === 'super_admin' || $user->isAnyAdmin();
-
         // Apply facility filtering for non-super admins
         if ($user->role !== 'super_admin' && $user->facility_id) {
             $query->where('facility_id', $user->facility_id);
@@ -288,6 +286,11 @@ class VisitorController extends Controller
 
         $query = Visitor::with(['branch', 'visitingResident', 'visitingStaff', 'checkedInBy'])
             ->where('is_active', true);
+
+        // Apply facility filtering for non-super admins
+        if ($user->role !== 'super_admin' && $user->facility_id) {
+            $query->where('facility_id', $user->facility_id);
+        }
 
         // Apply branch filter for caregivers
         if ($user->isCaregiver() && $user->assigned_branch_id) {

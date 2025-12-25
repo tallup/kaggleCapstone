@@ -132,9 +132,13 @@ function ErrorFallback({ error, errorInfo, onReset, onReload, onGoToDashboard })
                         <p className="text-sm font-medium text-red-800 mb-1">
                             Error: {error.toString()}
                         </p>
-                        {error.message && error.message.includes('Failed to fetch dynamically imported module') && (
+                        {(error.message?.includes('Failed to fetch dynamically imported module') ||
+                          error.message?.includes('error loading dynamically imported module') ||
+                          error.message?.includes('Loading chunk') ||
+                          error.name === 'ChunkLoadError') && (
                             <p className="text-xs text-red-700 mt-2">
-                                This error usually occurs when a module fails to load. The page will automatically reload to retry loading the module.
+                                This error usually occurs when a module fails to load. The page will automatically reload to retry loading the module. 
+                                If this persists, try clearing your browser cache or contact support.
                             </p>
                         )}
                     </div>
