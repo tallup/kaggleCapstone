@@ -706,7 +706,7 @@ function FacilityCreateContent({ navigate, showToast, queryClient, isSubmitting,
                     'success'
                 );
             } else {
-                showToast('Facility created successfully!', 'success');
+                showToast('Facility created successfully!', 'success', { isFormSubmission: true });
             }
 
             navigate('/super-admin/facilities');

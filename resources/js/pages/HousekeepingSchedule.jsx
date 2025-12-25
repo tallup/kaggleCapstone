@@ -641,7 +641,7 @@ function TaskForm({ onClose, onSubmit, initialValues, isSaving, currentUser, bra
         },
     });
 
-    const { setValue } = methods;
+    const { watch, setValue } = methods;
 
     // Fetch all areas to find branch_id when editing (if area doesn't have branch_id in relationship)
     const { data: allAreasData } = useQuery({
@@ -670,8 +670,6 @@ function TaskForm({ onClose, onSubmit, initialValues, isSaving, currentUser, bra
             }
         }
     }, [initialValues, selectedBranchId, allAreasData, setValue]);
-
-    const { watch, setValue } = methods;
     const daysOfWeek = watch('days_of_week') || [];
     const isRequired = watch('is_required');
     const formBranchId = watch('branch_id');

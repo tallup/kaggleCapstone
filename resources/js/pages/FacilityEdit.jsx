@@ -186,7 +186,7 @@ function OverviewTab({ facility }) {
     onSuccess: () => {
       queryClient.invalidateQueries(['facility', facility.id]);
       queryClient.invalidateQueries(['facilities']);
-      showToast('Facility updated successfully', 'success');
+      showToast('Facility updated successfully', 'success', { isFormSubmission: true });
     },
     onError: (error) => {
       const errorData = error.response?.data;
@@ -1165,7 +1165,7 @@ function UserFormModal({ record, facilityId, branches, roles, onClose, onSuccess
       if (facilityId) {
         queryClient.invalidateQueries(['facility-users', facilityId]);
       }
-      showToast('User created successfully', 'success');
+      showToast('User created successfully', 'success', { isFormSubmission: true });
       onSuccess();
     },
     onError: (error) => {
@@ -1190,7 +1190,7 @@ function UserFormModal({ record, facilityId, branches, roles, onClose, onSuccess
       if (facilityId) {
         queryClient.invalidateQueries(['facility-users', facilityId]);
       }
-      showToast('User updated successfully', 'success');
+      showToast('User updated successfully', 'success', { isFormSubmission: true });
       onSuccess();
     },
     onError: (error) => {

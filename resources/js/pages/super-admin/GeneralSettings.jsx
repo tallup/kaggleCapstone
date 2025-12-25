@@ -60,7 +60,7 @@ export default function GeneralSettings() {
       return response.data;
     },
     onSuccess: () => {
-      toast.showToast('General settings updated successfully.', 'success');
+      toast.showToast('General settings updated successfully.', 'success', { isFormSubmission: true });
       queryClient.invalidateQueries(['facility-settings', facilityId, 'general']);
     },
     onError: (error) => {

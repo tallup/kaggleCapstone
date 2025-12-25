@@ -66,7 +66,7 @@ export default function BrandingSettings() {
       return response.data?.data || response.data;
     },
     onSuccess: (brandingData) => {
-      toast.showToast('Branding settings updated successfully.', 'success');
+      toast.showToast('Branding settings updated successfully.', 'success', { isFormSubmission: true });
       
       // Prevent useEffect from overwriting our form values for a while
       justSavedRef.current = true;
