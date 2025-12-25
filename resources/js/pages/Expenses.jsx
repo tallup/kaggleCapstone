@@ -432,10 +432,10 @@ function ExpenseForm({ record, onClose, onSuccess }) {
 
       if (record) {
         await api.put(`/billing/expenses/${record.id}`, payload);
-        toast.success('Expense updated successfully');
+        toast.success('Expense updated successfully', '', { isFormSubmission: true });
       } else {
         await api.post('/billing/expenses', payload);
-        toast.success('Expense created successfully');
+        toast.success('Expense created successfully', '', { isFormSubmission: true });
       }
       onSuccess();
     } catch (error) {

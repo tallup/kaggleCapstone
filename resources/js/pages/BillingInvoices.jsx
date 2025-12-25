@@ -356,10 +356,10 @@ function InvoiceForm({ record, onClose, onSuccess }) {
 
       if (record) {
         await api.put(`/billing/invoices/${record.id}`, payload);
-        toast.success('Invoice updated successfully');
+        toast.success('Invoice updated successfully', '', { isFormSubmission: true });
       } else {
         await api.post('/billing/invoices', payload);
-        toast.success('Invoice created successfully');
+        toast.success('Invoice created successfully', '', { isFormSubmission: true });
       }
       onSuccess();
     } catch (error) {

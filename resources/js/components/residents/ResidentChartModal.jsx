@@ -129,7 +129,7 @@ export default function ResidentChartModal({ isOpen, onClose, resident }) {
                 logs: chartData.logs
             });
 
-            toast.success(`Chart ${status === 'submitted' ? 'submitted' : 'saved as draft'} successfully!`);
+            toast.success(`Chart ${status === 'submitted' ? 'submitted' : 'saved as draft'} successfully!`, '', { isFormSubmission: true });
             queryClient.invalidateQueries(['resident-chart-init', resident.id]);
             if (status === 'submitted') onClose();
         } catch (error) {

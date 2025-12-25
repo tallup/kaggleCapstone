@@ -855,7 +855,7 @@ function UserEditContent({
                 queryClient.invalidateQueries(['facility-users', formData.facility_id]);
             }
 
-            showToast('User updated successfully!', 'success');
+            showToast('User updated successfully!', 'success', { isFormSubmission: true });
             navigate(-1); // Go back
         } catch (error) {
             console.error('Error updating user:', error);

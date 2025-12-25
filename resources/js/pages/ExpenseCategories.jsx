@@ -206,10 +206,10 @@ function ExpenseCategoryForm({ record, onClose, onSuccess }) {
     try {
       if (record) {
         await api.put(`/billing/expense-categories/${record.id}`, data);
-        toast.success('Category updated successfully');
+        toast.success('Category updated successfully', '', { isFormSubmission: true });
       } else {
         await api.post('/billing/expense-categories', data);
-        toast.success('Category created successfully');
+        toast.success('Category created successfully', '', { isFormSubmission: true });
       }
       onSuccess();
     } catch (error) {

@@ -101,7 +101,7 @@ export default function ChartData() {
         try {
             setSaving(true);
             await api.post('/chart-data-definitions/bulk', { data: stagedChanges });
-            toast.success('Chart data updated successfully');
+            toast.success('Chart data updated successfully', '', { isFormSubmission: true });
             setStagedChanges([]);
             await fetchData();
         } catch (error) {

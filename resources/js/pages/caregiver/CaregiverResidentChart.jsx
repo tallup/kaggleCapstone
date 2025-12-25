@@ -144,7 +144,7 @@ export default function CaregiverResidentChart() {
                 logs: chartData.logs
             });
 
-            toast.success(`Chart ${status === 'submitted' ? 'submitted' : 'saved as draft'} successfully!`);
+            toast.success(`Chart ${status === 'submitted' ? 'submitted' : 'saved as draft'} successfully!`, '', { isFormSubmission: true });
             queryClient.invalidateQueries(['resident-chart-init', residentId]);
             if (status === 'submitted') navigate('/charts');
         } catch (error) {

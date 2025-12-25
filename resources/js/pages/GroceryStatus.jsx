@@ -107,7 +107,7 @@ export default function GroceryStatus() {
     const createTemplateMutation = useMutation({
         mutationFn: async (payload) => (await api.post('/grocery-item-templates', payload)).data,
         onSuccess: () => {
-            toast.success('Template saved');
+            toast.success('Template saved', '', { isFormSubmission: true });
             queryClient.invalidateQueries(['grocery-item-templates']);
         },
         onError: (error) => {
@@ -148,7 +148,7 @@ export default function GroceryStatus() {
             await api.patch(`/grocery-status-updates/{id}/status`.replace('{id}', id), { status });
         },
         onSuccess: () => {
-            toast.success('Status updated');
+            toast.success('Status updated', '', { isFormSubmission: true });
             queryClient.invalidateQueries(['grocery-status-updates']);
         },
         onError: (error) => {

@@ -548,7 +548,7 @@ function FireDrillForm({ record, branches, isCaregiver, caregiverBranchId, onClo
                 await api.post('/fire-drills', payload);
             }
 
-            toast.success(record ? 'Fire drill updated successfully' : 'Fire drill created successfully');
+            toast.success(record ? 'Fire drill updated successfully' : 'Fire drill created successfully', '', { isFormSubmission: true });
             onSuccess();
         } catch (error) {
             console.error('Error saving fire drill:', error);

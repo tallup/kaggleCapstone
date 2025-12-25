@@ -148,13 +148,28 @@ class ResidentDocumentController extends BaseApiController
     {
         $document = ResidentDocument::findOrFail($id);
 
+        // Log incoming request data
+        \Log::info('ResidentDocument update request', [
+            'id' => $id,
+            'all_data' => $request->all(),
+            'document_name' => $request->get('document_name'),
+            'document_type' => $request->get('document_type'),
+            'notes' => $request->get('notes'),
+            'appointment_id' => $request->get('appointment_id'),
+            'has_file' => $request->hasFile('file_path'),
+        ]);
+
         $validated = $request->validate([
             'resident_id' => 'sometimes|exists:residents,id',
             'appointment_id' => 'nullable|exists:appointments,id',
-            'document_name' => 'sometimes|required|string|max:255',
-            'document_type' => 'sometimes|required|string|in:insurance,medical,legal,admission,appointment,other',
+            'document_name' => 'required|string|max:255',
+            'document_type' => 'required|string|in:insurance,medical,legal,admission,appointment,other',
             'file_path' => 'sometimes|file|max:10240|mimes:pdf,jpeg,jpg,png,gif,doc,docx',
             'notes' => 'nullable|string',
+        ]);
+
+        \Log::info('ResidentDocument validated data', [
+            'validated' => $validated,
         ]);
 
         // Handle file upload if new file is provided
@@ -175,6 +190,12 @@ class ResidentDocumentController extends BaseApiController
         }
 
         $document->update($validated);
+
+        \Log::info('ResidentDocument after update', [
+            'document_name' => $document->document_name,
+            'document_type' => $document->document_type,
+            'notes' => $document->notes,
+        ]);
 
         return response()->json($document->load(['resident', 'appointment', 'uploadedBy']));
     }

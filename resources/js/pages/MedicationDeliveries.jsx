@@ -136,7 +136,7 @@ export default function MedicationDeliveries() {
     const createPharmacyTemplateMutation = useMutation({
         mutationFn: async (payload) => (await api.post('/pharmacy-templates', payload)).data,
         onSuccess: () => {
-            toast.success('Pharmacy template saved');
+            toast.success('Pharmacy template saved', '', { isFormSubmission: true });
             queryClient.invalidateQueries(['pharmacy-templates']);
         },
         onError: (error) => {

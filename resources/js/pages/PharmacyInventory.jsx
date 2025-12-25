@@ -25,6 +25,7 @@ export default function PharmacyInventory() {
         storage_notes: '',
     });
     const [errors, setErrors] = useState({});
+    const [errorMessage, setErrorMessage] = useState('');
 
     // Fetch branches
     const { data: branchesData } = useQuery({
@@ -63,6 +64,11 @@ export default function PharmacyInventory() {
             if (error.response?.data?.errors) {
                 setErrors(error.response.data.errors);
             }
+            if (error.response?.data?.message) {
+                setErrorMessage(error.response.data.message);
+            } else {
+                setErrorMessage('Failed to create inventory item. Please check the form for errors.');
+            }
         },
     });
 
@@ -77,6 +83,11 @@ export default function PharmacyInventory() {
         onError: (error) => {
             if (error.response?.data?.errors) {
                 setErrors(error.response.data.errors);
+            }
+            if (error.response?.data?.message) {
+                setErrorMessage(error.response.data.message);
+            } else {
+                setErrorMessage('Failed to create inventory item. Please check the form for errors.');
             }
         },
     });
@@ -110,6 +121,7 @@ export default function PharmacyInventory() {
             storage_notes: '',
         });
         setErrors({});
+        setErrorMessage('');
     };
 
     const handleEdit = (item) => {
@@ -132,18 +144,35 @@ export default function PharmacyInventory() {
     const handleSubmit = (e) => {
         e.preventDefault();
         setErrors({});
+        setErrorMessage('');
         
-        const submitData = {
-            ...formData,
-            quantity: parseInt(formData.quantity) || 0,
-            minimum_stock_level: parseInt(formData.minimum_stock_level) || 0,
-            maximum_stock_level: formData.maximum_stock_level ? parseInt(formData.maximum_stock_level) : null,
-            unit_cost: formData.unit_cost ? parseFloat(formData.unit_cost) : null,
-        };
-
         if (editing) {
+            // For updates, exclude branch_id and drug_id (they can't be changed)
+            const submitData = {
+                quantity: parseInt(formData.quantity) || 0,
+                minimum_stock_level: parseInt(formData.minimum_stock_level) || 0,
+                maximum_stock_level: formData.maximum_stock_level ? parseInt(formData.maximum_stock_level) : null,
+                unit_cost: formData.unit_cost ? parseFloat(formData.unit_cost) : null,
+                location: formData.location && formData.location.trim() ? formData.location.trim() : null,
+                requires_refrigeration: Boolean(formData.requires_refrigeration),
+                is_controlled_substance: Boolean(formData.is_controlled_substance),
+                storage_notes: formData.storage_notes && formData.storage_notes.trim() ? formData.storage_notes.trim() : null,
+            };
             updateMutation.mutate({ id: editing.id, data: submitData });
         } else {
+            // For creates, include all required fields
+            const submitData = {
+                branch_id: formData.branch_id || '',
+                drug_id: formData.drug_id || '',
+                quantity: parseInt(formData.quantity) || 0,
+                minimum_stock_level: parseInt(formData.minimum_stock_level) || 0,
+                maximum_stock_level: formData.maximum_stock_level ? parseInt(formData.maximum_stock_level) : null,
+                unit_cost: formData.unit_cost ? parseFloat(formData.unit_cost) : null,
+                location: formData.location && formData.location.trim() ? formData.location.trim() : null,
+                requires_refrigeration: Boolean(formData.requires_refrigeration),
+                is_controlled_substance: Boolean(formData.is_controlled_substance),
+                storage_notes: formData.storage_notes && formData.storage_notes.trim() ? formData.storage_notes.trim() : null,
+            };
             createMutation.mutate(submitData);
         }
     };
@@ -185,6 +214,12 @@ export default function PharmacyInventory() {
                             ✕
                         </button>
                     </div>
+
+                    {errorMessage && (
+                        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                            <p className="text-sm text-red-800">{errorMessage}</p>
+                        </div>
+                    )}
 
                     <form onSubmit={handleSubmit} className="space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

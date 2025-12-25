@@ -679,7 +679,7 @@ function UserCreateContent({
                 queryClient.invalidateQueries(['facility-users', facilityId]);
             }
 
-            showToast('User created successfully!', 'success');
+            showToast('User created successfully!', 'success', { isFormSubmission: true });
             navigate(-1); // Go back
         } catch (error) {
             console.error('Error creating user:', error);
