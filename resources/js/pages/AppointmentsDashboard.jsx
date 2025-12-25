@@ -312,6 +312,20 @@ export default function AppointmentsDashboard() {
         onSuccess: () => {
             queryClient.invalidateQueries(['appointments-dashboard']);
             queryClient.invalidateQueries(['appointments-statistics']);
+            if (toast) {
+                toast.success('Appointment cancelled successfully!', '', { isFormSubmission: true });
+            } else {
+                alert('Appointment cancelled successfully!');
+            }
+        },
+        onError: (error) => {
+            console.error('Cancel error:', error);
+            const errorMessage = error.response?.data?.message || 'Failed to cancel appointment. Please try again.';
+            if (toast) {
+                toast.error('Error', errorMessage);
+            } else {
+                alert(errorMessage);
+            }
         },
     });
 
@@ -331,10 +345,20 @@ export default function AppointmentsDashboard() {
             queryClient.invalidateQueries(['appointments-statistics']);
             setReschedulingAppointment(null);
             setRescheduleFormData({ appointment_date: '', appointment_time: '' });
+            if (toast) {
+                toast.success('Appointment rescheduled successfully!', '', { isFormSubmission: true });
+            } else {
+                alert('Appointment rescheduled successfully!');
+            }
         },
         onError: (error) => {
             console.error('Reschedule error:', error);
-            alert(error.response?.data?.message || 'Failed to reschedule appointment. Please try again.');
+            const errorMessage = error.response?.data?.message || 'Failed to reschedule appointment. Please try again.';
+            if (toast) {
+                toast.error('Error', errorMessage);
+            } else {
+                alert(errorMessage);
+            }
         },
     });
 
