@@ -652,7 +652,7 @@ export default function AppointmentsDashboard() {
                                                     </button>
                                                 </div>
                                                 
-                                                {appointmentDocuments[appointment.id]?.length > 0 && (
+                                                {appointmentDocuments[appointment.id]?.length > 0 ? (
                                                     <div className="space-y-3">
                                                         {appointmentDocuments[appointment.id].map((doc, index) => (
                                                             <div key={index} className="border border-gray-200 rounded-lg p-3 space-y-3 bg-gray-50">
@@ -762,6 +762,8 @@ export default function AppointmentsDashboard() {
                                                             </div>
                                                         ))}
                                                     </div>
+                                                ) : (
+                                                    <p className="text-sm text-gray-500 italic py-2">No documents added yet. Click "Add Document" to upload files.</p>
                                                 )}
                                             </div>
 
