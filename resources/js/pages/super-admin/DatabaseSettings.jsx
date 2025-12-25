@@ -56,7 +56,7 @@ export default function DatabaseSettings() {
       return response.data;
     },
     onSuccess: () => {
-      toast.showToast('Database settings updated successfully.', 'success');
+      toast.showToast('Database settings updated successfully.', 'success', { isFormSubmission: true });
       queryClient.invalidateQueries(['facility-settings', facilityId, 'database']);
     },
     onError: (error) => {

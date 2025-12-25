@@ -71,7 +71,7 @@ export default function NotificationSettings() {
       return response.data;
     },
     onSuccess: () => {
-      toast.showToast('Notification settings updated successfully.', 'success');
+      toast.showToast('Notification settings updated successfully.', 'success', { isFormSubmission: true });
       queryClient.invalidateQueries(['facility-settings', facilityId, 'notification']);
     },
     onError: (error) => {

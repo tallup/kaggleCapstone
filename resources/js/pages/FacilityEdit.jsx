@@ -574,7 +574,7 @@ function BrandingTab({ facility }) {
       queryClient.invalidateQueries(['current-user']);
       queryClient.invalidateQueries(['me']);
       queryClient.invalidateQueries(['user']);
-      showToast('Branding updated successfully. Refreshing to apply changes...', 'success');
+      showToast('Branding updated successfully. Refreshing to apply changes...', 'success', { isFormSubmission: true });
       setForm({ ...form, logo: null }); // Reset logo file
       
       // Reload page after a short delay to apply new branding immediately
@@ -814,7 +814,7 @@ function ModulesTab({ facilityId }) {
     onSuccess: () => {
       queryClient.invalidateQueries(['facility-permissions', facilityId]);
       queryClient.invalidateQueries(['facilities']);
-      showToast('Modules updated successfully', 'success');
+      showToast('Modules updated successfully', 'success', { isFormSubmission: true });
     },
     onError: (error) => {
       showToast(error.response?.data?.message || 'Failed to update modules', 'error');

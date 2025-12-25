@@ -64,7 +64,7 @@ export default function SecuritySettings() {
       return response.data;
     },
     onSuccess: () => {
-      toast.showToast('Security settings updated successfully.', 'success');
+      toast.showToast('Security settings updated successfully.', 'success', { isFormSubmission: true });
       queryClient.invalidateQueries(['facility-settings', facilityId, 'security']);
     },
     onError: (error) => {

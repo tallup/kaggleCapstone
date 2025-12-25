@@ -67,7 +67,7 @@ export default function FacilityPermissions({ facilityId, facilityName, onBack }
       const { data: freshData } = await refetch();
       console.log('Refetched data:', freshData);
       
-      showToast('Modules updated successfully', 'success');
+      showToast('Modules updated successfully', 'success', { isFormSubmission: true });
     },
     onError: (error) => {
       console.error('Error updating modules:', error);
@@ -85,7 +85,7 @@ export default function FacilityPermissions({ facilityId, facilityName, onBack }
       queryClient.invalidateQueries(['facility-permissions', facilityId]);
       // Invalidate user data so it refreshes with new permissions
       queryClient.invalidateQueries(['current-user']);
-      showToast('Role permissions updated successfully', 'success');
+      showToast('Role permissions updated successfully', 'success', { isFormSubmission: true });
     },
     onError: (error) => {
       showToast(error.response?.data?.message || 'Failed to update role permissions', 'error');
@@ -101,7 +101,7 @@ export default function FacilityPermissions({ facilityId, facilityName, onBack }
       queryClient.invalidateQueries(['facility-permissions', facilityId]);
       // Invalidate user data so it refreshes with new roles/permissions
       queryClient.invalidateQueries(['current-user']);
-      showToast('Roles created successfully. Refreshing...', 'success');
+      showToast('Roles created successfully. Refreshing...', 'success', { isFormSubmission: true });
       // Refetch after a short delay to show updated data
       setTimeout(() => {
         refetch();

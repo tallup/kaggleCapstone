@@ -64,7 +64,7 @@ export default function EmailSettings() {
       return response.data;
     },
     onSuccess: () => {
-      toast.showToast('Email settings updated successfully.', 'success');
+      toast.showToast('Email settings updated successfully.', 'success', { isFormSubmission: true });
       queryClient.invalidateQueries(['facility-settings', facilityId, 'email']);
     },
     onError: (error) => {
@@ -184,7 +184,7 @@ export default function EmailSettings() {
       return response.data;
     },
     onSuccess: () => {
-      toast.showToast('Recipient configuration saved successfully', 'success');
+      toast.showToast('Recipient configuration saved successfully', 'success', { isFormSubmission: true });
       queryClient.invalidateQueries(['email-notification-configs', facilityId]);
       queryClient.invalidateQueries(['email-notification-config', facilityId, selectedNotificationType]);
     },
@@ -206,7 +206,7 @@ export default function EmailSettings() {
       return response.data;
     },
     onSuccess: () => {
-      toast.showToast('Email template saved successfully', 'success');
+      toast.showToast('Email template saved successfully', 'success', { isFormSubmission: true });
       queryClient.invalidateQueries(['email-templates', facilityId]);
       queryClient.invalidateQueries(['email-template', facilityId, selectedNotificationType]);
     },

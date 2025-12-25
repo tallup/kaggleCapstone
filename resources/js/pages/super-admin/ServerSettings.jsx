@@ -56,7 +56,7 @@ export default function ServerSettings() {
       return response.data;
     },
     onSuccess: () => {
-      toast.showToast('Server settings updated successfully.', 'success');
+      toast.showToast('Server settings updated successfully.', 'success', { isFormSubmission: true });
       queryClient.invalidateQueries(['facility-settings', facilityId, 'server']);
     },
     onError: (error) => {
