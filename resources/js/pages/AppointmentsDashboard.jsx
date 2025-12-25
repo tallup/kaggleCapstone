@@ -15,7 +15,8 @@ import {
     ChevronRight,
     FileText,
     List,
-    Search
+    Search,
+    Upload
 } from 'lucide-react';
 import Card from '../components/Card';
 import SectionCard from '../components/SectionCard';
@@ -626,7 +627,7 @@ export default function AppointmentsDashboard() {
 
                                             {/* Documents Section */}
                                             <div>
-                                                <div className="flex items-center justify-between mb-2">
+                                                <div className="flex items-center justify-between mb-3">
                                                     <div className="block text-sm font-medium text-gray-900">
                                                         Upload Documents (Optional)
                                                     </div>
@@ -644,9 +645,10 @@ export default function AppointmentsDashboard() {
                                                                 }]
                                                             }));
                                                         }}
-                                                        className="text-sm text-[var(--theme-primary)] hover:text-[var(--theme-primary-hover)] font-medium"
+                                                        className="px-3 py-1.5 bg-[var(--theme-primary)] text-white rounded-lg hover:bg-[var(--theme-primary-hover)] transition-colors text-sm font-medium flex items-center gap-2"
                                                     >
-                                                        + Add Document
+                                                        <Upload className="w-4 h-4" />
+                                                        Add Document
                                                     </button>
                                                 </div>
                                                 
