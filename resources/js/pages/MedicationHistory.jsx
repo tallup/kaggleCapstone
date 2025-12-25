@@ -328,7 +328,7 @@ export default function MedicationHistory() {
                                                                     href={`/storage/${administration.document_path}`}
                                                                     target="_blank"
                                                                     rel="noopener noreferrer"
-                                                                    className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold shadow-md hover:shadow-lg"
+                                                                    className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] rounded-lg hover:bg-[var(--theme-primary-hover)] transition-colors text-sm font-semibold shadow-md hover:shadow-lg"
                                                                 >
                                                                     <FileText className="w-4 h-4" />
                                                                     View Document

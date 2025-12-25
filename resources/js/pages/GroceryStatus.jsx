@@ -382,7 +382,7 @@ export default function GroceryStatus() {
                                             <p className="text-2xl font-bold text-gray-900">{weeksCompleted}</p>
                                             <p className="text-xs text-gray-500 mt-1">This month</p>
                                         </div>
-                                        <CheckCircle className="w-8 h-8 text-green-600" />
+                                        <CheckCircle className="w-8 h-8 text-[var(--theme-primary)]" />
                                     </div>
                                 </Card>
                                 <Card className="p-4 bg-blue-50 border-blue-200">
@@ -392,7 +392,7 @@ export default function GroceryStatus() {
                                             <p className="text-2xl font-bold text-gray-900">{completionRate}%</p>
                                             <p className="text-xs text-gray-500 mt-1">This month</p>
                                         </div>
-                                        <TrendingUp className="w-8 h-8 text-blue-600" />
+                                        <TrendingUp className="w-8 h-8 text-[var(--theme-primary)]" />
                                     </div>
                                 </Card>
                                 <Card className="p-4 bg-purple-50 border-purple-200">
@@ -402,7 +402,7 @@ export default function GroceryStatus() {
                                             <p className="text-2xl font-bold text-gray-900">{avgCompletionDays}</p>
                                             <p className="text-xs text-gray-500 mt-1">Days</p>
                                         </div>
-                                        <Clock className="w-8 h-8 text-purple-600" />
+                                        <Clock className="w-8 h-8 text-[var(--theme-primary)]" />
                                     </div>
                                 </Card>
                             </div>

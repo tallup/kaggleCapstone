@@ -378,7 +378,7 @@ export default function MedicationDeliveries() {
                                             }).length}
                                         </p>
                                     </div>
-                                    <Calendar className="w-8 h-8 text-blue-600" />
+                                    <Calendar className="w-8 h-8 text-[var(--theme-primary)]" />
                                 </div>
                             </Card>
                             <Card className="p-4 bg-yellow-50 border-yellow-200">
@@ -389,7 +389,7 @@ export default function MedicationDeliveries() {
                                             {filteredDeliveries.filter(d => d.status === 'received').length}
                                         </p>
                                     </div>
-                                    <Package className="w-8 h-8 text-yellow-600" />
+                                    <Package className="w-8 h-8 text-[var(--theme-primary)]" />
                                 </div>
                             </Card>
                             <Card className="p-4 bg-green-50 border-green-200">
@@ -400,7 +400,7 @@ export default function MedicationDeliveries() {
                                             {filteredDeliveries.filter(d => d.status === 'stored').length}
                                         </p>
                                     </div>
-                                    <Truck className="w-8 h-8 text-green-600" />
+                                    <Truck className="w-8 h-8 text-[var(--theme-primary)]" />
                                 </div>
                             </Card>
                         </div>
@@ -523,7 +523,7 @@ export default function MedicationDeliveries() {
                                     <div className="flex items-center gap-2 ml-4">
                                         <button
                                             onClick={() => handleEdit(delivery)}
-                                            className="p-2.5 bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition-colors shadow-md hover:shadow-lg"
+                                            className="p-2.5 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] hover:bg-[var(--theme-primary-hover)] rounded-lg transition-colors shadow-md hover:shadow-lg"
                                             title="Edit"
                                         >
                                             <Edit className="w-5 h-5" />

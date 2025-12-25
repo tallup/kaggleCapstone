@@ -86,7 +86,7 @@ export default function ActionableItemsSection({ items = [], onItemClick }) {
                                     <div className={`p-2 rounded-lg ${
                                         item.priority === 'urgent' ? 'bg-red-100 text-red-600' :
                                         item.priority === 'soon' ? 'bg-yellow-100 text-yellow-600' :
-                                        'bg-blue-100 text-blue-600'
+                                        'bg-[var(--theme-primary-bg)] text-[var(--theme-primary)]'
                                     }`}>
                                         <Icon className="w-5 h-5" />
                                     </div>

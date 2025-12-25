@@ -304,7 +304,7 @@ export default function Welcome() {
                 key={index}
                 className="bg-white p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all text-center"
               >
-                <module.icon className="w-8 h-8 text-blue-500 mx-auto mb-2" />
+                <module.icon className="w-8 h-8 text-[var(--theme-primary)] mx-auto mb-2" />
                 <p className="text-sm font-medium text-gray-700">{module.name}</p>
               </div>
             ))}

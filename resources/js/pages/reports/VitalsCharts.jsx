@@ -210,7 +210,7 @@ export default function VitalsCharts() {
                     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                         <div className="flex items-center justify-between mb-4">
                             <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-                                <LineChartIcon className="h-5 w-5 text-red-600" />
+                                <LineChartIcon className="h-5 w-5 text-[var(--theme-primary)]" />
                                 Vitals Trends (Last 7 Days)
                             </h2>
                         </div>

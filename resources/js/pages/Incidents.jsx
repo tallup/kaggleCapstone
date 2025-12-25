@@ -1096,7 +1096,7 @@ function ViewIncident({ incident, onClose, onEdit }) {
                         <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden border-l-4 border-l-indigo-500">
                             <div className="p-6">
                                 <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                                    <ImageIcon className="w-6 h-6 text-indigo-500" />
+                                    <ImageIcon className="w-6 h-6 text-[var(--theme-primary)]" />
                                     Attachments ({incident.attachments.length})
                                 </h2>
                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
