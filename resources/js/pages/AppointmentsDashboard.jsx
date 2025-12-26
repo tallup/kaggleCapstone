@@ -104,7 +104,7 @@ export default function AppointmentsDashboard() {
     });
 
     // Fetch residents - filtered by branch
-    const { data: residentsData } = useQuery({
+    const { data: residentsData, isLoading: residentsLoading } = useQuery({
         queryKey: ['residents-list', selectedBranchId],
         queryFn: async () => {
             const params = { per_page: 100 };
@@ -115,6 +115,7 @@ export default function AppointmentsDashboard() {
             return response.data;
         },
         enabled: !!selectedBranchId, // Only fetch if branch is selected
+        refetchOnWindowFocus: false,
     });
 
     // Fetch appointment types
@@ -1089,9 +1090,13 @@ export default function AppointmentsDashboard() {
                                                 className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
                                             >
                                                 <option value="">Select resident</option>
-                                                {(residentsData?.data || []).filter(r => !formData.branch_id || r.branch_id == formData.branch_id).map(r => (
-                                                    <option key={r.id} value={r.id}>{r.first_name} {r.last_name}</option>
-                                                ))}
+                                                {residentsLoading ? (
+                                                    <option disabled>Loading residents...</option>
+                                                ) : (
+                                                    (residentsData?.data || []).map(r => (
+                                                        <option key={r.id} value={r.id}>{r.first_name} {r.last_name}</option>
+                                                    ))
+                                                )}
                                             </select>
                                         </div>
                                     </div>
