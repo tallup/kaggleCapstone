@@ -49,12 +49,10 @@ export default function Vitals() {
     const canEdit = isSuperAdmin || isAdmin || permissions.includes('edit_vitals');
     const canDelete = isSuperAdmin || isAdmin || permissions.includes('delete_vitals');
 
-    // Reset resident filter and invalidate queries when branch changes
+    // Reset resident filter when branch changes
     React.useEffect(() => {
         setResidentFilter('');
-        // Invalidate vitals query to ensure fresh data when branch changes
-        queryClient.invalidateQueries(['vitals']);
-    }, [selectedBranchId, queryClient]);
+    }, [selectedBranchId]);
 
     const { data, isLoading } = useQuery({
         queryKey: ['vitals', dateFilter, residentFilter, selectedBranchId],
@@ -72,14 +70,17 @@ export default function Vitals() {
             }
 
             if (selectedBranchId) {
-                params.branch_id = selectedBranchId;
+                params.branch_id = selectedBranchId.toString();
             }
 
             const response = await api.get('/vitals', { params });
             return response.data;
         },
         enabled: !!selectedBranchId, // Only fetch when branch is selected
+        staleTime: 0, // Always consider data stale to ensure fresh fetches when queryKey changes
+        refetchOnMount: true,
     });
+
 
     // Fetch branches for administrators (always fetch for form)
     const { data: branchesData } = useQuery({

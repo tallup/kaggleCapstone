@@ -36,7 +36,7 @@ function ProfileImage({ resident }) {
 export default function Appointments() {
     const queryClient = useQueryClient();
     const navigate = useNavigate();
-    const [searchParams] = useSearchParams();
+    const [searchParams, setSearchParams] = useSearchParams();
     const selectedBranchId = searchParams.get('branch');
     const [residentFilter, setResidentFilter] = useState('');
     const highlightedAppointmentId = useRef(null);
