@@ -28,6 +28,7 @@ export default function MedicationHistory() {
     const queryClient = useQueryClient();
     const [searchParams, setSearchParams] = useSearchParams();
     const [residentId, setResidentId] = useState(() => searchParams.get('resident') || '');
+    const [medicationId, setMedicationId] = useState(() => searchParams.get('medication') || '');
     const [status, setStatus] = useState(() => searchParams.get('status') || '');
     const [dateFrom, setDateFrom] = useState(() => searchParams.get('date_from') || '');
     const [dateTo, setDateTo] = useState(() => searchParams.get('date_to') || '');
@@ -39,6 +40,7 @@ export default function MedicationHistory() {
 
     useEffect(() => {
         const nextResident = searchParams.get('resident') || '';
+        const nextMedication = searchParams.get('medication') || '';
         const nextStatus = searchParams.get('status') || '';
         const nextDateFrom = searchParams.get('date_from') || '';
         const nextDateTo = searchParams.get('date_to') || '';
@@ -46,6 +48,7 @@ export default function MedicationHistory() {
         const nextPage = Number.isNaN(parsedPage) || parsedPage < 1 ? 1 : parsedPage;
 
         setResidentId((prev) => (prev === nextResident ? prev : nextResident));
+        setMedicationId((prev) => (prev === nextMedication ? prev : nextMedication));
         setStatus((prev) => (prev === nextStatus ? prev : nextStatus));
         setDateFrom((prev) => (prev === nextDateFrom ? prev : nextDateFrom));
         setDateTo((prev) => (prev === nextDateTo ? prev : nextDateTo));
@@ -55,6 +58,7 @@ export default function MedicationHistory() {
     useEffect(() => {
         const nextParams = new URLSearchParams();
         if (residentId) nextParams.set('resident', residentId);
+        if (medicationId) nextParams.set('medication', medicationId);
         if (status) nextParams.set('status', status);
         if (dateFrom) nextParams.set('date_from', dateFrom);
         if (dateTo) nextParams.set('date_to', dateTo);
@@ -65,11 +69,11 @@ export default function MedicationHistory() {
         if (current !== next) {
             setSearchParams(nextParams, { replace: true });
         }
-    }, [residentId, status, dateFrom, dateTo, page, searchParams, setSearchParams]);
+    }, [residentId, medicationId, status, dateFrom, dateTo, page, searchParams, setSearchParams]);
 
     useEffect(() => {
         setPage((prev) => (prev === 1 ? prev : 1));
-    }, [residentId, status, dateFrom, dateTo]);
+    }, [residentId, medicationId, status, dateFrom, dateTo]);
 
     // Current user query (to get assigned branch)
     const { data: currentUser, isLoading: isLoadingUser } = useQuery({
@@ -94,6 +98,16 @@ export default function MedicationHistory() {
         enabled: !isLoadingUser, // Wait for user data to load first
     });
 
+    // Fetch medication details when filtering by medication
+    const { data: medicationData } = useQuery({
+        queryKey: ['medication', medicationId],
+        queryFn: async () => {
+            const response = await api.get(`/medications/${medicationId}`);
+            return response.data;
+        },
+        enabled: !!medicationId && !isLoadingUser,
+    });
+
     const residents = useMemo(() => {
         if (!residentsResponse) return [];
         return residentsResponse.data || residentsResponse;
@@ -105,7 +119,7 @@ export default function MedicationHistory() {
         error,
         isFetching,
     } = useQuery({
-        queryKey: ['medication-history', residentId, status, dateFrom, dateTo, page, currentUser?.assigned_branch_id],
+        queryKey: ['medication-history', residentId, medicationId, status, dateFrom, dateTo, page, currentUser?.assigned_branch_id],
         queryFn: async () => {
             const params = {
                 per_page: perPage,
@@ -113,6 +127,7 @@ export default function MedicationHistory() {
             };
 
             if (residentId) params.resident_id = residentId;
+            if (medicationId) params.medication_id = medicationId;
             if (status) params.status = status;
             if (dateFrom) params.date_from = dateFrom;
             if (dateTo) params.date_to = dateTo;
@@ -160,10 +175,21 @@ export default function MedicationHistory() {
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
                     <div>
                         <h2 className="text-xl font-semibold text-gray-900 mb-2">Medication Administration History</h2>
-                        <p className="text-gray-600 max-w-2xl">
-                            Review medication administrations captured in Evergreen. Filter by resident, status, and date range to
-                            audit medication compliance and follow-up on missed doses.
-                        </p>
+                        {medicationId && medicationData ? (
+                            <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                <p className="text-sm text-blue-900">
+                                    <span className="font-semibold">Viewing history for:</span> {medicationData.name || 'Medication'}
+                                    {medicationData.resident && (
+                                        <span className="text-blue-700"> • Resident: {medicationData.resident.first_name} {medicationData.resident.last_name}</span>
+                                    )}
+                                </p>
+                            </div>
+                        ) : (
+                            <p className="text-gray-600 max-w-2xl">
+                                Review medication administrations captured in Evergreen. Filter by resident, status, and date range to
+                                audit medication compliance and follow-up on missed doses.
+                            </p>
+                        )}
                     </div>
                     <button
                         onClick={handleMarkMissed}

@@ -462,11 +462,10 @@ export default function Medications() {
 
                                 <button
                                     onClick={() => {
-                                        if (medication?.resident_id) {
-                                            navigate(`/medication-history?resident=${medication.resident_id}`);
-                                        } else {
-                                            navigate('/medication-history');
-                                        }
+                                        const params = new URLSearchParams();
+                                        if (medication?.id) params.set('medication', medication.id);
+                                        if (medication?.resident_id) params.set('resident', medication.resident_id);
+                                        navigate(`/medication-history?${params.toString()}`);
                                     }}
                                     className="mt-2 px-3 py-1.5 text-xs font-semibold text-white bg-[var(--theme-primary)] border border-[var(--theme-primary)] rounded-md hover:bg-[var(--theme-primary-hover)] hover:border-[var(--theme-primary-hover)] transition-colors flex items-center justify-center gap-1.5 shadow-sm"
                                 >

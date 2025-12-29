@@ -30,6 +30,11 @@ class Drug extends Model
         return $this->hasMany(Medication::class);
     }
 
+    public function pharmacyInventory(): HasMany
+    {
+        return $this->hasMany(PharmacyInventory::class);
+    }
+
     // Accessors
     public function getDisplayNameAttribute(): string
     {

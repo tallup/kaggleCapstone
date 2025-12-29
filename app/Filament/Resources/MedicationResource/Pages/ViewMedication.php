@@ -26,7 +26,10 @@ class ViewMedication extends ViewRecord
                 ->label('Medication History')
                 ->icon('heroicon-o-cube')
                 ->color('info')
-                ->url(fn () => route('filament.admin.pages.medication-history', ['resident' => $this->record->resident_id]))
+                ->url(fn () => route('filament.admin.pages.medication-history', [
+                    'resident' => $this->record->resident_id,
+                    'medication' => $this->record->id
+                ]))
                 ->openUrlInNewTab(),
             Actions\EditAction::make(),
             Actions\DeleteAction::make(),
