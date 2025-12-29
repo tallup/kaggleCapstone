@@ -508,7 +508,7 @@ export default function Appointments() {
     if (!isCaregiver && !selectedBranchId) {
         return (
             <div>
-                <BranchSelector currentUser={currentUserData} />
+                <BranchSelector currentUser={currentUser} />
                 <div className="bg-white rounded-xl shadow-sm p-8 text-center">
                     <Building2 className="mx-auto h-12 w-12 text-gray-400" />
                     <p className="mt-4 text-sm font-semibold text-gray-700">Please select a branch to continue</p>
@@ -520,7 +520,7 @@ export default function Appointments() {
 
     return (
         <div className="space-y-6">
-            <BranchSelector currentUser={currentUserData} />
+            <BranchSelector currentUser={currentUser} />
             {isCaregiver ? (
                 <>
                     {/* Resident Cards Section */}
