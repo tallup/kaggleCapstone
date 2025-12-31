@@ -196,35 +196,3 @@ function ErrorFallback({ error, errorInfo, onReset, onReload, onGoToDashboard })
 
 export default ErrorBoundary;
 
-
-                        <RefreshCw className="w-4 h-4" />
-                        <span>Try Again</span>
-                    </button>
-                    <button
-                        onClick={onGoToDashboard}
-                        className="flex-1 px-4 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium flex items-center justify-center space-x-2"
-                    >
-                        <Home className="w-4 h-4" />
-                        <span>Go to Dashboard</span>
-                    </button>
-                    <button
-                        onClick={onReload}
-                        className="flex-1 px-4 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium flex items-center justify-center space-x-2"
-                    >
-                        <ArrowLeft className="w-4 h-4" />
-                        <span>Reload Page</span>
-                    </button>
-                </div>
-
-                <div className="mt-6 pt-6 border-t border-gray-200">
-                    <p className="text-xs text-gray-500 text-center">
-                        If this problem persists, please contact support with the error details above.
-                    </p>
-                </div>
-            </div>
-        </div>
-    );
-}
-
-export default ErrorBoundary;
-
