@@ -55,26 +55,37 @@ export default function BranchSelector({ currentUser }) {
     // Auto-select branch if none selected
     React.useEffect(() => {
         if (branches.length > 0) {
-            let branchToSelect = null;
-            
-            // For caregivers and facility admins, always prefer their assigned branch
-            if ((isCaregiver || isFacilityAdmin) && userBranchId) {
-                const userBranch = branches.find(b => b.id === userBranchId);
-                if (userBranch) {
-                    branchToSelect = userBranchId;
+            // Only auto-select if no branch is currently selected
+            if (!selectedBranchId) {
+                let branchToSelect = null;
+                
+                // For caregivers, prefer their assigned branch
+                if (isCaregiver && userBranchId) {
+                    const userBranch = branches.find(b => b.id === userBranchId);
+                    if (userBranch) {
+                        branchToSelect = userBranchId;
+                    }
                 }
-            }
-            
-            // If no assigned branch found or not a caregiver/admin, use the first available branch
-            if (!branchToSelect && branches.length > 0) {
-                branchToSelect = branches[0].id;
-            }
-            
-            // Only set if no branch is currently selected, or if we need to update to assigned branch
-            if (branchToSelect && (!selectedBranchId || ((isCaregiver || isFacilityAdmin) && userBranchId && selectedBranchId !== userBranchId.toString()))) {
-                const newParams = new URLSearchParams(searchParams);
-                newParams.set('branch', branchToSelect.toString());
-                setSearchParams(newParams, { replace: true });
+                
+                // For facility admins, also prefer their assigned branch initially (but allow them to change it)
+                if (!branchToSelect && isFacilityAdmin && userBranchId) {
+                    const userBranch = branches.find(b => b.id === userBranchId);
+                    if (userBranch) {
+                        branchToSelect = userBranchId;
+                    }
+                }
+                
+                // If no assigned branch found, use the first available branch
+                if (!branchToSelect && branches.length > 0) {
+                    branchToSelect = branches[0].id;
+                }
+                
+                // Set the branch only if we have one to select
+                if (branchToSelect) {
+                    const newParams = new URLSearchParams(searchParams);
+                    newParams.set('branch', branchToSelect.toString());
+                    setSearchParams(newParams, { replace: true });
+                }
             }
         }
     }, [selectedBranchId, branches, userBranchId, isCaregiver, isFacilityAdmin, searchParams, setSearchParams]);

@@ -37,7 +37,8 @@ import {
     UserCheck,
     ArrowRightFromLine,
     ArrowLeftToLine,
-    UserPlus
+    UserPlus,
+    BarChart3
 } from 'lucide-react';
 import NotificationDropdown from './NotificationDropdown';
 import ReminderPanel from './ReminderPanel';
@@ -196,6 +197,7 @@ const caregiverNavigation = [
     { name: 'Incidents', icon: AlertTriangle, path: '/incidents', children: null },
     { name: 'T-Logs', icon: FileText, path: '/t-logs', children: null },
     { name: 'Appointments', icon: Calendar, path: '/appointments', children: null },
+    { name: 'Behavior Charts', icon: BarChart3, path: '/charts', children: null },
     { name: 'Leave Requests', icon: CalendarClock, path: '/leave-requests', children: null },
 ];
 
