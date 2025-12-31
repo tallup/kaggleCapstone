@@ -61,3 +61,18 @@ This expense has been deleted from the system.
 Thank you,
 {{ config('mail.from.name') }}
 
+
+Description: {{ $description }}
+Amount: ${{ $amount }}
+Category: {{ $categoryName }}
+@if($branchName)
+Branch: {{ $branchName }}
+@endif
+
+This expense has been deleted from the system.
+
+@endif
+
+Thank you,
+{{ config('mail.from.name') }}
+

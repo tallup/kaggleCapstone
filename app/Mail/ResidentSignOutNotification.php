@@ -97,3 +97,33 @@ class ResidentSignOutNotification extends Mailable
     }
 }
 
+
+        $accompaniedBy = $this->signOut->accompanied_by ?? 'Not specified';
+        
+        // Use correct column name: expected_return_at
+        $expectedReturnTime = $this->signOut->expected_return_at 
+            ? Carbon::parse($this->signOut->expected_return_at)->format('M d, Y g:i A') 
+            : null;
+        
+        return new Content(
+            text: 'mail.resident-sign-out',
+            with: [
+                'residentName' => $residentName,
+                'signedOutByName' => $signedOutByName,
+                'signOutDate' => $signOutDate,
+                'returnDate' => $returnDate,
+                'destination' => $destination,
+                'accompaniedBy' => $accompaniedBy,
+                'eventType' => $this->eventType,
+                'expectedReturnTime' => $expectedReturnTime,
+                'notes' => $this->signOut->notes,
+            ],
+        );
+    }
+
+    public function attachments(): array
+    {
+        return [];
+    }
+}
+

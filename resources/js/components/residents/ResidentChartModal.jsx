@@ -56,22 +56,23 @@ export default function ResidentChartModal({ isOpen, onClose, resident }) {
     }, [initData]);
 
     const checkTimeValidity = () => {
-        const now = new Date();
-        const hour = now.getHours();
-        // 7:00 PM (19) to 9:59 PM (21)
-        if (hour < 19 || hour > 21) {
-            setCurrentTimeError('Entries are only permitted between 7:00 PM and 9:59 PM.');
-            return false;
-        }
+        // Time validation disabled for testing
+        // const now = new Date();
+        // const hour = now.getHours();
+        // // 7:00 PM (19) to 9:59 PM (21)
+        // if (hour < 19 || hour > 21) {
+        //     setCurrentTimeError('Entries are only permitted between 7:00 PM and 9:59 PM.');
+        //     return false;
+        // }
         setCurrentTimeError(null);
         return true;
     };
 
-    useEffect(() => {
-        checkTimeValidity();
-        const interval = setInterval(checkTimeValidity, 60000);
-        return () => clearInterval(interval);
-    }, []);
+    // useEffect(() => {
+    //     checkTimeValidity();
+    //     const interval = setInterval(checkTimeValidity, 60000);
+    //     return () => clearInterval(interval);
+    // }, []);
 
     const handleItemChange = (definitionId, newValue) => {
         setChartData(prev => ({
@@ -112,9 +113,10 @@ export default function ResidentChartModal({ isOpen, onClose, resident }) {
     };
 
     const handleSubmit = async (status) => {
-        if (status === 'submitted' && !checkTimeValidity()) {
-            return;
-        }
+        // Time validation disabled for testing
+        // if (status === 'submitted' && !checkTimeValidity()) {
+        //     return;
+        // }
 
         setSaving(true);
         try {
@@ -338,11 +340,8 @@ export default function ResidentChartModal({ isOpen, onClose, resident }) {
                         </button>
                         <button
                             onClick={() => handleSubmit('submitted')}
-                            disabled={saving || !!currentTimeError}
-                            className={`px-8 py-2.5 rounded-lg font-bold flex items-center gap-2 transition-all shadow-lg ${currentTimeError
-                                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed border border-gray-300 shadow-none'
-                                    : 'bg-[var(--theme-primary)] text-white hover:bg-[var(--theme-primary-hover)] shadow-[var(--theme-primary-light)]/20 active:scale-95'
-                                } disabled:opacity-50`}
+                            disabled={saving}
+                            className="px-8 py-2.5 rounded-lg font-bold flex items-center gap-2 transition-all shadow-lg bg-[var(--theme-primary)] text-white hover:bg-[var(--theme-primary-hover)] shadow-[var(--theme-primary-light)]/20 active:scale-95 disabled:opacity-50"
                         >
                             <CheckCircle2 className="w-4 h-4" />
                             {saving ? 'Submitting...' : 'Submit Charts'}

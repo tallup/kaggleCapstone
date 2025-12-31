@@ -375,3 +375,55 @@ function App() {
 
 export default App;
 
+
+                <Route path="reports/appointments-charts" element={<Suspense fallback={<PageLoader />}><AppointmentsCharts /></Suspense>} />
+                <Route path="reports/vitals-history" element={<Suspense fallback={<PageLoader />}><VitalsHistory /></Suspense>} />
+                <Route path="reports/sleep-charts" element={<Suspense fallback={<PageLoader />}><SleepCharts /></Suspense>} />
+                <Route path="reports/staff-charts" element={<Suspense fallback={<PageLoader />}><StaffCharts /></Suspense>} />
+
+                {/* Super Admin */}
+                <Route path="super-admin/dashboard" element={<Suspense fallback={<PageLoader />}><SuperAdminDashboard /></Suspense>} />
+                <Route path="super-admin/settings" element={<Suspense fallback={<PageLoader />}><SuperAdminSettings /></Suspense>} />
+                <Route path="super-admin/settings/email" element={<Suspense fallback={<PageLoader />}><SuperAdminEmailSettings /></Suspense>} />
+                <Route path="super-admin/settings/security" element={<Suspense fallback={<PageLoader />}><SuperAdminSecuritySettings /></Suspense>} />
+                <Route path="super-admin/settings/general" element={<Suspense fallback={<PageLoader />}><SuperAdminGeneralSettings /></Suspense>} />
+                <Route path="super-admin/settings/notification" element={<Suspense fallback={<PageLoader />}><SuperAdminNotificationSettings /></Suspense>} />
+                <Route path="super-admin/settings/database" element={<Suspense fallback={<PageLoader />}><SuperAdminDatabaseSettings /></Suspense>} />
+                <Route path="super-admin/settings/server" element={<Suspense fallback={<PageLoader />}><SuperAdminServerSettings /></Suspense>} />
+                <Route path="super-admin/settings/branding" element={<Suspense fallback={<PageLoader />}><SuperAdminBrandingSettings /></Suspense>} />
+                <Route path="super-admin/facility-registrations" element={<Suspense fallback={<PageLoader />}><FacilityRegistrations /></Suspense>} />
+                <Route path="super-admin/facility-registrations/:id/approve" element={<Suspense fallback={<PageLoader />}><ApproveFacilityRegistration /></Suspense>} />
+                <Route path="super-admin/facilities" element={<Suspense fallback={<PageLoader />}><Facilities /></Suspense>} />
+                <Route path="super-admin/facilities/create" element={<Suspense fallback={<PageLoader />}><FacilityCreate /></Suspense>} />
+                <Route path="super-admin/facilities/:id" element={<Suspense fallback={<PageLoader />}><FacilityView /></Suspense>} />
+                <Route path="super-admin/facilities/:id/edit" element={<Suspense fallback={<PageLoader />}><FacilityEdit /></Suspense>} />
+                <Route path="super-admin/permissions" element={<Suspense fallback={<PageLoader />}><Permissions /></Suspense>} />
+
+                {/* Administration */}
+                <Route path="administration/residents" element={<Suspense fallback={<PageLoader />}><Residents /></Suspense>} />
+                {/* Facilities route removed - only accessible via /super-admin/facilities */}
+                <Route path="administration/branches" element={<Suspense fallback={<PageLoader />}><Branches /></Suspense>} />
+                <Route path="administration/vital-ranges" element={<Suspense fallback={<PageLoader />}><VitalRanges /></Suspense>} />
+                <Route path="administration/leave-requests" element={<Suspense fallback={<PageLoader />}><LeaveRequests /></Suspense>} />
+                <Route path="administration/roles" element={<Suspense fallback={<PageLoader />}><Roles /></Suspense>} />
+                <Route path="administration/facility-permissions" element={<Suspense fallback={<PageLoader />}><Permissions /></Suspense>} />
+                <Route path="administration/users" element={<Suspense fallback={<PageLoader />}><Users /></Suspense>} />
+                <Route path="administration/users/create" element={<Suspense fallback={<PageLoader />}><UserCreate /></Suspense>} />
+                <Route path="administration/users/:id/edit" element={<Suspense fallback={<PageLoader />}><UserEdit /></Suspense>} />
+                <Route path="administration/users/:id" element={<Suspense fallback={<PageLoader />}><ViewUser /></Suspense>} />
+                <Route path="administration/chart-data" element={<Suspense fallback={<PageLoader />}><ChartData /></Suspense>} />
+                <Route path="administration/drugs" element={<Suspense fallback={<PageLoader />}><Drugs /></Suspense>} />
+                <Route path="administration/employee-documents" element={<Suspense fallback={<PageLoader />}><EmployeeDocuments /></Suspense>} />
+                <Route path="administration/activity-logs" element={<Suspense fallback={<PageLoader />}><ActivityLogs /></Suspense>} />
+                <Route path="administration/deactivated" element={<Suspense fallback={<PageLoader />}><DeactivatedRecords /></Suspense>} />
+
+                <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            </Route>
+            {/* Keep public routes before catch-all to prevent redirects */}
+            <Route path="*" element={<Navigate to="/login" replace />} />
+        </Routes>
+    );
+}
+
+export default App;
+

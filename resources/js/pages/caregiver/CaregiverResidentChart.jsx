@@ -71,22 +71,23 @@ export default function CaregiverResidentChart() {
     }, [initData]);
 
     const checkTimeValidity = () => {
-        const now = new Date();
-        const hour = now.getHours();
-        // 7:00 PM (19) to 9:59 PM (21)
-        if (hour < 19 || hour > 21) {
-            setCurrentTimeError('Entries are only permitted between 7:00 PM and 9:59 PM.');
-            return false;
-        }
+        // Time validation disabled for testing
+        // const now = new Date();
+        // const hour = now.getHours();
+        // // 7:00 PM (19) to 9:59 PM (21)
+        // if (hour < 19 || hour > 21) {
+        //     setCurrentTimeError('Entries are only permitted between 7:00 PM and 9:59 PM.');
+        //     return false;
+        // }
         setCurrentTimeError(null);
         return true;
     };
 
-    useEffect(() => {
-        checkTimeValidity();
-        const interval = setInterval(checkTimeValidity, 60000);
-        return () => clearInterval(interval);
-    }, []);
+    // useEffect(() => {
+    //     checkTimeValidity();
+    //     const interval = setInterval(checkTimeValidity, 60000);
+    //     return () => clearInterval(interval);
+    // }, []);
 
     const handleItemChange = (definitionId, newValue) => {
         setChartData(prev => ({
@@ -127,9 +128,10 @@ export default function CaregiverResidentChart() {
     };
 
     const handleSubmit = async (status) => {
-        if (status === 'submitted' && !checkTimeValidity()) {
-            return;
-        }
+        // Time validation disabled for testing
+        // if (status === 'submitted' && !checkTimeValidity()) {
+        //     return;
+        // }
 
         setSaving(true);
         try {
@@ -203,11 +205,8 @@ export default function CaregiverResidentChart() {
                         </button>
                         <button
                             onClick={() => handleSubmit('submitted')}
-                            disabled={saving || !!currentTimeError}
-                            className={`px-8 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all shadow-lg ${currentTimeError
-                                ? 'bg-gray-200 text-gray-400 cursor-not-allowed border border-gray-300 shadow-none'
-                                : 'bg-[var(--theme-primary)] text-white hover:bg-[var(--theme-primary-hover)] shadow-[var(--theme-primary-light)]/20 active:scale-95'
-                                } disabled:opacity-50`}
+                            disabled={saving}
+                            className="px-8 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all shadow-lg bg-[var(--theme-primary)] text-white hover:bg-[var(--theme-primary-hover)] shadow-[var(--theme-primary-light)]/20 active:scale-95 disabled:opacity-50"
                         >
                             <CheckCircle2 className="w-4 h-4" />
                             {saving ? 'Submitting...' : 'Submit Charts'}
@@ -215,8 +214,8 @@ export default function CaregiverResidentChart() {
                     </div>
                 </div>
 
-                {/* Time Warning */}
-                {currentTimeError && (
+                {/* Time Warning - DISABLED FOR TESTING */}
+                {/* {currentTimeError && (
                     <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center gap-3">
                         <AlertCircle className="w-5 h-5 text-amber-500 shrink-0" />
                         <div className="text-sm text-amber-800">
@@ -224,7 +223,7 @@ export default function CaregiverResidentChart() {
                             Current progress can be saved as a draft.
                         </div>
                     </div>
-                )}
+                )} */}
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">

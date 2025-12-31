@@ -681,4 +681,3 @@ function FireDrillForm({ record, branches, isCaregiver, caregiverBranchId, selec
     );
 }
 
-

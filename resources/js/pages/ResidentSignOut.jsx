@@ -429,3 +429,102 @@ function ResidentSignOutForm({ residents, selectedResident, currentUser, isFacil
     );
 }
 
+
+                        <option value="">Select resident...</option>
+                        {filteredResidents.map((resident) => (
+                            <option key={resident.id} value={resident.id}>
+                                {resident.name}
+                            </option>
+                        ))}
+                    </select>
+                    {!form.branch_id && (isFacilityAdmin || isBranchAdmin) && (
+                        <p className="mt-1 text-sm text-gray-500">Please select a branch first</p>
+                    )}
+                </div>
+
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Destination
+                    </label>
+                    <input
+                        type="text"
+                        value={form.destination}
+                        onChange={(e) => setForm({ ...form, destination: e.target.value })}
+                        placeholder="Where are they going?"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    />
+                </div>
+
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Purpose
+                    </label>
+                    <textarea
+                        value={form.purpose}
+                        onChange={(e) => setForm({ ...form, purpose: e.target.value })}
+                        rows={3}
+                        placeholder="Purpose of trip..."
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Accompanied By
+                        </label>
+                        <input
+                            type="text"
+                            value={form.accompanied_by}
+                            onChange={(e) => setForm({ ...form, accompanied_by: e.target.value })}
+                            placeholder="Name"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Expected Return
+                        </label>
+                        <input
+                            type="datetime-local"
+                            value={form.expected_return_at}
+                            onChange={(e) => setForm({ ...form, expected_return_at: e.target.value })}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        />
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                    <input
+                        type="checkbox"
+                        id="notified"
+                        checked={form.emergency_contact_notified}
+                        onChange={(e) => setForm({ ...form, emergency_contact_notified: e.target.checked })}
+                        className="w-4 h-4"
+                    />
+                    <label htmlFor="notified" className="text-sm text-gray-700">
+                        Emergency contact notified
+                    </label>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4">
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="submit"
+                        disabled={isSubmitting || !form.resident_id}
+                        className="px-4 py-2 bg-[var(--theme-primary)] text-white rounded-lg hover:bg-[var(--theme-primary-hover)] disabled:opacity-50"
+                    >
+                        {isSubmitting ? 'Signing Out...' : 'Sign Out'}
+                    </button>
+                </div>
+            </form>
+        </SectionCard>
+    );
+}
+

@@ -407,3 +407,20 @@ class ResidentSignOutController extends Controller
     }
 }
 
+
+
+        // Search by resident name
+        if ($request->filled('search')) {
+            $search = $request->get('search');
+            $query->whereHas('resident', function($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%");
+            });
+        }
+
+        $perPage = min(500, max(1, (int) $request->get('per_page', 100)));
+        $signOuts = $query->orderBy('sign_out_at', 'desc')->paginate($perPage);
+
+        return response()->json($signOuts);
+    }
+}
+

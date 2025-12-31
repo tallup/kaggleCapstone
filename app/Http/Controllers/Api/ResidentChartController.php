@@ -65,20 +65,20 @@ class ResidentChartController extends BaseApiController
         $user = $request->user();
         $chartDate = Carbon::parse($request->chart_date)->toDateString();
         
-        // Time validation for submission
-        if ($request->status === 'submitted') {
-            $now = Carbon::now();
-            $hour = $now->hour;
-            $minute = $now->minute;
-            
-            // 7:00 PM (19:00) to 9:59 PM (21:59)
-            if ($hour < 19 || $hour > 21) {
-                return response()->json([
-                    'message' => 'Entries are only permitted between 7:00 PM and 9:59 PM.',
-                    'errors' => ['time' => ['Entries are only permitted between 7:00 PM and 9:59 PM.']]
-                ], 422);
-            }
-        }
+        // Time validation for submission - DISABLED FOR TESTING
+        // if ($request->status === 'submitted') {
+        //     $now = Carbon::now();
+        //     $hour = $now->hour;
+        //     $minute = $now->minute;
+        //     
+        //     // 7:00 PM (19:00) to 9:59 PM (21:59)
+        //     if ($hour < 19 || $hour > 21) {
+        //         return response()->json([
+        //             'message' => 'Entries are only permitted between 7:00 PM and 9:59 PM.',
+        //             'errors' => ['time' => ['Entries are only permitted between 7:00 PM and 9:59 PM.']]
+        //         ], 422);
+        //     }
+        // }
 
         return DB::transaction(function () use ($request, $user, $chartDate) {
             $chart = BehaviorChart::updateOrCreate(

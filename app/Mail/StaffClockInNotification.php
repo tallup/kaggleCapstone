@@ -88,3 +88,31 @@ class StaffClockInNotification extends Mailable
     }
 }
 
+
+            : 'TBD';
+        
+        $clockOutTime = $this->clockIn->clock_out_at 
+            ? Carbon::parse($this->clockIn->clock_out_at)->format('M d, Y g:i A') 
+            : null;
+        
+        $branchName = $this->clockIn->branch?->name ?? 'Branch';
+        
+        return new Content(
+            text: 'mail.staff-clock-in',
+            with: [
+                'staffName' => $staffName,
+                'clockInTime' => $clockInTime,
+                'clockOutTime' => $clockOutTime,
+                'branchName' => $branchName,
+                'eventType' => $this->eventType,
+                'notes' => $this->clockIn->notes,
+            ],
+        );
+    }
+
+    public function attachments(): array
+    {
+        return [];
+    }
+}
+
