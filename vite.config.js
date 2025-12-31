@@ -38,6 +38,8 @@ export default defineConfig({
         },
     },
     build: {
+        // Clear cache before build to ensure fresh builds
+        emptyOutDir: true,
         commonjsOptions: {
             include: [/node_modules/],
             transformMixedEsModules: true,
