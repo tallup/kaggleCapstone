@@ -14,6 +14,7 @@ class BehaviorChart extends Model
         'chart_date',
         'submitted_at',
         'status',
+        'reason_filled_late',
     ];
 
     protected $casts = [

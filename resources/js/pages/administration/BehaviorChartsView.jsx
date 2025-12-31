@@ -267,10 +267,8 @@ export default function BehaviorChartsView() {
                                     <th className="px-6 py-4 font-bold border-b border-gray-200">Date</th>
                                     <th className="px-6 py-4 font-bold border-b border-gray-200">Resident</th>
                                     <th className="px-6 py-4 font-bold border-b border-gray-200">Chart Status</th>
-                                    <th className="px-6 py-4 font-bold border-b border-gray-200">Submitted By</th>
-                                    <th className="px-6 py-4 font-bold border-b border-gray-200">Items</th>
-                                    <th className="px-6 py-4 font-bold border-b border-gray-200">Logs</th>
-                                    <th className="px-6 py-4 font-bold border-b border-gray-200">Submitted At</th>
+                                    <th className="px-6 py-4 font-bold border-b border-gray-200">Reason Filled Late</th>
+                                    <th className="px-6 py-4 font-bold border-b border-gray-200">View</th>
                                     <th className="px-6 py-4 font-bold border-b border-gray-200 text-center">Action</th>
                                 </tr>
                             </thead>
@@ -278,54 +276,68 @@ export default function BehaviorChartsView() {
                                 {charts.map((chart) => (
                                     <tr key={chart.id} className="hover:bg-gray-50/50 transition-colors">
                                         <td className="px-6 py-4">
-                                            <div className="flex items-center gap-2">
-                                                <Calendar className="w-4 h-4 text-gray-400" />
-                                                <span className="text-sm font-medium text-gray-900">
-                                                    {formatPacificDate(chart.chart_date)}
-                                                </span>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-2">
-                                                <User className="w-4 h-4 text-gray-400" />
-                                                <span className="text-sm text-gray-700">
-                                                    {chart.resident?.first_name} {chart.resident?.last_name}
-                                                </span>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            {getStatusBadge(chart.status)}
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <span className="text-sm text-gray-700">
-                                                {chart.caregiver?.name || 'N/A'}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4">
                                             <span className="text-sm font-medium text-gray-900">
-                                                {chart.items?.length || 0}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <span className="text-sm font-medium text-gray-900">
-                                                {chart.logs?.length || 0}
+                                                {formatPacificDate(chart.chart_date)}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4">
                                             <span className="text-sm text-gray-700">
-                                                {chart.submitted_at 
-                                                    ? new Date(chart.submitted_at).toLocaleString()
-                                                    : '-'}
+                                                {chart.resident?.first_name && chart.resident?.last_name
+                                                    ? `${chart.resident.first_name} ${chart.resident.last_name}`
+                                                    : 'Missing'}
                                             </span>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            {chart.status ? (
+                                                <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
+                                                    chart.status === 'submitted' 
+                                                        ? 'bg-green-100 text-green-800' 
+                                                        : 'bg-amber-100 text-amber-800'
+                                                }`}>
+                                                    {chart.status}
+                                                </span>
+                                            ) : (
+                                                <span className="text-sm text-gray-400">-</span>
+                                            )}
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className="text-sm text-gray-700">
+                                                {chart.reason_filled_late || '-'}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            {chart.status === 'submitted' ? (
+                                                <button
+                                                    onClick={() => handleViewChart(chart)}
+                                                    className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--theme-primary)] text-white rounded-lg hover:bg-[var(--theme-primary-hover)] transition-colors text-sm font-medium"
+                                                >
+                                                    <Eye className="w-4 h-4" />
+                                                    View
+                                                </button>
+                                            ) : (
+                                                <span className="text-sm text-gray-500">Pending</span>
+                                            )}
                                         </td>
                                         <td className="px-6 py-4 text-center">
-                                            <button
-                                                onClick={() => handleViewChart(chart)}
-                                                className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--theme-primary)] text-white rounded-lg hover:bg-[var(--theme-primary-hover)] transition-colors text-sm font-medium"
-                                            >
-                                                <Eye className="w-4 h-4" />
-                                                View
-                                            </button>
+                                            {chart.status === 'submitted' ? (
+                                                <div className="flex items-center justify-center gap-2">
+                                                    <button
+                                                        onClick={() => handleViewChart(chart)}
+                                                        className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                                                        title="More options"
+                                                    >
+                                                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                                            <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <button
+                                                    className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--theme-primary)] text-white rounded-lg hover:bg-[var(--theme-primary-hover)] transition-colors text-sm font-medium"
+                                                >
+                                                    Chart
+                                                </button>
+                                            )}
                                         </td>
                                     </tr>
                                 ))}
@@ -364,17 +376,17 @@ export default function BehaviorChartsView() {
                             <div className="bg-gray-50 rounded-xl p-4">
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                     <div>
-                                        <p className="text-xs text-gray-500 mb-1">Status</p>
+                                        <p className="text-sm font-semibold text-gray-700 mb-1">Status</p>
                                         <div>{getStatusBadge(selectedChart.status)}</div>
                                     </div>
                                     <div>
-                                        <p className="text-xs text-gray-500 mb-1">Submitted By</p>
+                                        <p className="text-sm font-semibold text-gray-700 mb-1">Submitted By</p>
                                         <p className="text-sm font-medium text-gray-900">
                                             {selectedChart.caregiver?.name || 'N/A'}
                                         </p>
                                     </div>
                                     <div>
-                                        <p className="text-xs text-gray-500 mb-1">Submitted At</p>
+                                        <p className="text-sm font-semibold text-gray-700 mb-1">Submitted On</p>
                                         <p className="text-sm font-medium text-gray-900">
                                             {selectedChart.submitted_at 
                                                 ? new Date(selectedChart.submitted_at).toLocaleString()
@@ -382,7 +394,7 @@ export default function BehaviorChartsView() {
                                         </p>
                                     </div>
                                     <div>
-                                        <p className="text-xs text-gray-500 mb-1">Total Items</p>
+                                        <p className="text-sm font-semibold text-gray-700 mb-1">Total Items</p>
                                         <p className="text-sm font-medium text-gray-900">
                                             {selectedChart.items?.length || 0}
                                         </p>
@@ -398,7 +410,7 @@ export default function BehaviorChartsView() {
                                 </h3>
                                 <div className="overflow-hidden border border-gray-200 rounded-xl shadow-sm">
                                     <table className="w-full text-left border-collapse">
-                                        <thead className="bg-gray-50 text-gray-600 text-xs uppercase tracking-wider">
+                                        <thead className="bg-gray-50 text-gray-700 text-xs uppercase tracking-wider">
                                             <tr>
                                                 <th className="px-4 py-3 font-bold border-b border-gray-200 border-r border-gray-200">Category</th>
                                                 <th className="px-4 py-3 font-bold border-b border-gray-200 border-r border-gray-200">Behavior</th>
@@ -427,13 +439,13 @@ export default function BehaviorChartsView() {
                                                             <tr key={item.id || idx} className="border-b border-gray-100 hover:bg-gray-50/50">
                                                                 {idx === 0 && (
                                                                     <td 
-                                                                        className="px-4 py-3 border-r border-gray-200 align-middle font-bold text-gray-900 bg-gray-50/30" 
+                                                                        className="px-4 py-3 border-r border-gray-200 align-middle font-bold text-gray-900 bg-gray-50/30 whitespace-nowrap" 
                                                                         rowSpan={items.length}
                                                                     >
                                                                         {catName}
                                                                     </td>
                                                                 )}
-                                                                <td className="px-4 py-3 border-r border-gray-200 font-medium">
+                                                                <td className="px-4 py-3 border-r border-gray-200 font-medium text-gray-900">
                                                                     {item.definition?.name || item.name || 'Unknown'}
                                                                 </td>
                                                                 <td className="px-4 py-3">
