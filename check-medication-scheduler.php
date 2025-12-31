@@ -150,3 +150,4 @@ echo "   Test manually: php artisan medications:mark-missed\n\n";
 
 echo "=== End Diagnostic ===\n";
 
+
