@@ -143,7 +143,7 @@ class AppointmentController extends BaseApiController
             'provider_name' => 'nullable|string|max:255',
             'location' => 'nullable|string|max:255',
             'description' => 'nullable|string',
-            'status' => 'nullable|in:scheduled,completed,cancelled,confirmed,in_progress',
+            'status' => 'nullable|in:scheduled,completed,cancelled,confirmed,in_progress,no_show,rescheduled',
             'next_appointment_date' => 'nullable|date',
             'recurrence_pattern' => 'nullable|string|max:255',
             'notes' => 'nullable|string',
@@ -245,7 +245,7 @@ class AppointmentController extends BaseApiController
             'provider_name' => 'nullable|string|max:255',
             'location' => 'nullable|string|max:255',
             'description' => 'nullable|string',
-            'status' => 'nullable|in:scheduled,completed,cancelled,confirmed,in_progress',
+            'status' => 'nullable|in:scheduled,completed,cancelled,confirmed,in_progress,no_show,rescheduled',
             'notes' => 'nullable|string',
         ]);
 
@@ -274,7 +274,7 @@ class AppointmentController extends BaseApiController
     public function updateStatus(Request $request, $id): JsonResponse
     {
         $request->validate([
-            'status' => 'required|in:scheduled,completed,cancelled',
+            'status' => 'required|in:scheduled,completed,cancelled,confirmed,in_progress,no_show,rescheduled',
             'notes' => 'nullable|string',
             'documents' => 'nullable|array',
             'documents.*.document_name' => 'required_with:documents|string|max:255',

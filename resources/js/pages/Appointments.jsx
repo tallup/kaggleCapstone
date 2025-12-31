@@ -356,6 +356,9 @@ export default function Appointments() {
     const [completingAppointment, setCompletingAppointment] = useState(null);
     const [completionNotes, setCompletionNotes] = useState('');
     const [completionDocuments, setCompletionDocuments] = useState([]);
+    const [cancellingAppointment, setCancellingAppointment] = useState(null);
+    const [cancellationStatus, setCancellationStatus] = useState('cancelled');
+    const [cancellationNotes, setCancellationNotes] = useState('');
 
     const handleStatusUpdate = async (id, status, notes = null, documents = []) => {
         try {
@@ -395,8 +398,12 @@ export default function Appointments() {
     };
 
     const handleCancel = (id) => {
-        if (window.confirm('Are you sure you want to cancel this appointment?')) {
-            handleStatusUpdate(id, 'cancelled');
+        // Find the appointment object
+        const appointment = data?.data?.find(apt => apt.id === id);
+        if (appointment) {
+            setCancellingAppointment(appointment);
+            setCancellationStatus('cancelled');
+            setCancellationNotes('');
         }
     };
 
@@ -1152,6 +1159,99 @@ export default function Appointments() {
                                 className="px-4 py-2 bg-[var(--theme-primary)] text-white rounded-lg hover:bg-[var(--theme-primary-hover)] transition-all"
                             >
                                 Mark as Completed
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Cancellation/Status Update Modal */}
+            {cancellingAppointment && (
+                <div className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50 p-4" style={{ backgroundColor: 'rgba(0, 0, 0, 0.1)' }}>
+                    <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                        <div className="p-6 border-b">
+                            <h3 className="text-xl font-semibold text-gray-900">Update Appointment Status</h3>
+                            <p className="text-sm text-gray-600 mt-1">Select the appointment status and add any comments</p>
+                        </div>
+                        <div className="p-6 space-y-6">
+                            {/* Status Dropdown */}
+                            <div>
+                                <label className="block text-base font-semibold text-gray-900 mb-2" style={{ color: '#111827', fontWeight: 700 }}>
+                                    Appointment Status *
+                                </label>
+                                <select
+                                    value={cancellationStatus}
+                                    onChange={(e) => setCancellationStatus(e.target.value)}
+                                    required
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
+                                >
+                                    <option value="">- Please Select -</option>
+                                    <option value="scheduled">Scheduled</option>
+                                    <option value="confirmed">Confirmed</option>
+                                    <option value="in_progress">In Progress</option>
+                                    <option value="completed">Completed</option>
+                                    <option value="cancelled">Cancelled</option>
+                                    <option value="no_show">No Show</option>
+                                    <option value="rescheduled">Rescheduled</option>
+                                </select>
+                            </div>
+
+                            {/* Notes/Comments */}
+                            <div>
+                                <label className="block text-base font-semibold text-gray-900 mb-2" style={{ color: '#111827', fontWeight: 700 }}>
+                                    Comments (Optional)
+                                </label>
+                                <textarea
+                                    value={cancellationNotes}
+                                    onChange={(e) => setCancellationNotes(e.target.value)}
+                                    rows={4}
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
+                                    placeholder="Enter any comments or notes about this status change..."
+                                />
+                            </div>
+
+                            {/* Appointment Info */}
+                            {cancellingAppointment && (
+                                <div className="bg-gray-50 p-4 rounded-lg">
+                                    <p className="text-sm text-gray-600">
+                                        <strong>Resident:</strong> {cancellingAppointment.resident?.name || (cancellingAppointment.resident?.first_name + ' ' + cancellingAppointment.resident?.last_name)}
+                                    </p>
+                                    <p className="text-sm text-gray-600 mt-1">
+                                        <strong>Date:</strong> {new Date(cancellingAppointment.appointment_date).toLocaleDateString()}
+                                    </p>
+                                    {cancellingAppointment.appointment_time && (
+                                        <p className="text-sm text-gray-600 mt-1">
+                                            <strong>Time:</strong> {cancellingAppointment.appointment_time}
+                                        </p>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                        <div className="p-6 border-t flex items-center justify-end space-x-3">
+                            <button
+                                onClick={() => {
+                                    setCancellingAppointment(null);
+                                    setCancellationStatus('cancelled');
+                                    setCancellationNotes('');
+                                }}
+                                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-all"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => {
+                                    if (!cancellationStatus) {
+                                        alert('Please select an appointment status');
+                                        return;
+                                    }
+                                    handleStatusUpdate(cancellingAppointment.id, cancellationStatus, cancellationNotes || null);
+                                    setCancellingAppointment(null);
+                                    setCancellationStatus('cancelled');
+                                    setCancellationNotes('');
+                                }}
+                                className="px-4 py-2 bg-[var(--theme-primary)] text-white rounded-lg hover:bg-[var(--theme-primary-hover)] transition-all"
+                            >
+                                Update Status
                             </button>
                         </div>
                     </div>

@@ -15,7 +15,12 @@ class BehaviorDataController extends Controller
      */
     public function index()
     {
-        $categories = BehaviorCategory::with('definitions')->get();
+        $categories = BehaviorCategory::with(['definitions' => function ($query) {
+            $query->where('is_active', true);
+        }])
+        ->where('is_active', true)
+        ->get();
+        
         return response()->json($categories);
     }
 
@@ -77,7 +82,7 @@ class BehaviorDataController extends Controller
             return response()->json(['message' => 'Chart data updated successfully']);
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['message' => 'Failed to update chart data', 'error' => $e.getMessage()], 500);
+            return response()->json(['message' => 'Failed to update chart data', 'error' => $e->getMessage()], 500);
         }
     }
 }

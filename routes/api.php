@@ -46,6 +46,8 @@ use App\Http\Controllers\Api\ReminderController;
 use App\Http\Controllers\Api\ReminderEventController;
 use App\Http\Controllers\Api\EmailNotificationConfigController;
 use App\Http\Controllers\Api\EmailTemplateController;
+use App\Http\Controllers\Api\BehaviorDataController;
+use App\Http\Controllers\Api\ResidentChartController;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Session\Middleware\StartSession;
@@ -371,5 +373,14 @@ Route::prefix('v1')->middleware([\App\Http\Middleware\SetFacilityContext::class]
         Route::post('/restore', [DatabaseManagementController::class, 'restoreBackup']);                                                                        
         Route::post('/refresh', [DatabaseManagementController::class, 'refreshData']);                                                                          
     });
+
+    // Behavior Chart Data Definitions
+    Route::get('/chart-data-definitions', [BehaviorDataController::class, 'index'])->middleware('auth:sanctum');
+    Route::post('/chart-data-definitions/bulk', [BehaviorDataController::class, 'bulkUpdate'])->middleware('auth:sanctum');
+
+    // Resident Behavior Charts
+    Route::get('/resident-charts/{resident}', [ResidentChartController::class, 'show'])->middleware('auth:sanctum');
+    Route::post('/resident-charts', [ResidentChartController::class, 'store'])->middleware('auth:sanctum');
+    Route::get('/resident-charts/{resident}/history', [ResidentChartController::class, 'history'])->middleware('auth:sanctum');
 });
 
