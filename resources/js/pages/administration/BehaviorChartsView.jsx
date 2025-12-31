@@ -509,11 +509,11 @@ export default function BehaviorChartsView() {
                         {/* Header */}
                         <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
                             <div>
-                                <h2 className="text-xl font-bold text-gray-900 flex items-center gap-3">
+                                <h2 className="text-xl font-bold !text-black flex items-center gap-3">
                                     <ClipboardList className="w-6 h-6 text-[var(--theme-primary)]" />
                                     Behavior Chart Details
                                 </h2>
-                                <p className="text-sm text-gray-600 mt-1">
+                                <p className="text-sm !text-black mt-1">
                                     {selectedChart.resident?.first_name} {selectedChart.resident?.last_name} - {formatPacificDate(selectedChart.chart_date)}
                                 </p>
                             </div>
@@ -594,13 +594,13 @@ export default function BehaviorChartsView() {
                                                             <tr key={item.id || idx} className="border-b border-gray-100 hover:bg-gray-50/50">
                                                                 {idx === 0 && (
                                                                     <td
-                                                                        className="px-4 py-3 border-r border-gray-200 align-middle font-bold text-gray-900 bg-gray-50/30 whitespace-nowrap"
+                                                                        className="px-4 py-3 border-r border-gray-200 align-middle font-bold !text-black bg-gray-50/30 whitespace-nowrap"
                                                                         rowSpan={items.length}
                                                                     >
                                                                         {catName}
                                                                     </td>
                                                                 )}
-                                                                <td className="px-4 py-3 border-r border-gray-200 font-medium text-gray-900">
+                                                                <td className="px-4 py-3 border-r border-gray-200 font-medium !text-black">
                                                                     {item.definition?.name || item.name || 'Unknown'}
                                                                 </td>
                                                                 <td className="px-4 py-3">
@@ -700,7 +700,7 @@ export default function BehaviorChartsView() {
                     <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden border border-gray-200">
                         {/* Header */}
                         <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
-                            <h2 className="text-xl font-bold text-gray-900 flex items-center gap-3">
+                            <h2 className="text-xl font-bold !text-black flex items-center gap-3">
                                 <CheckCircle className="w-6 h-6 text-[var(--theme-primary)]" />
                                 Review Chart
                             </h2>
