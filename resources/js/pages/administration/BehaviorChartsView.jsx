@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
+import ResidentChartModal from '../../components/residents/ResidentChartModal';
 import {
     ClipboardList,
     Filter,
@@ -37,6 +38,7 @@ export default function BehaviorChartsView() {
     const [residents, setResidents] = useState([]);
     const [selectedChart, setSelectedChart] = useState(null);
     const [reviewChart, setReviewChart] = useState(null);
+    const [editingChart, setEditingChart] = useState(null);
     const [reviewStatus, setReviewStatus] = useState('');
     const [isSubmittingReview, setIsSubmittingReview] = useState(false);
     const [openMenuId, setOpenMenuId] = useState(null);
@@ -121,9 +123,7 @@ export default function BehaviorChartsView() {
 
     const handleEditChart = (chart) => {
         setOpenMenuId(null);
-        // TODO: Implement edit functionality
-        console.log('Edit chart:', chart);
-        // You can navigate to an edit page or open an edit modal here
+        setEditingChart(chart);
     };
 
     const handleReviewChart = async (chart) => {
@@ -693,7 +693,20 @@ export default function BehaviorChartsView() {
                     </div>
                 </div>
             )}
+            {/* Edit Chart Modal */}
+            {editingChart && (
+                <ResidentChartModal
+                    isOpen={!!editingChart}
+                    onClose={() => {
+                        setEditingChart(null);
+                        refetch();
+                    }}
+                    resident={editingChart.resident}
+                    initialChart={editingChart}
+                />
+            )}
 
+            {/* Review Chart Modal */}
             {/* Review Chart Modal */}
             {reviewChart && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">

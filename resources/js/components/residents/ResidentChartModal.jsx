@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
 import { toast } from 'sonner';
 
-export default function ResidentChartModal({ isOpen, onClose, resident }) {
+export default function ResidentChartModal({ isOpen, onClose, resident, initialChart = null }) {
     const queryClient = useQueryClient();
     const [chartData, setChartData] = useState({
         items: [],
@@ -13,17 +13,21 @@ export default function ResidentChartModal({ isOpen, onClose, resident }) {
     const [currentTimeError, setCurrentTimeError] = useState(null);
     const [saving, setSaving] = useState(false);
 
-    // Fetch definitions and today's chart
+    // Fetch definitions and chart (if not provided)
     const { data: initData, isLoading: isLoadingInit } = useQuery({
-        queryKey: ['resident-chart-init', resident.id],
+        queryKey: ['resident-chart-init', resident.id, initialChart?.id],
         queryFn: async () => {
-            const [definitionsRes, chartRes] = await Promise.all([
-                api.get('/chart-data-definitions'),
-                api.get(`/resident-charts/${resident.id}`)
-            ]);
+            const promises = [api.get('/chart-data-definitions')];
+            // Only fetch "today's chart" if we are NOT editing a specific past chart
+            if (!initialChart) {
+                promises.push(api.get(`/resident-charts/${resident.id}`));
+            }
+
+            const [definitionsRes, chartRes] = await Promise.all(promises);
+
             return {
                 categories: definitionsRes.data,
-                chart: chartRes.data.chart
+                chart: initialChart || (chartRes ? chartRes.data.chart : null)
             };
         },
         enabled: isOpen && !!resident.id
@@ -37,7 +41,12 @@ export default function ResidentChartModal({ isOpen, onClose, resident }) {
             const initialItems = [];
             categories.forEach(cat => {
                 cat.definitions.forEach(def => {
-                    const existingItem = chart?.items?.find(item => item.behavior_definition_id === def.id);
+                    // Try to find in existing chart items by definition id
+                    const existingItem = chart?.items?.find(item =>
+                        item.behavior_definition_id === def.id ||
+                        (item.definition && item.definition.id === def.id)
+                    );
+
                     initialItems.push({
                         behavior_definition_id: def.id,
                         name: def.name,
@@ -122,7 +131,8 @@ export default function ResidentChartModal({ isOpen, onClose, resident }) {
         try {
             await api.post('/resident-charts', {
                 resident_id: resident.id,
-                chart_date: new Date().toISOString().split('T')[0],
+                // Use existing chart date if editing, otherwise today
+                chart_date: initialChart ? initialChart.chart_date : new Date().toISOString().split('T')[0],
                 status: status,
                 items: chartData.items.map(item => ({
                     behavior_definition_id: item.behavior_definition_id,
@@ -133,6 +143,7 @@ export default function ResidentChartModal({ isOpen, onClose, resident }) {
 
             toast.success(`Chart ${status === 'submitted' ? 'submitted' : 'saved as draft'} successfully!`, '', { isFormSubmission: true });
             queryClient.invalidateQueries(['resident-chart-init', resident.id]);
+            queryClient.invalidateQueries(['behavior-charts']); // Also invalidate the list
             if (status === 'submitted') onClose();
         } catch (error) {
             console.error('Failed to save chart:', error);
