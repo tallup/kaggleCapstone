@@ -66,6 +66,8 @@ export default function AppointmentsDashboard() {
     const [cancellingAppointment, setCancellingAppointment] = useState(null);
     const [cancellationStatus, setCancellationStatus] = useState('cancelled');
     const [cancellationNotes, setCancellationNotes] = useState('');
+    const [updateAppointmentDate, setUpdateAppointmentDate] = useState('');
+    const [updateAppointmentTime, setUpdateAppointmentTime] = useState('');
 
     // Fetch current user
     const { data: currentUser } = useQuery({
@@ -344,36 +346,54 @@ export default function AppointmentsDashboard() {
         });
     };
 
-    // Cancel appointment mutation
+    // Cancel appointment mutation (now handles both status updates and rescheduling)
     const cancelMutation = useMutation({
-        mutationFn: async ({ id, status, notes }) => {
-            const formData = new FormData();
-            formData.append('status', status || 'cancelled');
-            if (notes) {
-                formData.append('notes', notes);
+        mutationFn: async ({ id, status, notes, appointment_date, appointment_time, currentStatus }) => {
+            let response = null;
+            
+            // If date or time is changed, update the appointment first
+            if (appointment_date || appointment_time) {
+                const updateData = {};
+                if (appointment_date) updateData.appointment_date = appointment_date;
+                if (appointment_time) updateData.appointment_time = appointment_time;
+                
+                response = await api.put(`/appointments/${id}`, updateData);
             }
+            
+            // Then update the status if it has changed or if notes are provided
+            if (status && (status !== currentStatus || notes)) {
+                const formData = new FormData();
+                formData.append('status', status);
+                if (notes) {
+                    formData.append('notes', notes);
+                }
 
-            return await api.patch(`/appointments/${id}/status`, formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data',
-                },
-            });
+                response = await api.patch(`/appointments/${id}/status`, formData, {
+                    headers: {
+                        'Content-Type': 'multipart/form-data',
+                    },
+                });
+            }
+            
+            return response;
         },
         onSuccess: () => {
             queryClient.invalidateQueries(['appointments-dashboard']);
             queryClient.invalidateQueries(['appointments-statistics']);
             setCancellingAppointment(null);
-            setCancellationStatus('cancelled');
+            setCancellationStatus('scheduled');
             setCancellationNotes('');
+            setUpdateAppointmentDate('');
+            setUpdateAppointmentTime('');
             if (toast) {
-                toast.success('Appointment status updated successfully!', '', { isFormSubmission: true });
+                toast.success('Appointment updated successfully!', '', { isFormSubmission: true });
             } else {
-                alert('Appointment status updated successfully!');
+                alert('Appointment updated successfully!');
             }
         },
         onError: (error) => {
-            console.error('Cancel error:', error);
-            const errorMessage = error.response?.data?.message || 'Failed to update appointment status. Please try again.';
+            console.error('Update error:', error);
+            const errorMessage = error.response?.data?.message || 'Failed to update appointment. Please try again.';
             if (toast) {
                 toast.error('Error', errorMessage);
             } else {
@@ -419,6 +439,26 @@ export default function AppointmentsDashboard() {
         setCancellingAppointment(appointment);
         setCancellationStatus(appointment.status || 'scheduled');
         setCancellationNotes('');
+        
+        // Initialize date and time fields with current appointment values
+        if (appointment.appointment_date) {
+            const date = new Date(appointment.appointment_date);
+            if (!isNaN(date.getTime())) {
+                setUpdateAppointmentDate(date.toISOString().split('T')[0]);
+            } else {
+                setUpdateAppointmentDate('');
+            }
+        } else {
+            setUpdateAppointmentDate('');
+        }
+        
+        if (appointment.appointment_time) {
+            // Format time for input (HH:MM) - remove seconds if present
+            const timeFormatted = appointment.appointment_time.substring(0, 5);
+            setUpdateAppointmentTime(timeFormatted);
+        } else {
+            setUpdateAppointmentTime('');
+        }
     };
 
     const handleReschedule = (appointment) => {
@@ -1280,6 +1320,32 @@ export default function AppointmentsDashboard() {
                                 </select>
                             </div>
 
+                            {/* Reschedule Date and Time */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-base font-semibold text-gray-900 mb-2" style={{ color: '#111827', fontWeight: 700 }}>
+                                        Appointment Date (Optional)
+                                    </label>
+                                    <input
+                                        type="date"
+                                        value={updateAppointmentDate}
+                                        onChange={(e) => setUpdateAppointmentDate(e.target.value)}
+                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-base font-semibold text-gray-900 mb-2" style={{ color: '#111827', fontWeight: 700 }}>
+                                        Appointment Time (Optional)
+                                    </label>
+                                    <input
+                                        type="time"
+                                        value={updateAppointmentTime}
+                                        onChange={(e) => setUpdateAppointmentTime(e.target.value)}
+                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
+                                    />
+                                </div>
+                            </div>
+
                             {/* Notes/Comments */}
                             <div>
                                 <label className="block text-base font-semibold text-gray-900 mb-2" style={{ color: '#111827', fontWeight: 700 }}>
@@ -1315,8 +1381,10 @@ export default function AppointmentsDashboard() {
                             <button
                                 onClick={() => {
                                     setCancellingAppointment(null);
-                                    setCancellationStatus('cancelled');
+                                    setCancellationStatus('scheduled');
                                     setCancellationNotes('');
+                                    setUpdateAppointmentDate('');
+                                    setUpdateAppointmentTime('');
                                 }}
                                 className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-all"
                             >
@@ -1324,20 +1392,47 @@ export default function AppointmentsDashboard() {
                             </button>
                             <button
                                 onClick={() => {
-                                    if (!cancellationStatus) {
-                                        alert('Please select an appointment status');
+                                    // Check if date or time is being changed
+                                    const currentDate = cancellingAppointment.appointment_date 
+                                        ? new Date(cancellingAppointment.appointment_date).toISOString().split('T')[0]
+                                        : '';
+                                    const currentTime = cancellingAppointment.appointment_time?.substring(0, 5) || '';
+                                    
+                                    const hasDateChange = updateAppointmentDate && updateAppointmentDate !== currentDate;
+                                    const hasTimeChange = updateAppointmentTime && updateAppointmentTime !== currentTime;
+                                    const hasStatusChange = cancellationStatus && cancellationStatus !== cancellingAppointment.status;
+                                    
+                                    // Validate that at least one change is being made
+                                    if (!hasDateChange && !hasTimeChange && !hasStatusChange && !cancellationNotes) {
+                                        alert('Please make at least one change (status, date, time, or add comments)');
                                         return;
                                     }
+                                    
+                                    // Status is required only if no other changes are being made
+                                    if (!cancellationStatus && !hasDateChange && !hasTimeChange) {
+                                        alert('Please select an appointment status or change the date/time');
+                                        return;
+                                    }
+                                    
+                                    // Format time if provided
+                                    let formattedTime = updateAppointmentTime;
+                                    if (formattedTime && formattedTime.length === 5) {
+                                        formattedTime = formattedTime.substring(0, 5);
+                                    }
+                                    
                                     cancelMutation.mutate({ 
                                         id: cancellingAppointment.id, 
-                                        status: cancellationStatus,
-                                        notes: cancellationNotes || '' 
+                                        status: cancellationStatus || cancellingAppointment.status, // Use current status if not changed
+                                        notes: cancellationNotes || '',
+                                        appointment_date: updateAppointmentDate || null,
+                                        appointment_time: formattedTime || null,
+                                        currentStatus: cancellingAppointment.status
                                     });
                                 }}
                                 disabled={cancelMutation.isPending}
                                 className="px-4 py-2 bg-[var(--theme-primary)] text-white rounded-lg hover:bg-[var(--theme-primary-hover)] transition-all disabled:opacity-50"
                             >
-                                {cancelMutation.isPending ? 'Updating...' : 'Update Status'}
+                                {cancelMutation.isPending ? 'Updating...' : 'Update Appointment'}
                             </button>
                         </div>
                     </div>
