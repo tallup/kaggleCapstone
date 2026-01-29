@@ -135,7 +135,7 @@ export default function Contact() {
                     </div>
                     <div>
                       <h3 className="font-semibold text-gray-900 mb-1">Phone</h3>
-                      <p className="text-gray-600">1-800-HOMELOGIC</p>
+                      <p className="text-gray-600">+1 (425) 244-0880</p>
                       <p className="text-gray-600">Mon-Fri 9am-5pm EST</p>
                     </div>
                   </div>
