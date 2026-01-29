@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Building2, Mail, Phone, MapPin, Send } from 'lucide-react';
+import { ArrowLeft, Building2, Mail, Phone, Send } from 'lucide-react';
 import PublicNavigation from '../../components/PublicNavigation';
 import PublicFooter from '../../components/PublicFooter';
 
@@ -137,17 +137,6 @@ export default function Contact() {
                       <h3 className="font-semibold text-gray-900 mb-1">Phone</h3>
                       <p className="text-gray-600">1-800-HOMELOGIC</p>
                       <p className="text-gray-600">Mon-Fri 9am-5pm EST</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start space-x-4">
-                    <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center flex-shrink-0">
-                      <MapPin className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900 mb-1">Address</h3>
-                      <p className="text-gray-600">123 Healthcare Avenue</p>
-                      <p className="text-gray-600">Suite 100</p>
-                      <p className="text-gray-600">New York, NY 10001</p>
                     </div>
                   </div>
                 </div>
