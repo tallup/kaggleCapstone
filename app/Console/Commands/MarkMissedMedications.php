@@ -204,9 +204,10 @@ class MarkMissedMedications extends Command
                 }
 
                 // Parse scheduled time for the check date
+                // Handle both "HH:mm" and "HH:mm:ss" formats
                 try {
                     $timeParts = explode(':', $scheduledTimeStr);
-                    if (count($timeParts) !== 2) {
+                    if (count($timeParts) < 2 || count($timeParts) > 3) {
                         Log::error("Invalid time format for medication {$medication->id}: {$scheduledTimeStr}");
                         continue;
                     }
