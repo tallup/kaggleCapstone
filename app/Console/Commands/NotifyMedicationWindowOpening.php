@@ -26,7 +26,7 @@ class NotifyMedicationWindowOpening extends Command
      *
      * @var string
      */
-    protected $description = 'Send email notifications to caregivers when medication administration windows open';
+    protected $description = 'Send email notifications to caregivers and admins when medication administration windows open';
 
     protected $mailConfigService;
     protected $emailPreferenceService;
@@ -81,9 +81,10 @@ class NotifyMedicationWindowOpening extends Command
                 }
 
                 // Parse scheduled time for today
+                // Handle both "HH:mm" and "HH:mm:ss" formats
                 try {
                     $timeParts = explode(':', $scheduledTimeStr);
-                    if (count($timeParts) !== 2) {
+                    if (count($timeParts) < 2 || count($timeParts) > 3) {
                         continue;
                     }
 
@@ -104,24 +105,45 @@ class NotifyMedicationWindowOpening extends Command
                         
                         // Check if we've already notified for this window
                         if (!Cache::has($cacheKey)) {
+                            // Get facility from resident's branch
+                            $facility = $medication->resident->branch->facility ?? null;
+                            
+                            // Configure mail for facility if available
+                            if ($facility) {
+                                $this->mailConfigService->configureForFacility($facility);
+                            }
+
                             // Get all caregivers in this branch
                             $caregivers = User::where('assigned_branch_id', $medication->branch_id)
                                 ->where('role', 'caregiver')
                                 ->where('is_active', true)
                                 ->get();
 
-                            if ($caregivers->count() > 0) {
-                                // Get facility from resident's branch
-                                $facility = $medication->resident->branch->facility ?? null;
-                                
-                                // Configure mail for facility if available
-                                if ($facility) {
-                                    $this->mailConfigService->configureForFacility($facility);
-                                }
+                            // Get all admins for this facility/branch
+                            $admins = collect();
+                            if ($facility) {
+                                // Get facility-level admins
+                                $facilityAdmins = User::where('facility_id', $facility->id)
+                                    ->whereIn('role', ['super_admin', 'administrator', 'admin'])
+                                    ->where('is_active', true)
+                                    ->get();
+                                $admins = $admins->merge($facilityAdmins);
+                            }
+                            
+                            // Get branch-level admins (if any branch-specific admin roles exist)
+                            $branchAdmins = User::where('assigned_branch_id', $medication->branch_id)
+                                ->whereIn('role', ['super_admin', 'administrator', 'admin'])
+                                ->where('is_active', true)
+                                ->get();
+                            $admins = $admins->merge($branchAdmins);
 
-                                // Filter caregivers based on email preferences
-                                $caregiversToNotify = $this->emailPreferenceService->filterUsersForEmail(
-                                    $caregivers,
+                            // Combine caregivers and admins, remove duplicates
+                            $allUsersToNotify = $caregivers->merge($admins)->unique('id');
+
+                            if ($allUsersToNotify->count() > 0) {
+                                // Filter users based on email preferences
+                                $usersToNotify = $this->emailPreferenceService->filterUsersForEmail(
+                                    $allUsersToNotify,
                                     'medication_window_opening',
                                     $facility
                                 );
@@ -131,10 +153,10 @@ class NotifyMedicationWindowOpening extends Command
                                 $windowStartFormatted = $windowStart->format('g:i A');
                                 $windowEndFormatted = $windowEnd->format('g:i A');
 
-                                foreach ($caregiversToNotify as $caregiver) {
-                                    if ($caregiver->email) {
+                                foreach ($usersToNotify as $user) {
+                                    if ($user->email) {
                                         try {
-                                            \Illuminate\Support\Facades\Mail::to($caregiver->email)->send(
+                                            \Illuminate\Support\Facades\Mail::to($user->email)->send(
                                                 new \App\Mail\MedicationWindowOpeningNotification(
                                                     $medication,
                                                     $scheduledTimeFormatted,
@@ -144,14 +166,16 @@ class NotifyMedicationWindowOpening extends Command
                                             );
 
                                             Log::info('Medication window opening email sent', [
-                                                'to' => $caregiver->email,
+                                                'to' => $user->email,
+                                                'role' => $user->role,
                                                 'medication_id' => $medication->id,
                                                 'scheduled_time' => $scheduledTime->format('Y-m-d H:i'),
                                                 'facility_id' => $facility?->id,
                                             ]);
                                         } catch (\Exception $e) {
                                             Log::error('Failed to send medication window opening email', [
-                                                'to' => $caregiver->email,
+                                                'to' => $user->email,
+                                                'role' => $user->role,
                                                 'medication_id' => $medication->id,
                                                 'error' => $e->getMessage(),
                                                 'facility_id' => $facility?->id,
@@ -164,7 +188,9 @@ class NotifyMedicationWindowOpening extends Command
                                 Cache::put($cacheKey, true, now()->addHours(2));
                                 $notifiedCount++;
                                 
-                                $this->info("Notified caregivers for medication ID {$medication->id} at {$scheduledTimeFormatted}");
+                                $caregiverCount = $caregivers->count();
+                                $adminCount = $admins->unique('id')->count();
+                                $this->info("Notified {$caregiverCount} caregiver(s) and {$adminCount} admin(s) for medication ID {$medication->id} at {$scheduledTimeFormatted}");
                             }
                         }
                     }
