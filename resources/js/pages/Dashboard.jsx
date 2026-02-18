@@ -37,6 +37,7 @@ import ActionableItemsSection from '../components/dashboard/ActionableItemsSecti
 import MobileDashboard from '../components/dashboard/MobileDashboard';
 import UpcomingEventsWidget from '../components/dashboard/UpcomingEventsWidget';
 import CaregiverDashboard from '../components/dashboard/CaregiverDashboard';
+import { useUserNotifications, useFacilityUpdates } from '../hooks/useRealtimeUpdates';
 
 // Register Chart.js components
 ChartJS.register(

@@ -152,7 +152,7 @@ function initApp() {
 // This ensures React initializes as soon as the script loads
 console.log('app.jsx file loaded, readyState:', document.readyState);
 
-// Register service worker for PWA
+// Register service worker for PWA and initialize Echo
 if (typeof window !== 'undefined') {
     // Register after a short delay to not block app initialization
     setTimeout(() => {
@@ -166,6 +166,11 @@ if (typeof window !== 'undefined') {
                 console.warn('Background sync registration failed:', error);
             });
             setupOnlineSync();
+        });
+
+        // Initialize Echo for real-time updates
+        import('./services/echo').then(({ initializeEcho }) => {
+            initializeEcho();
         });
     }, 1000);
 }

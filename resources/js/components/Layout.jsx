@@ -48,6 +48,7 @@ import CommandPalette from './ui/CommandPalette';
 import PageTransition from './PageTransition';
 import PWAInstallPrompt from './PWAInstallPrompt';
 import OfflineIndicator from './OfflineIndicator';
+import RealtimeIndicator from './RealtimeIndicator';
 import DropdownMenu, { DropdownMenuItem, DropdownMenuSeparator } from './ui/radix/DropdownMenu';
 import { filterNavigationByModuleAccess } from '../utils/moduleAccess';
 import { filterNavigationByPermissionAccess } from '../utils/permissionAccess';
@@ -797,6 +798,9 @@ export default function Layout() {
             
             {/* Offline Indicator */}
             <OfflineIndicator />
+            
+            {/* Real-time Connection Indicator */}
+            <RealtimeIndicator />
         </div>
     );
 }

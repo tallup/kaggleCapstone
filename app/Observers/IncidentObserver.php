@@ -6,6 +6,7 @@ use App\Models\Incident;
 use App\Models\Notification;
 use App\Models\User;
 use App\Services\NotificationService;
+use App\Events\IncidentCreated;
 use Carbon\Carbon;
 
 class IncidentObserver
@@ -103,6 +104,9 @@ class IncidentObserver
             } catch (\Exception $ee) {
                 \Log::error("Failed to send incident emails for incident {$incident->id}: " . $ee->getMessage());
             }
+
+            // Broadcast real-time event
+            event(new IncidentCreated($incident));
         } catch (\Exception $e) {
             \Log::error("Error in IncidentObserver::created for incident {$incident->id}: " . $e->getMessage(), [
                 'trace' => $e->getTraceAsString()

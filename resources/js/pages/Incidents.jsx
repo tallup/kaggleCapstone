@@ -264,9 +264,9 @@ export default function Incidents() {
                 if (!navigator.onLine) {
                     throw new Error('File uploads require an internet connection. Please connect to the internet and try again.');
                 }
-                return await api.post('/incidents', formDataToSend, {
-                    headers: { 'Content-Type': 'multipart/form-data' },
-                });
+            return await api.post('/incidents', formDataToSend, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            });
             } else {
                 // Convert FormData to object for offline storage
                 const data = formDataToSend instanceof FormData 
@@ -287,7 +287,7 @@ export default function Incidents() {
             if (response.data?.offline) {
                 toast.success('Incident saved offline - will sync when online', '', { isFormSubmission: true });
             } else {
-                toast.success('Incident created successfully', '', { isFormSubmission: true });
+            toast.success('Incident created successfully', '', { isFormSubmission: true });
             }
         },
         onError: (error) => {

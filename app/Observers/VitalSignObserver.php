@@ -6,6 +6,7 @@ use App\Models\VitalSign;
 use App\Models\Notification;
 use App\Models\User;
 use App\Services\NotificationService;
+use App\Events\VitalSignCreated;
 use Carbon\Carbon;
 
 class VitalSignObserver
@@ -132,6 +133,9 @@ class VitalSignObserver
         if ($isCritical && $admins->isNotEmpty()) {
             $notificationService->sendVitalSignEmail($vitalSign, $admins, true);
         }
+
+        // Broadcast real-time event
+        event(new VitalSignCreated($vitalSign));
     }
 }
 }

@@ -153,7 +153,7 @@ class MarkMissedMedications extends Command
     {
         $now = Carbon::now(config('app.timezone'));
         $windowMinutes = 60;
-        $dateStr = $checkDate->format('Y-m-d');
+            $dateStr = $checkDate->format('Y-m-d');
         $count = 0;
         
         // Get system user
@@ -192,46 +192,46 @@ class MarkMissedMedications extends Command
         }
         
         $this->info("Checking date: {$dateStr} - Found {$medications->count()} medication(s) to check");
-        
-        foreach ($medications as $medication) {
-            // Check each of the 4 possible time slots
-            for ($i = 1; $i <= 4; $i++) {
-                $timeField = "time_{$i}";
-                $scheduledTimeStr = $medication->$timeField;
 
-                if (!$scheduledTimeStr) {
-                    continue;
-                }
+            foreach ($medications as $medication) {
+                // Check each of the 4 possible time slots
+                for ($i = 1; $i <= 4; $i++) {
+                    $timeField = "time_{$i}";
+                    $scheduledTimeStr = $medication->$timeField;
 
-                // Parse scheduled time for the check date
-                // Handle both "HH:mm" and "HH:mm:ss" formats
-                try {
-                    $timeParts = explode(':', $scheduledTimeStr);
-                    if (count($timeParts) < 2 || count($timeParts) > 3) {
-                        Log::error("Invalid time format for medication {$medication->id}: {$scheduledTimeStr}");
+                    if (!$scheduledTimeStr) {
                         continue;
                     }
 
-                    $scheduledTime = $checkDate->copy();
-                    $scheduledTime->setTime((int)$timeParts[0], (int)$timeParts[1], 0);
-                } catch (\Exception $e) {
-                    Log::error("Error parsing time for medication {$medication->id}: {$scheduledTimeStr} - " . $e->getMessage());
-                    continue;
-                }
+                    // Parse scheduled time for the check date
+                // Handle both "HH:mm" and "HH:mm:ss" formats
+                    try {
+                        $timeParts = explode(':', $scheduledTimeStr);
+                    if (count($timeParts) < 2 || count($timeParts) > 3) {
+                            Log::error("Invalid time format for medication {$medication->id}: {$scheduledTimeStr}");
+                            continue;
+                        }
+
+                        $scheduledTime = $checkDate->copy();
+                        $scheduledTime->setTime((int)$timeParts[0], (int)$timeParts[1], 0);
+                    } catch (\Exception $e) {
+                        Log::error("Error parsing time for medication {$medication->id}: {$scheduledTimeStr} - " . $e->getMessage());
+                        continue;
+                    }
 
                 // Calculate administration window
-                $windowStart = $scheduledTime->copy()->subMinutes($windowMinutes);
-                $windowEnd = $scheduledTime->copy()->addMinutes($windowMinutes);
+                    $windowStart = $scheduledTime->copy()->subMinutes($windowMinutes);
+                    $windowEnd = $scheduledTime->copy()->addMinutes($windowMinutes);
 
                 // For historical dates, always check all windows
                 // For current dates, only check closed windows in real-time mode
-                $isYesterday = $checkDate->format('Y-m-d') === $now->copy()->subDay()->format('Y-m-d');
+                    $isYesterday = $checkDate->format('Y-m-d') === $now->copy()->subDay()->format('Y-m-d');
                 if (!$this->option('end-of-day') && !$this->option('date') && !$isYesterday && !$isHistoricalDate) {
                     // Real-time mode for today: only mark if window has closed
-                    if ($windowEnd->isFuture()) {
+                        if ($windowEnd->isFuture()) {
                         continue;
+                        }
                     }
-                }
 
                 // Check if there's already an administration record
                 $hasAdministration = MedicationAdministration::where('medication_id', $medication->id)
@@ -258,7 +258,7 @@ class MarkMissedMedications extends Command
                             $notes = $isHistoricalDate 
                                 ? "Automatically marked as missed during backfill for date {$dateStr}"
                                 : ($this->option('end-of-day') 
-                                    ? 'Automatically marked as missed at end of day'
+                                ? 'Automatically marked as missed at end of day'
                                     : 'Automatically marked as missed when administration window closed');
                             
                             MedicationAdministration::create([
@@ -276,12 +276,12 @@ class MarkMissedMedications extends Command
                         } catch (\Exception $e) {
                             Log::error("Error creating missed medication record for medication {$medication->id}: " . $e->getMessage());
                             $this->warn("Failed to mark medication ID {$medication->id} as missed: " . $e->getMessage());
-                        }
                     }
+                }
                 }
             }
         }
-        
+
         return $count;
     }
 }

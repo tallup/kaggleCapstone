@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\PharmacyInventory;
 use App\Models\PharmacyStockTransaction;
 use App\Services\NotificationService;
+use App\Events\MedicationAdministrationCreated;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -97,6 +98,9 @@ class MedicationAdministrationObserver
         // Send email notifications
         $notificationService = app(NotificationService::class);
         $notificationService->sendMedicationAdministrationEmail($administration, $caregivers);
+
+        // Broadcast real-time event
+        event(new MedicationAdministrationCreated($administration));
     }
 
     /**

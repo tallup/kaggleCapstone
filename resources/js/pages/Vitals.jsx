@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import { offlinePost, offlinePut } from '../services/offlineApi';
+import { useBranchUpdates, useFacilityUpdates } from '../hooks/useRealtimeUpdates';
 import { Activity, User, Heart, Plus, Thermometer, Droplet, Edit, Trash2, ChevronDown, X } from 'lucide-react';
 import { getLocalDateString } from '../utils/pacificTime';
 import { TableSkeleton, ListSkeleton } from '../components/ui/SkeletonLoader';
@@ -115,6 +116,22 @@ export default function Vitals() {
             toast.error('Error', error.response?.data?.message || 'Failed to delete vital sign record');
         },
     });
+
+    // Real-time updates for vitals
+    useBranchUpdates(
+        selectedBranchId ? parseInt(selectedBranchId) : null,
+        ['vital.sign.created'],
+        {
+            queryKeys: [['vitals', dateFilter, residentFilter, selectedBranchId]],
+            showToast: true,
+            getToastMessage: (eventName, data) => {
+                const isCritical = data.status === 'critical';
+                return isCritical
+                    ? `⚠️ Critical vitals recorded for ${data.resident?.name || 'resident'}`
+                    : `Vitals recorded for ${data.resident?.name || 'resident'}`;
+            },
+        }
+    );
 
     if (showForm) {
         return (
@@ -440,14 +457,14 @@ function VitalSignForm({ record, residents, branches = [], isFacilityAdmin = fal
             if (record) {
                 const result = await offlinePut(`/vitals/${record.id}`, payload);
                 if (result.online) {
-                    toast.success('Success', 'Vital sign updated successfully', { isFormSubmission: true });
+                toast.success('Success', 'Vital sign updated successfully', { isFormSubmission: true });
                 } else {
                     toast.success('Success', 'Vital sign saved offline - will sync when online', { isFormSubmission: true });
                 }
             } else {
                 const result = await offlinePost('/vitals', payload);
                 if (result.online) {
-                    toast.success('Success', 'Vital sign recorded successfully', { isFormSubmission: true });
+                toast.success('Success', 'Vital sign recorded successfully', { isFormSubmission: true });
                 } else {
                     toast.success('Success', 'Vital sign saved offline - will sync when online', { isFormSubmission: true });
                 }

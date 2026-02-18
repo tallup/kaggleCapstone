@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../../services/api';
 import { offlinePost } from '../../services/offlineApi';
+import { useResidentUpdates } from '../../hooks/useRealtimeUpdates';
 import {
     setPacificServerTime,
     getPacificDate,
@@ -136,6 +137,23 @@ export default function ResidentMedicationsPage() {
             setPacificServerTime(currentUser.app_current_time, currentUser.app_timezone_offset);
         }
     }, [currentUser?.app_current_time]);
+
+    // Real-time updates for medication administrations
+    useResidentUpdates(
+        residentId,
+        ['medication.administration.created'],
+        {
+            queryKeys: [
+                ['medications', residentId],
+                ['medication-administrations', residentId],
+                ['medication-administrations', 'today', residentId],
+            ],
+            showToast: true,
+            getToastMessage: (eventName, data) => {
+                return `${data.medication?.name || 'Medication'} was administered to ${data.resident?.name || 'resident'}`;
+            },
+        }
+    );
 
     // Fetch resident details
     const { data: residentData, isLoading: residentLoading } = useQuery({

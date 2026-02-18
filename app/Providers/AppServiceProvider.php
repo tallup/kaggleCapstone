@@ -43,6 +43,8 @@ use App\Models\MedicationDelivery;
 use App\Models\PharmacySupplier;
 use App\Models\GroceryStatusUpdate;
 use App\Observers\GroceryStatusUpdateObserver;
+use App\Models\Notification;
+use App\Observers\NotificationObserver;
 use App\Listeners\LogAuthentication;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\Logout;
@@ -91,6 +93,7 @@ class AppServiceProvider extends ServiceProvider
         MedicationDelivery::observe(MedicationDeliveryObserver::class);
         PharmacySupplier::observe(PharmacySupplierObserver::class);
         GroceryStatusUpdate::observe(GroceryStatusUpdateObserver::class);
+        Notification::observe(NotificationObserver::class);
         
         // Register authentication event listeners
         Event::listen(Login::class, LogAuthentication::class);

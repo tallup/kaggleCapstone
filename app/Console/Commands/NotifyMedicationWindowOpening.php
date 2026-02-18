@@ -121,7 +121,7 @@ class NotifyMedicationWindowOpening extends Command
 
                             // Get all admins for this facility/branch
                             $admins = collect();
-                            if ($facility) {
+                                if ($facility) {
                                 // Get facility-level admins
                                 $facilityAdmins = User::where('facility_id', $facility->id)
                                     ->whereIn('role', ['super_admin', 'administrator', 'admin'])

@@ -385,5 +385,10 @@ Route::prefix('v1')->middleware([\App\Http\Middleware\SetFacilityContext::class]
     Route::post('/resident-charts', [ResidentChartController::class, 'store'])->middleware('auth:sanctum');
     Route::put('/resident-charts/{id}/status', [ResidentChartController::class, 'updateStatus'])->middleware('auth:sanctum');
     Route::get('/resident-charts/{resident}/history', [ResidentChartController::class, 'history'])->middleware('auth:sanctum');
+
+    // Broadcasting authentication
+    Route::post('/broadcasting/auth', function () {
+        return \Illuminate\Support\Facades\Broadcast::auth(request());
+    })->middleware('auth:sanctum');
 });
 
