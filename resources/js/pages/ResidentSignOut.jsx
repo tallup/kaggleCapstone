@@ -5,6 +5,7 @@ import api from '../services/api';
 import { User, MapPin, Clock, AlertTriangle, CheckCircle, History } from 'lucide-react';
 import SectionCard from '../components/SectionCard';
 import EmptyState from '../components/ui/EmptyState';
+import { toast } from 'sonner';
 
 export default function ResidentSignOut() {
     const queryClient = useQueryClient();
@@ -88,10 +89,18 @@ export default function ResidentSignOut() {
             return api.post(`/residents/${data.resident_id}/sign-out`, data);
         },
         onSuccess: () => {
+            toast.success('Resident signed out successfully');
             queryClient.invalidateQueries(['resident-sign-outs-active']);
             queryClient.invalidateQueries(['resident-sign-outs-overdue']);
             setShowForm(false);
             setSelectedResident(null);
+        },
+        onError: (error) => {
+            const message = error?.response?.data?.message
+                || error?.response?.data?.errors?.expected_return_at?.[0]
+                || error?.response?.data?.errors?.resident_id?.[0]
+                || 'Failed to sign out resident. Please check the form and try again.';
+            toast.error(message);
         },
     });
 
@@ -100,8 +109,13 @@ export default function ResidentSignOut() {
             return api.post(`/residents/${residentId}/sign-in`);
         },
         onSuccess: () => {
+            toast.success('Resident signed in successfully');
             queryClient.invalidateQueries(['resident-sign-outs-active']);
             queryClient.invalidateQueries(['resident-sign-outs-overdue']);
+        },
+        onError: (error) => {
+            const message = error?.response?.data?.message || 'Failed to sign in resident.';
+            toast.error(message);
         },
     });
 
@@ -263,6 +277,14 @@ function ResidentSignOutForm({ residents, selectedResident, currentUser, isFacil
         emergency_contact_notified: false,
         notes: '',
     });
+    const [formError, setFormError] = useState('');
+
+    const minExpectedReturn = useMemo(() => {
+        const now = new Date();
+        const offset = now.getTimezoneOffset();
+        const localNow = new Date(now.getTime() - offset * 60 * 1000);
+        return localNow.toISOString().slice(0, 16);
+    }, []);
 
     // Filter residents by selected branch
     const filteredResidents = useMemo(() => {
@@ -281,6 +303,16 @@ function ResidentSignOutForm({ residents, selectedResident, currentUser, isFacil
 
     const handleSubmit = (e) => {
         e.preventDefault();
+        setFormError('');
+
+        if (form.expected_return_at) {
+            const expectedReturnDate = new Date(form.expected_return_at);
+            if (!Number.isNaN(expectedReturnDate.getTime()) && expectedReturnDate <= new Date()) {
+                setFormError('Expected return must be a future date/time.');
+                return;
+            }
+        }
+
         onSubmit(form);
     };
 
@@ -390,10 +422,17 @@ function ResidentSignOutForm({ residents, selectedResident, currentUser, isFacil
                             type="datetime-local"
                             value={form.expected_return_at}
                             onChange={(e) => setForm({ ...form, expected_return_at: e.target.value })}
+                            min={minExpectedReturn}
                             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                         />
                     </div>
                 </div>
+
+                {formError && (
+                    <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                        {formError}
+                    </div>
+                )}
 
                 <div className="flex items-center gap-2">
                     <input
