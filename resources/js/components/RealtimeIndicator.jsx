@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { WifiOff, Radio, CloudOff } from 'lucide-react';
+import { WifiOff, Radio } from 'lucide-react';
 import { getEcho } from '../services/echo';
 
 /**
@@ -53,14 +53,13 @@ export default function RealtimeIndicator() {
     };
   }, []);
 
-  // When Echo is not configured, only show badge when offline (so users see network status)
-  const showBadge = !hasNetwork || (echo && true);
-  if (!showBadge) {
-    return null;
-  }
-
+  // Only show badge when offline (no network) or when live (real-time connected). Hide when "Updates paused".
   const isOffline = !hasNetwork;
-  const isLive = hasNetwork && (!echo || realtimeConnected);
+  const isLive = hasNetwork && echo && realtimeConnected;
+
+  if (!isOffline && !isLive) {
+    return null; // Online but real-time not connected: show nothing
+  }
 
   return (
     <div className="fixed top-4 right-4 z-50">
@@ -68,32 +67,19 @@ export default function RealtimeIndicator() {
         className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium shadow-sm ${
           isOffline
             ? 'bg-red-100 text-red-700 border border-red-200'
-            : isLive
-              ? 'bg-green-100 text-green-700 border border-green-200'
-              : 'bg-yellow-100 text-yellow-700 border border-yellow-200'
+            : 'bg-green-100 text-green-700 border border-green-200'
         }`}
-        title={
-          isOffline
-            ? 'No internet connection'
-            : isLive
-              ? 'Real-time updates active'
-              : 'Real-time updates paused (you are still online)'
-        }
+        title={isOffline ? 'No internet connection' : 'Real-time updates active'}
       >
         {isOffline ? (
           <>
             <WifiOff className="w-3 h-3" />
             <span>Offline</span>
           </>
-        ) : isLive ? (
+        ) : (
           <>
             <Radio className="w-3 h-3 animate-pulse" />
             <span>Live</span>
-          </>
-        ) : (
-          <>
-            <CloudOff className="w-3 h-3" />
-            <span>Updates paused</span>
           </>
         )}
       </div>
