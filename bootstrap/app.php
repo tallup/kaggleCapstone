@@ -13,7 +13,8 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        // Exclude API routes from CSRF verification
+        $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
+
         $middleware->validateCsrfTokens(except: [
             'api/*',
         ]);
@@ -66,16 +67,21 @@ return Application::configure(basePath: dirname(__DIR__))
             }
         });
 
-        // Return user-friendly error messages for API
+        // Return user-friendly error messages for API - never leak internals in production
         $exceptions->render(function (\Throwable $e, $request) {
             if ($request->is('api/*') && !($e instanceof \Illuminate\Validation\ValidationException) 
                 && !($e instanceof \Illuminate\Database\Eloquent\ModelNotFoundException)
-                && !($e instanceof \Illuminate\Auth\Access\AuthorizationException)) {
-                return response()->json([
-                    'message' => config('app.debug') 
-                        ? $e->getMessage() 
-                        : 'An error occurred',
-                ], 500);
+                && !($e instanceof \Illuminate\Auth\Access\AuthorizationException)
+                && !($e instanceof \Illuminate\Auth\AuthenticationException)) {
+                $payload = ['message' => 'An error occurred'];
+                if (config('app.debug')) {
+                    $payload['debug'] = [
+                        'message' => $e->getMessage(),
+                        'file' => $e->getFile(),
+                        'line' => $e->getLine(),
+                    ];
+                }
+                return response()->json($payload, 500);
             }
         });
     })->create();

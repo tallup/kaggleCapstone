@@ -65,13 +65,16 @@ Route::prefix('v1')->middleware([\App\Http\Middleware\SetFacilityContext::class]
     // Auth routes - login needs session support for Filament redirects
     Route::post('/login', [AuthController::class, 'login'])
         ->middleware([
+            'throttle:5,1',
             EncryptCookies::class,
             AddQueuedCookiesToResponse::class,
             StartSession::class,
         ])->withoutMiddleware([\App\Http\Middleware\SetFacilityContext::class]);
     Route::post('/forgot-password', [PasswordResetController::class, 'sendResetLink'])
+        ->middleware('throttle:3,1')
         ->withoutMiddleware([\App\Http\Middleware\SetFacilityContext::class]);
     Route::post('/reset-password', [PasswordResetController::class, 'reset'])
+        ->middleware('throttle:5,1')
         ->withoutMiddleware([\App\Http\Middleware\SetFacilityContext::class]);
     Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
     Route::get('/user', [AuthController::class, 'user'])
@@ -79,8 +82,8 @@ Route::prefix('v1')->middleware([\App\Http\Middleware\SetFacilityContext::class]
         ->withoutMiddleware([\App\Http\Middleware\SetFacilityContext::class]);
     Route::put('/user/password', [AuthController::class, 'changePassword'])->middleware('auth:sanctum');
     Route::put('/user/credentials', [AuthController::class, 'updateCredentials'])->middleware('auth:sanctum');
-    Route::post('/token/refresh', [AuthController::class, 'refreshToken'])->middleware('auth:sanctum');
-    Route::post('/token/validate', [AuthController::class, 'validateToken'])->middleware('auth:sanctum');
+    Route::post('/token/refresh', [AuthController::class, 'refreshToken'])->middleware(['auth:sanctum', 'throttle:10,1']);
+    Route::post('/token/validate', [AuthController::class, 'validateToken'])->middleware(['auth:sanctum', 'throttle:30,1']);
 
     // Dashboard
     Route::get('/dashboard/stats', [DashboardController::class, 'stats'])->middleware('auth:sanctum');
@@ -184,8 +187,9 @@ Route::prefix('v1')->middleware([\App\Http\Middleware\SetFacilityContext::class]
     Route::post('/geocode', [GeocodingController::class, 'geocode'])->middleware('auth:sanctum');
     
     // Facility Registrations
-    // Public endpoint for submitting registrations
-    Route::post('facility-registrations', [\App\Http\Controllers\Api\FacilityRegistrationController::class, 'store']);
+    // Public endpoint for submitting registrations (rate limited to prevent abuse)
+    Route::post('facility-registrations', [\App\Http\Controllers\Api\FacilityRegistrationController::class, 'store'])
+        ->middleware('throttle:3,10');
     // Protected endpoints for super admin
     Route::get('facility-registrations', [\App\Http\Controllers\Api\FacilityRegistrationController::class, 'index'])->middleware('auth:sanctum');
     Route::get('facility-registrations/{id}', [\App\Http\Controllers\Api\FacilityRegistrationController::class, 'show'])->middleware('auth:sanctum');
