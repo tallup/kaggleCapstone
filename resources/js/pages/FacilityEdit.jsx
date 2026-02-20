@@ -13,6 +13,14 @@ import FacilityPermissions from './FacilityPermissions';
 import EmptyState from '../components/ui/EmptyState';
 import { getUserLocation } from '../utils/location';
 
+const COORDINATE_DECIMALS = 6;
+const normalizeCoordinateInput = (value) => {
+  if (value === null || value === undefined || String(value).trim() === '') return '';
+  const num = Number(value);
+  if (Number.isNaN(num)) return '';
+  return num.toFixed(COORDINATE_DECIMALS);
+};
+
 export default function FacilityEdit() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -161,8 +169,8 @@ function OverviewTab({ facility }) {
     brochure_url: facility?.brochure_url || '',
     brochure_color: facility?.brochure_color || 'blue',
     is_active: facility?.is_active ?? true,
-    latitude: facility?.latitude || '',
-    longitude: facility?.longitude || '',
+    latitude: normalizeCoordinateInput(facility?.latitude),
+    longitude: normalizeCoordinateInput(facility?.longitude),
   });
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -300,8 +308,8 @@ function OverviewTab({ facility }) {
                       if (location) {
                         setForm({
                           ...form,
-                          latitude: location.latitude,
-                          longitude: location.longitude,
+                          latitude: normalizeCoordinateInput(location.latitude),
+                          longitude: normalizeCoordinateInput(location.longitude),
                         });
                       } else {
                         showToast('Unable to get your current location. Please allow location access or enter coordinates manually.', 'warning');
@@ -332,8 +340,8 @@ function OverviewTab({ facility }) {
                       if (response.data.success) {
                         setForm({
                           ...form,
-                          latitude: response.data.latitude,
-                          longitude: response.data.longitude,
+                          latitude: normalizeCoordinateInput(response.data.latitude),
+                          longitude: normalizeCoordinateInput(response.data.longitude),
                         });
                         showToast('Coordinates geocoded successfully', 'success');
                       } else {
@@ -362,11 +370,12 @@ function OverviewTab({ facility }) {
                 </label>
                 <input
                   type="number"
-                  step="0.00000001"
+                  step="0.000001"
                   min="-90"
                   max="90"
                   value={form.latitude}
                   onChange={(e) => setForm({ ...form, latitude: e.target.value })}
+                  onBlur={() => setForm((prev) => ({ ...prev, latitude: normalizeCoordinateInput(prev.latitude) }))}
                   placeholder="e.g., 47.6062"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-[var(--theme-primary)] text-sm"
                 />
@@ -377,11 +386,12 @@ function OverviewTab({ facility }) {
                 </label>
                 <input
                   type="number"
-                  step="0.00000001"
+                  step="0.000001"
                   min="-180"
                   max="180"
                   value={form.longitude}
                   onChange={(e) => setForm({ ...form, longitude: e.target.value })}
+                  onBlur={() => setForm((prev) => ({ ...prev, longitude: normalizeCoordinateInput(prev.longitude) }))}
                   placeholder="e.g., -122.3321"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-[var(--theme-primary)] text-sm"
                 />

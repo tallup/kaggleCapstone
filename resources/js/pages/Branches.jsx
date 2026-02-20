@@ -7,6 +7,14 @@ import { getUserLocation } from '../utils/location';
 import { formatPhoneNumber, unformatPhoneNumber } from '../utils/phoneFormatter';
 import { useToastContext } from '../contexts/ToastContext';
 
+const COORDINATE_DECIMALS = 6;
+const normalizeCoordinateInput = (value) => {
+  if (value === null || value === undefined || String(value).trim() === '') return '';
+  const num = Number(value);
+  if (Number.isNaN(num)) return '';
+  return num.toFixed(COORDINATE_DECIMALS);
+};
+
 export default function Branches() {
   const queryClient = useQueryClient();
   const toast = useToastContext();
@@ -228,8 +236,8 @@ function BranchForm({ record, facilities, currentUser, isSuperAdmin, isFacilityA
     phone: record?.phone || '',
     email: record?.email || '',
     is_active: record?.is_active ?? true,
-    latitude: record?.latitude ?? '',
-    longitude: record?.longitude ?? '',
+    latitude: normalizeCoordinateInput(record?.latitude),
+    longitude: normalizeCoordinateInput(record?.longitude),
   });
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
@@ -414,8 +422,8 @@ function BranchForm({ record, facilities, currentUser, isSuperAdmin, isFacilityA
                         if (location) {
                           setForm((prev) => ({
                             ...prev,
-                            latitude: location.latitude,
-                            longitude: location.longitude,
+                            latitude: normalizeCoordinateInput(location.latitude),
+                            longitude: normalizeCoordinateInput(location.longitude),
                           }));
                         } else {
                           alert('Unable to get your current location. Please allow location access or enter coordinates manually.');
@@ -446,8 +454,8 @@ function BranchForm({ record, facilities, currentUser, isSuperAdmin, isFacilityA
                         if (response.data.success) {
                           setForm((prev) => ({
                             ...prev,
-                            latitude: response.data.latitude,
-                            longitude: response.data.longitude,
+                            latitude: normalizeCoordinateInput(response.data.latitude),
+                            longitude: normalizeCoordinateInput(response.data.longitude),
                           }));
                         } else {
                           alert('Unable to geocode address. Please enter coordinates manually.');
@@ -475,11 +483,12 @@ function BranchForm({ record, facilities, currentUser, isSuperAdmin, isFacilityA
                   </label>
                   <input
                     type="number"
-                    step="0.00000001"
+                    step="0.000001"
                     min="-90"
                     max="90"
                     value={form.latitude}
                     onChange={(e) => setForm({ ...form, latitude: e.target.value })}
+                    onBlur={() => setForm((prev) => ({ ...prev, latitude: normalizeCoordinateInput(prev.latitude) }))}
                     placeholder="e.g., 47.6062"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent text-sm"
                   />
@@ -490,11 +499,12 @@ function BranchForm({ record, facilities, currentUser, isSuperAdmin, isFacilityA
                   </label>
                   <input
                     type="number"
-                    step="0.00000001"
+                    step="0.000001"
                     min="-180"
                     max="180"
                     value={form.longitude}
                     onChange={(e) => setForm({ ...form, longitude: e.target.value })}
+                    onBlur={() => setForm((prev) => ({ ...prev, longitude: normalizeCoordinateInput(prev.longitude) }))}
                     placeholder="e.g., -122.3321"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent text-sm"
                   />
