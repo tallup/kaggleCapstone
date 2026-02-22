@@ -739,10 +739,7 @@ export default function Layout() {
                         </div>
                     </div>
                     <div className="flex items-center space-x-2 md:space-x-4">
-                        <div className="flex flex-col items-end leading-tight">
-                            <span className="text-sm font-semibold text-gray-800">{appClock.time}</span>
-                            <span className="hidden md:inline text-xs text-gray-500">{appClock.date}</span>
-                        </div>
+                        <span className="text-sm font-semibold text-gray-800">{appClock.time}</span>
                         {/* Hide search, notifications, and calendar for super admin */}
                         {currentUser?.role !== 'super_admin' && (
                             <>
