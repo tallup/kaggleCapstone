@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Mail, Send, Info, Users, FileText } from 'lucide-react';
+import { Mail, Users, FileText } from 'lucide-react';
 import api from '../../services/api';
 import { useToastContext } from '../../contexts/ToastContext';
 import Tabs, { TabsList, TabsTrigger, TabsContent } from '../../components/ui/radix/Tabs';
@@ -11,7 +11,7 @@ import NotificationTypeSelector from '../../components/NotificationTypeSelector'
 export default function EmailSettings() {
   const toast = useToastContext();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState('smtp');
+  const [activeTab, setActiveTab] = useState('recipients');
   const [selectedNotificationType, setSelectedNotificationType] = useState('');
 
   // TODO: Replace with selected facility selector for super admins
@@ -273,10 +273,6 @@ export default function EmailSettings() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="w-full justify-start">
-          <TabsTrigger value="smtp">
-            <Mail className="w-4 h-4 mr-2" />
-            Sender Configuration
-          </TabsTrigger>
           <TabsTrigger value="recipients">
             <Users className="w-4 h-4 mr-2" />
             Notification Recipients
@@ -286,101 +282,6 @@ export default function EmailSettings() {
             Email Templates
           </TabsTrigger>
         </TabsList>
-
-        <TabsContent value="smtp">
-          <div className="bg-white rounded-xl shadow-sm p-6 space-y-6">
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start space-x-3">
-              <Info className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
-              <div className="text-sm text-blue-800">
-                <p className="font-medium mb-1">Amazon SES Configuration</p>
-                <p>
-                  AWS credentials are configured globally in your .env file (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_DEFAULT_REGION).
-                  You only need to configure the sender information below.
-                </p>
-              </div>
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    From Email Address *
-                  </label>
-                  <input
-                    name="mail_from_address"
-                    defaultValue={defaultValues.mail_from_address}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)]"
-                    placeholder="noreply@example.com"
-                    required
-                  />
-                  <p className="mt-1 text-xs text-gray-500">
-                    This email must be verified in Amazon SES
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    From Name *
-                  </label>
-                  <input
-                    name="mail_from_name"
-                    defaultValue={defaultValues.mail_from_name}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)]"
-                    placeholder="Facility Name"
-                    required
-                  />
-                  <p className="mt-1 text-xs text-gray-500">
-                    Display name shown in recipient's inbox
-                  </p>
-                </div>
-              </div>
-
-              <div className="border-t border-gray-200 pt-4 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-sm font-semibold text-gray-900">Test Email</h2>
-                  <button
-                    type="submit"
-                    disabled={saveMutation.isPending}
-                    className="px-3 py-1.5 text-xs sm:px-4 sm:py-2 sm:text-sm font-medium text-white bg-[var(--theme-primary)] border border-[var(--theme-primary)] rounded-lg hover:bg-[var(--theme-primary-hover)] disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {saveMutation.isPending ? 'Saving...' : 'Save Settings'}
-                  </button>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-4 items-end">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Test Recipient Email
-                    </label>
-                    <input
-                      name="test_recipient"
-                      defaultValue={defaultValues.test_recipient}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)]"
-                      placeholder="you@example.com"
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleTestEmail}
-                    disabled={testEmailMutation.isPending}
-                    className="inline-flex items-center justify-center px-3 py-1.5 text-xs sm:px-4 sm:py-2 sm:text-sm font-semibold rounded-lg bg-[var(--theme-primary)] text-white hover:bg-[var(--theme-primary-hover)] disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {testEmailMutation.isPending ? (
-                      <>
-                        <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                        Sending...
-                      </>
-                    ) : (
-                      <>
-                        <Send className="w-4 h-4 mr-2" />
-                        Send Test Email
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            </form>
-          </div>
-        </TabsContent>
 
         <TabsContent value="recipients">
           <div className="bg-white rounded-xl shadow-sm p-6 space-y-6">
