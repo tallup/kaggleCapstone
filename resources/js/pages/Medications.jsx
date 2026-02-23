@@ -1590,7 +1590,10 @@ function MedicationTimeBadges({ medication }) {
         { value: medication.time_2, label: 'Time 2' },
         { value: medication.time_3, label: 'Time 3' },
         { value: medication.time_4, label: 'Time 4' },
-    ].filter(t => t.value);
+    ].filter(t => t.value).sort((a, b) => {
+        const toMin = (v) => { const [h, m] = v.split(':').map(Number); return h * 60 + (m || 0); };
+        return toMin(a.value) - toMin(b.value);
+    });
 
     return (
         <div className="flex flex-wrap gap-2">

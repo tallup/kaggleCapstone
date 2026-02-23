@@ -605,6 +605,10 @@ export default function ResidentDetailPage() {
                                                         <span>
                                                             Times: {[medication.time_1, medication.time_2, medication.time_3, medication.time_4]
                                                                 .filter(Boolean)
+                                                                .sort((a, b) => {
+                                                                    const toMin = (v) => { const [h, m] = v.split(':').map(Number); return h * 60 + (m || 0); };
+                                                                    return toMin(a) - toMin(b);
+                                                                })
                                                                 .join(', ')}
                                                         </span>
                                                     )}
