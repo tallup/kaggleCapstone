@@ -31,6 +31,24 @@ import {
 import Select from '../../components/ui/radix/Select';
 import logger from '../../utils/logger';
 
+const PACIFIC_TZ = 'America/Los_Angeles';
+const adminTimeFmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: PACIFIC_TZ,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hour12: false,
+});
+
+const parseAdminTimeToPacific = (administeredAt) => {
+    const raw = new Date(administeredAt);
+    if (Number.isNaN(raw.getTime())) return null;
+    const p = {};
+    adminTimeFmt.formatToParts(raw).forEach(({ type, value }) => {
+        if (type !== 'literal') p[type] = parseInt(value, 10);
+    });
+    return new Date(Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second || 0));
+};
+
 const INSTRUCTION_DISPLAY_MAP = {
     'q.i.d': 'Four times a day',
     'q.i.d.': 'Four times a day',
@@ -447,28 +465,21 @@ function MedicationTimeBadges({ medication }) {
 
         // First, try to find an exact match or close match within tolerance
         let matchingAdmin = todayAdminData?.data?.find((admin) => {
-            const adminTime = getPacificDate(new Date(admin.administered_at));
+            const adminTime = parseAdminTimeToPacific(admin.administered_at);
+            if (!adminTime) return false;
             const timeDiff = Math.abs(adminTime.getTime() - scheduledTime.getTime());
             return timeDiff <= toleranceMs;
         });
 
-        // If no match found within tolerance, check if there's an administration for this medication
-        // that was recorded today (could be refused/missed for a specific time)
-        // Match by comparing time slots more flexibly (within 15 minutes)
+        // If no match found within tolerance, match by hour:minute within 15 minutes
         if (!matchingAdmin && todayAdminData?.data?.length > 0) {
-            const scheduledHours = scheduledTime.getHours();
-            const scheduledMinutes = scheduledTime.getMinutes();
-            const scheduledTotalMinutes = scheduledHours * 60 + scheduledMinutes;
+            const scheduledTotalMinutes = scheduledTime.getUTCHours() * 60 + scheduledTime.getUTCMinutes();
             
             matchingAdmin = todayAdminData.data.find((admin) => {
-                const adminTime = getPacificDate(new Date(admin.administered_at));
-                const adminHours = adminTime.getHours();
-                const adminMinutes = adminTime.getMinutes();
-                const adminTotalMinutes = adminHours * 60 + adminMinutes;
-                
-                // Match if within 15 minutes of scheduled time (for refused/missed that might be recorded slightly off)
-                const timeDiffMinutes = Math.abs(adminTotalMinutes - scheduledTotalMinutes);
-                return timeDiffMinutes <= 15;
+                const adminTime = parseAdminTimeToPacific(admin.administered_at);
+                if (!adminTime) return false;
+                const adminTotalMinutes = adminTime.getUTCHours() * 60 + adminTime.getUTCMinutes();
+                return Math.abs(adminTotalMinutes - scheduledTotalMinutes) <= 15;
             });
         }
 
@@ -676,7 +687,8 @@ function QuickAdminister({ medication, onSuccess }) {
         const toleranceMs = 60 * 60 * 1000;
         return todayAdminData.data.some((admin) => {
             if (admin.status === 'missed') return false;
-            const adminTime = getPacificDate(new Date(admin.administered_at));
+            const adminTime = parseAdminTimeToPacific(admin.administered_at);
+            if (!adminTime) return false;
             return Math.abs(adminTime.getTime() - scheduledDate.getTime()) <= toleranceMs;
         });
     }, [todayAdminData]);
