@@ -250,7 +250,8 @@ export default function MedicationDashboard() {
     }
 
     if (error) {
-        const errorMsg = error?.response?.data?.error || error?.response?.data?.message || error?.message || 'Unknown error';
+        const errorData = error?.response?.data;
+        const errorMsg = [errorData?.error, errorData?.file, errorData?.message].filter(Boolean).join(' — ') || error?.message || 'Unknown error';
         return (
             <div className="space-y-6">
                 <h1 className="text-2xl font-bold text-gray-900">Medication Dashboard</h1>

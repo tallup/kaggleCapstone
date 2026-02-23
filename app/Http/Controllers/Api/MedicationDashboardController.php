@@ -56,7 +56,8 @@ class MedicationDashboardController extends BaseApiController
 
             return response()->json([
                 'message' => 'Failed to load medication dashboard.',
-                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error',
+                'error' => $e->getMessage(),
+                'file' => basename($e->getFile()) . ':' . $e->getLine(),
             ], 500);
         }
     }
