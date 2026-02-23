@@ -56,8 +56,7 @@ class MedicationDashboardController extends BaseApiController
 
             return response()->json([
                 'message' => 'Failed to load medication dashboard.',
-                'error' => $e->getMessage(),
-                'file' => basename($e->getFile()) . ':' . $e->getLine(),
+                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error',
             ], 500);
         }
     }
@@ -77,7 +76,7 @@ class MedicationDashboardController extends BaseApiController
 
     private function getActiveMedications(array $branchIds, string $today)
     {
-        return Medication::with(['resident:id,first_name,last_name,profile_image_url', 'drug:id,name'])
+        return Medication::with(['resident:id,first_name,last_name', 'drug:id,name'])
             ->where('is_active', true)
             ->whereIn('branch_id', $branchIds)
             ->where('start_date', '<=', $today)
@@ -159,7 +158,6 @@ class MedicationDashboardController extends BaseApiController
                     'resident_name' => $med->resident
                         ? trim($med->resident->first_name . ' ' . $med->resident->last_name)
                         : 'Unknown',
-                    'resident_image' => $med->resident?->profile_image_url,
                     'scheduled_time' => $scheduledTime->format('g:i A'),
                     'scheduled_at' => $scheduledTime->toIso8601String(),
                     'instructions' => $med->instructions,
@@ -177,7 +175,7 @@ class MedicationDashboardController extends BaseApiController
         return MedicationAdministration::with([
             'medication:id,name,drug_id,instructions',
             'medication.drug:id,name',
-            'resident:id,first_name,last_name,profile_image_url',
+            'resident:id,first_name,last_name',
         ])
             ->whereIn('branch_id', $branchIds)
             ->whereDate('administered_at', $today)
@@ -192,7 +190,6 @@ class MedicationDashboardController extends BaseApiController
                 'resident_name' => $a->resident
                     ? trim($a->resident->first_name . ' ' . $a->resident->last_name)
                     : 'Unknown',
-                'resident_image' => $a->resident?->profile_image_url,
                 'scheduled_time' => $a->administered_at
                     ? Carbon::parse($a->administered_at)->setTimezone(config('app.timezone'))->format('g:i A')
                     : null,
@@ -251,7 +248,7 @@ class MedicationDashboardController extends BaseApiController
         return MedicationAdministration::with([
             'medication:id,name,drug_id',
             'medication.drug:id,name',
-            'resident:id,first_name,last_name,profile_image_url',
+            'resident:id,first_name,last_name',
             'administeredBy:id,first_name,last_name,name',
         ])
             ->whereIn('branch_id', $branchIds)
@@ -264,7 +261,6 @@ class MedicationDashboardController extends BaseApiController
                 'resident_name' => $a->resident
                     ? trim($a->resident->first_name . ' ' . $a->resident->last_name)
                     : 'Unknown',
-                'resident_image' => $a->resident?->profile_image_url,
                 'administered_by' => $a->administeredBy?->name
                     ?: trim(($a->administeredBy?->first_name ?? '') . ' ' . ($a->administeredBy?->last_name ?? ''))
                     ?: 'System',
@@ -288,7 +284,7 @@ class MedicationDashboardController extends BaseApiController
 
         $residents = Resident::whereIn('id', $residentIds)
             ->where('status', 'active')
-            ->select('id', 'first_name', 'last_name', 'profile_image_url')
+            ->select('id', 'first_name', 'last_name')
             ->get()
             ->keyBy('id');
 
@@ -314,7 +310,6 @@ class MedicationDashboardController extends BaseApiController
             $summary[] = [
                 'resident_id' => $residentId,
                 'resident_name' => trim($resident->first_name . ' ' . $resident->last_name),
-                'resident_image' => $resident->profile_image_url,
                 'active_medications' => $meds->count(),
                 'scheduled_today' => $scheduled,
                 'administered_today' => $administered,

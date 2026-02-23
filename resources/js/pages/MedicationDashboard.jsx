@@ -392,7 +392,7 @@ export default function MedicationDashboard() {
                                     onClick={() => navigate(`/medications/residents/${item.resident_id}`)}
                                     className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors w-full text-left"
                                 >
-                                    <AvatarFallback name={item.resident_name} image={item.resident_image} />
+                                    <AvatarFallback name={item.resident_name} image={null} />
                                     <div className="flex-1 min-w-0">
                                         <p className="text-sm font-medium text-gray-900 truncate">{item.medication_name}</p>
                                         <p className="text-xs text-gray-500 truncate">{item.resident_name}</p>
@@ -441,7 +441,7 @@ export default function MedicationDashboard() {
                                     onClick={() => navigate(`/medications/residents/${item.resident_id}`)}
                                     className="flex items-center gap-3 p-3 rounded-lg bg-red-50/50 hover:bg-red-50 transition-colors w-full text-left"
                                 >
-                                    <AvatarFallback name={item.resident_name} image={item.resident_image} />
+                                    <AvatarFallback name={item.resident_name} image={null} />
                                     <div className="flex-1 min-w-0">
                                         <p className="text-sm font-medium text-gray-900 truncate">{item.medication_name}</p>
                                         <p className="text-xs text-gray-500 truncate">{item.resident_name}</p>
@@ -537,7 +537,7 @@ export default function MedicationDashboard() {
                                     <tr key={r.resident_id} className="hover:bg-gray-50 transition-colors">
                                         <td className="py-3 px-3">
                                             <div className="flex items-center gap-2">
-                                                <AvatarFallback name={r.resident_name} image={r.resident_image} />
+                                                <AvatarFallback name={r.resident_name} image={null} />
                                                 <span className="text-sm font-medium text-gray-900">{r.resident_name}</span>
                                             </div>
                                         </td>
@@ -614,7 +614,7 @@ export default function MedicationDashboard() {
                                         key={item.id}
                                         className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-gray-50 transition-colors"
                                     >
-                                        <AvatarFallback name={item.resident_name} image={item.resident_image} />
+                                        <AvatarFallback name={item.resident_name} image={null} />
                                         <div className="flex-1 min-w-0">
                                             <p className="text-sm text-gray-900">
                                                 <span className="font-medium">{item.medication_name}</span>
