@@ -472,18 +472,17 @@ function MedicationTimeBadges({ medication }) {
             });
         }
 
+        const now = getPacificNow();
+        const windowClosed = now.getTime() > scheduledTime.getTime() + (60 * 60 * 1000);
+
         if (matchingAdmin) {
+            if (matchingAdmin.status === 'missed' && !windowClosed) {
+                return null;
+            }
             return matchingAdmin.status;
         }
 
-        // Only mark as missed if time has passed and no administration exists
-        const now = getPacificNow();
-        const timeHasPassed = now.getTime() > scheduledTime.getTime() + (60 * 60 * 1000); // 1 hour after scheduled time
-        
-        // Check if there are any administrations for this medication today
-        // If there are administrations but none matched, don't mark as missed
-        // (they might be for other time slots)
-        if (timeHasPassed && (!todayAdminData?.data || todayAdminData.data.length === 0)) {
+        if (windowClosed) {
             return 'missed';
         }
 

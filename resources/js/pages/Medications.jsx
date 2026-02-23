@@ -1558,30 +1558,20 @@ function MedicationTimeBadges({ medication }) {
             });
         }
 
+        const windowEndTimeToday = scheduledTimeToday.getTime() + windowAfterMs;
+        const todayWindowClosed = now.getTime() > windowEndTimeToday;
+
         if (matchingAdmin) {
+            if (matchingAdmin.status === 'missed' && !todayWindowClosed) {
+                return null;
+            }
             return matchingAdmin.status;
         }
 
-        // Only mark as missed if today's scheduled time has passed and its window has closed
-        // Don't mark future times as missed
-        const windowEndTimeToday = scheduledTimeToday.getTime() + windowAfterMs;
-
-        // Check if today's scheduled time is in the past (has already occurred)
-        const scheduledTimeHasPassed = now.getTime() > scheduledTimeToday.getTime();
-
-        // Check if today's window has closed (60 minutes after scheduled time)
-        const todayWindowClosed = now.getTime() > windowEndTimeToday;
-
-        // Only mark as missed if:
-        // 1. The scheduled time for TODAY has already passed (not in the future)
-        // 2. AND the administration window has closed (60 minutes after the scheduled time)
-        const isMissed = scheduledTimeHasPassed && todayWindowClosed;
-
-        if (isMissed) {
+        if (todayWindowClosed) {
             return 'missed';
         }
 
-        // If the scheduled time is in the future or within the window, don't mark as missed
         return null;
     };
 
