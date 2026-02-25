@@ -485,15 +485,41 @@ function MedicationTimeBadges({ medication }) {
 
         const now = getPacificNow();
         const windowClosed = now.getTime() > scheduledTime.getTime() + (60 * 60 * 1000);
+        const windowAfterMinutes = 60;
+
+        const windowEndedBeforeCreated = () => {
+            if (!medication.created_at) return false;
+            const pacificFmt = new Intl.DateTimeFormat('en-US', {
+                timeZone: 'America/Los_Angeles',
+                year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit', hour12: false,
+            });
+            const createdDate = new Date(medication.created_at);
+            const createdParts = {};
+            pacificFmt.formatToParts(createdDate).forEach(({ type, value }) => {
+                if (type !== 'literal') createdParts[type] = parseInt(value, 10);
+            });
+            const nowParts = {};
+            pacificFmt.formatToParts(now).forEach(({ type, value }) => {
+                if (type !== 'literal') nowParts[type] = parseInt(value, 10);
+            });
+            const sameDay = nowParts.year === createdParts.year &&
+                nowParts.month === createdParts.month && nowParts.day === createdParts.day;
+            if (!sameDay) return false;
+            const [schedH, schedM] = timeValue.split(':').map(Number);
+            const windowEndMin = (schedH * 60 + (schedM || 0)) + windowAfterMinutes;
+            const createdMin = createdParts.hour * 60 + createdParts.minute;
+            return windowEndMin < createdMin;
+        };
 
         if (matchingAdmin) {
-            if (matchingAdmin.status === 'missed' && !windowClosed) {
+            if (matchingAdmin.status === 'missed' && (!windowClosed || windowEndedBeforeCreated())) {
                 return null;
             }
             return matchingAdmin.status;
         }
 
-        if (windowClosed) {
+        if (windowClosed && !windowEndedBeforeCreated()) {
             return 'missed';
         }
 

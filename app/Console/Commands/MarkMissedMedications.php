@@ -223,6 +223,15 @@ class MarkMissedMedications extends Command
                     $windowStart = $scheduledTime->copy()->subMinutes($windowMinutes);
                     $windowEnd = $scheduledTime->copy()->addMinutes($windowMinutes);
 
+                    // Do not mark as missed if the medication was created after this window closed.
+                    // (e.g. medication created at 4:57 PM should not have 6 AM, 11 AM, etc. marked missed)
+                    if ($medication->created_at) {
+                        $createdAt = Carbon::parse($medication->created_at)->setTimezone(config('app.timezone'));
+                        if ($createdAt->format('Y-m-d') === $checkDate->format('Y-m-d') && $windowEnd->lt($createdAt)) {
+                            continue;
+                        }
+                    }
+
                 // For historical dates, always check all windows
                 // For current dates, only check closed windows in real-time mode
                     $isYesterday = $checkDate->format('Y-m-d') === $now->copy()->subDay()->format('Y-m-d');
