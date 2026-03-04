@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { getLocalDateString } from '../../utils/pacificTime';
 import { usePreventDateInputReload } from '../../hooks/usePreventDateInputReload';
-import PrintableReportLayout from '../../components/reports/PrintableReportLayout';
+import PrintableReportLayout, { ReportPrintButton } from '../../components/reports/PrintableReportLayout';
 
 export default function AppointmentsCharts() {
     const [branchId, setBranchId] = useState(null);
@@ -108,6 +108,7 @@ export default function AppointmentsCharts() {
                                 <Download className="h-4 w-4" />
                                 Export
                             </button>
+                            <ReportPrintButton />
                             <button
                                 onClick={() => refetch()}
                                 className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] rounded-lg text-sm font-medium hover:bg-[var(--theme-primary-hover)] transition"
