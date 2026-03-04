@@ -13,6 +13,9 @@ class ContactFormMail extends Mailable
 {
     use Queueable, SerializesModels;
 
+    /** Recipient (and fallback From) for contact form - must be verified in SES */
+    public const SUPPORT_EMAIL = 'support@homelogic360.com';
+
     public function __construct(
         public string $name,
         public string $email,
@@ -28,7 +31,15 @@ class ContactFormMail extends Mailable
             $subjectLine = substr($subjectLine, 0, 75) . '...';
         }
 
+        $fromAddress = config('mail.from.address');
+        $fromName = config('mail.from.name', 'HomeLogic360');
+        if (empty($fromAddress) || $fromAddress === 'hello@example.com') {
+            $fromAddress = self::SUPPORT_EMAIL;
+            $fromName = 'HomeLogic360 Contact';
+        }
+
         return new Envelope(
+            from: new Address($fromAddress, $fromName),
             subject: $subjectLine,
             replyTo: [new Address($this->email, $this->name)],
         );

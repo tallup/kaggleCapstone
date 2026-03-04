@@ -42,12 +42,15 @@ class PublicContactController extends Controller
             ]);
 
             $message = 'We could not send your message. Please try again later or email us directly at ' . self::TO_EMAIL . '.';
+            if (config('app.debug')) {
+                $message = $e->getMessage();
+            }
             $payload = ['message' => $message];
 
             if (config('app.debug')) {
                 $payload['debug'] = [
                     'error' => $e->getMessage(),
-                    'hint' => 'Check MAIL_MAILER, MAIL_FROM_ADDRESS, and AWS SES verification. See storage/logs/laravel.log for full trace.',
+                    'hint' => 'Contact form uses default mail config (MAIL_FROM_ADDRESS). Medication emails use facility config. Ensure MAIL_FROM_ADDRESS is set and verified in SES.',
                 ];
             }
 

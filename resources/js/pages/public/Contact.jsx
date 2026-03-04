@@ -36,9 +36,12 @@ export default function Contact() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const msg = data.message || (data.errors && typeof data.errors === 'object'
+        let msg = data.message || (data.errors && typeof data.errors === 'object'
           ? Object.values(data.errors).flat().join(' ')
           : null) || 'We could not send your message. Please try again or email us directly.';
+        if (data.debug?.error) {
+          msg = data.debug.error + (data.debug.hint ? '\n\n' + data.debug.hint : '');
+        }
         setError(msg);
         return;
       }
@@ -82,7 +85,7 @@ export default function Contact() {
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-6">
                   {error && (
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 text-sm">
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 text-sm whitespace-pre-line">
                       {error}
                     </div>
                   )}
