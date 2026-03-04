@@ -1,6 +1,15 @@
-/* Printable reports: hide app chrome so only report content + header print */
+/* Hide report header line on screen; show only when printing */
+.print-only {
+    display: none;
+}
 
+/* Printable reports: hide app chrome so only report content + header print */
 @media print {
+    /* Show elements that are print-only (e.g. report header line) */
+    .print-only {
+        display: block !important;
+    }
+
     /* Hide sidebar (first child of main app flex container) */
     .flex.h-screen > aside {
         display: none !important;

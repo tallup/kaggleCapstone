@@ -45,8 +45,8 @@ export default function PrintableReportLayout({ title, subtitle, branchName, chi
 
     return (
         <div className="print-report min-h-screen">
-            {/* Compact one-line header - visible on screen and in print */}
-            <header className="print-report-header border-b border-gray-200 pb-2 mb-4">
+            {/* Compact one-line header - visible only when printing */}
+            <header className="print-report-header print-only border-b border-gray-200 pb-2 mb-4">
                 <p className="text-xs text-gray-600">
                     <span className="font-semibold">{facilityName}</span>
                     {' · '}
