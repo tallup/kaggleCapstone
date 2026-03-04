@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Target, Users, Award, Heart, Shield, Zap, TrendingUp,
-  Building2, CheckCircle, Clock, Globe, BarChart3, Star, ArrowRight
+  Building2, CheckCircle, Clock, Globe, BarChart3, Star, ArrowRight, User
 } from 'lucide-react';
 import PublicNavigation from '../../components/PublicNavigation';
 import PublicFooter from '../../components/PublicFooter';
@@ -190,6 +190,35 @@ export default function About() {
                   </div>
                 );
               })}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Meet the Founder */}
+      <section className="py-20 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">Meet the Founder</h2>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              The technology professional behind HomeLogic360
+            </p>
+          </div>
+          <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-16 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-2xl p-8 lg:p-12 shadow-lg border border-gray-100">
+            <div className="flex-shrink-0">
+              <div className="w-40 h-40 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-xl">
+                <User className="w-20 h-20 text-white" />
+              </div>
+            </div>
+            <div className="flex-1 text-center lg:text-left space-y-4">
+              <h3 className="text-2xl font-bold text-gray-900">Gibril Lowe</h3>
+              <p className="text-lg font-medium text-blue-600">Founder of HomeLogic360</p>
+              <p className="text-gray-700 leading-relaxed">
+                Technology professional with over 15 years of experience in IT systems, database development, and enterprise solutions. Gibril is currently pursuing a Master of Science in Information Management (Data Science) at the University of Washington.
+              </p>
+              <p className="text-gray-600 leading-relaxed">
+                HomeLogic360 was built from a vision to give care facilities the same powerful, secure, and user-friendly tools that larger organizations rely on &mdash; so every resident receives the attention and documentation they deserve.
+              </p>
             </div>
           </div>
         </div>

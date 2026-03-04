@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2 } from 'lucide-react';
+import { Building2, Mail } from 'lucide-react';
 
 export default function PublicFooter() {
   const navigate = useNavigate();
@@ -31,9 +31,16 @@ export default function PublicFooter() {
               </div>
               <span className="text-xl font-bold text-white">HomeLogic360</span>
             </div>
-            <p className="text-sm text-gray-300 leading-relaxed">
+            <p className="text-sm text-gray-300 leading-relaxed mb-4">
               Comprehensive care facility management system for modern healthcare facilities.
             </p>
+            <a
+              href="mailto:support@homelogic360.com"
+              className="inline-flex items-center gap-2 text-cyan-300 hover:text-cyan-200 text-sm font-medium"
+            >
+              <Mail className="w-4 h-4" />
+              support@homelogic360.com
+            </a>
           </div>
 
           {/* Product Column */}
@@ -138,6 +145,19 @@ export default function PublicFooter() {
                   Support
                 </a>
               </li>
+              <li>
+                <a
+                  href="/blog"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    navigate('/blog');
+                  }}
+                  style={{ color: '#e5e7eb' }}
+                  className="hover:text-cyan-300 font-medium transition-colors text-sm"
+                >
+                  Blog
+                </a>
+              </li>
             </ul>
           </div>
 
@@ -201,8 +221,19 @@ export default function PublicFooter() {
           </div>
         </div>
 
+        {/* Social Links - Replace # with your profile URLs */}
+        <div className="border-t border-gray-800 mt-10 pt-8 flex flex-col sm:flex-row items-center justify-center gap-6">
+          <span className="text-sm text-gray-400">Follow us:</span>
+          <div className="flex gap-4">
+            <a href="#" aria-label="Facebook" className="text-gray-400 hover:text-cyan-300 transition-colors text-sm font-medium">Facebook</a>
+            <a href="#" aria-label="LinkedIn" className="text-gray-400 hover:text-cyan-300 transition-colors text-sm font-medium">LinkedIn</a>
+            <a href="#" aria-label="X (Twitter)" className="text-gray-400 hover:text-cyan-300 transition-colors text-sm font-medium">X</a>
+            <a href="#" aria-label="Instagram" className="text-gray-400 hover:text-cyan-300 transition-colors text-sm font-medium">Instagram</a>
+          </div>
+        </div>
+
         {/* Copyright Section */}
-        <div className="border-t border-gray-800 mt-10 pt-8">
+        <div className="border-t border-gray-800 mt-6 pt-6">
           <p className="text-center text-sm text-white">
             &copy; {new Date().getFullYear()} HomeLogic360. All rights reserved.
           </p>

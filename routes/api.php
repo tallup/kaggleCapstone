@@ -38,6 +38,7 @@ use App\Http\Controllers\Api\StaffEmailPreferenceController;
 use App\Http\Controllers\Api\GeocodingController;
 use App\Http\Controllers\Api\StaffClockInController;
 use App\Http\Controllers\Api\PublicStaffClockInController;
+use App\Http\Controllers\Api\PublicContactController;
 use App\Http\Controllers\Api\ResidentSignOutController;
 use App\Http\Controllers\Api\VisitorController;
 use App\Http\Controllers\Api\FacilitySettingsController;
@@ -56,6 +57,9 @@ use Illuminate\Session\Middleware\StartSession;
 
 // Public routes (no authentication required)
 Route::prefix('public')->group(function () {
+    // Contact form - delivers to support@homelogic360.com via AWS SES
+    Route::post('/contact', [PublicContactController::class, 'submit'])->middleware('throttle:10,1');
+
     // Public staff clock-in endpoints
     Route::post('/staff/verify-employee', [PublicStaffClockInController::class, 'verifyEmployee']);
     Route::post('/staff/clock-in', [PublicStaffClockInController::class, 'clockIn']);

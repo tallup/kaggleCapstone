@@ -93,6 +93,24 @@ export default function Security() {
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
             Your data security is our top priority. We use enterprise-grade security measures to protect your sensitive information.
           </p>
+          <div className="mt-8 flex flex-wrap justify-center gap-6 sm:gap-8 text-sm font-medium text-gray-700">
+            <span className="flex items-center gap-2">
+              <Shield className="w-4 h-4 text-blue-600" />
+              HIPAA-aware data protection
+            </span>
+            <span className="flex items-center gap-2">
+              <Database className="w-4 h-4 text-blue-600" />
+              Secure cloud hosting
+            </span>
+            <span className="flex items-center gap-2">
+              <Lock className="w-4 h-4 text-blue-600" />
+              Encrypted data transmission
+            </span>
+            <span className="flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 text-blue-600" />
+              Backup & recovery
+            </span>
+          </div>
         </div>
       </section>
 

@@ -226,6 +226,8 @@ const RegisterFacility = lazyWithRetry(() => import('./pages/public/RegisterFaci
 const RegisterFacilitySuccess = lazyWithRetry(() => import('./pages/public/RegisterFacilitySuccess'));
 const FacilitySetup = lazyWithRetry(() => import('./pages/public/FacilitySetup'));
 const Documentation = lazyWithRetry(() => import('./pages/public/Documentation'));
+const Blog = lazyWithRetry(() => import('./pages/public/Blog'));
+const BlogPost = lazyWithRetry(() => import('./pages/public/BlogPost'));
 
 function App() {
     // Make toast available globally for backward compatibility
@@ -259,6 +261,8 @@ function App() {
             <Route path="/register-facility/success" element={<Suspense fallback={<PageLoader />}><RegisterFacilitySuccess /></Suspense>} />
             <Route path="/facility-setup" element={<Suspense fallback={<PageLoader />}><FacilitySetup /></Suspense>} />
             <Route path="/documentation" element={<Suspense fallback={<PageLoader />}><Documentation /></Suspense>} />
+            <Route path="/blog" element={<Suspense fallback={<PageLoader />}><Blog /></Suspense>} />
+            <Route path="/blog/:slug" element={<Suspense fallback={<PageLoader />}><BlogPost /></Suspense>} />
             {/* Protected routes - dashboard and app pages */}
             {/* Match all paths that aren't public routes (defined above) */}
             {/* React Router matches in order, so / won't match here since it's defined above */}

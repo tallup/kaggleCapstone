@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Building2, Home, Sparkles, Info, Mail, Shield, FileText, UserPlus, Menu, X } from 'lucide-react';
+import { Building2, Home, Sparkles, Info, Mail, Shield, FileText, UserPlus, Menu, X, BookOpen } from 'lucide-react';
 
 export default function PublicNavigation() {
     const navigate = useNavigate();
@@ -11,6 +11,7 @@ export default function PublicNavigation() {
         { path: '/', label: 'Home', icon: Home },
         { path: '/about', label: 'About', icon: Info },
         { path: '/features', label: 'Features', icon: Sparkles },
+        { path: '/blog', label: 'Blog', icon: BookOpen },
         { path: '/register-facility', label: 'Register Facility', icon: UserPlus },
         { path: '/contact', label: 'Contact', icon: Mail },
     ];

@@ -5,7 +5,7 @@ import {
   AlertCircle, Building2, Stethoscope, BarChart3, Shield, Clock,
   CheckCircle, FileText, TrendingUp, Zap, Database, Settings,
   Mail, Lock, Bell, Server, UserCheck, MapPin, ShoppingCart,
-  DollarSign, Bed, ArrowRight
+  DollarSign, Bed, ArrowRight, Cloud, Play
 } from 'lucide-react';
 import PublicNavigation from '../components/PublicNavigation';
 import PublicFooter from '../components/PublicFooter';
@@ -129,6 +129,32 @@ export default function Welcome() {
     },
   ];
 
+  const trustBadges = [
+    { icon: Cloud, label: 'Secure Cloud Platform' },
+    { icon: Lock, label: 'Encrypted Data' },
+    { icon: Shield, label: 'HIPAA-aware architecture' },
+  ];
+
+  const productScreenshots = [
+    { src: '/images/slides/slide-3-hero.png', title: 'Dashboard', alt: 'HomeLogic360 dashboard overview' },
+    { src: '/images/slides/slide-6-features-resident.png', title: 'Resident records', alt: 'Resident profiles and care records' },
+    { src: '/images/slides/slide-5-features-care.png', title: 'Medication tracking', alt: 'Medication management and tracking' },
+    { src: '/images/slides/slide-8-analytics.png', title: 'Alerts and reports', alt: 'Analytics, alerts, and compliance reports' },
+  ];
+
+  const useCases = [
+    { title: 'Adult Family Homes', description: 'Designed for the unique needs of adult family home providers and small residential care settings.', icon: Building2 },
+    { title: 'Assisted Living Facilities', description: 'Scale operations while keeping resident care and compliance at the center.', icon: Heart },
+    { title: 'Small Care Providers', description: 'Enterprise-grade tools without the complexity; grow at your own pace.', icon: Users },
+    { title: 'Care Administrators', description: 'One platform for staff, residents, medications, and reporting.', icon: UserCheck },
+  ];
+
+  const testimonials = [
+    { quote: 'HomeLogic360 simplifies medication tracking and resident management.', author: 'Adult Family Home Administrator', role: 'Care Facility' },
+    { quote: 'We finally have everything in one place — vitals, appointments, and compliance reports.', author: 'Facility Director', role: 'Assisted Living' },
+    { quote: 'The support team understood our workflow from day one. Implementation was smooth.', author: 'Operations Manager', role: 'Multi-site provider' },
+  ];
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50">
       {/* Navigation */}
@@ -159,35 +185,41 @@ export default function Welcome() {
             {/* Left Column - Content */}
             <div className="text-center lg:text-left space-y-5">
               {/* Main Heading */}
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-black text-white leading-[1.1]">
-                <span className="block">Comprehensive</span>
+              <p className="text-sm sm:text-base font-semibold text-cyan-200 uppercase tracking-wider">HomeLogic360</p>
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-black text-white leading-[1.15]">
                 <span className="block bg-gradient-to-r from-cyan-200 via-white to-cyan-200 bg-clip-text text-transparent">
-                  Care Facility
-              </span>
-                <span className="block text-white">Management</span>
-            </h1>
+                  Smart Care Management Software
+                </span>
+                <span className="block text-white">for Adult Family Homes</span>
+              </h1>
 
               {/* Subheading */}
               <p className="text-lg sm:text-xl text-white/90 max-w-xl mx-auto lg:mx-0 leading-relaxed">
-                Streamline operations, improve care quality, and ensure compliance with our all-in-one platform designed for assisted living facilities.
-            </p>
+                Manage residents, medications, appointments, and staff in one secure platform.
+              </p>
 
               {/* CTA Buttons */}
               <div className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start pt-2">
-              <button
+                <button
                   onClick={() => navigate('/register-facility')}
                   className="group relative bg-white text-blue-600 px-6 py-3 rounded-xl font-bold text-base hover:bg-gray-50 transition-all shadow-2xl hover:shadow-cyan-500/50 hover:scale-105 flex items-center justify-center space-x-2 overflow-hidden"
-              >
+                >
                   <span className="relative z-10">Start Free Trial</span>
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform relative z-10" />
                   <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-cyan-500 opacity-0 group-hover:opacity-10 transition-opacity"></div>
-              </button>
-              <button
-                  onClick={() => navigate('/login')}
+                </button>
+                <button
+                  onClick={() => navigate('/contact?demo=1')}
                   className="bg-white/10 backdrop-blur-md border-2 border-white/30 text-white px-6 py-3 rounded-xl font-bold text-base hover:bg-white/20 transition-all shadow-xl"
-              >
+                >
+                  Request Demo
+                </button>
+                <button
+                  onClick={() => navigate('/login')}
+                  className="bg-transparent text-white/90 px-6 py-3 rounded-xl font-semibold text-base hover:text-white transition-all"
+                >
                   Sign In
-              </button>
+                </button>
               </div>
 
             </div>
@@ -204,6 +236,25 @@ export default function Welcome() {
                 />
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Trust Badges */}
+      <section className="py-6 bg-gray-900 border-y border-gray-800">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-wrap justify-center gap-8 sm:gap-12">
+            {trustBadges.map((badge, index) => {
+              const Icon = badge.icon;
+              return (
+                <div key={index} className="flex items-center gap-3 text-gray-300">
+                  <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center">
+                    <Icon className="w-5 h-5 text-cyan-400" />
+                  </div>
+                  <span className="font-medium text-sm sm:text-base">{badge.label}</span>
+                </div>
+              );
+            })}
           </div>
         </div>
       </section>
@@ -236,6 +287,59 @@ export default function Welcome() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* See HomeLogic360 in Action */}
+      <section className="py-20 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">See HomeLogic360 in Action</h2>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              People trust software they can see. Here’s a glimpse of the platform.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {productScreenshots.map((shot, index) => (
+              <div key={index} className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-lg hover:shadow-xl transition-all">
+                <div className="aspect-video bg-gray-100">
+                  <img
+                    src={shot.src}
+                    alt={shot.alt}
+                    className="w-full h-full object-cover"
+                    draggable={false}
+                  />
+                </div>
+                <p className="p-4 font-semibold text-gray-900 text-center">{shot.title}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Who Uses HomeLogic360 */}
+      <section className="py-20 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">Who Uses HomeLogic360</h2>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              Built for care providers of all sizes
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {useCases.map((useCase, index) => {
+              const Icon = useCase.icon;
+              return (
+                <div key={index} className="bg-gray-50 rounded-xl p-6 border border-gray-100 hover:border-blue-200 hover:shadow-md transition-all">
+                  <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center mb-4">
+                    <Icon className="w-6 h-6 text-white" />
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-900 mb-2">{useCase.title}</h3>
+                  <p className="text-gray-600 text-sm">{useCase.description}</p>
+                </div>
+              );
+            })}
           </div>
         </div>
       </section>
@@ -351,6 +455,52 @@ export default function Welcome() {
         </div>
       </section>
 
+      {/* Testimonials */}
+      <section className="py-20 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">What Our Users Say</h2>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              Feedback from care facility administrators and staff
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {testimonials.map((t, index) => (
+              <div key={index} className="bg-white rounded-xl p-6 shadow-lg border border-gray-100">
+                <p className="text-gray-700 italic mb-6">&ldquo;{t.quote}&rdquo;</p>
+                <p className="font-semibold text-gray-900">{t.author}</p>
+                <p className="text-sm text-gray-500">{t.role}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Watch How HomeLogic360 Works - Video placeholder */}
+      <section className="py-20 bg-white">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="text-4xl font-bold text-gray-900 mb-4">Watch How HomeLogic360 Works</h2>
+          <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
+            A short walkthrough of the platform (2–3 minutes). See resident management, medication tracking, and reporting in action.
+          </p>
+          <div className="aspect-video bg-gradient-to-br from-blue-50 to-cyan-50 rounded-2xl border-2 border-dashed border-gray-300 flex items-center justify-center">
+            <div className="text-center p-8">
+              <div className="w-20 h-20 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-4">
+                <Play className="w-10 h-10 text-blue-600 ml-1" />
+              </div>
+              <p className="text-gray-600 font-medium mb-2">Product video coming soon</p>
+              <p className="text-sm text-gray-500 mb-6">In the meantime, request a live demo to see the platform.</p>
+              <button
+                onClick={() => navigate('/contact?demo=1')}
+                className="bg-blue-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-blue-700 transition-all"
+              >
+                Request Demo
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Analytics Section */}
       <section className="py-16 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -437,10 +587,10 @@ export default function Welcome() {
               Start Free Trial
             </button>
             <button
-              onClick={() => navigate('/register-facility')}
+              onClick={() => navigate('/contact?demo=1')}
               className="bg-transparent border-2 border-white text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-white/10 transition-all"
             >
-              Schedule Demo
+              Request Demo
             </button>
           </div>
         </div>

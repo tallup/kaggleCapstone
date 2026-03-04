@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Building2, Mail, Phone, Send } from 'lucide-react';
+import { ArrowLeft, Building2, Mail, Phone, Send, MapPin } from 'lucide-react';
 import PublicNavigation from '../../components/PublicNavigation';
 import PublicFooter from '../../components/PublicFooter';
 
@@ -14,15 +14,42 @@ export default function Contact() {
     message: ''
   });
   const [submitted, setSubmitted] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState(null);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // In a real app, this would send the form data to a backend API
-    setSubmitted(true);
-    setTimeout(() => {
-      setSubmitted(false);
+    setError(null);
+    setSending(true);
+    const payload = {
+      name: formData.name.trim(),
+      email: formData.email.trim(),
+      phone: formData.phone?.trim() || null,
+      subject: formData.subject.trim(),
+      message: formData.message.trim(),
+    };
+    try {
+      const res = await fetch('/api/public/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg = data.message || (data.errors && typeof data.errors === 'object'
+          ? Object.values(data.errors).flat().join(' ')
+          : null) || 'We could not send your message. Please try again or email us directly.';
+        setError(msg);
+        return;
+      }
+      setSubmitted(true);
       setFormData({ name: '', email: '', phone: '', subject: '', message: '' });
-    }, 3000);
+      setTimeout(() => setSubmitted(false), 5000);
+    } catch {
+      setError('We could not send your message. Please try again or email us directly.');
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -54,6 +81,11 @@ export default function Contact() {
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-6">
+                  {error && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 text-sm">
+                      {error}
+                    </div>
+                  )}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
                     <input
@@ -105,10 +137,11 @@ export default function Contact() {
                   </div>
                   <button
                     type="submit"
-                    className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 text-white px-6 py-3 rounded-lg font-semibold hover:from-blue-600 hover:to-cyan-600 transition-all flex items-center justify-center space-x-2"
+                    disabled={sending}
+                    className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 text-white px-6 py-3 rounded-lg font-semibold hover:from-blue-600 hover:to-cyan-600 transition-all flex items-center justify-center space-x-2 disabled:opacity-70 disabled:cursor-not-allowed"
                   >
                     <Send className="w-5 h-5" />
-                    <span>Send Message</span>
+                    <span>{sending ? 'Sending...' : 'Send Message'}</span>
                   </button>
                 </form>
               )}
@@ -116,6 +149,30 @@ export default function Contact() {
 
             {/* Contact Information */}
             <div className="space-y-8">
+              <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl p-8 shadow-lg border border-gray-100">
+                <h2 className="text-2xl font-bold text-gray-900 mb-6">Business Information</h2>
+                <div className="space-y-4">
+                  <div className="flex items-start gap-3">
+                    <Building2 className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-semibold text-gray-900">HomeLogic360</p>
+                      <p className="text-sm text-gray-600">Care facility management software</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <MapPin className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                    <p className="text-gray-700 text-sm">Service area: United States. Contact us for specific location or mailing address.</p>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <Mail className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                    <p className="text-gray-700 text-sm">support@homelogic360.com, sales@homelogic360.com</p>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <Phone className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                    <p className="text-gray-700 text-sm">+1 (425) 244-0880 — Mon–Fri 9am–5pm EST</p>
+                  </div>
+                </div>
+              </div>
               <div className="bg-white rounded-xl p-8 shadow-lg">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">Get in Touch</h2>
                 <div className="space-y-6">
