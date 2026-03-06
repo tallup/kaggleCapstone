@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Target, Users, Award, Heart, Shield, Zap, TrendingUp,
-  Building2, CheckCircle, Clock, Globe, BarChart3, Star, ArrowRight, User
+  Building2, CheckCircle, Clock, Globe, BarChart3, Star, ArrowRight
 } from 'lucide-react';
 import PublicNavigation from '../../components/PublicNavigation';
 import PublicFooter from '../../components/PublicFooter';
@@ -206,18 +206,20 @@ export default function About() {
           </div>
           <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-16 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-2xl p-8 lg:p-12 shadow-lg border border-gray-100">
             <div className="flex-shrink-0">
-              <div className="w-40 h-40 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-xl">
-                <User className="w-20 h-20 text-white" />
-              </div>
+              <img
+                src="/mr%20lowe.jpeg"
+                alt="Gibril Lowe, Founder of HomeLogic360"
+                className="w-40 h-40 rounded-full object-cover shadow-xl border-2 border-white"
+              />
             </div>
             <div className="flex-1 text-center lg:text-left space-y-4">
               <h3 className="text-2xl font-bold text-gray-900">Gibril Lowe</h3>
               <p className="text-lg font-medium text-blue-600">Founder of HomeLogic360</p>
               <p className="text-gray-700 leading-relaxed">
-                Technology professional with over 15 years of experience in IT systems, database development, and enterprise solutions. Gibril is currently pursuing a Master of Science in Information Management (Data Science) at the University of Washington.
+                Gibril Lowe is a technology entrepreneur and IT professional with over 15 years of experience in information systems, database development, and enterprise technology solutions. He holds a BSc in Computer Science and an MBA in Technology Management, and is currently pursuing his second Master&apos;s degree in Information Management (Data Science) at the University of Washington.
               </p>
               <p className="text-gray-600 leading-relaxed">
-                HomeLogic360 was built from a vision to give care facilities the same powerful, secure, and user-friendly tools that larger organizations rely on &mdash; so every resident receives the attention and documentation they deserve.
+                He is the founder of USGamNeeds, a registered technology company focused on developing practical digital solutions for organizations. Under this company, he created HomeLogic360, a care management platform designed to support both small care providers and larger healthcare organizations.
               </p>
             </div>
           </div>
