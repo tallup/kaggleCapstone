@@ -66,29 +66,14 @@ export default function About() {
 
   const milestones = [
     {
-      year: '2020',
-      title: 'Founded',
-      description: 'HomeLogic360 was born from a vision to revolutionize care facility management.'
+      year: 'Nov 2025',
+      title: 'Our foundation',
+      description: 'HomeLogic360 was built from a vision to give care facilities the same powerful, secure, and user-friendly tools that larger organizations rely on — so every resident receives the attention and documentation they deserve.'
     },
     {
-      year: '2021',
-      title: 'First Launch',
-      description: 'Successfully deployed our platform to the first 10 care facilities.'
-    },
-    {
-      year: '2022',
-      title: 'Rapid Growth',
-      description: 'Expanded to 50+ facilities and introduced advanced analytics features.'
-    },
-    {
-      year: '2023',
-      title: 'Industry Recognition',
-      description: 'Received awards for innovation in healthcare technology and compliance excellence.'
-    },
-    {
-      year: '2024',
-      title: 'Market Leader',
-      description: 'Now serving 10+ facilities with cutting-edge features and unmatched support.'
+      year: 'Now',
+      title: 'Growing with you',
+      description: 'We’re focused on onboarding our first facilities, listening to feedback, and improving the platform every day. Our goal is to become the trusted partner for adult family homes and small care providers.'
     },
   ];
 
@@ -346,9 +331,9 @@ export default function About() {
       <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">Our Journey</h2>
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">Our story</h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Milestones in our mission to transform care facility management
+              We’re just getting started — here’s where we are and where we’re headed
             </p>
           </div>
           <div className="space-y-8">
