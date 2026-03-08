@@ -39,13 +39,13 @@ export default function About() {
 
   const stats = [
     {
-      number: '100+',
+      number: '10+',
       label: 'Care Facilities',
       icon: Building2,
       description: 'Trusted by facilities nationwide'
     },
     {
-      number: '10,000+',
+      number: '300',
       label: 'Residents Managed',
       icon: Users,
       description: 'Daily active users'
@@ -88,7 +88,7 @@ export default function About() {
     {
       year: '2024',
       title: 'Market Leader',
-      description: 'Now serving 100+ facilities with cutting-edge features and unmatched support.'
+      description: 'Now serving 10+ facilities with cutting-edge features and unmatched support.'
     },
   ];
 
