@@ -42,10 +42,8 @@ export default function ResidentContacts() {
       return res.data;
     },
   });
-  const allResidents = extractResidentsList(residentsResponse);
-  const residents = branchId
-    ? allResidents.filter((r) => String(r.branch_id) === String(branchId))
-    : allResidents;
+  // Always show all residents (no branch filter) so staff can manage contacts for any resident
+  const residents = extractResidentsList(residentsResponse);
 
   const { data: contactsData, isLoading } = useQuery({
     queryKey: ['resident-contacts', residentId],
@@ -175,7 +173,7 @@ export default function ResidentContacts() {
               className="w-full border border-gray-300 rounded-lg px-3 py-2.5 bg-white text-gray-900 focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-[var(--theme-primary)] transition-shadow disabled:opacity-60 disabled:cursor-not-allowed"
             >
               <option value="">
-                {residentsLoading ? 'Loading residents...' : residentsError ? 'Failed to load residents' : residents.length === 0 ? (branchId ? 'No residents in this branch' : 'No residents found') : 'Choose a resident...'}
+                {residentsLoading ? 'Loading residents...' : residentsError ? 'Failed to load residents' : residents.length === 0 ? 'No residents found' : 'Choose a resident...'}
               </option>
               {residents.map((r) => (
                 <option key={r.id} value={r.id}>{r.name}</option>
@@ -184,8 +182,8 @@ export default function ResidentContacts() {
             {residentsError && (
               <p className="mt-1.5 text-sm text-red-600">{residentsError?.response?.data?.message || residentsError?.message || 'Could not load residents.'}</p>
             )}
-            {!residentsLoading && !residentsError && residents.length === 0 && branchId && allResidents.length > 0 && (
-              <p className="mt-1.5 text-sm text-amber-700">No residents in this branch. Select &quot;All branches&quot; to see all residents.</p>
+            {!residentsLoading && !residentsError && residents.length === 0 && (
+              <p className="mt-1.5 text-sm text-gray-600">Add residents from the Residents page first, then they will appear here.</p>
             )}
           </div>
         </div>
