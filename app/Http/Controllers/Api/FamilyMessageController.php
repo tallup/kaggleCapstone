@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Events\FamilyMessageSent;
 use App\Http\Controllers\Controller;
 use App\Models\FamilyMessage;
 use App\Models\ResidentContact;
@@ -110,24 +111,28 @@ class FamilyMessageController extends BaseApiController
                 'recipient_id' => null,
                 'body' => $body,
             ]);
-        } else {
-            $resident = Resident::find($residentId);
-            if (!$resident || !$this->checkBranchAccess($resident)) {
-                return response()->json(['message' => 'Resident not found.'], 404);
-            }
-            $recipientType = $validated['recipient_type'] ?? 'family';
-            $recipientId = $validated['recipient_id'] ?? null;
-            $msg = FamilyMessage::create([
-                'resident_id' => $residentId,
-                'sender_type' => FamilyMessage::SENDER_STAFF,
-                'sender_id' => $user->id,
-                'recipient_type' => $recipientType,
-                'recipient_id' => $recipientId,
-                'body' => $body,
-            ]);
+            $formatted = $this->formatMessage($msg->fresh());
+            broadcast(new FamilyMessageSent((int) $residentId, $formatted))->toOthers();
+            return response()->json($formatted, 201);
         }
 
-        return response()->json($this->formatMessage($msg->fresh()), 201);
+        $resident = Resident::find($residentId);
+        if (!$resident || !$this->checkBranchAccess($resident)) {
+            return response()->json(['message' => 'Resident not found.'], 404);
+        }
+        $recipientType = $validated['recipient_type'] ?? 'family';
+        $recipientId = $validated['recipient_id'] ?? null;
+        $msg = FamilyMessage::create([
+            'resident_id' => $residentId,
+            'sender_type' => FamilyMessage::SENDER_STAFF,
+            'sender_id' => $user->id,
+            'recipient_type' => $recipientType,
+            'recipient_id' => $recipientId,
+            'body' => $body,
+        ]);
+        $formatted = $this->formatMessage($msg->fresh());
+        broadcast(new FamilyMessageSent((int) $residentId, $formatted))->toOthers();
+        return response()->json($formatted, 201);
     }
 
     /**

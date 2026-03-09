@@ -58,6 +58,24 @@ Broadcast::channel('resident.{residentId}', function ($user, $residentId) {
     return $isAssigned || $isInBranch || $isAdmin;
 });
 
+// Family portal messages: staff with access to resident, or family linked via ResidentContact
+Broadcast::channel('family-messages.{residentId}', function ($user, $residentId) {
+    $resident = \App\Models\Resident::find($residentId);
+    if (!$resident) {
+        return false;
+    }
+    if ($user->isFamily()) {
+        return \App\Models\ResidentContact::where('user_id', $user->id)->where('resident_id', $residentId)->exists();
+    }
+    if ($user->role === 'super_admin') {
+        return true;
+    }
+    $isInBranch = $user->assigned_branch_id == $resident->branch_id;
+    $isInFacility = $user->facility_id == ($resident->branch?->facility_id ?? null);
+    $isAdmin = in_array($user->role, ['administrator', 'admin', 'manager']) && $isInFacility;
+    return $isInBranch || $isAdmin;
+});
+
 // Presence channel for user activity tracking
 Broadcast::channel('presence-facility.{facilityId}', function ($user, $facilityId) {
     if ($user->facility_id == $facilityId || $user->role === 'super_admin') {

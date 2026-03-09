@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
+import { getEcho } from '../../services/echo';
 import { format } from 'date-fns';
 import { Send, MessageSquare } from 'lucide-react';
 
@@ -49,6 +50,24 @@ export default function PortalMessages() {
       queryClient.invalidateQueries(['family-messages-threads']);
     },
   });
+
+  // Real-time: when a new message is sent (by staff or self), refresh the message list
+  useEffect(() => {
+    if (!residentIdToUse) return;
+    const echo = getEcho();
+    if (!echo) return;
+    const channelName = `family-messages.${residentIdToUse}`;
+    const privateChannel = echo.private(channelName);
+    const handler = () => {
+      queryClient.invalidateQueries(['family-messages', residentIdToUse]);
+      queryClient.invalidateQueries(['family-messages-threads']);
+    };
+    privateChannel.listen('.message.sent', handler);
+    return () => {
+      privateChannel.stopListening('.message.sent', handler);
+      echo.leave(channelName);
+    };
+  }, [residentIdToUse, queryClient]);
 
   return (
     <div className="max-w-4xl mx-auto">

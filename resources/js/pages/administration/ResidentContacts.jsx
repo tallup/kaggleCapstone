@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
+import { getEcho } from '../../services/echo';
 import { format } from 'date-fns';
 import { Users, Plus, Mail, Edit, Trash2, Copy, Check, Building2, MessageSquare, Send } from 'lucide-react';
 import SectionCard from '../../components/SectionCard';
@@ -80,6 +81,23 @@ export default function ResidentContacts() {
       alert(e?.response?.data?.message || 'Failed to send message');
     },
   });
+
+  // Real-time: when a new message is sent (by family or self), refresh the message list
+  useEffect(() => {
+    if (!residentId) return;
+    const echo = getEcho();
+    if (!echo) return;
+    const channelName = `family-messages.${residentId}`;
+    const privateChannel = echo.private(channelName);
+    const handler = () => {
+      queryClient.invalidateQueries(['family-messages', residentId]);
+    };
+    privateChannel.listen('.message.sent', handler);
+    return () => {
+      privateChannel.stopListening('.message.sent', handler);
+      echo.leave(channelName);
+    };
+  }, [residentId, queryClient]);
 
   const createMutation = useMutation({
     mutationFn: (body) => api.post('/resident-contacts', { ...body, resident_id: Number(residentId) }),
