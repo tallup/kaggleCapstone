@@ -372,7 +372,7 @@ export default function Residents() {
                                 <span className="text-sm text-gray-500">{activeResidents.length} total</span>
                             </div>
                             {activeResidents.length > 0 ? (
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
                                     {activeResidents.map(renderResidentCard)}
                                 </div>
                             ) : (
@@ -394,7 +394,7 @@ export default function Residents() {
                                 <span className="text-sm text-gray-500">{inactiveResidents.length} total</span>
                             </div>
                             {inactiveResidents.length > 0 ? (
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
                                     {inactiveResidents.map(renderResidentCard)}
                                 </div>
                             ) : (
