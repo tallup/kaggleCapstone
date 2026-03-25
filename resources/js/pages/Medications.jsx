@@ -544,9 +544,10 @@ export default function Medications() {
                         {/* Admin Actions */}
                         {(() => {
                             const isSuperAdmin = currentUser?.role === 'super_admin';
+                            const isAdmin = currentUser?.role === 'administrator' || currentUser?.role === 'admin';
                             const permissions = Array.isArray(currentUser?.permissions) ? currentUser.permissions : [];
-                            const canEdit = isSuperAdmin || permissions.includes('edit_medications');
-                            const canDelete = isSuperAdmin || permissions.includes('delete_medications');
+                            const canEdit = isSuperAdmin || isAdmin || permissions.includes('edit_medications');
+                            const canDelete = isSuperAdmin || isAdmin || permissions.includes('delete_medications');
                             return !isCaregiver && (canEdit || canDelete) && (
                                 <div className="mt-4 pt-4 border-t border-gray-200 flex items-center justify-end gap-2">
                                     {canEdit && (
