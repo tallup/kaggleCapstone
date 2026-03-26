@@ -174,7 +174,7 @@ export default function Medications() {
     const [currentPage, setCurrentPage] = useState(1);
     const [currentUser, setCurrentUser] = useState(null);
     const [viewMode, setViewMode] = useState('list'); // 'list' or 'calendar' - default to list (calendar hidden)
-    const [activeTab, setActiveTab] = useState('scheduled'); // 'scheduled', 'prn', 'other'
+    const [activeTab, setActiveTab] = useState('scheduled'); // 'scheduled', 'am', 'pm', 'prn'
     const [expandedRows, setExpandedRows] = useState(new Set());
 
     // Fetch current user
@@ -317,39 +317,59 @@ export default function Medications() {
         return { activePeriodMedications: active, endedPeriodMedications: ended };
     }, [medicationsList]);
 
-    // Categorize medications into tabs: Scheduled, PRN, Other
-    const { scheduledMeds, prnMeds, otherMeds } = React.useMemo(() => {
+    // Categorize medications into tabs: Scheduled, AM, PM, PRN
+    const { scheduledMeds, amMeds, pmMeds, prnMeds } = React.useMemo(() => {
         const displayList = activeOnly ? activePeriodMedications : medicationsList;
         const scheduled = [];
+        const am = [];
+        const pm = [];
         const prn = [];
-        const other = [];
 
         displayList.forEach((medication) => {
             const instruction = (medication.instructions || '').toLowerCase().trim();
             const isPrn = instruction.includes('prn') || instruction.includes('as needed');
-            const hasTimes = medication.time_1 || medication.time_2 || medication.time_3 || medication.time_4;
+            const times = [
+                medication.time_1,
+                medication.time_2,
+                medication.time_3,
+                medication.time_4,
+            ].filter(Boolean);
+            const hasTimes = times.length > 0;
 
             if (isPrn) {
                 prn.push(medication);
             } else if (hasTimes) {
                 scheduled.push(medication);
-            } else {
-                other.push(medication);
+
+                // Categorize by time
+                const hasAm = times.some(t => {
+                    const [h] = t.split(':').map(Number);
+                    return h < 12;
+                });
+                const hasPm = times.some(t => {
+                    const [h] = t.split(':').map(Number);
+                    return h >= 12;
+                });
+
+                if (hasAm) am.push(medication);
+                if (hasPm) pm.push(medication);
             }
         });
 
-        return { scheduledMeds: scheduled, prnMeds: prn, otherMeds: other };
+        return { scheduledMeds: scheduled, amMeds: am, pmMeds: pm, prnMeds: prn };
     }, [medicationsList, activePeriodMedications, activeOnly]);
 
     // Get current tab's medications
     const currentTabMedications = React.useMemo(() => {
         switch (activeTab) {
             case 'scheduled': return scheduledMeds;
+            case 'am': return amMeds;
+            case 'pm': return pmMeds;
             case 'prn': return prnMeds;
-            case 'other': return otherMeds;
             default: return scheduledMeds;
         }
-    }, [activeTab, scheduledMeds, prnMeds, otherMeds]);
+    }, [activeTab, scheduledMeds, amMeds, pmMeds, prnMeds]);
+
 
     // Toggle row expansion
     const toggleRow = React.useCallback((id) => {
@@ -977,8 +997,10 @@ export default function Medications() {
                                     <div className="flex items-center gap-1">
                                         {[
                                             { key: 'scheduled', label: 'Scheduled', count: scheduledMeds.length, color: 'bg-blue-500' },
+                                            { key: 'am', label: 'AM', count: amMeds.length, color: 'bg-amber-500' },
+                                            { key: 'pm', label: 'PM', count: pmMeds.length, color: 'bg-indigo-500' },
                                             { key: 'prn', label: 'PRN', count: prnMeds.length, color: 'bg-purple-500' },
-                                            { key: 'other', label: 'Other', count: otherMeds.length, color: 'bg-gray-500' },
+
                                         ].map(tab => (
                                             <button
                                                 key={tab.key}
