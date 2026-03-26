@@ -63,14 +63,19 @@ class MarkMissedMedications extends Command
             $this->info("Real-time mode: Checking missed medications for today's past windows and yesterday");
         }
         
-        // Get system user (first admin user, or create a system user)
-        $systemUser = User::whereIn('role', ['super_admin', 'administrator', 'admin'])->first();
+        // Get dedicated system user for automation
+        $systemUser = User::where('email', 'system@evergreen.care')->first();
         if (!$systemUser) {
-            // Fallback to user ID 1 if no admin exists
-            $systemUserId = 1;
-        } else {
-            $systemUserId = $systemUser->id;
+            $systemUser = User::create([
+                'name' => 'System Automation',
+                'email' => 'system@evergreen.care',
+                'password' => bcrypt(\Illuminate\Support\Str::random(16)),
+                'role' => 'admin',
+                'is_active' => false,
+            ]);
         }
+        $systemUserId = $systemUser->id;
+
 
         $count = 0;
         
@@ -156,9 +161,19 @@ class MarkMissedMedications extends Command
             $dateStr = $checkDate->format('Y-m-d');
         $count = 0;
         
-        // Get system user
-        $systemUser = User::whereIn('role', ['super_admin', 'administrator', 'admin'])->first();
-        $systemUserId = $systemUser ? $systemUser->id : 1;
+        // Get dedicated system user for automation
+        $systemUser = User::where('email', 'system@evergreen.care')->first();
+        if (!$systemUser) {
+            $systemUser = User::create([
+                'name' => 'System Automation',
+                'email' => 'system@evergreen.care',
+                'password' => bcrypt(\Illuminate\Support\Str::random(16)),
+                'role' => 'admin',
+                'is_active' => false,
+            ]);
+        }
+        $systemUserId = $systemUser->id;
+
         
         // For historical dates, check medications that were active on that date
         $isHistoricalDate = $this->option('date') && $checkDate->format('Y-m-d') !== $now->format('Y-m-d') && $checkDate->format('Y-m-d') !== $now->copy()->subDay()->format('Y-m-d');
