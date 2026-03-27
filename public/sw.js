@@ -3,7 +3,8 @@
  * Handles caching, offline support, and background sync
  */
 
-const CACHE_VERSION = 'v1.0.0';
+// Bump when changing fetch/caching logic so clients drop stale HTML cached as "JS"
+const CACHE_VERSION = 'v1.0.1';
 const STATIC_CACHE = `homeLogic360-static-${CACHE_VERSION}`;
 const API_CACHE = `homeLogic360-api-${CACHE_VERSION}`;
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
@@ -82,17 +83,23 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Vite / Laravel Mix hashed assets: NEVER intercept.
+  // Cache-first here previously cached HTML (SPA fallback) as if it were JS →
+  // "text/html is not a valid JavaScript MIME type" on mobile after deploys.
+  if (url.pathname.startsWith('/build/')) {
+    return;
+  }
+
   // API requests - Network first with cache fallback
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(networkFirstStrategy(request));
     return;
   }
 
-  // Static assets - Cache first with network fallback
+  // Static assets - Cache first with network fallback (not /build — handled above)
   if (
     url.pathname.match(/\.(js|css|png|jpg|jpeg|gif|svg|woff|woff2|ttf|eot)$/) ||
-    url.pathname.startsWith('/images/') ||
-    url.pathname.startsWith('/build/')
+    url.pathname.startsWith('/images/')
   ) {
     event.respondWith(cacheFirstStrategy(request));
     return;
@@ -154,6 +161,17 @@ async function cacheFirstStrategy(request) {
     const response = await fetch(request);
     
     if (response.ok) {
+      const type = (response.headers.get('content-type') || '').toLowerCase();
+      const url = request.url;
+      const isJs = /\.(js|mjs)(\?|$)/i.test(url);
+      const isCss = /\.css(\?|$)/i.test(url);
+      // Never cache mistaken HTML (SPA shell) as a script
+      if (isJs && !type.includes('javascript') && !type.includes('ecmascript')) {
+        return response;
+      }
+      if (isCss && !type.includes('css')) {
+        return response;
+      }
       const cache = await caches.open(STATIC_CACHE);
       cache.put(request, response.clone());
     }

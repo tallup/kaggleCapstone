@@ -5,7 +5,7 @@
 
 import logger from '../utils/logger';
 
-const SW_VERSION = '1.0.0';
+const SW_VERSION = '1.0.1';
 const SW_PATH = '/sw.js';
 
 /**

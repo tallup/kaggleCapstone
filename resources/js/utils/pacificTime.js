@@ -19,13 +19,6 @@ const pacificDateFormatter = new Intl.DateTimeFormat('en-US', {
     day: 'numeric',
 });
 
-const pacificTimeFormatter = new Intl.DateTimeFormat('en-US', {
-    timeZone: PACIFIC_TIMEZONE,
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true,
-});
-
 let pacificServerReference = null;
 let pacificReferencePerformance = null;
 
@@ -264,6 +257,35 @@ const formatFromPacificComponents = (parts, formatter) => {
     return utcFormatter.format(utcDate);
 };
 
+/** Always "h:mm AM/PM" — never rely on Intl full-string time (Safari/mobile may say "in the morning" / "at night"). */
+const formatHourMinute24ToAmPm = (hour24, minute) => {
+    const h = ((Math.floor(hour24) % 24) + 24) % 24;
+    const m = ((Math.floor(minute) % 60) + 60) % 60;
+    const ampm = h < 12 ? 'AM' : 'PM';
+    const h12 = h % 12 || 12;
+    return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
+};
+
+/** Pacific wall-clock hour (0–23) and minute from a real Date, via explicit 24h parts (no dayPeriod strings). */
+const getPacificHourMinute24 = (date) => {
+    const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: PACIFIC_TIMEZONE,
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+    }).formatToParts(date);
+    const lookup = {};
+    parts.forEach(({ type, value }) => {
+        if (type !== 'literal') {
+            lookup[type] = Number(value);
+        }
+    });
+    return {
+        hour: Number.isFinite(lookup.hour) ? lookup.hour : 0,
+        minute: Number.isFinite(lookup.minute) ? lookup.minute : 0,
+    };
+};
+
 export const formatPacificDate = (date) => {
     // If no date provided and we have a server reference, format directly from components
     if (!date && pacificServerReference && pacificReferencePerformance !== null) {
@@ -301,29 +323,25 @@ export const formatPacificDate = (date) => {
 };
 
 export const formatPacificTime = (date) => {
-    // If no date provided and we have a server reference, format directly from components
+    // Server-synced clock: Pacific components live in UTC fields of our reference Date
     if (!date && pacificServerReference && pacificReferencePerformance !== null) {
         const parts = getPacificParts();
-        return formatFromPacificComponents(parts, pacificTimeFormatter);
+        return formatHourMinute24ToAmPm(parts.hour, parts.minute);
     }
-    
-    // If date is provided and we have a server reference, extract components directly
-    // (Dates from our system have UTC components = Pacific components)
+
     if (date && pacificServerReference && pacificReferencePerformance !== null) {
         const dateObj = date instanceof Date ? date : new Date(date);
         if (!Number.isNaN(dateObj.getTime())) {
-            // Extract UTC components directly (they represent Pacific time)
             const hours = dateObj.getUTCHours();
             const minutes = dateObj.getUTCMinutes();
-            const hour12 = hours % 12 || 12;
-            const ampm = hours < 12 ? 'AM' : 'PM';
-            const minutesPadded = String(minutes).padStart(2, '0');
-            return `${hour12}:${minutesPadded} ${ampm}`;
+            return formatHourMinute24ToAmPm(hours, minutes);
         }
     }
-    
-    // Fallback to formatter
-    return pacificTimeFormatter.format(resolveDateInput(date));
+
+    // Real-world Date in local storage → derive Pacific hour/minute with 24h numeric parts only
+    const d = resolveDateInput(date);
+    const { hour, minute } = getPacificHourMinute24(d);
+    return formatHourMinute24ToAmPm(hour, minute);
 };
 
 export const getPacificNow = () => getPacificDate();
