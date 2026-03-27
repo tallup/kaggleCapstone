@@ -32,6 +32,7 @@ import {
     Search,
     Filter,
     RefreshCw,
+    X,
 } from 'lucide-react';
 
 
@@ -269,40 +270,66 @@ export default function ResidentMedicationsPage() {
                 medication.time_3,
                 medication.time_4,
             ].filter(Boolean);
-            const hasTimes = times.length > 0;
 
             if (isPrn) {
-                prn.push(medication);
+                prn.push({ ...medication, slotTime: null, uniqueId: `prn-${medication.id}` });
             } else {
-                if (hasTimes) scheduled.push(medication);
+                times.forEach((time, index) => {
+                    const [h] = time.split(':').map(Number);
+                    const isAm = h < 12;
+                    const entry = { 
+                        ...medication, 
+                        slotTime: time, 
+                        uniqueId: `${medication.id}-${time}`,
+                        timeIndex: index + 1
+                    };
 
-                // Categorize by individual time slots
-                const hasAm = times.some(t => {
-                    const [h] = t.split(':').map(Number);
-                    return h < 12;
-                });
-                const hasPm = times.some(t => {
-                    const [h] = t.split(':').map(Number);
-                    return h >= 12;
+                    scheduled.push(entry);
+                    if (isAm) am.push(entry);
+                    else pm.push(entry);
                 });
 
-                if (hasAm) am.push(medication);
-                if (hasPm) pm.push(medication);
+                if (times.length === 0) {
+                    scheduled.push({ ...medication, slotTime: null, uniqueId: `sc-${medication.id}` });
+                }
             }
         });
 
         return { scheduledMeds: scheduled, amMeds: am, pmMeds: pm, prnMeds: prn };
     }, [medicationsList, activePeriodMedications, activeOnly, search]);
 
-    // Get current tab's medications
+    // Get current tab's medications with smart sorting
     const currentTabMedications = React.useMemo(() => {
+        let list = [];
         switch (activeTab) {
-            case 'scheduled': return scheduledMeds;
-            case 'am': return amMeds;
-            case 'pm': return pmMeds;
-            case 'prn': return prnMeds;
-            default: return scheduledMeds;
+            case 'scheduled': list = [...scheduledMeds]; break;
+            case 'am': list = [...amMeds]; break;
+            case 'pm': list = [...pmMeds]; break;
+            case 'prn': list = [...prnMeds]; break;
+            default: list = [...scheduledMeds]; break;
         }
+
+        const now = getPacificNow();
+        const getSortWeight = (med) => {
+            if (med.uniqueId.startsWith('prn')) return 999999;
+            if (!med.slotTime) return 888888;
+
+            const now = getPacificNow();
+            const scheduled = toPacificDateFromTime(med.slotTime, { referenceDate: now });
+            if (!scheduled) return 777777;
+
+            const diff = scheduled.getTime() - now.getTime();
+            const windowStart = scheduled.getTime() - 60 * 60 * 1000;
+            const windowEnd = scheduled.getTime() + 60 * 60 * 1000;
+
+            if (now.getTime() >= windowStart && now.getTime() <= windowEnd) {
+                return -1000000 + Math.abs(diff); // Open windows first
+            }
+            
+            return diff > -60 * 60 * 1000 ? diff : 555555 + Math.abs(diff);
+        };
+
+        return list.sort((a, b) => getSortWeight(a) - getSortWeight(b));
     }, [activeTab, scheduledMeds, amMeds, pmMeds, prnMeds]);
 
     // Toggle row expansion
@@ -321,8 +348,8 @@ export default function ResidentMedicationsPage() {
 
     const renderMedicationRow = (medication, index) => {
         const periodActive = isMedicationPeriodActiveNow(medication);
-        const isExpanded = expandedRows.has(medication.id);
-        const isSelected = selectedMeds.has(medication.id);
+        const isExpanded = expandedRows.has(medication.uniqueId);
+        const isSelected = selectedMeds.has(medication.uniqueId);
         const instruction = (medication.instructions || '').toLowerCase().trim();
         const isPrn = instruction.includes('prn') || instruction.includes('as needed');
         const medName = (medication.name || medication.drug?.name || 'Medication').toUpperCase();
@@ -336,37 +363,15 @@ export default function ResidentMedicationsPage() {
         // Schedule label
         const scheduleLabel = isPrn ? 'PRN' : formatInstructionDisplay(medication.instructions) || 'Scheduled';
 
-        // Format times for display, filtering by tab if needed
-        const times = [
-            medication.time_1,
-            medication.time_2,
-            medication.time_3,
-            medication.time_4,
-        ].filter(Boolean)
-            .filter(t => {
-                if (activeTab === 'am') {
-                    const [h] = t.split(':').map(Number);
-                    return h < 12;
-                }
-                if (activeTab === 'pm') {
-                    const [h] = t.split(':').map(Number);
-                    return h >= 12;
-                }
-                return true;
-            })
-            .sort((a, b) => {
-                const toMin = (v) => { const [h, m] = v.split(':').map(Number); return h * 60 + (m || 0); };
-                return toMin(a) - toMin(b);
-            })
-            .map(t => formatPacificTimeValue(t))
-            .filter(Boolean);
+        // Slot specific time
+        const slotTimeDisplay = medication.slotTime ? formatPacificTimeValue(medication.slotTime) : null;
 
         return (
-            <div key={medication.id} className={`${index > 0 ? 'border-t border-gray-100' : ''}`}>
+            <div key={medication.uniqueId} className={`${index > 0 ? 'border-t border-gray-100' : ''}`}>
                 {/* Compact Row */}
                 <div
                     className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors hover:bg-gray-50 ${isExpanded ? 'bg-blue-50/40' : (isSelected ? 'bg-blue-100/50' : (index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'))} ${!periodActive ? 'opacity-70' : ''}`}
-                    onClick={() => toggleRow(medication.id)}
+                    onClick={() => toggleRow(medication.uniqueId)}
                 >
                     {/* Checkbox for Bulk Administration */}
                     {activeTab !== 'prn' && (
@@ -375,8 +380,8 @@ export default function ResidentMedicationsPage() {
                             onClick={(e) => {
                                 e.stopPropagation();
                                 const next = new Set(selectedMeds);
-                                if (next.has(medication.id)) next.delete(medication.id);
-                                else next.add(medication.id);
+                                if (next.has(medication.uniqueId)) next.delete(medication.uniqueId);
+                                else next.add(medication.uniqueId);
                                 setSelectedMeds(next);
                             }}
                         >
@@ -407,7 +412,7 @@ export default function ResidentMedicationsPage() {
                                 {medName}
                             </h3>
                             {/* Window Status Badge */}
-                            <MedicationWindowBadge medication={medication} />
+                            <MedicationWindowBadge medication={medication} slotTime={medication.slotTime} />
                             
                             {/* Type badges */}
                             <div className="flex items-center gap-1">
@@ -421,14 +426,12 @@ export default function ResidentMedicationsPage() {
                     </div>
 
 
-                    {/* Schedule Info */}
+                    {/* Slot Time Info */}
                     <div className="hidden md:flex items-center gap-4 flex-shrink-0">
-                        {times.length > 0 && (
-                            <div className="text-xs text-gray-600">
-                                <span className="text-gray-400 mr-1">
-                                    <Clock className="w-3 h-3 inline-block" />
-                                </span>
-                                {times.join(', ')}
+                        {slotTimeDisplay && (
+                            <div className="px-2 py-1 bg-gray-100 rounded text-xs font-black text-gray-700 flex items-center gap-1">
+                                <Clock className="w-3 h-3" />
+                                {slotTimeDisplay}
                             </div>
                         )}
                         {medication.instructions && (
@@ -558,32 +561,32 @@ export default function ResidentMedicationsPage() {
         setIsBulkAdministering(true);
         
         try {
-            const medsToAdmin = currentTabMedications.filter(m => selectedMeds.has(m.id));
+            const medsToAdmin = currentTabMedications.filter(m => selectedMeds.has(m.uniqueId));
             const now = getPacificISODateTime();
             
-            // For simple bulk administration, we record a standard 'completed' status for all selected
-            // We'll use a Promise.all to fire off the requests
-            const promises = medsToAdmin.map(med => 
-                offlinePost('/medication-administrations', {
+            const promises = medsToAdmin.map(med => {
+                const administeredAt = med.slotTime 
+                    ? toPacificDateFromTime(med.slotTime, { referenceDate: getPacificNow() }).toISOString()
+                    : now;
+
+                return offlinePost('/medication-administrations', {
                     medication_id: med.id,
                     resident_id: med.resident_id,
                     branch_id: med.branch_id,
-                    administered_at: now,
+                    administered_at: administeredAt,
                     status: 'completed',
                     dosage_given: med.quantity ? `${med.quantity} ${med.form || ''}` : 'As prescribed',
-                    notes: 'Bulk administered from dashboard',
-                })
-            );
+                    notes: `Bulk administered from dashboard. Target slot: ${med.slotTime || 'N/A'}`,
+                });
+            });
             
             await Promise.all(promises);
             
-            // Clear selection and refresh
             setSelectedMeds(new Set());
             queryClient.invalidateQueries(['resident-medications', residentId]);
             queryClient.invalidateQueries(['medication-administrations']);
             
-            // Show toast or success
-            alert(`Successfully administered ${medsToAdmin.length} medications.`);
+            alert(`Successfully administered ${medsToAdmin.length} records.`);
         } catch (err) {
             logger.error('Bulk administration failed:', err);
             alert('Some medications could not be administered.');
@@ -1626,7 +1629,7 @@ function QuickAdminister({ medication, onSuccess }) {
 }
 
 // Medication Window Badge Component
-function MedicationWindowBadge({ medication }) {
+function MedicationWindowBadge({ medication, slotTime }) {
     const [status, setStatus] = useState({ isOpen: false, nextStart: null, label: '' });
     const [countdown, setCountdown] = useState('');
 
@@ -1643,7 +1646,7 @@ function MedicationWindowBadge({ medication }) {
             return { isOpen: true, nextStart: null, label: 'PRN Open' };
         }
 
-        const times = [
+        const times = slotTime ? [slotTime] : [
             medication.time_1,
             medication.time_2,
             medication.time_3,
