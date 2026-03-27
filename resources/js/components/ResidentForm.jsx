@@ -368,7 +368,7 @@ export default function ResidentForm({ record, branches, onClose, onSuccess, sel
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-sm font-medium text-gray-900 mb-1">First Name *</label>
+                            <label className="block text-sm font-semibold text-slate-800 mb-1">First Name *</label>
                             <input
                                 type="text"
                                 value={formData.first_name}
@@ -380,7 +380,7 @@ export default function ResidentForm({ record, branches, onClose, onSuccess, sel
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-gray-900 mb-1">Middle Names</label>
+                            <label className="block text-sm font-semibold text-slate-800 mb-1">Middle Names</label>
                             <input
                                 type="text"
                                 value={formData.middle_names}
@@ -390,7 +390,7 @@ export default function ResidentForm({ record, branches, onClose, onSuccess, sel
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-gray-900 mb-1">Last Name *</label>
+                            <label className="block text-sm font-semibold text-slate-800 mb-1">Last Name *</label>
                             <input
                                 type="text"
                                 value={formData.last_name}
@@ -402,7 +402,7 @@ export default function ResidentForm({ record, branches, onClose, onSuccess, sel
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-gray-900 mb-1">Date of Birth *</label>
+                            <label className="block text-sm font-semibold text-slate-800 mb-1">Date of Birth *</label>
                             <input
                                 type="date"
                                 value={formData.date_of_birth}
@@ -413,7 +413,7 @@ export default function ResidentForm({ record, branches, onClose, onSuccess, sel
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-gray-900 mb-1">Gender</label>
+                            <label className="block text-sm font-semibold text-slate-800 mb-1">Gender</label>
                             <select
                                 value={formData.gender}
                                 onChange={(e) => setFormData({...formData, gender: e.target.value})}
@@ -427,7 +427,7 @@ export default function ResidentForm({ record, branches, onClose, onSuccess, sel
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-gray-900 mb-1">Phone</label>
+                            <label className="block text-sm font-semibold text-slate-800 mb-1">Phone</label>
                             <input
                                 type="tel"
                                 value={formData.phone}
@@ -438,7 +438,7 @@ export default function ResidentForm({ record, branches, onClose, onSuccess, sel
 
                         {!selectedBranchId && (
                             <div>
-                                <label className="block text-sm font-medium text-gray-900 mb-1">Branch *</label>
+                                <label className="block text-sm font-semibold text-slate-800 mb-1">Branch *</label>
                                 <select
                                     value={formData.branch_id}
                                     onChange={(e) => setFormData({...formData, branch_id: e.target.value})}
@@ -452,7 +452,7 @@ export default function ResidentForm({ record, branches, onClose, onSuccess, sel
                         )}
 
                         <div>
-                            <label className="block text-sm font-medium text-gray-900 mb-1">Room Number</label>
+                            <label className="block text-sm font-semibold text-slate-800 mb-1">Room Number</label>
                             <input
                                 type="text"
                                 value={formData.room_number || formData.room}
@@ -462,7 +462,7 @@ export default function ResidentForm({ record, branches, onClose, onSuccess, sel
                         </div>
                         
                         <div>
-                            <label className="block text-sm font-medium text-gray-900 mb-1">Admission Date *</label>
+                            <label className="block text-sm font-semibold text-slate-800 mb-1">Admission Date *</label>
                             <input
                                 type="date"
                                 value={formData.admission_date}
@@ -478,7 +478,7 @@ export default function ResidentForm({ record, branches, onClose, onSuccess, sel
                     <h3 className="text-lg font-semibold text-gray-900 mb-4 border-t pt-6">Medical Information</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="md:col-span-2">
-                            <label className="block text-sm font-medium text-gray-900 mb-1">Diagnosis</label>
+                            <label className="block text-sm font-semibold text-slate-800 mb-1">Diagnosis</label>
                             <textarea
                                 value={formData.diagnosis}
                                 onChange={(e) => setFormData({...formData, diagnosis: e.target.value})}
@@ -487,7 +487,7 @@ export default function ResidentForm({ record, branches, onClose, onSuccess, sel
                             />
                         </div>
                         <div className="md:col-span-2">
-                            <label className="block text-sm font-medium text-gray-900 mb-1">Allergies</label>
+                            <label className="block text-sm font-semibold text-slate-800 mb-1">Allergies</label>
                             <textarea
                                 value={formData.allergies}
                                 onChange={(e) => setFormData({...formData, allergies: e.target.value})}
@@ -496,7 +496,7 @@ export default function ResidentForm({ record, branches, onClose, onSuccess, sel
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-900 mb-1">Medicare Number</label>
+                            <label className="block text-sm font-semibold text-slate-800 mb-1">Medicare Number</label>
                             <input
                                 type="text"
                                 value={formData.medicare_number}
@@ -505,7 +505,7 @@ export default function ResidentForm({ record, branches, onClose, onSuccess, sel
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-900 mb-1">Primary Care Doctor</label>
+                            <label className="block text-sm font-semibold text-slate-800 mb-1">Primary Care Doctor</label>
                             <input
                                 type="text"
                                 value={formData.primary_care_doctor}

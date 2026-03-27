@@ -411,6 +411,27 @@ export default function Residents() {
                     )}
                 </>
             )}
+
+            {showForm && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-md p-4 animate-in fade-in duration-300">
+                    <div className="w-full max-w-4xl bg-white rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+                        <ResidentForm
+                            record={editing}
+                            branches={branchesData?.data || []}
+                            selectedBranchId={selectedBranchId}
+                            onClose={() => {
+                                setShowForm(false);
+                                setEditing(null);
+                            }}
+                            onSuccess={() => {
+                                setShowForm(false);
+                                setEditing(null);
+                                queryClient.invalidateQueries(['residents']);
+                            }}
+                        />
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

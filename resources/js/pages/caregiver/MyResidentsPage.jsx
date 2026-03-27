@@ -331,8 +331,8 @@ export default function MyResidentsPage() {
             )}
 
             {showForm && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-                    <div className="w-full max-w-4xl bg-white rounded-2xl shadow-2xl overflow-hidden">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-md p-4 animate-in fade-in duration-300">
+                    <div className="w-full max-w-4xl bg-white rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
                         <ResidentForm
                             record={editing}
                             branches={branchesData?.data || []}
