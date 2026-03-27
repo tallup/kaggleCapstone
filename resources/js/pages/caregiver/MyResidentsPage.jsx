@@ -1,9 +1,10 @@
 import React from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Users, Search, MapPin, Calendar, Phone, Activity } from 'lucide-react';
+import { Users, Search, MapPin, Calendar, Phone, Activity, Edit } from 'lucide-react';
 import api from '../../services/api';
 import logger from '../../utils/logger';
+import ResidentForm from '../../components/ResidentForm';
 
 const initialStats = [
     { key: 'active', label: 'Active Residents', icon: Users },
@@ -33,8 +34,11 @@ function formatDate(value) {
 
 export default function MyResidentsPage() {
     const navigate = useNavigate();
+    const queryClient = useQueryClient();
     const [search, setSearch] = React.useState('');
     const [debouncedSearch, setDebouncedSearch] = React.useState('');
+    const [showForm, setShowForm] = React.useState(false);
+    const [editing, setEditing] = React.useState(null);
 
     // Current user query (to get assigned branch)
     const { data: currentUser, isLoading: isLoadingUser } = useQuery({
@@ -43,6 +47,11 @@ export default function MyResidentsPage() {
             const res = await api.get('/user');
             return res.data;
         },
+    });
+
+    const { data: branchesData } = useQuery({
+        queryKey: ['branches-options'],
+        queryFn: async () => (await api.get('/branches', { params: { per_page: 100 } })).data,
     });
 
 
@@ -200,6 +209,17 @@ export default function MyResidentsPage() {
                     <div className="flex gap-2">
                         <button
                             type="button"
+                            onClick={() => {
+                                setEditing(resident);
+                                setShowForm(true);
+                            }}
+                            className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50"
+                        >
+                            <Edit className="mr-2 h-4 w-4" />
+                            Edit
+                        </button>
+                        <button
+                            type="button"
                             onClick={() => navigate(`/my-residents/${resident.id}`)}
                             className="inline-flex items-center rounded-lg bg-[var(--theme-primary)] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[var(--theme-primary-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--theme-primary)]"
                         >
@@ -308,6 +328,27 @@ export default function MyResidentsPage() {
                 <section className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
                     {residents.map(renderResidentCard)}
                 </section>
+            )}
+
+            {showForm && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+                    <div className="w-full max-w-4xl bg-white rounded-2xl shadow-2xl overflow-hidden">
+                        <ResidentForm
+                            record={editing}
+                            branches={branchesData?.data || []}
+                            selectedBranchId={currentUser?.assigned_branch_id}
+                            onClose={() => {
+                                setShowForm(false);
+                                setEditing(null);
+                            }}
+                            onSuccess={() => {
+                                setShowForm(false);
+                                setEditing(null);
+                                queryClient.invalidateQueries(['my-residents']);
+                            }}
+                        />
+                    </div>
+                </div>
             )}
         </div>
     );

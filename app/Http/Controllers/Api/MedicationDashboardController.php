@@ -6,6 +6,7 @@ use App\Models\Medication;
 use App\Models\MedicationAdministration;
 use App\Models\MedicationDelivery;
 use App\Models\Resident;
+use App\Services\MedicationService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -13,6 +14,13 @@ use Illuminate\Support\Facades\Log;
 
 class MedicationDashboardController extends BaseApiController
 {
+    protected $medicationService;
+
+    public function __construct(MedicationService $medicationService)
+    {
+        $this->medicationService = $medicationService;
+    }
+
     public function index(Request $request): JsonResponse
     {
         try {
@@ -84,27 +92,33 @@ class MedicationDashboardController extends BaseApiController
             ->get();
     }
 
-    private function countScheduledDoses($medications): int
-    {
-        $count = 0;
-        foreach ($medications as $med) {
-            for ($i = 1; $i <= 4; $i++) {
-                if ($med->{"time_{$i}"}) $count++;
-            }
-        }
-        return $count;
-    }
 
     private function getTodayStats(array $branchIds, string $today, $activeMeds): array
     {
-        $scheduled = $this->countScheduledDoses($activeMeds);
+        // Use MedicationService to get status for all active medications
+        $medsWithStatus = $this->medicationService->getMedicationsWithStatus($activeMeds, $today);
+        
+        $scheduled = 0;
+        $administered = 0;
+        $missed = 0;
+        $refused = 0;
 
-        $baseQuery = MedicationAdministration::whereIn('branch_id', $branchIds)
-            ->whereDate('administered_at', $today);
+        foreach ($medsWithStatus as $med) {
+            // Count total slots across all meds
+            for ($i = 1; $i <= 4; $i++) {
+                if ($med->{"time_{$i}"}) $scheduled++;
+            }
 
-        $administered = (clone $baseQuery)->where('status', 'completed')->count();
-        $missed = (clone $baseQuery)->where('status', 'missed')->count();
-        $refused = (clone $baseQuery)->where('status', 'refused')->count();
+            // Count completed/missed/refused from administrations
+            foreach ($med->administrations as $admin) {
+                if ($admin->administered_at && Carbon::parse($admin->administered_at)->toDateString() === $today) {
+                    if ($admin->status === 'completed') $administered++;
+                    elseif ($admin->status === 'missed') $missed++;
+                    elseif ($admin->status === 'refused') $refused++;
+                }
+            }
+        }
+
         $adherence = $scheduled > 0 ? round(($administered / $scheduled) * 100) : 0;
 
         return [
@@ -119,50 +133,33 @@ class MedicationDashboardController extends BaseApiController
 
     private function getUpcomingMedications($activeMeds, Carbon $now): array
     {
-        $upcoming = [];
+        $timezone = config('app.timezone');
         $cutoff = $now->copy()->addHours(4);
-
-        $medicationIds = $activeMeds->pluck('id')->toArray();
-        $todayAdmins = MedicationAdministration::whereIn('medication_id', $medicationIds)
-            ->whereDate('administered_at', $now->toDateString())
-            ->whereIn('status', ['completed', 'refused', 'hospital_admission', 'pharmacy_administration_confirm'])
-            ->get()
-            ->groupBy('medication_id');
-
-        foreach ($activeMeds as $med) {
-            for ($i = 1; $i <= 4; $i++) {
-                $timeStr = $med->{"time_{$i}"};
-                if (!$timeStr) continue;
-
-                $parts = explode(':', $timeStr);
-                if (count($parts) < 2) continue;
-
-                $scheduledTime = $now->copy()->setTime((int) $parts[0], (int) $parts[1], 0);
-                if ($scheduledTime->lt($now) || $scheduledTime->gt($cutoff)) continue;
-
-                $medAdmins = $todayAdmins->get($med->id, collect());
-                $hasAdmin = $medAdmins->contains(function ($admin) use ($scheduledTime) {
-                    $adminAt = Carbon::parse($admin->administered_at);
-                    return $adminAt->between(
-                        $scheduledTime->copy()->subMinutes(60),
-                        $scheduledTime->copy()->addMinutes(60)
-                    );
-                });
-
-                if ($hasAdmin) continue;
-
-                $upcoming[] = [
-                    'medication_id' => $med->id,
-                    'medication_name' => $med->name ?: $med->drug?->name ?? 'Unknown',
-                    'resident_id' => $med->resident_id,
-                    'resident_name' => $med->resident
-                        ? trim($med->resident->first_name . ' ' . $med->resident->last_name)
-                        : 'Unknown',
-                    'scheduled_time' => $scheduledTime->format('g:i A'),
-                    'scheduled_at' => $scheduledTime->toIso8601String(),
-                    'instructions' => $med->instructions,
-                    'minutes_until' => (int) $now->diffInMinutes($scheduledTime, false),
-                ];
+        
+        // Use MedicationService to find soonest doses
+        $medsWithStatus = $this->medicationService->getMedicationsWithStatus($activeMeds, $now->toDateString());
+        
+        $upcoming = [];
+        foreach ($medsWithStatus as $med) {
+            // MedicationService provides next_dose_at which is pre-calculated/validated
+            if ($med->next_dose_at) {
+                $nextDose = Carbon::parse($med->next_dose_at)->setTimezone($timezone);
+                
+                // Only include if it's within the 4-hour window
+                if ($nextDose->gt($now) && $nextDose->lte($cutoff)) {
+                    $upcoming[] = [
+                        'medication_id' => $med->id,
+                        'medication_name' => $med->name ?: $med->drug?->name ?? 'Unknown',
+                        'resident_id' => $med->resident_id,
+                        'resident_name' => $med->resident
+                            ? trim($med->resident->first_name . ' ' . $med->resident->last_name)
+                            : 'Unknown',
+                        'scheduled_time' => $nextDose->format('g:i A'),
+                        'scheduled_at' => $nextDose->toIso8601String(),
+                        'instructions' => $med->instructions,
+                        'minutes_until' => (int) $now->diffInMinutes($nextDose, false),
+                    ];
+                }
             }
         }
 
@@ -220,7 +217,15 @@ class MedicationDashboardController extends BaseApiController
                 ->where(fn ($q) => $q->whereNull('end_date')->orWhere('end_date', '>=', $dateStr))
                 ->get();
 
-            $scheduled = $this->countScheduledDoses($activeMeds);
+            // Use MedicationService for consistent counting
+            $medsWithStatus = $this->medicationService->getMedicationsWithStatus($activeMeds, $dateStr);
+            
+            $scheduled = 0;
+            foreach ($medsWithStatus as $med) {
+                for ($i = 1; $i <= 4; $i++) {
+                    if ($med->{"time_{$i}"}) $scheduled++;
+                }
+            }
 
             $dayData = $dailyData->where('date', $dateStr);
             $administered = (int) $dayData->where('status', 'completed')->sum('count');
@@ -288,23 +293,33 @@ class MedicationDashboardController extends BaseApiController
             ->get()
             ->keyBy('id');
 
-        $todayAdmins = MedicationAdministration::whereIn('resident_id', $residentIds)
-            ->whereDate('administered_at', $today)
-            ->selectRaw('resident_id, status, count(*) as count')
-            ->groupBy('resident_id', 'status')
-            ->get();
-
-        $adminsByResident = $todayAdmins->groupBy('resident_id');
-
+        // Use MedicationService for uniform status calculation per resident
         $summary = [];
         foreach ($medsByResident as $residentId => $meds) {
             $resident = $residents->get($residentId);
             if (!$resident) continue;
 
-            $scheduled = $this->countScheduledDoses($meds);
-            $resAdmins = $adminsByResident->get($residentId, collect());
-            $administered = (int) $resAdmins->where('status', 'completed')->sum('count');
-            $missedToday = (int) $resAdmins->where('status', 'missed')->sum('count');
+            $medsWithStatus = $this->medicationService->getMedicationsWithStatus($meds, $today);
+            
+            $scheduled = 0;
+            $administered = 0;
+            $missedToday = 0;
+
+            foreach ($medsWithStatus as $med) {
+                // Count slots
+                for ($i = 1; $i <= 4; $i++) {
+                    if ($med->{"time_{$i}"}) $scheduled++;
+                }
+
+                // Count admins from the loaded administrations
+                foreach ($med->administrations as $admin) {
+                    if ($admin->administered_at && Carbon::parse($admin->administered_at)->toDateString() === $today) {
+                        if ($admin->status === 'completed') $administered++;
+                        elseif ($admin->status === 'missed') $missedToday++;
+                    }
+                }
+            }
+
             $adherence = $scheduled > 0 ? round(($administered / $scheduled) * 100) : 0;
 
             $summary[] = [
