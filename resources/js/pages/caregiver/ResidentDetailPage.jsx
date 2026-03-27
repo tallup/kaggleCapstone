@@ -20,6 +20,7 @@ import Breadcrumbs from '../../components/ui/Breadcrumbs';
 import ResidentDocuments from '../../components/ResidentDocuments';
 import logger from '../../utils/logger';
 import { isCaregiverRole } from '../../utils/userRoles';
+import { formatPacificCalendarMedium, calculateAgeFromPacificBirthDate } from '../../utils/pacificTime';
 
 const tabs = [
     { id: 'profile', label: 'Profile Overview', icon: Users },
@@ -31,6 +32,17 @@ const tabs = [
     { id: 'sleep', label: 'Sleep', icon: Moon },
 ];
 
+const PACIFIC_TZ = 'America/Los_Angeles';
+
+/** True when the API value is a calendar date (not a real instant with time-of-day). */
+function isCalendarOnlyDateString(value) {
+    if (typeof value !== 'string') return false;
+    const s = value.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return true;
+    // Laravel date columns often serialize as midnight UTC
+    return /^\d{4}-\d{2}-\d{2}T00:00:00(?:\.0+)?(?:Z|[+-]00:?00)$/.test(s);
+}
+
 function formatDate(value, options = { dateStyle: 'medium' }) {
     if (!value) {
         return 'N/A';
@@ -38,7 +50,12 @@ function formatDate(value, options = { dateStyle: 'medium' }) {
 
     try {
         const dateOptions = typeof options === 'string' ? { dateStyle: options } : options;
-        return new Intl.DateTimeFormat('en-US', dateOptions).format(new Date(value));
+        const hasTime = typeof dateOptions === 'object' && dateOptions && 'timeStyle' in dateOptions;
+        // Calendar-only API dates: never shift the day via local timezone
+        if (!hasTime && isCalendarOnlyDateString(value)) {
+            return formatPacificCalendarMedium(value);
+        }
+        return new Intl.DateTimeFormat('en-US', { ...dateOptions, timeZone: PACIFIC_TZ }).format(new Date(value));
     } catch (error) {
         logger.warn('Failed to format date', value, error);
         return value;
@@ -46,19 +63,8 @@ function formatDate(value, options = { dateStyle: 'medium' }) {
 }
 
 function calculateAge(date) {
-    if (!date) return 'N/A';
-    try {
-        const birth = new Date(date);
-        const now = new Date();
-        let age = now.getFullYear() - birth.getFullYear();
-        const monthDiff = now.getMonth() - birth.getMonth();
-        if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < birth.getDate())) {
-            age -= 1;
-        }
-        return `${age} yrs`;
-    } catch (error) {
-        return 'N/A';
-    }
+    const age = calculateAgeFromPacificBirthDate(date);
+    return age !== null ? `${age} yrs` : 'N/A';
 }
 
 function computeLengthOfStay(admissionDate) {

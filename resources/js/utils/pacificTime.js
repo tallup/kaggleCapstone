@@ -322,6 +322,53 @@ export const formatPacificDate = (date) => {
     return pacificDateFormatter.format(resolveDateInput(date));
 };
 
+/**
+ * "Apr 6, 1989" style for calendar-only API values (YYYY-MM-DD or Laravel `...T00:00:00.000000Z`).
+ * Do not use `new Date(str)` + local `Intl` for these — the day can shift vs stored calendar date.
+ */
+export const formatPacificCalendarMedium = (value) => {
+    if (!value) return 'N/A';
+    const parsed = parsePacificDateString(value);
+    if (!parsed || Number.isNaN(parsed.getTime())) return 'N/A';
+    return new Intl.DateTimeFormat('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        timeZone: 'UTC',
+    }).format(parsed);
+};
+
+/** Full years from birth date string; "today" uses Pacific wall clock via getPacificParts. */
+export const calculateAgeFromPacificBirthDate = (dateOfBirth) => {
+    if (!dateOfBirth) return null;
+    const birth = parsePacificDateString(dateOfBirth);
+    if (!birth || Number.isNaN(birth.getTime())) return null;
+    const birthYear = birth.getUTCFullYear();
+    const birthMonth = birth.getUTCMonth() + 1;
+    const birthDay = birth.getUTCDate();
+    const { year: y, month: m, day: d } = getPacificParts(new Date());
+    let age = y - birthYear;
+    if (m < birthMonth || (m === birthMonth && d < birthDay)) {
+        age -= 1;
+    }
+    return age;
+};
+
+/** Instant (e.g. updated_at) formatted in Pacific for display. */
+export const formatPacificDateTimeShort = (value) => {
+    if (!value) return 'N/A';
+    const inst = new Date(value);
+    if (Number.isNaN(inst.getTime())) return 'N/A';
+    return new Intl.DateTimeFormat('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: 'numeric',
+        timeZone: PACIFIC_TIMEZONE,
+    }).format(inst);
+};
+
 export const formatPacificTime = (date) => {
     // Server-synced clock: Pacific components live in UTC fields of our reference Date
     if (!date && pacificServerReference && pacificReferencePerformance !== null) {

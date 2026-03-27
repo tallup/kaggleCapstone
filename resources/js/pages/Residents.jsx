@@ -12,23 +12,7 @@ import EmptyState from '../components/ui/EmptyState';
 import { formatPhoneNumber } from '../utils/phoneFormatter';
 import BranchSelector from '../components/BranchSelector';
 import ResidentForm from '../components/ResidentForm';
-import { formatPacificDate, parsePacificDateString, getPacificParts } from '../utils/pacificTime';
-
-/** Age in full years using Pacific calendar dates (matches DOB display from YYYY-MM-DD). */
-function calculateResidentAge(dateOfBirth) {
-    if (!dateOfBirth) return null;
-    const birth = parsePacificDateString(dateOfBirth);
-    if (!birth) return null;
-    const birthYear = birth.getUTCFullYear();
-    const birthMonth = birth.getUTCMonth() + 1;
-    const birthDay = birth.getUTCDate();
-    const { year: todayY, month: todayM, day: todayD } = getPacificParts(new Date());
-    let age = todayY - birthYear;
-    if (todayM < birthMonth || (todayM === birthMonth && todayD < birthDay)) {
-        age -= 1;
-    }
-    return age;
-}
+import { formatPacificDate, calculateAgeFromPacificBirthDate } from '../utils/pacificTime';
 
 export default function Residents() {
     const navigate = useNavigate();
@@ -139,7 +123,7 @@ export default function Residents() {
 
     const renderResidentCard = (resident) => {
         const isInactive = !isResidentActive(resident);
-        const ageYears = calculateResidentAge(resident.date_of_birth);
+        const ageYears = calculateAgeFromPacificBirthDate(resident.date_of_birth);
         return (
             <div
                 key={resident.id}

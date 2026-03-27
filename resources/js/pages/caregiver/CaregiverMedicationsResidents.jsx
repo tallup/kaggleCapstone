@@ -3,27 +3,10 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Users, Search, MapPin, Calendar, Pill, User } from 'lucide-react';
 import api from '../../services/api';
-import logger from '../../utils/logger';
+import { formatPacificCalendarMedium, formatPacificDateTimeShort } from '../../utils/pacificTime';
 
 function getInitials(first = '', last = '') {
     return `${first?.[0] ?? ''}${last?.[0] ?? ''}`.toUpperCase();
-}
-
-function formatDate(value) {
-    if (!value) {
-        return 'N/A';
-    }
-
-    try {
-        return new Intl.DateTimeFormat('en-US', {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric',
-        }).format(new Date(value));
-    } catch (err) {
-        logger.warn('Failed to format date', value, err);
-        return value;
-    }
 }
 
 export default function CaregiverMedicationsResidents() {
@@ -126,7 +109,9 @@ export default function CaregiverMedicationsResidents() {
                                 {isActive ? 'Active' : 'Inactive'}
                             </span>
                         </div>
-                        <p className="mt-1 text-sm text-gray-500">Resident since {formatDate(resident.admission_date)}</p>
+                        <p className="mt-1 text-sm text-gray-500">
+                            Resident since {formatPacificCalendarMedium(resident.admission_date)}
+                        </p>
                     </div>
                 </div>
 
@@ -142,14 +127,16 @@ export default function CaregiverMedicationsResidents() {
                         <Calendar className="h-4 w-4" style={{ color: 'var(--theme-primary)' }} />
                         <div>
                             <dt className="text-xs uppercase tracking-wide text-gray-500">Date of Birth</dt>
-                            <dd className="font-medium text-gray-900">{formatDate(resident.date_of_birth)}</dd>
+                            <dd className="font-medium text-gray-900">
+                                {formatPacificCalendarMedium(resident.date_of_birth)}
+                            </dd>
                         </div>
                     </div>
                 </dl>
 
                 <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
                     <div className="text-xs text-gray-400">
-                        Last updated {formatDate(resident.updated_at)}
+                        Last updated {formatPacificDateTimeShort(resident.updated_at)}
                     </div>
                     <button
                         type="button"

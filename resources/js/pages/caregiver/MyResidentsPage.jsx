@@ -3,9 +3,13 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Users, Search, MapPin, Calendar, Phone, Activity, Edit } from 'lucide-react';
 import api from '../../services/api';
-import logger from '../../utils/logger';
 import ResidentForm from '../../components/ResidentForm';
 import { isCaregiverRole } from '../../utils/userRoles';
+import {
+    formatPacificCalendarMedium,
+    formatPacificDateTimeShort,
+    calculateAgeFromPacificBirthDate,
+} from '../../utils/pacificTime';
 
 const initialStats = [
     { key: 'active', label: 'Active Residents', icon: Users },
@@ -14,23 +18,6 @@ const initialStats = [
 
 function getInitials(first = '', last = '') {
     return `${first?.[0] ?? ''}${last?.[0] ?? ''}`.toUpperCase();
-}
-
-function formatDate(value) {
-    if (!value) {
-        return 'N/A';
-    }
-
-    try {
-        return new Intl.DateTimeFormat('en-US', {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric',
-        }).format(new Date(value));
-    } catch (err) {
-        logger.warn('Failed to format date', value, err);
-        return value;
-    }
 }
 
 export default function MyResidentsPage() {
@@ -130,6 +117,7 @@ export default function MyResidentsPage() {
         const isActive = resident?.is_active === true || resident?.is_active === 1 || resident?.is_active === '1';
         const fullName = [resident.first_name, resident.middle_names, resident.last_name].filter(Boolean).join(' ');
         const branchName = resident?.branch?.name ?? 'Unassigned';
+        const ageYears = calculateAgeFromPacificBirthDate(resident.date_of_birth);
 
         return (
             <article
@@ -168,7 +156,9 @@ export default function MyResidentsPage() {
                                 {isActive ? 'Active' : 'Inactive'}
                             </span>
                         </div>
-                        <p className="mt-1 text-sm text-gray-500">Resident since {formatDate(resident.admission_date)}</p>
+                        <p className="mt-1 text-sm text-gray-500">
+                            Resident since {formatPacificCalendarMedium(resident.admission_date)}
+                        </p>
                     </div>
                 </div>
 
@@ -184,7 +174,12 @@ export default function MyResidentsPage() {
                         <Calendar className="h-4 w-4 text-[var(--theme-primary)]" />
                         <div>
                             <dt className="text-xs uppercase tracking-wide text-gray-500">Date of Birth</dt>
-                            <dd className="font-medium text-gray-900">{formatDate(resident.date_of_birth)}</dd>
+                            <dd className="font-medium text-gray-900">
+                                {formatPacificCalendarMedium(resident.date_of_birth)}
+                                {ageYears !== null ? (
+                                    <span className="text-gray-600"> · {ageYears} yrs</span>
+                                ) : null}
+                            </dd>
                         </div>
                     </div>
                     <div className="flex items-center gap-2 rounded-xl border border-gray-100 bg-gray-50/60 px-3 py-2">
@@ -207,7 +202,7 @@ export default function MyResidentsPage() {
 
                 <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
                     <div className="text-xs text-gray-400">
-                        Last updated {formatDate(resident.updated_at)}
+                        Last updated {formatPacificDateTimeShort(resident.updated_at)}
                     </div>
                     <div className="flex gap-2">
                         {canEditResidents ? (
