@@ -44,24 +44,13 @@ import {
     RefreshCw,
 } from 'lucide-react';
 import CalendarView from '../components/CalendarView';
-
-const PACIFIC_TZ = 'America/Los_Angeles';
-const adminTimeFmt = new Intl.DateTimeFormat('en-US', {
-    timeZone: PACIFIC_TZ,
-    year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', second: '2-digit',
-    hour12: false,
-});
-
-const parseAdminTimeToPacific = (administeredAt) => {
-    const raw = new Date(administeredAt);
-    if (Number.isNaN(raw.getTime())) return null;
-    const p = {};
-    adminTimeFmt.formatToParts(raw).forEach(({ type, value }) => {
-        if (type !== 'literal') p[type] = parseInt(value, 10);
-    });
-    return new Date(Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second || 0));
-};
+import {
+    parseAdminTimeToPacific,
+    isMedicationSlotCoveredToday,
+    isNoScheduledTimeRowCoveredToday,
+    mergeAdministrationIntoMedicationsListCaches,
+    administrationFromBroadcastPayload,
+} from '../utils/medicationSchedule';
 
 const INSTRUCTION_DISPLAY_MAP = {
     'q.i.d': 'Four times a day',
@@ -209,6 +198,10 @@ export default function Medications() {
                 ['medications'],
                 ['medication-administrations'],
             ],
+            onEvent: (_eventName, data, qc) => {
+                const admin = administrationFromBroadcastPayload(data);
+                if (admin) mergeAdministrationIntoMedicationsListCaches(qc, admin);
+            },
             showToast: true,
             getToastMessage: (_event, data) =>
                 `${data.medication?.name || 'Medication'} administered to ${data.resident?.name || 'resident'}`,
@@ -345,6 +338,9 @@ export default function Medications() {
                 prn.push({ ...medication, slotTime: null, uniqueId: `prn-${medication.id}` });
             } else {
                 times.forEach((time, index) => {
+                    if (isMedicationSlotCoveredToday(medication, time)) {
+                        return;
+                    }
                     const [h] = time.split(':').map(Number);
                     const isAm = h < 12;
                     const entry = { 
@@ -360,7 +356,7 @@ export default function Medications() {
                 });
 
                 // If no times scheduled but not PRN, put in scheduled
-                if (times.length === 0) {
+                if (times.length === 0 && !isNoScheduledTimeRowCoveredToday(medication)) {
                     scheduled.push({ ...medication, slotTime: null, uniqueId: `sc-${medication.id}` });
                 }
             }
@@ -847,7 +843,7 @@ export default function Medications() {
                     ? toPacificDateFromTime(med.slotTime, { referenceDate: getPacificNow() }).toISOString()
                     : now;
 
-                await api.post('/medication-administrations', {
+                const response = await api.post('/medication-administrations', {
                     medication_id: med.id,
                     resident_id: med.resident_id,
                     branch_id: med.branch_id,
@@ -856,11 +852,16 @@ export default function Medications() {
                     dosage_given: med.quantity ? `${med.quantity} ${med.form || ''}` : 'As prescribed',
                     notes: `Bulk administered from medications list. Target slot: ${med.slotTime || 'N/A'}`,
                 });
+                if (response?.data?.medication_id) {
+                    mergeAdministrationIntoMedicationsListCaches(queryClient, response.data);
+                }
             }
             
             setSelectedMeds(new Set());
-            queryClient.invalidateQueries(['medications']);
-            queryClient.invalidateQueries(['medication-administrations']);
+            await queryClient.invalidateQueries({ queryKey: ['medications'] });
+            await queryClient.invalidateQueries({ queryKey: ['medication-administrations'] });
+            await queryClient.refetchQueries({ queryKey: ['medications'] });
+            
             alert(`Successfully administered ${medsToAdmin.length} records.`);
         } catch (err) {
             logger.error('Bulk administration failed:', err);

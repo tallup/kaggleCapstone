@@ -38,24 +38,13 @@ import {
 
 import Select from '../../components/ui/radix/Select';
 import logger from '../../utils/logger';
-
-const PACIFIC_TZ = 'America/Los_Angeles';
-const adminTimeFmt = new Intl.DateTimeFormat('en-US', {
-    timeZone: PACIFIC_TZ,
-    year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', second: '2-digit',
-    hour12: false,
-});
-
-const parseAdminTimeToPacific = (administeredAt) => {
-    const raw = new Date(administeredAt);
-    if (Number.isNaN(raw.getTime())) return null;
-    const p = {};
-    adminTimeFmt.formatToParts(raw).forEach(({ type, value }) => {
-        if (type !== 'literal') p[type] = parseInt(value, 10);
-    });
-    return new Date(Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second || 0));
-};
+import {
+    parseAdminTimeToPacific,
+    isMedicationSlotCoveredToday,
+    isNoScheduledTimeRowCoveredToday,
+    mergeAdministrationIntoResidentMedicationsCaches,
+    administrationFromBroadcastPayload,
+} from '../../utils/medicationSchedule';
 
 const INSTRUCTION_DISPLAY_MAP = {
     'q.i.d': 'Four times a day',
@@ -172,16 +161,20 @@ export default function ResidentMedicationsPage() {
         }
     }, [currentUser?.app_current_time]);
 
-    // Real-time updates for medication administrations
+    // Real-time: must match queryKey `resident-medications` (not `medications`) so cache refetches.
     useResidentUpdates(
         residentId,
         ['medication.administration.created'],
         {
             queryKeys: [
-                ['medications', residentId],
+                ['resident-medications', residentId],
                 ['medication-administrations', residentId],
                 ['medication-administrations', 'today', residentId],
             ],
+            onEvent: (_eventName, data, qc) => {
+                const admin = administrationFromBroadcastPayload(data);
+                if (admin) mergeAdministrationIntoResidentMedicationsCaches(qc, residentId, admin);
+            },
             showToast: true,
             getToastMessage: (eventName, data) => {
                 return `${data.medication?.name || 'Medication'} was administered to ${data.resident?.name || 'resident'}`;
@@ -275,6 +268,9 @@ export default function ResidentMedicationsPage() {
                 prn.push({ ...medication, slotTime: null, uniqueId: `prn-${medication.id}` });
             } else {
                 times.forEach((time, index) => {
+                    if (isMedicationSlotCoveredToday(medication, time)) {
+                        return;
+                    }
                     const [h] = time.split(':').map(Number);
                     const isAm = h < 12;
                     const entry = { 
@@ -289,7 +285,7 @@ export default function ResidentMedicationsPage() {
                     else pm.push(entry);
                 });
 
-                if (times.length === 0) {
+                if (times.length === 0 && !isNoScheduledTimeRowCoveredToday(medication)) {
                     scheduled.push({ ...medication, slotTime: null, uniqueId: `sc-${medication.id}` });
                 }
             }
@@ -580,11 +576,17 @@ export default function ResidentMedicationsPage() {
                 });
             });
             
-            await Promise.all(promises);
+            const results = await Promise.all(promises);
+            for (const r of results) {
+                if (r?.success && r?.data?.medication_id) {
+                    mergeAdministrationIntoResidentMedicationsCaches(queryClient, residentId, r.data);
+                }
+            }
             
             setSelectedMeds(new Set());
-            queryClient.invalidateQueries(['resident-medications', residentId]);
-            queryClient.invalidateQueries(['medication-administrations']);
+            await queryClient.invalidateQueries({ queryKey: ['resident-medications', residentId] });
+            await queryClient.invalidateQueries({ queryKey: ['medication-administrations'] });
+            await queryClient.refetchQueries({ queryKey: ['resident-medications', residentId, activeOnly] });
             
             alert(`Successfully administered ${medsToAdmin.length} records.`);
         } catch (err) {
