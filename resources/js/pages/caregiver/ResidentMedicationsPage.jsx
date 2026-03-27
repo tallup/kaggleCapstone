@@ -552,18 +552,14 @@ export default function ResidentMedicationsPage() {
         
         try {
             const medsToAdmin = currentTabMedications.filter(m => selectedMeds.has(m.uniqueId));
-            const now = getPacificISODateTime();
+            const now = new Date().toISOString();
             
             const promises = medsToAdmin.map(med => {
-                const administeredAt = med.slotTime 
-                    ? toPacificDateFromTime(med.slotTime, { referenceDate: getPacificNow() }).toISOString()
-                    : now;
-
                 return offlinePost('/medication-administrations', {
                     medication_id: med.id,
                     resident_id: med.resident_id,
                     branch_id: med.branch_id,
-                    administered_at: administeredAt,
+                    administered_at: now,
                     status: 'completed',
                     dosage_given: med.quantity ? `${med.quantity} ${med.form || ''}` : 'As prescribed',
                     notes: `Bulk administered from dashboard. Target slot: ${med.slotTime || 'N/A'}`,
@@ -1386,7 +1382,7 @@ function QuickAdminister({ medication, onSuccess }) {
                         <div className="px-5 py-4 space-y-4">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Dosage Given *
+                                    Dosage Given
                                 </label>
                                 <input
                                     type="text"
@@ -1440,11 +1436,7 @@ function QuickAdminister({ medication, onSuccess }) {
                             <button
                                 type="button"
                                 onClick={async () => {
-                                    const trimmedDosage = dosageGiven.trim();
-                                    if (!trimmedDosage) {
-                                        setDosageValidationError('Dosage is required.');
-                                        return;
-                                    }
+                                    const trimmedDosage = dosageGiven.trim() || 'As prescribed';
 
                                     const lateNoteMarker = '[Late Administration]';
                                     const trimmedNotes = dosageNotes.trim();

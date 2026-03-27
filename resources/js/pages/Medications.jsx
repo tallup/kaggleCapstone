@@ -829,19 +829,14 @@ export default function Medications() {
         setIsBulkAdministering(true);
         try {
             const medsToAdmin = currentTabMedications.filter(m => selectedMeds.has(m.uniqueId));
-            const now = getPacificISODateTime();
+            const now = new Date().toISOString();
             
             for (const med of medsToAdmin) {
-                // Determine targeted administration time
-                const administeredAt = med.slotTime 
-                    ? toPacificDateFromTime(med.slotTime, { referenceDate: getPacificNow() }).toISOString()
-                    : now;
-
                 await api.post('/medication-administrations', {
                     medication_id: med.id,
                     resident_id: med.resident_id,
                     branch_id: med.branch_id,
-                    administered_at: administeredAt,
+                    administered_at: now,
                     status: 'completed',
                     dosage_given: med.quantity ? `${med.quantity} ${med.form || ''}` : 'As prescribed',
                     notes: `Bulk administered from medications list. Target slot: ${med.slotTime || 'N/A'}`,
@@ -2574,7 +2569,7 @@ function QuickAdminister({ medication, onSuccess }) {
                         <div className="px-5 py-4 space-y-4">
                             <div>
                                 <label className="block text-sm font-medium text-gray-900 mb-2">
-                                    Dosage Given *
+                                    Dosage Given
                                 </label>
                                 <input
                                     type="text"
@@ -2637,12 +2632,7 @@ function QuickAdminister({ medication, onSuccess }) {
                                     setSubmitting(true);
                                     setError('');
 
-                                    const trimmedDosage = dosageGiven.trim();
-                                    if (!trimmedDosage) {
-                                        setDosageValidationError('Dosage is required.');
-                                        setSubmitting(false);
-                                        return;
-                                    }
+                                    const trimmedDosage = dosageGiven.trim() || 'As prescribed';
 
                                     const lateNoteMarker = '[Late Administration]';
                                     const trimmedNotes = dosageNotes.trim();
