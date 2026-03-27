@@ -178,7 +178,10 @@ export default function Login() {
             }
         } catch (err) {
             // Handle location-based errors with distance information
-            const errorMessage = err.response?.data?.message || 'Invalid credentials. Please try again.';
+            let errorMessage = err.response?.data?.message || 'Invalid credentials. Please try again.';
+            if (err.response?.status === 500 && errorMessage === 'An error occurred') {
+                errorMessage = 'Sign-in could not complete. Please try again.';
+            }
             const distance = err.response?.data?.distance;
             
             if (distance !== undefined && distance !== null) {

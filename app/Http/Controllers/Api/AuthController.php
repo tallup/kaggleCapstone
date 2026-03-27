@@ -66,9 +66,14 @@ class AuthController extends Controller
                     'message' => 'Invalid credentials',
                 ], 401);
             }
-            
-            // Manually log in the user
+
+            if ($request->hasSession()) {
+                $request->session()->flush();
+            }
             Auth::login($user);
+            if ($request->hasSession()) {
+                $request->session()->regenerate();
+            }
         } else {
             // Single facility or no facility - use normal authentication
             // Try to find the user first to verify they exist
@@ -113,14 +118,16 @@ class AuthController extends Controller
                 }
             }
             
-            // Clear any existing session before logging in to avoid conflicts
+            // Clear guest session data without invalidate() — invalidating before login can 500 on the
+            // first POST after an expired/stale session cookie (session driver edge case).
             if ($request->hasSession()) {
-                $request->session()->invalidate();
-                $request->session()->regenerateToken();
+                $request->session()->flush();
             }
-            
-            // Manually log in the user
+
             Auth::login($user, true);
+            if ($request->hasSession()) {
+                $request->session()->regenerate();
+            }
         }
 
         if (Auth::check()) {
@@ -200,9 +207,6 @@ class AuthController extends Controller
             }
 
             $token = $user->createToken('api-token')->plainTextToken;
-            
-            // Regenerate session to prevent session fixation attacks
-            $request->session()->regenerate();
 
             // Log login
             ActivityLogService::login($user, [

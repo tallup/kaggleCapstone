@@ -447,18 +447,6 @@ export default function ResidentMedicationsPage() {
                             </span>
                         )}
                     </div>
-
-                    {/* Detail Entry Button */}
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            toggleRow(medication.id);
-                        }}
-                        className="flex-shrink-0 hidden sm:inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-white bg-[var(--theme-primary)] rounded-md hover:bg-[var(--theme-primary-hover)] transition-colors shadow-sm"
-                    >
-                        Review & Administer
-                        <ChevronRight className="w-3 h-3" />
-                    </button>
                 </div>
 
                 {/* Expanded Details Panel */}

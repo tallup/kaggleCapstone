@@ -80,7 +80,12 @@ api.interceptors.request.use((config) => {
     }
     
     const authToken = getStoredAuthToken();
-    if (authToken) {
+    const path = typeof config.url === 'string' ? config.url : '';
+    const skipBearer =
+        path.includes('/login') ||
+        path.includes('/forgot-password') ||
+        path.includes('/reset-password');
+    if (authToken && !skipBearer) {
         config.headers['Authorization'] = `Bearer ${authToken}`;
     }
     
