@@ -351,29 +351,7 @@ class MedicationAdministrationController extends BaseApiController
 
         $administration = MedicationAdministration::create($validated);
 
-        // Notify admins about medication administration
-        try {
-            // Get potential recipients (Admins and Facility Admins)
-            // We'll pass a broad list and let the service filter based on preferences/facility
-            $admins = \App\Models\User::where(function($query) {
-                   $query->whereIn('role', ['admin', 'administrator', 'super_admin']);
-                })
-                ->orWhereHas('roles', function($q) {
-                    $q->whereIn('name', ['admin', 'administrator', 'super_admin']);
-                })
-                ->get();
-
-            // Use the service to send emails
-            app(\App\Services\NotificationService::class)->sendMedicationAdministrationEmail(
-                $administration->load(['medication.drug', 'resident.branch']), 
-                $admins
-            );
-        } catch (\Exception $e) {
-            \Log::error('Failed to trigger medication administration notification', [
-                'error' => $e->getMessage(),
-                'id' => $administration->id
-            ]);
-        }
+        // Emails are sent by MedicationAdministrationObserver (facility admin + administrator only).
 
         return response()->json($administration->load(['medication', 'resident', 'branch', 'administeredBy']), 201);
     }

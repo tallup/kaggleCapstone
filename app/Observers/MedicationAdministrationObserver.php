@@ -21,7 +21,7 @@ class MedicationAdministrationObserver
     public function created(MedicationAdministration $administration): void
     {
         // Load relationships
-        $administration->load(['resident.assignments.caregiver', 'medication.drug', 'administeredBy']);
+        $administration->load(['resident.assignments.caregiver', 'resident.branch.facility', 'medication.drug', 'administeredBy']);
 
         // Reduce pharmacy inventory when medication is administered
         if ($administration->status === 'completed') {
@@ -95,9 +95,10 @@ class MedicationAdministrationObserver
             ]);
         }
 
-        // Send email notifications
+        // Email: facility admin and administrator only (not caregivers)
         $notificationService = app(NotificationService::class);
-        $notificationService->sendMedicationAdministrationEmail($administration, $caregivers);
+        $emailRecipients = $notificationService->recipientsForMedicationAdministrationFacilityEmails($administration->resident);
+        $notificationService->sendMedicationAdministrationEmail($administration, $emailRecipients);
 
         // Broadcast real-time event
         event(new MedicationAdministrationCreated($administration));

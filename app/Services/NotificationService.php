@@ -488,6 +488,31 @@ class NotificationService
     }
 
     /**
+     * Active facility users with admin or administrator role (for medication administration emails).
+     */
+    public function recipientsForMedicationAdministrationFacilityEmails(Resident $resident): \Illuminate\Support\Collection
+    {
+        $resident->loadMissing('branch.facility');
+        $facility = $resident->branch?->facility;
+        if (!$facility) {
+            return collect();
+        }
+
+        return User::query()
+            ->where('facility_id', $facility->id)
+            ->where('is_active', true)
+            ->where(function ($q) {
+                $q->whereIn('role', ['admin', 'administrator'])
+                    ->orWhereHas('roles', function ($r) {
+                        $r->whereIn('name', ['admin', 'administrator']);
+                    });
+            })
+            ->get()
+            ->unique('id')
+            ->values();
+    }
+
+    /**
      * Send email notification for medication administration
      */
     public function sendMedicationAdministrationEmail(MedicationAdministration $administration, $recipients): void
