@@ -32,6 +32,8 @@ import {
     Plus,
     Edit,
     Ban,
+    RotateCcw,
+    Trash2,
     Download,
     ChevronDown,
     ChevronRight,
@@ -740,8 +742,18 @@ export default function Medications() {
                                     const permissions = Array.isArray(currentUser?.permissions) ? currentUser.permissions : [];
                                     const canEdit = isSuperAdmin || isAdmin || permissions.includes('edit_medications');
                                     const canDisable = isSuperAdmin || isAdmin || permissions.includes('edit_medications') || permissions.includes('delete_medications');
-                                    return !isCaregiver && (canEdit || canDisable) ? (
+                                    const canDeletePermanently = isSuperAdmin || isAdmin || permissions.includes('delete_medications');
+                                    if (isCaregiver || (!canEdit && !canDisable && !canDeletePermanently)) {
+                                        return <p className="text-xs text-gray-400 italic">No actions available</p>;
+                                    }
+                                    return (
                                         <div className="flex flex-col gap-2">
+                                            {!medication.is_active && (
+                                                <p className="text-xs text-gray-600 leading-snug">
+                                                    This medication is <strong>disabled</strong> (inactive). The Disable button only appears while an order is still active. Use{' '}
+                                                    <strong>Re-enable</strong> below or <strong>Edit</strong> and turn on &quot;Active&quot; to show it on active lists again.
+                                                </p>
+                                            )}
                                             {canEdit && (
                                                 <button
                                                     type="button"
@@ -754,6 +766,23 @@ export default function Medications() {
                                                 >
                                                     <Edit className="w-4 h-4" aria-hidden />
                                                     <span>Edit</span>
+                                                </button>
+                                            )}
+                                            {canEdit && !medication.is_active && (
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        const medName2 = medication.name || 'Medication';
+                                                        if (window.confirm(`Re-enable "${medName2}" for ${residentName}? It will appear on active medication lists again.`)) {
+                                                            enableMutation.mutate(medication.id);
+                                                        }
+                                                    }}
+                                                    disabled={enableMutation.isPending}
+                                                    className="w-full px-3 py-2 text-sm font-medium text-emerald-900 border border-emerald-700 rounded-lg bg-white hover:bg-emerald-600 hover:text-white hover:border-emerald-600 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed [&_svg]:shrink-0"
+                                                >
+                                                    <RotateCcw className="w-4 h-4" aria-hidden />
+                                                    <span>{enableMutation.isPending ? 'Enabling...' : 'Re-enable'}</span>
                                                 </button>
                                             )}
                                             {canDisable && medication.is_active && (
@@ -773,9 +802,31 @@ export default function Medications() {
                                                     <span>{disableMutation.isPending ? 'Disabling...' : 'Disable'}</span>
                                                 </button>
                                             )}
+                                            {canDeletePermanently && (
+                                                <>
+                                                    <div className="border-t border-gray-200 pt-2 mt-1" />
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            const medName2 = medication.name || 'Medication';
+                                                            if (
+                                                                window.confirm(
+                                                                    `Permanently delete "${medName2}" for ${residentName}?\n\nThis removes the medication order from the system. Related administration (MAR) rows for this order are also removed. This cannot be undone.`
+                                                                )
+                                                            ) {
+                                                                deleteMedicationMutation.mutate(medication.id);
+                                                            }
+                                                        }}
+                                                        disabled={deleteMedicationMutation.isPending}
+                                                        className="w-full px-3 py-2 text-sm font-medium text-red-900 border border-red-700 rounded-lg bg-white hover:bg-red-600 hover:text-white hover:border-red-600 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed [&_svg]:shrink-0"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" aria-hidden />
+                                                        <span>{deleteMedicationMutation.isPending ? 'Deleting...' : 'Delete permanently'}</span>
+                                                    </button>
+                                                </>
+                                            )}
                                         </div>
-                                    ) : (
-                                        <p className="text-xs text-gray-400 italic">No actions available</p>
                                     );
                                 })()}
                             </div>
@@ -868,6 +919,16 @@ export default function Medications() {
 
     const disableMutation = useMutation({
         mutationFn: async (id) => api.patch(`/medications/${id}`, { is_active: false }),
+        onSuccess: () => queryClient.invalidateQueries(['medications']),
+    });
+
+    const enableMutation = useMutation({
+        mutationFn: async (id) => api.patch(`/medications/${id}`, { is_active: true }),
+        onSuccess: () => queryClient.invalidateQueries(['medications']),
+    });
+
+    const deleteMedicationMutation = useMutation({
+        mutationFn: async (id) => api.delete(`/medications/${id}`),
         onSuccess: () => queryClient.invalidateQueries(['medications']),
     });
 
