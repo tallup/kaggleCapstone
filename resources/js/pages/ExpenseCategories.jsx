@@ -158,7 +158,7 @@ function ExpenseCategories() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex items-center justify-end gap-2">
-                          <Tooltip content="Edit">
+                          <Tooltip content="Edit" position="top">
                             <CardIconButton
                               variant="edit"
                               type="button"
@@ -168,7 +168,7 @@ function ExpenseCategories() {
                               <Edit className="h-4 w-4" strokeWidth={2.5} />
                             </CardIconButton>
                           </Tooltip>
-                          <Tooltip content="Delete">
+                          <Tooltip content="Delete" position="top">
                             <CardIconButton
                               variant="delete"
                               type="button"

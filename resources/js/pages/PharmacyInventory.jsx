@@ -513,7 +513,7 @@ export default function PharmacyInventory() {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                             <div className="flex justify-end gap-2">
-                                                <Tooltip content="Edit">
+                                                <Tooltip content="Edit" position="top">
                                                     <CardIconButton
                                                         variant="primary"
                                                         type="button"
@@ -523,7 +523,7 @@ export default function PharmacyInventory() {
                                                         <Edit className="h-4 w-4" strokeWidth={2.5} />
                                                     </CardIconButton>
                                                 </Tooltip>
-                                                <Tooltip content="Delete">
+                                                <Tooltip content="Delete" position="top">
                                                     <CardIconButton
                                                         variant="delete"
                                                         type="button"

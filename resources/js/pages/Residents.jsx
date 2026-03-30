@@ -24,7 +24,6 @@ import {
 import Select from '../components/ui/radix/Select';
 import ScrollReveal from '../components/ui/ScrollReveal';
 import Tooltip from '../components/ui/Tooltip';
-import TooltipIcon from '../components/ui/TooltipIcon';
 import EmptyState from '../components/ui/EmptyState';
 import { formatPhoneNumber } from '../utils/phoneFormatter';
 import BranchSelector from '../components/BranchSelector';

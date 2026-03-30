@@ -188,7 +188,7 @@ function BillingInvoices() {
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex items-center justify-end gap-2">
                           {invoice.status === 'draft' && (
-                            <Tooltip content="Send">
+                            <Tooltip content="Send" position="top">
                               <CardIconButton
                                 variant="primary"
                                 type="button"
@@ -201,7 +201,7 @@ function BillingInvoices() {
                             </Tooltip>
                           )}
                           {invoice.status !== 'paid' && invoice.status !== 'cancelled' && (
-                            <Tooltip content="Mark as paid">
+                            <Tooltip content="Mark as paid" position="top">
                               <CardIconButton
                                 variant="resolve"
                                 type="button"
@@ -214,7 +214,7 @@ function BillingInvoices() {
                             </Tooltip>
                           )}
                           {invoice.status === 'draft' && (
-                            <Tooltip content="Edit">
+                            <Tooltip content="Edit" position="top">
                               <CardIconButton
                                 variant="edit"
                                 type="button"
@@ -226,7 +226,7 @@ function BillingInvoices() {
                             </Tooltip>
                           )}
                           {invoice.status === 'draft' && (
-                            <Tooltip content="Delete">
+                            <Tooltip content="Delete" position="top">
                               <CardIconButton
                                 variant="delete"
                                 type="button"
@@ -493,7 +493,7 @@ function InvoiceForm({ record, onClose, onSuccess }) {
                   </div>
                   <div className="col-span-2 md:col-span-1 flex items-end">
                     {fields.length > 1 && (
-                      <Tooltip content="Remove item">
+                      <Tooltip content="Remove item" position="top">
                         <CardIconButton
                           variant="delete"
                           type="button"
