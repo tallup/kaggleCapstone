@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import logger from '../utils/logger';
+import { toast } from 'sonner';
 import { Calendar, Edit, ArrowLeft, CheckCircle, Stethoscope, MapPin, ChevronDown, X, List, Grid, Clock, TrendingUp, Search } from 'lucide-react';
 import CalendarView from '../components/CalendarView';
 
@@ -111,6 +112,7 @@ export default function CreateAppointment() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries(['appointments', residentId]);
+            toast.success('Appointment created successfully', '', { isFormSubmission: true });
             setFormData({
                 appointment_date: new Date().toISOString().split('T')[0],
                 appointment_time: '',
@@ -124,6 +126,9 @@ export default function CreateAppointment() {
         },
         onError: (error) => {
             logger.error('Error creating appointment:', error);
+            toast.error(
+                error.response?.data?.message || 'Failed to create appointment. Please try again.'
+            );
             if (error.response?.data?.errors) {
                 setErrors(error.response.data.errors);
             }
@@ -140,13 +145,14 @@ export default function CreateAppointment() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries(['appointments', residentId]);
+            toast.success('Appointment marked as complete', '', { isFormSubmission: true });
             setCompletingAppointment(null);
             setCompletionNotes('');
             refetch();
         },
         onError: (error) => {
             logger.error('Error marking appointment as complete:', error);
-            alert('Failed to mark appointment as complete. Please try again.');
+            toast.error(error.response?.data?.message || 'Failed to mark appointment as complete. Please try again.');
         },
     });
 

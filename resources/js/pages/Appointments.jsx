@@ -8,6 +8,7 @@ import SectionCard from '../components/SectionCard';
 import CalendarView from '../components/CalendarView';
 import BranchSelector from '../components/BranchSelector';
 import logger from '../utils/logger';
+import { toast } from 'sonner';
 
 // Profile Image Component with fallback
 function ProfileImage({ resident }) {
@@ -346,10 +347,14 @@ export default function Appointments() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries(['appointments']);
+            toast.success('Appointment created successfully', '', { isFormSubmission: true });
             handleCloseForm();
         },
         onError: (error) => {
             logger.error('Error creating appointment:', error);
+            toast.error(
+                error.response?.data?.message || 'Failed to create appointment. Please try again.'
+            );
         },
     });
 
