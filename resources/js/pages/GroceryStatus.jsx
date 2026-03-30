@@ -205,6 +205,14 @@ export default function GroceryStatus() {
     };
 
     const handleQuickStatusUpdate = (id, newStatus) => {
+        if (newStatus === 'completed') {
+            const ok = window.confirm(
+                'Mark this grocery status update as completed? You will not be able to set it back to Pending afterward.',
+            );
+            if (!ok) {
+                return;
+            }
+        }
         updateStatusMutation.mutate({ id, status: newStatus });
     };
 
@@ -659,8 +667,9 @@ export default function GroceryStatus() {
                                                         <div className="flex items-center gap-2 ml-4 flex-col sm:flex-row">
                                                             {/* Quick Status Update Buttons */}
                                                             <div className="flex items-center gap-2 flex-wrap">
-                                                                {update.status !== 'pending' && (
+                                                                {update.status !== 'pending' && update.status !== 'completed' && (
                                                                     <button
+                                                                        type="button"
                                                                         onClick={() => handleQuickStatusUpdate(update.id, 'pending')}
                                                                         className="px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors shadow-sm hover:shadow-md"
                                                                         style={{
@@ -680,6 +689,7 @@ export default function GroceryStatus() {
                                                                 )}
                                                                 {update.status !== 'in_progress' && (
                                                                     <button
+                                                                        type="button"
                                                                         onClick={() => handleQuickStatusUpdate(update.id, 'in_progress')}
                                                                         className="px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors shadow-sm hover:shadow-md"
                                                                         style={{
@@ -699,6 +709,7 @@ export default function GroceryStatus() {
                                                                 )}
                                                                 {update.status !== 'completed' && (
                                                                     <button
+                                                                        type="button"
                                                                         onClick={() => handleQuickStatusUpdate(update.id, 'completed')}
                                                                         className="px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors shadow-sm hover:shadow-md"
                                                                         style={{
@@ -718,6 +729,7 @@ export default function GroceryStatus() {
                                                                 )}
                                                                 {update.status !== 'needs_attention' && (
                                                                     <button
+                                                                        type="button"
                                                                         onClick={() => handleQuickStatusUpdate(update.id, 'needs_attention')}
                                                                         className="px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors shadow-sm hover:shadow-md"
                                                                         style={{
@@ -800,6 +812,15 @@ function GroceryStatusForm({ record, branches, templates = [], isCaregiver, care
     const handleSubmit = async (e) => {
         e.preventDefault();
         setErrors({});
+        if (formData.status === 'completed' && (!record || record.status !== 'completed')) {
+            const ok = window.confirm(
+                'Mark this grocery status update as completed? You will not be able to set it back to Pending afterward.',
+            );
+            if (!ok) {
+                return;
+            }
+        }
+
         setIsSubmitting(true);
 
         try {
@@ -890,7 +911,9 @@ function GroceryStatusForm({ record, branches, templates = [], isCaregiver, care
                                     required
                                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
                                 >
-                                    <option value="pending">Pending</option>
+                                    {record?.status !== 'completed' && (
+                                        <option value="pending">Pending</option>
+                                    )}
                                     <option value="in_progress">In Progress</option>
                                     <option value="completed">Completed</option>
                                     <option value="needs_attention">Needs Attention</option>

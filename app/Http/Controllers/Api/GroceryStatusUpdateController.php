@@ -167,6 +167,12 @@ class GroceryStatusUpdateController extends BaseApiController
             'notes' => 'nullable|string',
         ]);
 
+        if (isset($validated['status']) && $validated['status'] === 'pending' && $update->status === 'completed') {
+            return response()->json([
+                'message' => 'A completed grocery status cannot be set back to pending.',
+            ], 422);
+        }
+
         // Ensure week_start_date is Monday if provided
         if (isset($validated['week_start_date'])) {
             $date = Carbon::parse($validated['week_start_date']);
@@ -213,6 +219,12 @@ class GroceryStatusUpdateController extends BaseApiController
         $validated = $request->validate([
             'status' => 'required|in:pending,in_progress,completed,needs_attention',
         ]);
+
+        if ($validated['status'] === 'pending' && $update->status === 'completed') {
+            return response()->json([
+                'message' => 'A completed grocery status cannot be set back to pending.',
+            ], 422);
+        }
 
         $update->status = $validated['status'];
         
