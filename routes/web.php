@@ -3,20 +3,6 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\FacilityRegistrationController;
 
-if (! function_exists('spa_response')) {
-    /**
-     * Single-page app shell: must not be cached by browsers or edge CDNs, or users
-     * keep an old @vite manifest and request deleted chunk files after deploys.
-     */
-    function spa_response(): \Illuminate\Http\Response
-    {
-        return response()
-            ->view('react-app')
-            ->header('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0')
-            ->header('Pragma', 'no-cache');
-    }
-}
-
 // React App Route (serve React frontend)
 Route::get('/app{any?}', function () {
     return spa_response();
