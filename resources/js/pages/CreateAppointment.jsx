@@ -6,6 +6,11 @@ import logger from '../utils/logger';
 import { toast } from 'sonner';
 import { Calendar, Edit, ArrowLeft, CheckCircle, Stethoscope, MapPin, ChevronDown, X, List, Grid, Clock, TrendingUp, Search } from 'lucide-react';
 import CalendarView from '../components/CalendarView';
+import EntityCardShell, { EntityCardHeader } from '../components/ui/EntityCardShell';
+import CardIconButton from '../components/ui/CardIconButton';
+import DataPill from '../components/ui/DataPill';
+import ResidentAvatarInline from '../components/ui/ResidentAvatarInline';
+import Tooltip from '../components/ui/Tooltip';
 
 const tabs = [
     { id: 'today', label: 'Today', icon: Calendar },
@@ -207,13 +212,16 @@ export default function CreateAppointment() {
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
-                        <button
-                            onClick={() => navigate('/appointments')}
-                            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                            title="Back to Appointments"
-                        >
-                            <ArrowLeft className="w-5 h-5 text-gray-600" />
-                        </button>
+                        <Tooltip content="Back to appointments" position="bottom">
+                            <button
+                                type="button"
+                                onClick={() => navigate('/appointments')}
+                                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                                aria-label="Back to appointments"
+                            >
+                                <ArrowLeft className="w-5 h-5 text-gray-600" strokeWidth={2.25} />
+                            </button>
+                        </Tooltip>
                         <div>
                             <h2 className="text-xl font-semibold text-gray-900">
                                 Schedule Appointment
@@ -495,73 +503,90 @@ export default function CreateAppointment() {
                                     }) : 'N/A';
 
                                     return (
-                                        <div key={appointment.id} className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow border border-gray-200 p-5">
-                                            <div className="flex items-start justify-between mb-3">
-                                                <div className="flex-1">
-                                                    <h4 className="text-lg font-semibold text-gray-900 mb-1">
-                                                        {appointment.resident?.first_name} {appointment.resident?.last_name}
-                                                    </h4>
-                                                    <div className="flex items-center space-x-2 text-sm text-gray-600">
-                                                        <Calendar className="w-4 h-4" />
-                                                        <span>{dateStr}</span>
-                                                        {timeStr && <span className="text-gray-500">• {timeStr}</span>}
+                                        <EntityCardShell key={appointment.id}>
+                                            <EntityCardHeader
+                                                left={
+                                                    <div className="flex min-w-0 items-start gap-3">
+                                                        <ResidentAvatarInline resident={appointment.resident} />
+                                                        <div className="min-w-0">
+                                                            <h4 className="text-lg font-semibold text-gray-900">
+                                                                {appointment.resident?.first_name} {appointment.resident?.last_name}
+                                                            </h4>
+                                                            <DataPill icon={Calendar} className="mt-2 max-w-full">
+                                                                {dateStr}
+                                                                {timeStr ? ` • ${timeStr}` : ''}
+                                                            </DataPill>
+                                                        </div>
                                                     </div>
-                                                </div>
-                                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${appointment.status === 'scheduled' ? 'bg-amber-100 text-amber-800' :
-                                                    appointment.status === 'confirmed' ? 'bg-green-100 text-green-800' :
-                                                        appointment.status === 'completed' ? 'bg-emerald-100 text-emerald-800' :
-                                                            appointment.status === 'cancelled' ? 'bg-red-100 text-red-800' :
-                                                                'bg-gray-100 text-gray-800'
-                                                    }`}>
-                                                    {appointment.status?.charAt(0).toUpperCase() + appointment.status?.slice(1)}
-                                                </span>
-                                            </div>
+                                                }
+                                                right={
+                                                    <span
+                                                        className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${
+                                                            appointment.status === 'scheduled'
+                                                                ? 'bg-amber-100 text-amber-800'
+                                                                : appointment.status === 'confirmed'
+                                                                  ? 'bg-green-100 text-green-800'
+                                                                  : appointment.status === 'completed'
+                                                                    ? 'bg-emerald-100 text-emerald-800'
+                                                                    : appointment.status === 'cancelled'
+                                                                      ? 'bg-red-100 text-red-800'
+                                                                      : 'bg-gray-100 text-gray-800'
+                                                        }`}
+                                                    >
+                                                        {appointment.status?.charAt(0).toUpperCase() + appointment.status?.slice(1)}
+                                                    </span>
+                                                }
+                                            />
 
-                                            <div className="space-y-2 mb-4">
+                                            <div className="space-y-2">
                                                 <div className="text-sm text-gray-600">
-                                                    <span className="font-medium">Type:</span> {appointment.appointment_type?.name || appointment.appointmentType?.name || 'Other'}
+                                                    <span className="font-medium">Type:</span>{' '}
+                                                    {appointment.appointment_type?.name || appointment.appointmentType?.name || 'Other'}
                                                 </div>
                                                 {(appointment.description || appointment.provider_name) && (
                                                     <div className="text-sm text-gray-600">
-                                                        <span className="font-medium">Details:</span> {appointment.description || appointment.provider_name || '-'}
+                                                        <span className="font-medium">Details:</span>{' '}
+                                                        {appointment.description || appointment.provider_name || '-'}
                                                     </div>
                                                 )}
                                                 {nextApptDateStr !== 'N/A' && (
                                                     <div className="text-sm text-gray-600">
-                                                        <span className="font-medium">Next Appointment:</span> {nextApptDateStr}
+                                                        <span className="font-medium">Next appointment:</span> {nextApptDateStr}
                                                     </div>
                                                 )}
                                                 {appointment.notes && (
-                                                    <div className="text-sm text-gray-600 mt-2 pt-2 border-t border-gray-200">
-                                                        <span className="font-medium">Notes:</span>
-                                                        <p className="text-gray-700 mt-1 whitespace-pre-wrap">{appointment.notes}</p>
+                                                    <div className="mt-3 border-t border-slate-100 pt-3 text-sm text-gray-600">
+                                                        <span className="font-medium">Notes</span>
+                                                        <p className="mt-1 whitespace-pre-wrap text-gray-700">{appointment.notes}</p>
                                                     </div>
                                                 )}
                                             </div>
 
-                                            <div className="flex items-center justify-end space-x-2">
+                                            <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
                                                 {appointment.status !== 'completed' && appointment.status !== 'cancelled' && (
-                                                    <button
-                                                        onClick={() => handleMarkComplete(appointment)}
-                                                        className="flex items-center space-x-1 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors"
-                                                        title="Mark as Complete"
-                                                    >
-                                                        <CheckCircle className="w-4 h-4" />
-                                                        <span>Mark Complete</span>
-                                                    </button>
+                                                    <Tooltip content="Mark complete">
+                                                        <CardIconButton
+                                                            variant="resolve"
+                                                            type="button"
+                                                            onClick={() => handleMarkComplete(appointment)}
+                                                            aria-label="Mark appointment complete"
+                                                        >
+                                                            <CheckCircle className="h-4 w-4" strokeWidth={2.5} />
+                                                        </CardIconButton>
+                                                    </Tooltip>
                                                 )}
-                                                <button
-                                                    onClick={() => {
-                                                        // Navigate to edit appointment or open modal
-                                                        navigate(`/appointments?edit=${appointment.id}`);
-                                                    }}
-                                                    className="text-[var(--theme-primary)] hover:text-[var(--theme-primary-hover)] p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                                                    title="Edit"
-                                                >
-                                                    <Edit className="w-5 h-5" />
-                                                </button>
+                                                <Tooltip content="Edit">
+                                                    <CardIconButton
+                                                        variant="edit"
+                                                        type="button"
+                                                        onClick={() => navigate(`/appointments?edit=${appointment.id}`)}
+                                                        aria-label="Edit appointment"
+                                                    >
+                                                        <Edit className="h-4 w-4" strokeWidth={2.5} />
+                                                    </CardIconButton>
+                                                </Tooltip>
                                             </div>
-                                        </div>
+                                        </EntityCardShell>
                                     );
                                 })}
                             </div>

@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { formatPacificDate } from '../../utils/pacificTime';
 import logger from '../../utils/logger';
+import Tooltip from '../../components/ui/Tooltip';
 
 export default function BehaviorChartsView() {
     const navigate = useNavigate();
@@ -437,17 +438,20 @@ export default function BehaviorChartsView() {
                                         <td className="px-6 py-4 text-center">
                                             {['submitted', 'approved', 'declined', 'pending'].includes(chart.status) ? (
                                                 <div className="relative flex items-center justify-center" ref={(el) => (menuRefs.current[chart.id] = el)}>
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setOpenMenuId(openMenuId === chart.id ? null : chart.id);
-                                                        }}
-                                                        className="p-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 border border-gray-300 rounded-lg transition-colors bg-white"
-                                                        title="More options"
-                                                        style={{ color: '#374151' }}
-                                                    >
-                                                        <MoreVertical className="w-5 h-5" style={{ color: '#374151' }} />
-                                                    </button>
+                                                    <Tooltip content="More options" position="left">
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setOpenMenuId(openMenuId === chart.id ? null : chart.id);
+                                                            }}
+                                                            className="p-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 border border-gray-300 rounded-lg transition-colors bg-white"
+                                                            style={{ color: '#374151' }}
+                                                            aria-label="More options"
+                                                        >
+                                                            <MoreVertical className="w-5 h-5" style={{ color: '#374151' }} strokeWidth={2.25} />
+                                                        </button>
+                                                    </Tooltip>
                                                     {openMenuId === chart.id && (
                                                         <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-50 py-1">
                                                             <button

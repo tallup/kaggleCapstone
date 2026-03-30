@@ -5,6 +5,10 @@ import logger from '../utils/logger';
 import { Calendar, Plus, Edit, Trash2, CheckCircle, XCircle } from 'lucide-react';
 import SectionCard from '../components/SectionCard';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
+import Tooltip from '../components/ui/Tooltip';
+import EntityCardShell, { EntityCardHeader } from '../components/ui/EntityCardShell';
+import CardIconButton from '../components/ui/CardIconButton';
+import DataPill, { DataPillSection } from '../components/ui/DataPill';
 
 export default function LeaveRequests() {
   const queryClient = useQueryClient();
@@ -187,76 +191,96 @@ export default function LeaveRequests() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {data?.data?.length ? (
             data.data.map((lr) => (
-              <div key={lr.id} className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-6">
-                <div className="flex flex-col h-full">
-                  {/* Header */}
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1">
-                      <h3 className="text-lg font-bold text-gray-900 mb-1">{lr.staff?.name || 'Staff'}</h3>
-                      <div className="flex items-center space-x-2 text-sm text-gray-600 mb-2">
-                        <Calendar className="w-4 h-4 text-[var(--theme-primary)]" />
-                        <span>{new Date(lr.start_date).toLocaleDateString()} - {new Date(lr.end_date).toLocaleDateString()}</span>
-                      </div>
-                      <span className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold ${lr.status === 'approved' ? 'bg-green-100 text-green-800' : lr.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>
+              <EntityCardShell key={lr.id}>
+                <EntityCardHeader
+                  left={
+                    <div className="space-y-2">
+                      <span className="font-mono text-xs font-bold tracking-wide text-slate-500">
+                        #{lr.id}
+                      </span>
+                      <span
+                        className={`inline-flex rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                          lr.status === 'approved'
+                              ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                              : lr.status === 'pending'
+                                ? 'border-amber-200 bg-amber-50 text-amber-800'
+                                : 'border-red-200 bg-red-50 text-red-800'
+                        }`}
+                      >
                         {lr.status.charAt(0).toUpperCase() + lr.status.slice(1)}
                       </span>
                     </div>
-                    {/* Actions */}
-                    <div className="flex space-x-2">
-                      {/* Approve/Reject buttons for admins on pending requests */}
+                  }
+                  right={
+                    <>
                       {isAdmin && lr.status === 'pending' && (
                         <>
-                          <button 
-                            type="button"
-                            onClick={() => setApproveConfirmId(lr.id)} 
-                            disabled={approveMutation.isLoading}
-                            className="p-2 bg-green-600 text-white hover:bg-green-700 rounded-lg transition-colors shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed" 
-                            title="Approve"
-                          >
-                            <CheckCircle className="w-4 h-4" />
-                          </button>
-                          <button 
-                            onClick={() => handleReject(lr.id)} 
-                            disabled={rejectMutation.isLoading}
-                            className="p-2 bg-red-600 text-white hover:bg-red-700 rounded-lg transition-colors shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed" 
-                            title="Reject"
-                          >
-                            <XCircle className="w-4 h-4" />
-                          </button>
+                          <Tooltip content="Approve" position="top">
+                            <CardIconButton
+                              variant="resolve"
+                              icon={CheckCircle}
+                              aria-label="Approve"
+                              disabled={approveMutation.isPending}
+                              onClick={() => setApproveConfirmId(lr.id)}
+                            />
+                          </Tooltip>
+                          <Tooltip content="Reject" position="top">
+                            <CardIconButton
+                              variant="delete"
+                              icon={XCircle}
+                              aria-label="Reject"
+                              disabled={rejectMutation.isPending}
+                              onClick={() => handleReject(lr.id)}
+                            />
+                          </Tooltip>
                         </>
                       )}
-                      {/* Edit/Delete buttons */}
                       {(!isCaregiver || lr.staff_id === currentUser?.id) && (
                         <>
-                          <button 
-                            onClick={() => { setEditing(lr); setShowForm(true); }} 
-                            className="p-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] hover:bg-[var(--theme-primary-hover)] rounded-lg transition-colors shadow-md hover:shadow-lg" 
-                            title="Edit"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
-                          <button 
-                            type="button"
-                            onClick={() => setDeleteConfirmId(lr.id)} 
-                            className="p-2 bg-red-600 text-white hover:bg-red-700 rounded-lg transition-colors shadow-md hover:shadow-lg" 
-                            title="Delete"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          <Tooltip content="Edit" position="top">
+                            <CardIconButton
+                              variant="edit"
+                              icon={Edit}
+                              aria-label="Edit"
+                              onClick={() => {
+                                setEditing(lr);
+                                setShowForm(true);
+                              }}
+                            />
+                          </Tooltip>
+                          <Tooltip content="Delete" position="top">
+                            <CardIconButton
+                              variant="delete"
+                              icon={Trash2}
+                              aria-label="Delete"
+                              onClick={() => setDeleteConfirmId(lr.id)}
+                            />
+                          </Tooltip>
                         </>
                       )}
-                    </div>
-                  </div>
+                    </>
+                  }
+                />
 
-                  {/* Reason */}
-                  {lr.reason && (
-                    <div className="mt-auto pt-4 border-t border-gray-100">
-                      <p className="text-xs font-medium text-gray-500 uppercase mb-1">Reason</p>
-                      <p className="text-sm text-gray-700 line-clamp-2">{lr.reason}</p>
-                    </div>
-                  )}
+                <h3 className="text-lg font-bold leading-snug text-slate-900 sm:text-xl">
+                  {lr.staff?.name || 'Staff'}
+                </h3>
+
+                <div className="mt-4 grid grid-cols-1 gap-2.5">
+                  <DataPill icon={Calendar}>
+                    <span className="font-normal text-slate-600">
+                      {new Date(lr.start_date).toLocaleDateString()} –{' '}
+                      {new Date(lr.end_date).toLocaleDateString()}
+                    </span>
+                  </DataPill>
                 </div>
-              </div>
+
+                {lr.reason ? (
+                  <DataPillSection label="Reason">
+                    <p className="line-clamp-3 text-sm">{lr.reason}</p>
+                  </DataPillSection>
+                ) : null}
+              </EntityCardShell>
             ))
           ) : (
             <div className="col-span-2 bg-white rounded-lg shadow p-12 text-center">

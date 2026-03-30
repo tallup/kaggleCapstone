@@ -6,6 +6,10 @@ import logger from '../utils/logger';
 import { Users, Plus, Edit, Trash2, Search, Filter, Upload, X, Eye, Mail, Phone, Calendar, Briefcase, MapPin, Award, Shield, Clock, User as UserIcon, AlertCircle, Building2 } from 'lucide-react';
 import EmptyState from '../components/ui/EmptyState';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
+import Tooltip from '../components/ui/Tooltip';
+import EntityCardShell, { EntityCardHeader } from '../components/ui/EntityCardShell';
+import CardIconButton from '../components/ui/CardIconButton';
+import DataPill from '../components/ui/DataPill';
 import { formatPhoneNumber } from '../utils/phoneFormatter';
 
 export default function UsersPage() {
@@ -134,115 +138,125 @@ export default function UsersPage() {
 
     const renderUserCard = (user) => {
         const isInactive = !isUserActive(user);
-        const cardClass = `bg-white rounded-lg shadow-lg p-6 transition-all duration-200 hover:shadow-xl ${isInactive ? 'border border-red-200 bg-red-50/60 hover:border-red-300' : 'border border-gray-200 hover:border-[var(--theme-primary)]'
-            }`;
 
         return (
-            <div key={user.id} className={cardClass}>
-                <div className="flex items-start justify-between mb-6">
-                    <div className="flex items-center space-x-4 flex-1">
-                        {user.profile_image_url ? (
-                            <img
-                                src={user.profile_image_url}
-                                alt={user.name}
-                                className="w-16 h-16 rounded-full object-cover border-[3px] border-[var(--theme-primary)] shadow-md"
-                                onError={(e) => {
-                                    e.target.style.display = 'none';
-                                    if (e.target.nextElementSibling) {
-                                        e.target.nextElementSibling.style.display = 'flex';
-                                    }
-                                }}
-                            />
-                        ) : null}
-                        <div
-                            className={`w-16 h-16 rounded-full bg-gradient-to-br from-[var(--theme-primary)] to-[#4a7a2a] flex items-center justify-center shadow-md ${user.profile_image_url ? 'hidden' : ''
-                                }`}
-                        >
-                            <span className="text-white font-bold text-xl">
-                                {user.name?.charAt(0)?.toUpperCase() || 'U'}
-                            </span>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                                <h3 className="text-xl font-bold text-gray-900 mb-1 truncate">
-                                    {user.name || user.email}
-                                </h3>
-                                {isInactive && (
-                                    <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-red-100 text-red-700">
-                                        Deactivated
-                                    </span>
-                                )}
+            <EntityCardShell
+                key={user.id}
+                className={
+                    isInactive
+                        ? 'border-red-200/90 bg-red-50/60 hover:border-red-300/90'
+                        : ''
+                }
+            >
+                <EntityCardHeader
+                    left={
+                        <div className="flex flex-wrap items-start gap-3">
+                            <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full border-2 border-[var(--theme-primary)] shadow-sm">
+                                {user.profile_image_url ? (
+                                    <img
+                                        src={user.profile_image_url}
+                                        alt={user.name || ''}
+                                        className="h-full w-full object-cover"
+                                        onError={(e) => {
+                                            e.target.style.display = 'none';
+                                            const next = e.target.nextElementSibling;
+                                            if (next) next.style.display = 'flex';
+                                        }}
+                                    />
+                                ) : null}
+                                <div
+                                    className={`absolute inset-0 flex items-center justify-center bg-gradient-to-br from-[var(--theme-primary)] to-[#4a7a2a] text-lg font-bold text-white ${
+                                        user.profile_image_url ? 'hidden' : 'flex'
+                                    }`}
+                                >
+                                    {user.name?.charAt(0)?.toUpperCase() || 'U'}
+                                </div>
                             </div>
-                            <p className="text-sm text-gray-500 truncate">{user.email}</p>
-                            {isSuperAdmin && user.facility && (
-                                <p className="text-xs text-gray-400 mt-1 truncate flex items-center">
-                                    <Building2 className="w-3 h-3 mr-1" />
-                                    {user.facility.name}
-                                </p>
+                            <div className="min-w-0 space-y-2">
+                                <span className="font-mono text-xs font-bold tracking-wide text-slate-500">
+                                    #{user.id}
+                                </span>
+                                <div className="flex flex-wrap gap-1.5">
+                                    <span
+                                        className={`inline-flex rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                                            isInactive
+                                                ? 'border-red-200 bg-red-50 text-red-800'
+                                                : 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                                        }`}
+                                    >
+                                        {isInactive ? 'Inactive' : 'Active'}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                    right={
+                        <>
+                            <Tooltip content="View profile" position="top">
+                                <CardIconButton
+                                    variant="view"
+                                    icon={Eye}
+                                    aria-label="View profile"
+                                    onClick={() => navigate(`/administration/users/${user.id}`)}
+                                />
+                            </Tooltip>
+                            {canEdit && (
+                                <Tooltip content="Edit user" position="top">
+                                    <CardIconButton
+                                        variant="edit"
+                                        icon={Edit}
+                                        aria-label="Edit user"
+                                        onClick={() => navigate(`/administration/users/${user.id}/edit`)}
+                                    />
+                                </Tooltip>
                             )}
-                        </div>
-                    </div>
-                    <div className="flex space-x-2 ml-2 flex-shrink-0">
-                        <button
-                            onClick={() => navigate(`/administration/users/${user.id}`)}
-                            className="p-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] hover:bg-[var(--theme-primary-hover)] rounded-lg transition-all duration-200 border-2 border-[var(--theme-primary)] shadow-md hover:shadow-lg transform hover:scale-105"
-                            title="View Profile"
-                        >
-                            <Eye className="w-4 h-4" />
-                        </button>
-                        {canEdit && (
-                            <button
-                                onClick={() => navigate(`/administration/users/${user.id}/edit`)}
-                                className="p-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] hover:bg-[var(--theme-primary-hover)] rounded-lg transition-all duration-200 border-2 border-[var(--theme-primary)] shadow-md hover:shadow-lg transform hover:scale-105"
-                                title="Edit User"
-                            >
-                                <Edit className="w-4 h-4" />
-                            </button>
-                        )}
-                        {canDelete && (
-                            <button
-                                type="button"
-                                onClick={() => setDeleteConfirmUser(user)}
-                                className="p-2 bg-red-600 text-white hover:bg-red-700 rounded-lg transition-all duration-200 border-2 border-red-600 shadow-md hover:shadow-lg transform hover:scale-105"
-                                title="Delete User"
-                            >
-                                <Trash2 className="w-4 h-4" />
-                            </button>
-                        )}
-                    </div>
-                </div>
-                <div className="space-y-3 text-sm border-t border-gray-100 pt-4">
+                            {canDelete && (
+                                <Tooltip content="Delete user" position="top">
+                                    <CardIconButton
+                                        variant="delete"
+                                        icon={Trash2}
+                                        aria-label="Delete user"
+                                        onClick={() => setDeleteConfirmUser(user)}
+                                    />
+                                </Tooltip>
+                            )}
+                        </>
+                    }
+                />
+
+                <h3 className="text-lg font-bold leading-snug text-slate-900 sm:text-xl truncate">
+                    {user.name || user.email}
+                </h3>
+                <p className="mt-1 truncate text-sm text-slate-500">{user.email}</p>
+                {isSuperAdmin && user.facility && (
+                    <p className="mt-1 flex items-center truncate text-xs text-slate-400">
+                        <Building2 className="mr-1 h-3 w-3 shrink-0" />
+                        {user.facility.name}
+                    </p>
+                )}
+
+                <div className="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                     {user.assigned_branch && (
-                        <div className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg">
-                            <span className="text-gray-600 font-medium">Branch:</span>
-                            <span className="font-semibold text-gray-900">{user.assigned_branch.name}</span>
-                        </div>
+                        <DataPill icon={MapPin}>
+                            <span className="font-normal text-slate-600">{user.assigned_branch.name}</span>
+                        </DataPill>
                     )}
                     {user.roles && user.roles.length > 0 && (
-                        <div className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg">
-                            <span className="text-gray-600 font-medium">Roles:</span>
-                            <span className="font-semibold text-gray-900">
+                        <DataPill icon={Shield} className="sm:col-span-2">
+                            <span className="font-normal text-slate-600 line-clamp-2">
                                 {user.roles.map((r) => r.name).join(', ')}
                             </span>
-                        </div>
+                        </DataPill>
                     )}
-                    <div className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg">
-                        <span className="text-gray-600 font-medium">Status:</span>
-                        <span
-                            className={`font-semibold px-3 py-1 rounded-full text-xs ${user.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                                }`}
-                        >
-                            {user.is_active ? 'Active' : 'Inactive'}
-                        </span>
-                    </div>
                     {user.phone_number && (
-                        <div className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg">
-                            <span className="text-gray-600 font-medium">Phone:</span>
-                            <span className="font-semibold text-gray-900">{user.phone_number}</span>
-                        </div>
+                        <DataPill icon={Phone}>
+                            <span className="font-normal text-slate-600">
+                                {formatPhoneNumber(user.phone_number) || user.phone_number}
+                            </span>
+                        </DataPill>
                     )}
                 </div>
-            </div>
+            </EntityCardShell>
         );
     };
 
@@ -827,14 +841,16 @@ function UserForm({ record, branches, roles, facilities, isSuperAdmin, onClose, 
                                             alt="Profile preview"
                                             className="h-32 w-32 rounded-full object-cover border-4 border-gray-200"
                                         />
-                                        <button
-                                            type="button"
-                                            onClick={handleRemoveImage}
-                                            className="absolute top-0 right-0 bg-red-600 text-white rounded-full p-1 hover:bg-red-700 transition-colors"
-                                            title="Remove image"
-                                        >
-                                            <X className="w-4 h-4" />
-                                        </button>
+                                        <Tooltip content="Remove image" position="top">
+                                            <button
+                                                type="button"
+                                                onClick={handleRemoveImage}
+                                                className="absolute top-0 right-0 bg-red-600 text-white rounded-full p-1 hover:bg-red-700 transition-colors"
+                                                aria-label="Remove image"
+                                            >
+                                                <X className="w-4 h-4" />
+                                            </button>
+                                        </Tooltip>
                                     </div>
                                 )}
                                 <div className="flex items-center space-x-3">

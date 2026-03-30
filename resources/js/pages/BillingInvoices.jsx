@@ -12,6 +12,8 @@ import FormInput from '../components/forms/FormInput';
 import FormTextarea from '../components/forms/FormTextarea';
 import FormSelect from '../components/forms/FormSelect';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
+import Tooltip from '../components/ui/Tooltip';
+import CardIconButton from '../components/ui/CardIconButton';
 
 function BillingInvoices() {
   const queryClient = useQueryClient();
@@ -184,43 +186,56 @@ function BillingInvoices() {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="flex items-center justify-end space-x-2">
+                        <div className="flex items-center justify-end gap-2">
                           {invoice.status === 'draft' && (
-                            <button
-                              onClick={() => sendMutation.mutate(invoice.id)}
-                              className="p-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] hover:bg-[var(--theme-primary-hover)] rounded-lg"
-                              title="Send"
-                            >
-                              <Send className="w-4 h-4" />
-                            </button>
+                            <Tooltip content="Send">
+                              <CardIconButton
+                                variant="primary"
+                                type="button"
+                                onClick={() => sendMutation.mutate(invoice.id)}
+                                aria-label="Send invoice"
+                                disabled={sendMutation.isPending}
+                              >
+                                <Send className="h-4 w-4" strokeWidth={2.5} />
+                              </CardIconButton>
+                            </Tooltip>
                           )}
                           {invoice.status !== 'paid' && invoice.status !== 'cancelled' && (
-                            <button
-                              onClick={() => markPaidMutation.mutate({ id: invoice.id, data: {} })}
-                              className="p-2 bg-green-600 text-white hover:bg-green-700 rounded-lg"
-                              title="Mark as Paid"
-                            >
-                              <CheckCircle className="w-4 h-4" />
-                            </button>
+                            <Tooltip content="Mark as paid">
+                              <CardIconButton
+                                variant="resolve"
+                                type="button"
+                                onClick={() => markPaidMutation.mutate({ id: invoice.id, data: {} })}
+                                aria-label="Mark as paid"
+                                disabled={markPaidMutation.isPending}
+                              >
+                                <CheckCircle className="h-4 w-4" strokeWidth={2.5} />
+                              </CardIconButton>
+                            </Tooltip>
                           )}
                           {invoice.status === 'draft' && (
-                            <button
-                              onClick={() => { setEditing(invoice); setShowForm(true); }}
-                              className="p-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] hover:bg-[var(--theme-primary-hover)] rounded-lg"
-                              title="Edit"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </button>
+                            <Tooltip content="Edit">
+                              <CardIconButton
+                                variant="edit"
+                                type="button"
+                                onClick={() => { setEditing(invoice); setShowForm(true); }}
+                                aria-label="Edit"
+                              >
+                                <Edit className="h-4 w-4" strokeWidth={2.5} />
+                              </CardIconButton>
+                            </Tooltip>
                           )}
                           {invoice.status === 'draft' && (
-                            <button
-                              type="button"
-                              onClick={() => setDeleteConfirmId(invoice.id)}
-                              className="p-2 bg-red-600 text-white hover:bg-red-700 rounded-lg"
-                              title="Delete"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            <Tooltip content="Delete">
+                              <CardIconButton
+                                variant="delete"
+                                type="button"
+                                onClick={() => setDeleteConfirmId(invoice.id)}
+                                aria-label="Delete"
+                              >
+                                <Trash2 className="h-4 w-4" strokeWidth={2.5} />
+                              </CardIconButton>
+                            </Tooltip>
                           )}
                         </div>
                       </td>
@@ -478,14 +493,16 @@ function InvoiceForm({ record, onClose, onSuccess }) {
                   </div>
                   <div className="col-span-2 md:col-span-1 flex items-end">
                     {fields.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => remove(index)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded"
-                        title="Remove item"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <Tooltip content="Remove item">
+                        <CardIconButton
+                          variant="delete"
+                          type="button"
+                          onClick={() => remove(index)}
+                          aria-label="Remove item"
+                        >
+                          <Trash2 className="h-4 w-4" strokeWidth={2.5} />
+                        </CardIconButton>
+                      </Tooltip>
                     )}
                   </div>
                 </div>

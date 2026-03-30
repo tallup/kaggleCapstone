@@ -11,6 +11,7 @@ import {
     requestNotificationPermission, 
     showDesktopNotification 
 } from '../utils/desktopNotifications';
+import Tooltip from './ui/Tooltip';
 
 export default function NotificationDropdown() {
     const navigate = useNavigate();
@@ -383,21 +384,25 @@ export default function NotificationDropdown() {
 
     return (
         <div className="relative">
-            <button
-                onClick={() => {
-                    setIsOpen(!isOpen);
-                    // Refetch notifications when opening dropdown for immediate updates
-                    if (!isOpen) {
-                        refetch();
-                    }
-                }}
-                className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-                <Bell className="w-5 h-5 text-gray-600" />
-                {unreadCount > 0 && (
-                    <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-                )}
-            </button>
+            <Tooltip content="Notifications" position="bottom">
+                <button
+                    type="button"
+                    onClick={() => {
+                        setIsOpen(!isOpen);
+                        // Refetch notifications when opening dropdown for immediate updates
+                        if (!isOpen) {
+                            refetch();
+                        }
+                    }}
+                    className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                    aria-label="Notifications"
+                >
+                    <Bell className="w-5 h-5 text-gray-600" strokeWidth={2.25} />
+                    {unreadCount > 0 && (
+                        <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
+                    )}
+                </button>
+            </Tooltip>
 
             {isOpen && (
                 <>

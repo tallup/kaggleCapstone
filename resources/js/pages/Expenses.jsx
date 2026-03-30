@@ -11,6 +11,10 @@ import FormInput from '../components/forms/FormInput';
 import FormTextarea from '../components/forms/FormTextarea';
 import FormSelect from '../components/forms/FormSelect';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
+import Tooltip from '../components/ui/Tooltip';
+import EntityCardShell, { EntityCardHeader } from '../components/ui/EntityCardShell';
+import CardIconButton from '../components/ui/CardIconButton';
+import DataPill, { DataPillSection } from '../components/ui/DataPill';
 
 function Expenses() {
   const queryClient = useQueryClient();
@@ -99,28 +103,34 @@ function Expenses() {
           </div>
           <div className="flex items-center space-x-2">
             <div className="flex items-center space-x-1 bg-gray-100 rounded-lg p-1">
-              <button
-                onClick={() => setViewMode('list')}
-                className={`p-2 rounded transition-colors ${
-                  viewMode === 'list'
-                    ? 'bg-white text-[var(--theme-primary)] shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-                title="List View"
-              >
-                <List className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => setViewMode('card')}
-                className={`p-2 rounded transition-colors ${
-                  viewMode === 'card'
-                    ? 'bg-white text-[var(--theme-primary)] shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-                title="Card View"
-              >
-                <Grid className="w-4 h-4" />
-              </button>
+              <Tooltip content="List view" position="bottom">
+                <button
+                  type="button"
+                  onClick={() => setViewMode('list')}
+                  className={`p-2 rounded transition-colors ${
+                    viewMode === 'list'
+                      ? 'bg-white text-[var(--theme-primary)] shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                  aria-label="List view"
+                >
+                  <List className="w-4 h-4" strokeWidth={2.25} />
+                </button>
+              </Tooltip>
+              <Tooltip content="Card view" position="bottom">
+                <button
+                  type="button"
+                  onClick={() => setViewMode('card')}
+                  className={`p-2 rounded transition-colors ${
+                    viewMode === 'card'
+                      ? 'bg-white text-[var(--theme-primary)] shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                  aria-label="Card view"
+                >
+                  <Grid className="w-4 h-4" strokeWidth={2.25} />
+                </button>
+              </Tooltip>
             </div>
             <button
               onClick={() => { setEditing(null); setShowForm(true); }}
@@ -211,31 +221,36 @@ function Expenses() {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="flex items-center justify-end space-x-2">
+                        <div className="flex items-center justify-end gap-1.5">
                           {expense.payment_status !== 'paid' && (
-                            <button
-                              onClick={() => markPaidMutation.mutate(expense.id)}
-                              className="p-2 bg-green-600 text-white hover:bg-green-700 rounded-lg"
-                              title="Mark as Paid"
-                            >
-                              <CheckCircle className="w-4 h-4" />
-                            </button>
+                            <Tooltip content="Mark as paid" position="top">
+                              <CardIconButton
+                                variant="resolve"
+                                icon={CheckCircle}
+                                aria-label="Mark as paid"
+                                onClick={() => markPaidMutation.mutate(expense.id)}
+                              />
+                            </Tooltip>
                           )}
-                          <button
-                            onClick={() => { setEditing(expense); setShowForm(true); }}
-                            className="p-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] hover:bg-[var(--theme-primary-hover)] rounded-lg"
-                            title="Edit"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setDeleteConfirmId(expense.id)}
-                            className="p-2 bg-red-600 text-white hover:bg-red-700 rounded-lg"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          <Tooltip content="Edit" position="top">
+                            <CardIconButton
+                              variant="edit"
+                              icon={Edit}
+                              aria-label="Edit"
+                              onClick={() => {
+                                setEditing(expense);
+                                setShowForm(true);
+                              }}
+                            />
+                          </Tooltip>
+                          <Tooltip content="Delete" position="top">
+                            <CardIconButton
+                              variant="delete"
+                              icon={Trash2}
+                              aria-label="Delete"
+                              onClick={() => setDeleteConfirmId(expense.id)}
+                            />
+                          </Tooltip>
                         </div>
                       </td>
                     </tr>
@@ -278,97 +293,98 @@ function Expenses() {
 }
 
 function ExpenseCard({ expense, formatCurrency, onMarkPaid, onEdit, onDelete }) {
-  return (
-    <div className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-6 border border-gray-200">
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex-1">
-          <h3 className="text-lg font-semibold text-gray-900 mb-1 line-clamp-2">
-            {expense.description}
-          </h3>
-          <div className="flex items-center text-sm text-gray-500 mb-2">
-            <Calendar className="w-4 h-4 mr-1" />
-            {new Date(expense.expense_date).toLocaleDateString()}
-          </div>
-        </div>
-        <span className={`px-3 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${
-          expense.payment_status === 'paid' ? 'bg-green-100 text-green-800' :
-          expense.payment_status === 'overdue' ? 'bg-red-100 text-red-800' :
-          'bg-yellow-100 text-yellow-800'
-        }`}>
-          {expense.payment_status}
-        </span>
-      </div>
+  const statusClass =
+    expense.payment_status === 'paid'
+      ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+      : expense.payment_status === 'overdue'
+        ? 'border-red-200 bg-red-50 text-red-800'
+        : 'border-amber-200 bg-amber-50 text-amber-800';
 
-      <div className="space-y-2 mb-4">
-        <div className="flex items-center text-sm text-gray-600">
-          <DollarSign className="w-4 h-4 mr-2 text-gray-400" />
-          <span className="text-lg font-bold text-gray-900">{formatCurrency(expense.amount)}</span>
-        </div>
-        {expense.category && (
-          <div className="flex items-center text-sm text-gray-600">
-            <Tag className="w-4 h-4 mr-2 text-gray-400" />
-            <span>{expense.category.name}</span>
+  return (
+    <EntityCardShell>
+      <EntityCardHeader
+        left={
+          <div className="space-y-2">
+            <span className="font-mono text-xs font-bold tracking-wide text-slate-500">
+              #{expense.id}
+            </span>
+            <span
+              className={`inline-flex rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${statusClass}`}
+            >
+              {expense.payment_status}
+            </span>
           </div>
+        }
+        right={
+          <>
+            {expense.payment_status !== 'paid' && (
+              <Tooltip content="Mark as paid" position="top">
+                <CardIconButton
+                  variant="resolve"
+                  icon={CheckCircle}
+                  aria-label="Mark as paid"
+                  onClick={onMarkPaid}
+                />
+              </Tooltip>
+            )}
+            <Tooltip content="Edit" position="top">
+              <CardIconButton variant="edit" icon={Edit} aria-label="Edit" onClick={onEdit} />
+            </Tooltip>
+            <Tooltip content="Delete" position="top">
+              <CardIconButton variant="delete" icon={Trash2} aria-label="Delete" onClick={onDelete} />
+            </Tooltip>
+          </>
+        }
+      />
+
+      <h3 className="text-lg font-bold leading-snug text-slate-900 sm:text-xl line-clamp-2">
+        {expense.description}
+      </h3>
+
+      <div className="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+        <DataPill icon={DollarSign} contentClassName="font-semibold text-slate-900">
+          {formatCurrency(expense.amount)}
+        </DataPill>
+        <DataPill icon={Calendar}>
+          <span className="font-normal text-slate-600">
+            {new Date(expense.expense_date).toLocaleDateString()}
+          </span>
+        </DataPill>
+        {expense.category && (
+          <DataPill icon={Tag}>
+            <span className="font-normal text-slate-600">{expense.category.name}</span>
+          </DataPill>
         )}
         {expense.branch && (
-          <div className="flex items-center text-sm text-gray-600">
-            <Building2 className="w-4 h-4 mr-2 text-gray-400" />
-            <span>{expense.branch.name}</span>
-          </div>
+          <DataPill icon={Building2}>
+            <span className="font-normal text-slate-600">{expense.branch.name}</span>
+          </DataPill>
         )}
         {expense.resident && (
-          <div className="flex items-center text-sm text-gray-600">
-            <User className="w-4 h-4 mr-2 text-gray-400" />
-            <span>{expense.resident.name}</span>
-          </div>
+          <DataPill icon={User} className="sm:col-span-2">
+            <span className="font-normal text-slate-600">{expense.resident.name}</span>
+          </DataPill>
         )}
         {expense.vendor_name && (
-          <div className="flex items-center text-sm text-gray-600">
-            <span className="font-medium">Vendor:</span>
-            <span className="ml-2">{expense.vendor_name}</span>
-          </div>
+          <DataPill className="sm:col-span-2">
+            <span className="font-normal text-slate-600">Vendor: {expense.vendor_name}</span>
+          </DataPill>
         )}
         {expense.payment_date && (
-          <div className="flex items-center text-sm text-gray-600">
-            <span className="font-medium">Paid:</span>
-            <span className="ml-2">{new Date(expense.payment_date).toLocaleDateString()}</span>
-          </div>
+          <DataPill icon={Calendar} className="sm:col-span-2">
+            <span className="font-normal text-slate-600">
+              Paid: {new Date(expense.payment_date).toLocaleDateString()}
+            </span>
+          </DataPill>
         )}
       </div>
 
-      {expense.notes && (
-        <div className="mb-4 pt-4 border-t border-gray-100">
-          <p className="text-sm text-gray-600 line-clamp-2">{expense.notes}</p>
-        </div>
-      )}
-
-      <div className="flex items-center justify-end space-x-2 pt-4 border-t border-gray-100">
-        {expense.payment_status !== 'paid' && (
-          <button
-            onClick={onMarkPaid}
-            className="px-3 py-1.5 bg-green-600 text-white hover:bg-green-700 rounded-lg text-sm font-medium transition-colors"
-            title="Mark as Paid"
-          >
-            <CheckCircle className="w-4 h-4 inline mr-1" />
-            Mark Paid
-          </button>
-        )}
-        <button
-          onClick={onEdit}
-          className="p-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] hover:bg-[var(--theme-primary-hover)] rounded-lg transition-colors"
-          title="Edit"
-        >
-          <Edit className="w-4 h-4" />
-        </button>
-        <button
-          onClick={onDelete}
-          className="p-2 bg-red-600 text-white hover:bg-red-700 rounded-lg transition-colors"
-          title="Delete"
-        >
-          <Trash2 className="w-4 h-4" />
-        </button>
-      </div>
-    </div>
+      {expense.notes ? (
+        <DataPillSection label="Notes">
+          <p className="line-clamp-3 text-sm">{expense.notes}</p>
+        </DataPillSection>
+      ) : null}
+    </EntityCardShell>
   );
 }
 

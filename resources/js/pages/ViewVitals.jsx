@@ -17,6 +17,7 @@ import {
 import { Download, Plus, MoreVertical, Calendar, User, Building2, ChevronLeft, ChevronRight, CheckCircle, XCircle } from 'lucide-react';
 import logger from '../utils/logger';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
+import Tooltip from '../components/ui/Tooltip';
 
 ChartJS.register(
     CategoryScale,
@@ -814,18 +815,20 @@ export default function ViewVitals() {
                                                 </td>
                                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                                             <div className="relative" ref={(el) => (menuRefs.current[vital.id] = el)}>
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={(e) => {
-                                                                        e.preventDefault();
-                                                                        e.stopPropagation();
-                                                                        setOpenMenuId(openMenuId === vital.id ? null : vital.id);
-                                                                    }}
-                                                                    className="p-2 hover:bg-gray-100 rounded text-gray-600 hover:text-gray-900 transition-colors"
-                                                                    title="Actions"
-                                                                >
-                                                                    <MoreVertical className="w-5 h-5" />
-                                                                </button>
+                                                                <Tooltip content="Actions" position="left">
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={(e) => {
+                                                                            e.preventDefault();
+                                                                            e.stopPropagation();
+                                                                            setOpenMenuId(openMenuId === vital.id ? null : vital.id);
+                                                                        }}
+                                                                        className="p-2 hover:bg-gray-100 rounded text-gray-600 hover:text-gray-900 transition-colors"
+                                                                        aria-label="Row actions"
+                                                                    >
+                                                                        <MoreVertical className="w-5 h-5" strokeWidth={2.25} />
+                                                                    </button>
+                                                                </Tooltip>
                                                                 {openMenuId === vital.id && (
                                                                     <>
                                                                         {/* Backdrop to close menu when clicking outside */}

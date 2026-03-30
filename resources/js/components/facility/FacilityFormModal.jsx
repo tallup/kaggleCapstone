@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import api from '../../services/api';
 import { getUserLocation } from '../../utils/location';
+import Tooltip from '../ui/Tooltip';
 
 /**
  * Available modules for facilities
@@ -558,26 +559,34 @@ function ContactInfoTab({ formData, onChange, errors, geocoding, setGeocoding, g
                         Location Coordinates
                     </label>
                     <div className="flex items-center space-x-2">
-                        <button
-                            type="button"
-                            onClick={handleUseCurrentLocation}
-                            disabled={gettingLocation}
-                            className="text-sm px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1"
-                            title="Use your current GPS location"
-                        >
-                            <Navigation className="w-4 h-4" />
-                            <span>{gettingLocation ? 'Getting Location...' : 'Use Current Location'}</span>
-                        </button>
-                        <button
-                            type="button"
-                            onClick={handleGeocode}
-                            disabled={geocoding || !formData.address}
-                            className="text-sm px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1"
-                            title="Geocode from address field"
-                        >
-                            <MapPin className="w-4 h-4" />
-                            <span>{geocoding ? 'Geocoding...' : 'Geocode from Address'}</span>
-                        </button>
+                        <Tooltip content="Use your current GPS location" position="top">
+                            <span className="inline-flex">
+                                <button
+                                    type="button"
+                                    onClick={handleUseCurrentLocation}
+                                    disabled={gettingLocation}
+                                    className="text-sm px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1"
+                                    aria-label="Use your current GPS location"
+                                >
+                                    <Navigation className="w-4 h-4" />
+                                    <span>{gettingLocation ? 'Getting Location...' : 'Use Current Location'}</span>
+                                </button>
+                            </span>
+                        </Tooltip>
+                        <Tooltip content="Geocode from address field" position="top">
+                            <span className="inline-flex">
+                                <button
+                                    type="button"
+                                    onClick={handleGeocode}
+                                    disabled={geocoding || !formData.address}
+                                    className="text-sm px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1"
+                                    aria-label="Geocode from address field"
+                                >
+                                    <MapPin className="w-4 h-4" />
+                                    <span>{geocoding ? 'Geocoding...' : 'Geocode from Address'}</span>
+                                </button>
+                            </span>
+                        </Tooltip>
                     </div>
                 </div>
                 <p className="text-xs text-gray-500 mb-3">Coordinates are used for location-based login restrictions (50 meters).</p>

@@ -26,6 +26,7 @@ import Card from '../components/Card';
 import SectionCard from '../components/SectionCard';
 import BranchSelector from '../components/BranchSelector';
 import logger from '../utils/logger';
+import Tooltip from '../components/ui/Tooltip';
 
 const tabs = [
     { id: 'today', label: 'Today', icon: Calendar },
@@ -844,29 +845,39 @@ export default function AppointmentsDashboard() {
                                                     const isToday = appointmentDate === today;
                                                     
                                                     return isToday && (appointment.status === 'scheduled' || appointment.status === 'rescheduled' || appointment.status === 'confirmed') ? (
-                                                        <button
-                                                            onClick={() => handleToggleComplete(appointment.id)}
-                                                            disabled={completeMutation.isPending}
-                                                            className="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium flex items-center gap-1.5 disabled:opacity-50"
-                                                            title="Mark as Complete"
-                                                        >
-                                                            <CheckCircle className="w-4 h-4" />
-                                                            Complete
-                                                        </button>
+                                                        <Tooltip content="Mark as complete" position="top">
+                                                            <span className="inline-flex">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleToggleComplete(appointment.id)}
+                                                                    disabled={completeMutation.isPending}
+                                                                    className="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium flex items-center gap-1.5 disabled:opacity-50"
+                                                                    aria-label="Mark appointment as complete"
+                                                                >
+                                                                    <CheckCircle className="w-4 h-4" />
+                                                                    Complete
+                                                                </button>
+                                                            </span>
+                                                        </Tooltip>
                                                     ) : null;
                                                 })()}
                                                 
                                                 {/* Update button - always visible until appointment is completed */}
                                                 {appointment.status !== 'completed' && (
-                                                    <button
-                                                        onClick={() => handleCancel(appointment)}
-                                                        disabled={cancelMutation.isPending}
-                                                        className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium flex items-center gap-1.5 disabled:opacity-50"
-                                                        title="Update Appointment Status"
-                                                    >
-                                                        <CalendarClock className="w-4 h-4" />
-                                                        Update
-                                                    </button>
+                                                    <Tooltip content="Update appointment status" position="top">
+                                                        <span className="inline-flex">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleCancel(appointment)}
+                                                                disabled={cancelMutation.isPending}
+                                                                className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium flex items-center gap-1.5 disabled:opacity-50"
+                                                                aria-label="Update appointment status"
+                                                            >
+                                                                <CalendarClock className="w-4 h-4" />
+                                                                Update
+                                                            </button>
+                                                        </span>
+                                                    </Tooltip>
                                                 )}
                                             </>
                                         )}

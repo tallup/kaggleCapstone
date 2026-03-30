@@ -5,6 +5,10 @@ import { Shield, Plus, Edit, Trash2 } from 'lucide-react';
 import FacilityPermissions from './FacilityPermissions';
 import logger from '../utils/logger';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
+import Tooltip from '../components/ui/Tooltip';
+import EntityCardShell, { EntityCardHeader } from '../components/ui/EntityCardShell';
+import CardIconButton from '../components/ui/CardIconButton';
+import { DataPillSection } from '../components/ui/DataPill';
 
 export default function Roles() {
   const queryClient = useQueryClient();
@@ -158,20 +162,47 @@ export default function Roles() {
         <div className="space-y-4">
           {rolesData?.data?.length ? (
             rolesData.data.map((role) => (
-              <div key={role.id} className="bg-white rounded-lg shadow p-6">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start space-x-3">
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900">{role.name}</h3>
-                      <p className="text-sm text-gray-500 mt-1">{role.permissions?.map(p => p.name).join(', ') || 'No permissions'}</p>
+              <EntityCardShell key={role.id}>
+                <EntityCardHeader
+                  left={
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Shield className="h-6 w-6 shrink-0 text-[var(--theme-primary)]" />
+                      <span className="font-mono text-xs font-bold tracking-wide text-slate-500">
+                        #{role.id}
+                      </span>
                     </div>
-                  </div>
-                  <div className="flex space-x-2">
-                    <button onClick={() => { setEditing(role); setShowForm(true); }} className="p-2 text-[var(--theme-primary)] hover:bg-green-50 rounded-lg" title="Edit"><Edit className="w-4 h-4" /></button>
-                    <button type="button" onClick={() => setDeleteConfirmId(role.id)} className="p-2 text-[var(--theme-secondary)] hover:bg-amber-50 rounded-lg" title="Delete"><Trash2 className="w-4 h-4" /></button>
-                  </div>
-                </div>
-              </div>
+                  }
+                  right={
+                    <>
+                      <Tooltip content="Edit role" position="top">
+                        <CardIconButton
+                          variant="edit"
+                          icon={Edit}
+                          aria-label="Edit role"
+                          onClick={() => {
+                            setEditing(role);
+                            setShowForm(true);
+                          }}
+                        />
+                      </Tooltip>
+                      <Tooltip content="Delete role" position="top">
+                        <CardIconButton
+                          variant="delete"
+                          icon={Trash2}
+                          aria-label="Delete role"
+                          onClick={() => setDeleteConfirmId(role.id)}
+                        />
+                      </Tooltip>
+                    </>
+                  }
+                />
+                <h3 className="text-lg font-bold leading-snug text-slate-900 sm:text-xl">{role.name}</h3>
+                <DataPillSection label="Permissions" className="mt-4">
+                  <p className="text-sm text-slate-600">
+                    {role.permissions?.map((p) => p.name).join(', ') || 'No permissions assigned'}
+                  </p>
+                </DataPillSection>
+              </EntityCardShell>
             ))
           ) : (
             <div className="bg-white rounded-lg shadow p-12 text-center">

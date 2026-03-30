@@ -12,12 +12,15 @@ import FormCheckbox from '../components/forms/FormCheckbox';
 import { useToastContext } from '../contexts/ToastContext';
 import EmptyState from '../components/ui/EmptyState';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
+import Tooltip from '../components/ui/Tooltip';
+import CardIconButton from '../components/ui/CardIconButton';
 
 export default function Drugs() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
   // Get current user to check permissions
   const { data: currentUser } = useQuery({
@@ -156,25 +159,30 @@ export default function Drugs() {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="flex items-center justify-end space-x-2">
+                        <div className="flex items-center justify-end gap-2">
                           {canEdit && (
-                            <button
-                              onClick={() => { setEditing(drug); setShowForm(true); }}
-                              className="p-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] hover:bg-[var(--theme-primary-hover)] rounded-lg transition-all duration-200 border-2 border-[var(--theme-primary)] shadow-md hover:shadow-lg transform hover:scale-105"
-                              title="Edit"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </button>
+                            <Tooltip content="Edit">
+                              <CardIconButton
+                                variant="edit"
+                                type="button"
+                                onClick={() => { setEditing(drug); setShowForm(true); }}
+                                aria-label="Edit"
+                              >
+                                <Edit className="h-4 w-4" strokeWidth={2.5} />
+                              </CardIconButton>
+                            </Tooltip>
                           )}
                           {canDelete && (
-                            <button
-                              type="button"
-                              onClick={() => setDeleteConfirmId(drug.id)}
-                              className="p-2 bg-red-600 text-white hover:bg-red-700 rounded-lg transition-all duration-200 border-2 border-red-600 shadow-md hover:shadow-lg transform hover:scale-105"
-                              title="Delete"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            <Tooltip content="Delete">
+                              <CardIconButton
+                                variant="delete"
+                                type="button"
+                                onClick={() => setDeleteConfirmId(drug.id)}
+                                aria-label="Delete"
+                              >
+                                <Trash2 className="h-4 w-4" strokeWidth={2.5} />
+                              </CardIconButton>
+                            </Tooltip>
                           )}
                         </div>
                       </td>

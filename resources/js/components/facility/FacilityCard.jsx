@@ -122,38 +122,47 @@ export default function FacilityCard({ facility, onEdit, onDelete, onView, showA
                     {showActions && (
                         <div className="flex flex-col space-y-2 ml-2">
                             {onView && (
-                                <button
-                                    onClick={() => onView(facility)}
-                                    className="p-2 bg-[var(--theme-primary-light)] text-[var(--theme-primary)] hover:bg-[var(--theme-primary-lighter)] rounded-lg transition-colors border border-[var(--theme-border)]"
-                                    title="View Details"
-                                >
-                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                    </svg>
-                                </button>
+                                <Tooltip content="View details" position="left">
+                                    <button
+                                        type="button"
+                                        onClick={() => onView(facility)}
+                                        className="p-2 bg-[var(--theme-primary-light)] text-[var(--theme-primary)] hover:bg-[var(--theme-primary-lighter)] rounded-lg transition-colors border border-[var(--theme-border)]"
+                                        aria-label="View facility details"
+                                    >
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                        </svg>
+                                    </button>
+                                </Tooltip>
                             )}
                             {onEdit && (
-                                <button
-                                    onClick={() => onEdit(facility)}
-                                    className="p-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg transition-colors border border-indigo-300"
-                                    title="Edit Facility"
-                                >
-                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                    </svg>
-                                </button>
+                                <Tooltip content="Edit facility" position="left">
+                                    <button
+                                        type="button"
+                                        onClick={() => onEdit(facility)}
+                                        className="p-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg transition-colors border border-indigo-300"
+                                        aria-label="Edit facility"
+                                    >
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                        </svg>
+                                    </button>
+                                </Tooltip>
                             )}
                             {onDelete && (
-                                <button
-                                    onClick={() => onDelete(facility)}
-                                    className="p-2 bg-red-50 text-red-700 hover:bg-red-100 rounded-lg transition-colors border border-red-300"
-                                    title="Delete Facility"
-                                >
-                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                    </svg>
-                                </button>
+                                <Tooltip content="Delete facility" position="left">
+                                    <button
+                                        type="button"
+                                        onClick={() => onDelete(facility)}
+                                        className="p-2 bg-red-50 text-red-700 hover:bg-red-100 rounded-lg transition-colors border border-red-300"
+                                        aria-label="Delete facility"
+                                    >
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        </svg>
+                                    </button>
+                                </Tooltip>
                             )}
                         </div>
                     )}
@@ -234,18 +243,24 @@ export default function FacilityCard({ facility, onEdit, onDelete, onView, showA
                     {(primary_color || secondary_color) && (
                         <div className="flex items-center space-x-1">
                             {primary_color && (
-                                <div
-                                    className="w-6 h-6 rounded-full border-2 border-white shadow-sm"
-                                    style={{ backgroundColor: primary_color }}
-                                    title={`Primary: ${primary_color}`}
-                                />
+                                <Tooltip content={`Primary: ${primary_color}`} position="top">
+                                    <div
+                                        className="w-6 h-6 rounded-full border-2 border-white shadow-sm"
+                                        style={{ backgroundColor: primary_color }}
+                                        role="img"
+                                        aria-label={`Primary color ${primary_color}`}
+                                    />
+                                </Tooltip>
                             )}
                             {secondary_color && (
-                                <div
-                                    className="w-6 h-6 rounded-full border-2 border-white shadow-sm"
-                                    style={{ backgroundColor: secondary_color }}
-                                    title={`Secondary: ${secondary_color}`}
-                                />
+                                <Tooltip content={`Secondary: ${secondary_color}`} position="top">
+                                    <div
+                                        className="w-6 h-6 rounded-full border-2 border-white shadow-sm"
+                                        style={{ backgroundColor: secondary_color }}
+                                        role="img"
+                                        aria-label={`Secondary color ${secondary_color}`}
+                                    />
+                                </Tooltip>
                             )}
                         </div>
                     )}

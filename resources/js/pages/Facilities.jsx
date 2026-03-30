@@ -14,6 +14,7 @@ export default function Facilities() {
   const { showToast } = useToastContext();
 
   const [search, setSearch] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   // Check if user is super admin - MUST be called before any conditional returns
   const { data: currentUser, isLoading: userLoading } = useQuery({

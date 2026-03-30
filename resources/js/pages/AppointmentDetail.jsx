@@ -18,6 +18,7 @@ import {
     AlertCircle,
     Building2
 } from 'lucide-react';
+import Tooltip from '../components/ui/Tooltip';
 
 export default function AppointmentDetail() {
     const { id } = useParams();
@@ -381,20 +382,26 @@ export default function AppointmentDetail() {
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-2 ml-4">
-                                                <button
-                                                    onClick={() => handleViewDocument(doc)}
-                                                    className="p-2 text-gray-600 hover:text-[var(--theme-primary)] hover:bg-gray-100 rounded-lg transition-colors"
-                                                    title="View Document"
-                                                >
-                                                    <Eye className="w-4 h-4" />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDownloadDocument(doc)}
-                                                    className="p-2 text-gray-600 hover:text-[var(--theme-primary)] hover:bg-gray-100 rounded-lg transition-colors"
-                                                    title="Download Document"
-                                                >
-                                                    <Download className="w-4 h-4" />
-                                                </button>
+                                                <Tooltip content="View document" position="top">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleViewDocument(doc)}
+                                                        className="p-2 text-gray-600 hover:text-[var(--theme-primary)] hover:bg-gray-100 rounded-lg transition-colors"
+                                                        aria-label="View document"
+                                                    >
+                                                        <Eye className="w-4 h-4" strokeWidth={2.25} />
+                                                    </button>
+                                                </Tooltip>
+                                                <Tooltip content="Download document" position="top">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleDownloadDocument(doc)}
+                                                        className="p-2 text-gray-600 hover:text-[var(--theme-primary)] hover:bg-gray-100 rounded-lg transition-colors"
+                                                        aria-label="Download document"
+                                                    >
+                                                        <Download className="w-4 h-4" strokeWidth={2.25} />
+                                                    </button>
+                                                </Tooltip>
                                             </div>
                                         </div>
                                     </div>

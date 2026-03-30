@@ -4,6 +4,8 @@ import api from '../services/api';
 import { FileText, Plus, Edit, Trash2, Search, Filter, Download, Calendar, AlertCircle, X } from 'lucide-react';
 import logger from '../utils/logger';
 import ConfirmDialog from './ui/ConfirmDialog';
+import Tooltip from './ui/Tooltip';
+import CardIconButton from './ui/CardIconButton';
 
 const documentTypeOptions = {
     insurance: 'Insurance',
@@ -319,40 +321,45 @@ export default function ResidentDocuments({ residentId }) {
                                             </td>
                                             <td className="px-6 py-4 text-right text-sm font-medium">
                                                 <div className="flex items-center justify-end gap-2">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleDownload(doc)}
-                                                        className="p-2.5 rounded-lg bg-green-500 text-white hover:bg-green-600 transition-colors shadow-sm hover:shadow-md"
-                                                        title="Download"
-                                                    >
-                                                        <Download className="h-5 w-5" />
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            setEditing(doc);
-                                                            setShowForm(true);
-                                                            // Scroll to form
-                                                            setTimeout(() => {
-                                                                const formElement = window.document.querySelector('[data-document-form]');
-                                                                if (formElement) {
-                                                                    formElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                                                                }
-                                                            }, 100);
-                                                        }}
-                                                        className="p-2.5 rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors shadow-sm hover:shadow-md"
-                                                        title="Edit"
-                                                    >
-                                                        <Edit className="h-5 w-5" />
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setDeleteConfirmId(doc.id)}
-                                                        className="p-2.5 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors shadow-sm hover:shadow-md"
-                                                        title="Delete"
-                                                    >
-                                                        <Trash2 className="h-5 w-5" />
-                                                    </button>
+                                                    <Tooltip content="Download">
+                                                        <CardIconButton
+                                                            variant="resolve"
+                                                            type="button"
+                                                            onClick={() => handleDownload(doc)}
+                                                            aria-label="Download"
+                                                        >
+                                                            <Download className="h-4 w-4" strokeWidth={2.5} />
+                                                        </CardIconButton>
+                                                    </Tooltip>
+                                                    <Tooltip content="Edit">
+                                                        <CardIconButton
+                                                            variant="edit"
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setEditing(doc);
+                                                                setShowForm(true);
+                                                                setTimeout(() => {
+                                                                    const formElement = window.document.querySelector('[data-document-form]');
+                                                                    if (formElement) {
+                                                                        formElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                                                    }
+                                                                }, 100);
+                                                            }}
+                                                            aria-label="Edit"
+                                                        >
+                                                            <Edit className="h-4 w-4" strokeWidth={2.5} />
+                                                        </CardIconButton>
+                                                    </Tooltip>
+                                                    <Tooltip content="Delete">
+                                                        <CardIconButton
+                                                            variant="delete"
+                                                            type="button"
+                                                            onClick={() => setDeleteConfirmId(doc.id)}
+                                                            aria-label="Delete"
+                                                        >
+                                                            <Trash2 className="h-4 w-4" strokeWidth={2.5} />
+                                                        </CardIconButton>
+                                                    </Tooltip>
                                                 </div>
                                             </td>
                                         </tr>

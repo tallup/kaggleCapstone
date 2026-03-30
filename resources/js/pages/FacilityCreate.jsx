@@ -9,6 +9,7 @@ import {
     AlertCircle, Eye, EyeOff
 } from 'lucide-react';
 import { useToastContext } from '../contexts/ToastContext';
+import Tooltip from '../components/ui/Tooltip';
 
 const AVAILABLE_MODULES = [
     { key: 'pharmacy', name: 'Pharmacy' },
@@ -358,21 +359,30 @@ function BrandingTab() {
                         <div>
                             <div className="font-semibold text-gray-900">{formData.name || 'Facility Name'}</div>
                             <div className="flex gap-2 mt-2">
-                                <div
-                                    className="w-8 h-8 rounded border border-gray-300"
-                                    style={{ backgroundColor: formData.primary_color }}
-                                    title="Primary Color"
-                                />
-                                <div
-                                    className="w-8 h-8 rounded border border-gray-300"
-                                    style={{ backgroundColor: formData.secondary_color }}
-                                    title="Secondary Color"
-                                />
-                                <div
-                                    className="w-8 h-8 rounded border border-gray-300"
-                                    style={{ backgroundColor: formData.accent_color }}
-                                    title="Accent Color"
-                                />
+                                <Tooltip content="Primary color" position="top">
+                                    <div
+                                        className="w-8 h-8 rounded border border-gray-300"
+                                        style={{ backgroundColor: formData.primary_color }}
+                                        role="img"
+                                        aria-label="Primary color"
+                                    />
+                                </Tooltip>
+                                <Tooltip content="Secondary color" position="top">
+                                    <div
+                                        className="w-8 h-8 rounded border border-gray-300"
+                                        style={{ backgroundColor: formData.secondary_color }}
+                                        role="img"
+                                        aria-label="Secondary color"
+                                    />
+                                </Tooltip>
+                                <Tooltip content="Accent color" position="top">
+                                    <div
+                                        className="w-8 h-8 rounded border border-gray-300"
+                                        style={{ backgroundColor: formData.accent_color }}
+                                        role="img"
+                                        aria-label="Accent color"
+                                    />
+                                </Tooltip>
                             </div>
                         </div>
                     </div>

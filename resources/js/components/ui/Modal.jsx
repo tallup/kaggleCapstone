@@ -113,7 +113,7 @@ export default function Modal({
                 {/* Backdrop */}
                 <DialogPrimitive.Overlay
                     ref={backdropRef}
-                    className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-[200]"
+                    className="fixed inset-0 z-[200] bg-slate-900/20 backdrop-blur-lg"
                     onClick={closeOnBackdropClick ? onClose : undefined}
                 />
 

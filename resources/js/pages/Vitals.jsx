@@ -4,12 +4,16 @@ import { useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import { offlinePost, offlinePut } from '../services/offlineApi';
 import { useBranchUpdates, useFacilityUpdates } from '../hooks/useRealtimeUpdates';
-import { Activity, User, Heart, Plus, Thermometer, Droplet, Edit, Trash2, ChevronDown, X } from 'lucide-react';
+import { Activity, Heart, Plus, Thermometer, Droplet, Edit, Trash2, ChevronDown, X, Calendar } from 'lucide-react';
 import { getLocalDateString } from '../utils/pacificTime';
 import { TableSkeleton, ListSkeleton } from '../components/ui/SkeletonLoader';
 import EmptyState from '../components/ui/EmptyState';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import Tooltip from '../components/ui/Tooltip';
+import EntityCardShell, { EntityCardHeader } from '../components/ui/EntityCardShell';
+import CardIconButton from '../components/ui/CardIconButton';
+import ResidentAvatarInline from '../components/ui/ResidentAvatarInline';
+import { DataPillSection } from '../components/ui/DataPill';
 import { useToastContext } from '../contexts/ToastContext';
 import BranchSelector from '../components/BranchSelector';
 
@@ -22,6 +26,7 @@ export default function Vitals() {
     const [residentFilter, setResidentFilter] = useState('');
     const [showForm, setShowForm] = useState(false);
     const [editing, setEditing] = useState(null);
+    const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
     // Get current user to check permissions
     const { data: currentUser } = useQuery({
@@ -118,6 +123,11 @@ export default function Vitals() {
             toast.error('Error', error.response?.data?.message || 'Failed to delete vital sign record');
         },
     });
+
+    const handleConfirmDelete = () => {
+        if (deleteConfirmId == null) return;
+        deleteMutation.mutate(deleteConfirmId, { onSuccess: () => setDeleteConfirmId(null) });
+    };
 
     // Real-time updates for vitals
     useBranchUpdates(
@@ -269,53 +279,74 @@ export default function Vitals() {
                     {data?.data?.length > 0 ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {data.data.map((vital) => (
-                                <div key={vital.id} className="bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow">
-                                    <div className="flex items-start justify-between mb-4">
-                                        <div className="flex items-center space-x-3">
-                                            <div>
-                                                <h3 className="text-lg font-semibold text-gray-900">
-                                                    {vital.resident?.first_name} {vital.resident?.last_name}
-                                                </h3>
-                                                <p className="text-xs text-gray-500">
-                                                    {new Date(vital.measurement_date).toLocaleDateString()} at{' '}
-                                                    {vital.measurement_date && typeof vital.measurement_date === 'string' 
-                                                        ? new Date(vital.measurement_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                                                        : 'N/A'}
-                                                </p>
+                                <EntityCardShell key={vital.id}>
+                                    <EntityCardHeader
+                                        left={
+                                            <div className="flex flex-wrap items-start gap-3">
+                                                {vital.resident ? (
+                                                    <ResidentAvatarInline
+                                                        resident={vital.resident}
+                                                        className="h-10 w-10 text-xs"
+                                                    />
+                                                ) : null}
+                                                <div className="space-y-2">
+                                                    <span className="font-mono text-xs font-bold tracking-wide text-slate-500">
+                                                        #{vital.id}
+                                                    </span>
+                                                </div>
                                             </div>
-                                        </div>
-                                        <div className="flex space-x-2">
-                                            {canEdit && (
-                                                <Tooltip content="Edit" position="top">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            setEditing(vital);
-                                                            setShowForm(true);
-                                                        }}
-                                                        className="rounded-lg border border-emerald-200 bg-emerald-50/80 p-2 transition-colors hover:bg-emerald-100"
-                                                        aria-label="Edit vital sign"
-                                                    >
-                                                        <Edit className="h-4 w-4 !text-emerald-700" strokeWidth={2.5} />
-                                                    </button>
-                                                </Tooltip>
-                                            )}
-                                            {canDelete && (
-                                                <Tooltip content="Delete" position="top">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setDeleteConfirmId(vital.id)}
-                                                        className="rounded-lg border border-red-200 bg-red-50/80 p-2 transition-colors hover:bg-red-100"
-                                                        aria-label="Delete vital sign"
-                                                    >
-                                                        <Trash2 className="h-4 w-4 !text-red-700" strokeWidth={2.5} />
-                                                    </button>
-                                                </Tooltip>
-                                            )}
+                                        }
+                                        right={
+                                            <>
+                                                {canEdit && (
+                                                    <Tooltip content="Edit" position="top">
+                                                        <CardIconButton
+                                                            variant="edit"
+                                                            icon={Edit}
+                                                            aria-label="Edit vital sign"
+                                                            onClick={() => {
+                                                                setEditing(vital);
+                                                                setShowForm(true);
+                                                            }}
+                                                        />
+                                                    </Tooltip>
+                                                )}
+                                                {canDelete && (
+                                                    <Tooltip content="Delete" position="top">
+                                                        <CardIconButton
+                                                            variant="delete"
+                                                            icon={Trash2}
+                                                            aria-label="Delete vital sign"
+                                                            onClick={() => setDeleteConfirmId(vital.id)}
+                                                        />
+                                                    </Tooltip>
+                                                )}
+                                            </>
+                                        }
+                                    />
+
+                                    <h3 className="text-lg font-bold leading-snug text-slate-900 sm:text-xl">
+                                        {[vital.resident?.first_name, vital.resident?.last_name]
+                                            .filter(Boolean)
+                                            .join(' ') || 'Vital record'}
+                                    </h3>
+                                    <div className="mt-2">
+                                        <div className="flex items-center gap-2 rounded-lg bg-slate-50/80 px-3 py-2 text-sm text-slate-600">
+                                            <Calendar className="h-4 w-4 shrink-0 text-slate-400" />
+                                            <span>
+                                                {new Date(vital.measurement_date).toLocaleDateString()} at{' '}
+                                                {vital.measurement_date &&
+                                                typeof vital.measurement_date === 'string'
+                                                    ? new Date(vital.measurement_date).toLocaleTimeString([], {
+                                                          hour: '2-digit',
+                                                          minute: '2-digit',
+                                                      })
+                                                    : 'N/A'}
+                                            </span>
                                         </div>
                                     </div>
-                                    
-                                    <div className="grid grid-cols-2 gap-4">
+
+                                    <div className="mt-4 grid grid-cols-2 gap-4">
                                         {vital.systolic && vital.diastolic && (
                                             <div className="flex items-center space-x-2 p-2 bg-amber-50 rounded-lg">
                                                 <Heart className="w-5 h-5 text-red-600 flex-shrink-0" />
@@ -362,21 +393,18 @@ export default function Vitals() {
                                         )}
                                     </div>
                                     
-                                    {vital.notes && (
-                                        <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-                                            <p className="text-xs text-gray-700">
-                                                <span className="font-medium">Notes: </span>
-                                                {vital.notes}
-                                            </p>
-                                        </div>
-                                    )}
-                                    
+                                    {vital.notes ? (
+                                        <DataPillSection label="Notes" className="mt-4">
+                                            <p className="text-sm">{vital.notes}</p>
+                                        </DataPillSection>
+                                    ) : null}
+
                                     {vital.taken_by && (
-                                        <p className="text-xs text-gray-500 mt-2">
+                                        <p className="mt-3 text-xs text-slate-500">
                                             Taken by: {vital.taken_by?.name || 'Unknown'}
                                         </p>
                                     )}
-                                </div>
+                                </EntityCardShell>
                             ))}
                         </div>
                     ) : (

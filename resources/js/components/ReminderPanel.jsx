@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { useFacilityUpdates } from '../hooks/useRealtimeUpdates';
 import logger from '../utils/logger';
+import Tooltip from './ui/Tooltip';
 
 const PACIFIC_FORMATTER = new Intl.DateTimeFormat('en-US', {
     timeZone: 'America/Los_Angeles',
@@ -110,24 +111,27 @@ export default function ReminderPanel() {
 
     return (
         <div className="relative">
-            <button
-                onClick={() => {
-                    const next = !isOpen;
-                    setIsOpen(next);
-                    if (next) {
-                        refetch();
-                    }
-                }}
-                className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                title="Reminders"
-            >
-                <Clock3 className="w-5 h-5 text-gray-600" />
+            <Tooltip content="Reminders & upcoming items" position="bottom">
+                <button
+                    type="button"
+                    onClick={() => {
+                        const next = !isOpen;
+                        setIsOpen(next);
+                        if (next) {
+                            refetch();
+                        }
+                    }}
+                    className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                    aria-label="Reminders and upcoming items"
+                >
+                    <Clock3 className="w-5 h-5 text-gray-600" strokeWidth={2.25} />
                 {events.length > 0 && (
                     <span className="absolute top-1 right-1 min-w-[18px] h-4 px-1 bg-blue-500 text-white text-[11px] leading-4 rounded-full text-center">
                         {events.length}
                     </span>
                 )}
-            </button>
+                </button>
+            </Tooltip>
 
             {isOpen && (
                 <>
@@ -210,26 +214,32 @@ export default function ReminderPanel() {
                                                     </div>
                                                     {!isFireDrill && !isMedicationWindow && (
                                                 <div className="flex items-center space-x-2">
-                                                    <button
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    acknowledge(event.id);
-                                                                }}
-                                                        className="p-2 rounded-full bg-green-50 text-green-700 hover:bg-green-100 transition-colors"
-                                                        title="Acknowledge"
-                                                    >
-                                                        <Check className="w-4 h-4" />
-                                                    </button>
-                                                    <button
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    snooze(event.id);
-                                                                }}
-                                                        className="p-2 rounded-full bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors"
-                                                        title="Snooze 15m"
-                                                    >
-                                                    <AlarmClockOff className="w-4 h-4" />
-                                                    </button>
+                                                    <Tooltip content="Acknowledge" position="top">
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                acknowledge(event.id);
+                                                            }}
+                                                            className="p-2 rounded-full bg-green-50 text-green-700 hover:bg-green-100 transition-colors"
+                                                            aria-label="Acknowledge"
+                                                        >
+                                                            <Check className="w-4 h-4" strokeWidth={2.25} />
+                                                        </button>
+                                                    </Tooltip>
+                                                    <Tooltip content="Snooze 15 minutes" position="top">
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                snooze(event.id);
+                                                            }}
+                                                            className="p-2 rounded-full bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors"
+                                                            aria-label="Snooze 15 minutes"
+                                                        >
+                                                            <AlarmClockOff className="w-4 h-4" strokeWidth={2.25} />
+                                                        </button>
+                                                    </Tooltip>
                                                 </div>
                                                     )}
                                                 </div>

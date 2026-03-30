@@ -13,6 +13,8 @@ import { useToastContext } from '../contexts/ToastContext';
 import ModuleProtectedRoute from '../components/ModuleProtectedRoute';
 import EmptyState from '../components/ui/EmptyState';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
+import Tooltip from '../components/ui/Tooltip';
+import CardIconButton from '../components/ui/CardIconButton';
 
 function ExpenseCategories() {
   const queryClient = useQueryClient();
@@ -20,6 +22,7 @@ function ExpenseCategories() {
   const [typeFilter, setTypeFilter] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['expense-categories', search, typeFilter],
@@ -154,22 +157,27 @@ function ExpenseCategories() {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="flex items-center justify-end space-x-2">
-                          <button
-                            onClick={() => { setEditing(category); setShowForm(true); }}
-                            className="p-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] hover:bg-[var(--theme-primary-hover)] rounded-lg transition-all"
-                            title="Edit"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setDeleteConfirmId(category.id)}
-                            className="p-2 bg-red-600 text-white hover:bg-red-700 rounded-lg transition-all"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                        <div className="flex items-center justify-end gap-2">
+                          <Tooltip content="Edit">
+                            <CardIconButton
+                              variant="edit"
+                              type="button"
+                              onClick={() => { setEditing(category); setShowForm(true); }}
+                              aria-label="Edit"
+                            >
+                              <Edit className="h-4 w-4" strokeWidth={2.5} />
+                            </CardIconButton>
+                          </Tooltip>
+                          <Tooltip content="Delete">
+                            <CardIconButton
+                              variant="delete"
+                              type="button"
+                              onClick={() => setDeleteConfirmId(category.id)}
+                              aria-label="Delete"
+                            >
+                              <Trash2 className="h-4 w-4" strokeWidth={2.5} />
+                            </CardIconButton>
+                          </Tooltip>
                         </div>
                       </td>
                     </tr>

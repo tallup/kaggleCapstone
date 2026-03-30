@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useToastContext } from '../contexts/ToastContext';
 import { formatPhoneNumber } from '../utils/phoneFormatter';
+import Tooltip from '../components/ui/Tooltip';
 
 // Shared form state context
 const FormContext = React.createContext();
@@ -142,14 +143,16 @@ function PersonalInfoTab() {
                                 alt="Profile preview"
                                 className="h-32 w-32 rounded-full object-cover border-4 border-gray-200"
                             />
-                            <button
-                                type="button"
-                                onClick={handleRemoveImage}
-                                className="absolute top-0 right-0 bg-red-600 text-white rounded-full p-1 hover:bg-red-700 transition-colors"
-                                title="Remove image"
-                            >
-                                <X className="w-4 h-4" />
-                            </button>
+                            <Tooltip content="Remove image" position="top">
+                                <button
+                                    type="button"
+                                    onClick={handleRemoveImage}
+                                    className="absolute top-0 right-0 bg-red-600 text-white rounded-full p-1 hover:bg-red-700 transition-colors"
+                                    aria-label="Remove image"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
+                            </Tooltip>
                         </div>
                     )}
                     <div className="flex items-center space-x-3">

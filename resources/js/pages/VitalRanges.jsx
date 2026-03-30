@@ -10,11 +10,14 @@ import FormSelect from '../components/forms/FormSelect';
 import FormTextarea from '../components/forms/FormTextarea';
 import { useToastContext } from '../contexts/ToastContext';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
+import Tooltip from '../components/ui/Tooltip';
+import CardIconButton from '../components/ui/CardIconButton';
 
 export default function VitalRanges() {
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
   // Get current user to check permissions
   const { data: currentUser } = useQuery({
@@ -117,25 +120,29 @@ export default function VitalRanges() {
                   <td className="px-6 py-4 whitespace-nowrap">{r.max_normal ?? '-'}</td>
                   <td className="px-6 py-4 whitespace-nowrap">{r.unit ?? '-'}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
-                    <div className="flex items-center justify-end gap-2">
+                    <div className="flex items-center justify-end gap-1.5">
                       {canEdit && (
-                        <button 
-                          onClick={() => { setEditing(r); setShowForm(true); }} 
-                          className="p-2.5 rounded-lg border-2 border-blue-500 bg-blue-50 text-blue-700 hover:bg-blue-500 hover:text-white hover:border-blue-600 transition-all shadow-sm hover:shadow-md"
-                          title="Edit"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
+                        <Tooltip content="Edit range" position="top">
+                          <CardIconButton
+                            variant="edit"
+                            icon={Edit}
+                            aria-label="Edit range"
+                            onClick={() => {
+                              setEditing(r);
+                              setShowForm(true);
+                            }}
+                          />
+                        </Tooltip>
                       )}
                       {canDelete && (
-                        <button 
-                          type="button"
-                          onClick={() => setDeleteConfirmId(r.id)} 
-                          className="p-2.5 rounded-lg border-2 border-red-500 bg-red-50 text-red-700 hover:bg-red-500 hover:text-white hover:border-red-600 transition-all shadow-sm hover:shadow-md"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        <Tooltip content="Delete range" position="top">
+                          <CardIconButton
+                            variant="delete"
+                            icon={Trash2}
+                            aria-label="Delete range"
+                            onClick={() => setDeleteConfirmId(r.id)}
+                          />
+                        </Tooltip>
                       )}
                     </div>
                   </td>

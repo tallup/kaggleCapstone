@@ -6,6 +6,10 @@ import { Truck, Plus, Search, Filter, Edit, Trash2, Calendar, Package, User, X, 
 import SectionCard from '../components/SectionCard';
 import Card from '../components/Card';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
+import Tooltip from '../components/ui/Tooltip';
+import EntityCardShell, { EntityCardHeader } from '../components/ui/EntityCardShell';
+import CardIconButton from '../components/ui/CardIconButton';
+import DataPill, { DataPillSection } from '../components/ui/DataPill';
 import Select from '../components/ui/radix/Select';
 import logger from '../utils/logger';
 
@@ -475,12 +479,14 @@ export default function MedicationDeliveries() {
                                                     </h4>
                                                     <div className="grid grid-cols-1 gap-3">
                                                         {deliveries.map((delivery) => (
-                            <Card key={delivery.id} className="p-4">
-                                <div className="flex items-start justify-between">
-                                    <div className="flex-1">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <Truck className="w-5 h-5 text-[var(--theme-primary)]" />
-                                            <h3 className="font-semibold text-gray-900">{delivery.pharmacy_name}</h3>
+                            <EntityCardShell key={delivery.id}>
+                                <EntityCardHeader
+                                    left={
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <Truck className="h-5 w-5 shrink-0 text-[var(--theme-primary)]" />
+                                            <span className="font-mono text-xs font-bold tracking-wide text-slate-500">
+                                                #{delivery.id}
+                                            </span>
                                             {getTypeBadge(delivery.delivery_type)}
                                             <select
                                                 value={delivery.status || 'received'}
@@ -491,66 +497,92 @@ export default function MedicationDeliveries() {
                                                     });
                                                 }}
                                                 disabled={updateStatusMutation.isPending}
-                                                className={`px-2 py-1 rounded-full text-xs font-medium border-0 cursor-pointer transition-colors ${
-                                                    delivery.status === 'received' ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200' :
-                                                    delivery.status === 'verified' ? 'bg-blue-100 text-blue-800 hover:bg-blue-200' :
-                                                    delivery.status === 'stored' ? 'bg-green-100 text-green-800 hover:bg-green-200' :
-                                                    'bg-gray-100 text-gray-800 hover:bg-gray-200'
-                                                } ${updateStatusMutation.isPending ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                className={`rounded-full border-0 px-2 py-1 text-xs font-medium transition-colors ${
+                                                    delivery.status === 'received'
+                                                        ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
+                                                        : delivery.status === 'verified'
+                                                          ? 'bg-blue-100 text-blue-800 hover:bg-blue-200'
+                                                          : delivery.status === 'stored'
+                                                            ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                                                            : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+                                                } ${updateStatusMutation.isPending ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
                                             >
                                                 <option value="received">Received</option>
                                                 <option value="verified">Verified</option>
                                                 <option value="stored">Stored</option>
                                             </select>
                                         </div>
-                                        <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
-                                            <div>
-                                                <span className="font-medium">Branch:</span> {delivery.branch?.name || 'N/A'}
-                                            </div>
-                                            {delivery.delivery_type === 'individual' && (
-                                                <>
-                                                    <div>
-                                                        <span className="font-medium">Resident:</span> {delivery.resident?.name || 'N/A'}
-                                                    </div>
-                                                    <div>
-                                                        <span className="font-medium">Medication:</span> {delivery.medication?.name || 'N/A'}
-                                                    </div>
-                                                </>
-                                            )}
-                                            <div>
-                                                <span className="font-medium">Quantity:</span> {delivery.quantity_received}
-                                            </div>
-                                            <div>
-                                                <span className="font-medium">Received:</span> {new Date(delivery.received_date).toLocaleDateString()} {delivery.received_time}
-                                            </div>
-                                            <div>
-                                                <span className="font-medium">Received By:</span> {delivery.received_by?.name || 'N/A'}
-                                            </div>
-                                        </div>
-                                        {delivery.notes && (
-                                            <div className="mt-2 text-sm text-gray-600">
-                                                <span className="font-medium">Notes:</span> {delivery.notes}
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div className="flex items-center gap-2 ml-4">
-                                        <button
-                                            onClick={() => handleEdit(delivery)}
-                                            className="p-2.5 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] hover:bg-[var(--theme-primary-hover)] rounded-lg transition-colors shadow-md hover:shadow-lg"
-                                            title="Edit"
-                                        >
-                                            <Edit className="w-5 h-5" />
-                                        </button>
-                                        <button
-                                            onClick={() => setDeleteConfirmId(delivery.id)}
-                                            className="p-2.5 bg-red-600 text-white hover:bg-red-700 rounded-lg transition-colors shadow-md hover:shadow-lg"
-                                            title="Delete"
-                                        >
-                                            <Trash2 className="w-5 h-5" />
-                                        </button>
-                                    </div>
+                                    }
+                                    right={
+                                        <>
+                                            <Tooltip content="Edit delivery" position="top">
+                                                <CardIconButton
+                                                    variant="edit"
+                                                    icon={Edit}
+                                                    aria-label="Edit"
+                                                    onClick={() => handleEdit(delivery)}
+                                                />
+                                            </Tooltip>
+                                            <Tooltip content="Delete delivery" position="top">
+                                                <CardIconButton
+                                                    variant="delete"
+                                                    icon={Trash2}
+                                                    aria-label="Delete"
+                                                    onClick={() => setDeleteConfirmId(delivery.id)}
+                                                />
+                                            </Tooltip>
+                                        </>
+                                    }
+                                />
+
+                                <h3 className="text-lg font-bold leading-snug text-slate-900 sm:text-xl">
+                                    {delivery.pharmacy_name}
+                                </h3>
+
+                                <div className="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                                    <DataPill icon={Package}>
+                                        <span className="font-normal text-slate-600">
+                                            Branch: {delivery.branch?.name || 'N/A'}
+                                        </span>
+                                    </DataPill>
+                                    {delivery.delivery_type === 'individual' && (
+                                        <>
+                                            <DataPill icon={User}>
+                                                <span className="font-normal text-slate-600">
+                                                    {delivery.resident?.name || 'N/A'}
+                                                </span>
+                                            </DataPill>
+                                            <DataPill icon={Package} className="sm:col-span-2">
+                                                <span className="font-normal text-slate-600 line-clamp-2">
+                                                    {delivery.medication?.name || 'N/A'}
+                                                </span>
+                                            </DataPill>
+                                        </>
+                                    )}
+                                    <DataPill icon={Package}>
+                                        <span className="font-normal text-slate-600">
+                                            Qty: {delivery.quantity_received}
+                                        </span>
+                                    </DataPill>
+                                    <DataPill icon={Calendar}>
+                                        <span className="font-normal text-slate-600">
+                                            {new Date(delivery.received_date).toLocaleDateString()}{' '}
+                                            {delivery.received_time || ''}
+                                        </span>
+                                    </DataPill>
+                                    <DataPill icon={User} className="sm:col-span-2">
+                                        <span className="font-normal text-slate-600">
+                                            Received by: {delivery.received_by?.name || 'N/A'}
+                                        </span>
+                                    </DataPill>
                                 </div>
-                            </Card>
+
+                                {delivery.notes ? (
+                                    <DataPillSection label="Notes">
+                                        <p className="text-sm">{delivery.notes}</p>
+                                    </DataPillSection>
+                                ) : null}
+                            </EntityCardShell>
                                                         ))}
                                                     </div>
                                                 </div>

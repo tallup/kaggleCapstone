@@ -5,6 +5,8 @@ import { Package, Plus, Search, Edit, Trash2, AlertTriangle, CheckCircle, Trendi
 import SectionCard from '../components/SectionCard';
 import Card from '../components/Card';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
+import Tooltip from '../components/ui/Tooltip';
+import CardIconButton from '../components/ui/CardIconButton';
 
 export default function PharmacyInventory() {
     const queryClient = useQueryClient();
@@ -511,20 +513,26 @@ export default function PharmacyInventory() {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                             <div className="flex justify-end gap-2">
-                                                <button
-                                                    onClick={() => handleEdit(item)}
-                                                    className="p-2 border-2 border-[var(--theme-primary)] bg-white text-[var(--theme-primary)] hover:bg-[var(--theme-primary-bg)] hover:border-[var(--theme-primary-dark)] rounded-lg transition-all shadow-sm"
-                                                    title="Edit"
-                                                >
-                                                    <Edit className="w-4 h-4" />
-                                                </button>
-                                                <button
-                                                    onClick={() => setDeleteConfirmId(item.id)}
-                                                    className="p-2 border-2 border-red-400 bg-white text-red-700 hover:bg-red-50 hover:border-red-500 rounded-lg transition-all shadow-sm"
-                                                    title="Delete"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
+                                                <Tooltip content="Edit">
+                                                    <CardIconButton
+                                                        variant="primary"
+                                                        type="button"
+                                                        onClick={() => handleEdit(item)}
+                                                        aria-label="Edit"
+                                                    >
+                                                        <Edit className="h-4 w-4" strokeWidth={2.5} />
+                                                    </CardIconButton>
+                                                </Tooltip>
+                                                <Tooltip content="Delete">
+                                                    <CardIconButton
+                                                        variant="delete"
+                                                        type="button"
+                                                        onClick={() => setDeleteConfirmId(item.id)}
+                                                        aria-label="Delete"
+                                                    >
+                                                        <Trash2 className="h-4 w-4" strokeWidth={2.5} />
+                                                    </CardIconButton>
+                                                </Tooltip>
                                             </div>
                                         </td>
                                     </tr>

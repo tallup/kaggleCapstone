@@ -6,13 +6,16 @@ import logger from '../utils/logger';
 import { toast } from 'sonner';
 import { Flame, Plus, Search, Filter, Edit, Trash2, Calendar, Clock, CheckCircle, XCircle, AlertTriangle, List, Grid, X, ArrowLeft, Loader2 } from 'lucide-react';
 import SectionCard from '../components/SectionCard';
-import Card from '../components/Card';
+import EntityCardShell, { EntityCardHeader } from '../components/ui/EntityCardShell';
+import CardIconButton from '../components/ui/CardIconButton';
+import DataPill, { DataPillSection } from '../components/ui/DataPill';
 import CalendarView from '../components/CalendarView';
 import Select from '../components/ui/radix/Select';
 import FormInput from '../components/forms/FormInput';
 import FormTextarea from '../components/forms/FormTextarea';
 import FormSelect from '../components/forms/FormSelect';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
+import Tooltip from '../components/ui/Tooltip';
 
 export default function FireDrills() {
     const queryClient = useQueryClient();
@@ -460,79 +463,93 @@ export default function FireDrills() {
                 ) : (
                     <div className="grid grid-cols-1 gap-4">
                         {filteredDrills.map((drill) => (
-                            <Card key={drill.id} className="p-4">
-                                <div className="flex items-start justify-between">
-                                    <div className="flex-1">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <Flame className="w-5 h-5 text-orange-600" />
-                                            <h3 className="font-semibold text-gray-900">{drill.branch?.name || 'Unknown Branch'}</h3>
+                            <EntityCardShell key={drill.id}>
+                                <EntityCardHeader
+                                    left={
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <Flame className="h-5 w-5 shrink-0 text-orange-600" />
+                                            <span className="font-mono text-xs font-bold tracking-wide text-slate-500">
+                                                #{drill.id}
+                                            </span>
                                             {getStatusBadge(drill.status)}
                                         </div>
-                                        <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
-                                            <div className="flex items-center gap-1">
-                                                <Calendar className="w-4 h-4" />
-                                                <span className="font-medium">Scheduled:</span> {formatDateTime(drill.scheduled_date, drill.scheduled_time)}
-                                            </div>
-                                            <div className="flex items-center gap-1">
-                                                <Clock className="w-4 h-4" />
-                                                <span className="font-medium">Created by:</span> {drill.created_by?.name || 'N/A'}
-                                            </div>
-                                            {drill.completed_at && (
-                                                <div className="flex items-center gap-1">
-                                                    <CheckCircle className="w-4 h-4" />
-                                                    <span className="font-medium">Completed:</span> {new Date(drill.completed_at).toLocaleString()}
-                                                </div>
+                                    }
+                                    right={
+                                        <>
+                                            {drill.status === 'scheduled' && !isCaregiver && (
+                                                <>
+                                                    <Tooltip content="Mark complete" position="top">
+                                                        <CardIconButton
+                                                            variant="resolve"
+                                                            icon={CheckCircle}
+                                                            aria-label="Mark complete"
+                                                            onClick={() => handleMarkComplete(drill.id)}
+                                                        />
+                                                    </Tooltip>
+                                                    <Tooltip content="Cancel drill" position="top">
+                                                        <CardIconButton
+                                                            variant="delete"
+                                                            icon={XCircle}
+                                                            aria-label="Cancel drill"
+                                                            onClick={() => handleCancel(drill.id)}
+                                                        />
+                                                    </Tooltip>
+                                                </>
                                             )}
-                                        </div>
-                                        {drill.notes && (
-                                            <div className="mt-2 text-sm text-gray-600">
-                                                <span className="font-medium">Notes:</span> {drill.notes}
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div className="flex items-center gap-2 ml-4">
-                                        {/* Quick Actions for Scheduled Drills */}
-                                        {drill.status === 'scheduled' && !isCaregiver && (
-                                            <>
-                                                <button
-                                                    onClick={() => handleMarkComplete(drill.id)}
-                                                    className="px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded-lg hover:bg-green-700 transition-colors flex items-center gap-1"
-                                                    title="Mark Complete"
-                                                >
-                                                    <CheckCircle className="w-3 h-3" />
-                                                    Complete
-                                                </button>
-                                                <button
-                                                    onClick={() => handleCancel(drill.id)}
-                                                    className="px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 transition-colors flex items-center gap-1"
-                                                    title="Cancel"
-                                                >
-                                                    <XCircle className="w-3 h-3" />
-                                                    Cancel
-                                                </button>
-                                            </>
-                                        )}
-                                        {!isCaregiver && (
-                                            <>
-                                                <button
-                                                    onClick={() => handleEdit(drill)}
-                                                    className="p-2 text-gray-600 hover:text-[var(--theme-primary)] transition-colors"
-                                                    title="Edit"
-                                                >
-                                                    <Edit className="w-4 h-4" />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDelete(drill.id)}
-                                                    className="p-2 text-gray-600 hover:text-red-600 transition-colors"
-                                                    title="Delete"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                            </>
-                                        )}
-                                    </div>
+                                            {!isCaregiver && (
+                                                <>
+                                                    <Tooltip content="Edit" position="top">
+                                                        <CardIconButton
+                                                            variant="edit"
+                                                            icon={Edit}
+                                                            aria-label="Edit fire drill"
+                                                            onClick={() => handleEdit(drill)}
+                                                        />
+                                                    </Tooltip>
+                                                    <Tooltip content="Delete" position="top">
+                                                        <CardIconButton
+                                                            variant="delete"
+                                                            icon={Trash2}
+                                                            aria-label="Delete fire drill"
+                                                            onClick={() => handleDelete(drill.id)}
+                                                        />
+                                                    </Tooltip>
+                                                </>
+                                            )}
+                                        </>
+                                    }
+                                />
+
+                                <h3 className="text-lg font-bold leading-snug text-slate-900 sm:text-xl">
+                                    {drill.branch?.name || 'Unknown Branch'}
+                                </h3>
+
+                                <div className="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                                    <DataPill icon={Calendar}>
+                                        <span className="font-normal text-slate-600">
+                                            Scheduled: {formatDateTime(drill.scheduled_date, drill.scheduled_time)}
+                                        </span>
+                                    </DataPill>
+                                    <DataPill icon={Clock}>
+                                        <span className="font-normal text-slate-600">
+                                            Created by: {drill.created_by?.name || 'N/A'}
+                                        </span>
+                                    </DataPill>
+                                    {drill.completed_at && (
+                                        <DataPill icon={CheckCircle} className="sm:col-span-2">
+                                            <span className="font-normal text-slate-600">
+                                                Completed: {new Date(drill.completed_at).toLocaleString()}
+                                            </span>
+                                        </DataPill>
+                                    )}
                                 </div>
-                            </Card>
+
+                                {drill.notes ? (
+                                    <DataPillSection label="Notes">
+                                        <p className="text-sm text-slate-600">{drill.notes}</p>
+                                    </DataPillSection>
+                                ) : null}
+                            </EntityCardShell>
                         ))}
                     </div>
                 )}

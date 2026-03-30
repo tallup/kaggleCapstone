@@ -3,6 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import { FileText, Plus, Edit, Trash2, Search, Filter, Download, Calendar, User as UserIcon, AlertCircle, X } from 'lucide-react';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
+import Tooltip from '../components/ui/Tooltip';
+import CardIconButton from '../components/ui/CardIconButton';
 
 export default function EmployeeDocuments() {
     const queryClient = useQueryClient();
@@ -285,7 +287,11 @@ export default function EmployeeDocuments() {
                                             <td className="px-4 py-4 whitespace-nowrap">
                                                 <div className="flex items-center space-x-2">
                                                     {document.is_expired && (
-                                                        <AlertCircle className="w-4 h-4 text-red-500" title="Expired" />
+                                                        <Tooltip content="Expired" position="top">
+                                                            <span className="inline-flex" aria-label="Expired">
+                                                                <AlertCircle className="w-4 h-4 text-red-500" aria-hidden />
+                                                            </span>
+                                                        </Tooltip>
                                                     )}
                                                     <span className={`text-xs px-2 py-1 rounded-full ${
                                                         document.is_active 
@@ -299,34 +305,41 @@ export default function EmployeeDocuments() {
                                             <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-right min-w-[180px]">
                                                 <div className="flex items-center justify-end gap-2">
                                                     {document.file_path && (
-                                                        <a
-                                                            href={`/storage/${document.file_path}`}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="p-2.5 rounded-lg bg-green-500 text-white hover:bg-green-600 transition-colors shadow-sm hover:shadow-md"
-                                                            title="Download"
-                                                        >
-                                                            <Download className="w-5 h-5" />
-                                                        </a>
+                                                        <Tooltip content="Download">
+                                                            <a
+                                                                href={`/storage/${document.file_path}`}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="inline-flex rounded-lg border border-emerald-300 bg-emerald-50 p-2 shadow-sm transition hover:border-emerald-400 hover:bg-emerald-100 [&_svg]:!text-emerald-600"
+                                                                aria-label="Download"
+                                                            >
+                                                                <Download className="h-4 w-4" strokeWidth={2.5} />
+                                                            </a>
+                                                        </Tooltip>
                                                     )}
-                                                    <button
-                                                        onClick={() => {
-                                                            setEditing(document);
-                                                            setShowForm(true);
-                                                        }}
-                                                        className="p-2.5 rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors shadow-sm hover:shadow-md"
-                                                        title="Edit"
-                                                    >
-                                                        <Edit className="w-5 h-5" />
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setDeleteConfirmId(document.id)}
-                                                        className="p-2.5 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors shadow-sm hover:shadow-md"
-                                                        title="Delete"
-                                                    >
-                                                        <Trash2 className="w-5 h-5" />
-                                                    </button>
+                                                    <Tooltip content="Edit">
+                                                        <CardIconButton
+                                                            variant="edit"
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setEditing(document);
+                                                                setShowForm(true);
+                                                            }}
+                                                            aria-label="Edit"
+                                                        >
+                                                            <Edit className="h-4 w-4" strokeWidth={2.5} />
+                                                        </CardIconButton>
+                                                    </Tooltip>
+                                                    <Tooltip content="Delete">
+                                                        <CardIconButton
+                                                            variant="delete"
+                                                            type="button"
+                                                            onClick={() => setDeleteConfirmId(document.id)}
+                                                            aria-label="Delete"
+                                                        >
+                                                            <Trash2 className="h-4 w-4" strokeWidth={2.5} />
+                                                        </CardIconButton>
+                                                    </Tooltip>
                                                 </div>
                                             </td>
                                         </tr>

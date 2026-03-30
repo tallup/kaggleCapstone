@@ -447,13 +447,18 @@ export default function Assessments() {
                                         </span>
                                         <div className="flex flex-col items-end space-y-1">
                                             {assessment.status === 'completed' || assessment.status === 'approved' ? (
-                                                <button
-                                                    disabled
-                                                    className="px-3 py-1 text-sm text-gray-400 bg-gray-200 cursor-not-allowed rounded-lg transition-colors"
-                                                    title="Assessment is already completed or approved"
-                                                >
-                                                    Start Assessment
-                                                </button>
+                                                <Tooltip content="Assessment is already completed or approved" position="top">
+                                                    <span className="inline-flex">
+                                                        <button
+                                                            type="button"
+                                                            disabled
+                                                            className="px-3 py-1 text-sm text-gray-400 bg-gray-200 cursor-not-allowed rounded-lg transition-colors"
+                                                            aria-label="Start assessment unavailable: assessment is already completed or approved"
+                                                        >
+                                                            Start Assessment
+                                                        </button>
+                                                    </span>
+                                                </Tooltip>
                                             ) : (
                                                 <Link
                                                     to={`/assessments/${assessment.id}`}

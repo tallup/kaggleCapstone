@@ -7,6 +7,7 @@ import { Users, Plus, Mail, Edit, Trash2, Copy, Check, Building2, MessageSquare,
 import SectionCard from '../../components/SectionCard';
 import EmptyState from '../../components/ui/EmptyState';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
+import Tooltip from '../../components/ui/Tooltip';
 import logger from '../../utils/logger';
 
 function extractResidentsList(res) {
@@ -390,26 +391,32 @@ export default function ResidentContacts() {
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
                       {c.email && (
+                        <Tooltip content="Send portal invite" position="top">
+                          <button
+                            type="button"
+                            onClick={() => handleSendInvite(c)}
+                            className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                            aria-label="Send portal invite"
+                          >
+                            <Mail className="w-4 h-4" />
+                          </button>
+                        </Tooltip>
+                      )}
+                      <Tooltip content="Edit" position="top">
+                        <button type="button" onClick={() => openEdit(c)} className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors" aria-label="Edit contact">
+                          <Edit className="w-4 h-4" />
+                        </button>
+                      </Tooltip>
+                      <Tooltip content="Delete" position="top">
                         <button
                           type="button"
-                          onClick={() => handleSendInvite(c)}
-                          className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                          title="Send portal invite"
+                          onClick={() => setDeleteContactId(c.id)}
+                          className="p-2 text-red-700 bg-red-50 border border-red-200 hover:bg-red-100 hover:border-red-300 rounded-lg transition-colors"
+                          aria-label="Delete contact"
                         >
-                          <Mail className="w-4 h-4" />
+                          <Trash2 className="w-5 h-5" strokeWidth={2} />
                         </button>
-                      )}
-                      <button type="button" onClick={() => openEdit(c)} className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors" title="Edit">
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setDeleteContactId(c.id)}
-                        className="p-2 text-red-700 bg-red-50 border border-red-200 hover:bg-red-100 hover:border-red-300 rounded-lg transition-colors"
-                        title="Delete"
-                      >
-                        <Trash2 className="w-5 h-5" strokeWidth={2} />
-                      </button>
+                      </Tooltip>
                     </div>
                   </li>
                 ))}

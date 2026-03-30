@@ -5,6 +5,7 @@ import api from '../../services/api';
 import logger from '../../utils/logger';
 import { useToastContext } from '../../contexts/ToastContext';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
+import Tooltip from '../../components/ui/Tooltip';
 
 export default function DatabaseSettings() {
   const toast = useToastContext();
@@ -389,14 +390,17 @@ export default function DatabaseSettings() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => handleDownload(backup.filename)}
-                    className="px-2.5 py-1 text-xs sm:px-3 sm:py-1.5 sm:text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-1.5"
-                    title="Download backup"
-                  >
-                    <Download className="w-4 h-4" />
-                    Download
-                  </button>
+                  <Tooltip content="Download backup" position="top">
+                    <button
+                      type="button"
+                      onClick={() => handleDownload(backup.filename)}
+                      className="px-2.5 py-1 text-xs sm:px-3 sm:py-1.5 sm:text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-1.5"
+                      aria-label="Download backup"
+                    >
+                      <Download className="w-4 h-4" />
+                      Download
+                    </button>
+                  </Tooltip>
                   <button
                     onClick={() => setRestoreConfirmFile(backup.filename)}
                     disabled={restoreBackupMutation.isPending}

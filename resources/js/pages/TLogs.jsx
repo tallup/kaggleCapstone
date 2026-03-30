@@ -559,13 +559,16 @@ function ViewTLog({ tLog, onClose, onEdit, canEdit = true }) {
                 <div className="bg-gradient-to-r from-[var(--theme-primary)] to-[var(--theme-primary-hover)] p-6">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
-                            <button
-                                onClick={onClose}
-                                className="p-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors text-white"
-                                title="Go back"
-                            >
-                                <ArrowLeft className="w-5 h-5" />
-                            </button>
+                            <Tooltip content="Go back" position="bottom">
+                                <button
+                                    type="button"
+                                    onClick={onClose}
+                                    className="p-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors text-white"
+                                    aria-label="Go back"
+                                >
+                                    <ArrowLeft className="w-5 h-5" strokeWidth={2.25} />
+                                </button>
+                            </Tooltip>
                             <div>
                                 <h1 className="text-3xl font-bold text-white flex items-center gap-3">
                                     <FileText className="w-8 h-8" />
@@ -744,22 +747,27 @@ function ViewTLog({ tLog, onClose, onEdit, canEdit = true }) {
                                             </p>
                                         </div>
                                         <div className="flex items-center gap-2">
-                                            <a
-                                                href={attachment.file_url}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="p-2 text-gray-600 hover:text-[var(--theme-primary)] hover:bg-white rounded-lg transition-colors"
-                                                title="View"
-                                            >
-                                                <Eye className="w-5 h-5" />
-                                            </a>
-                                            <button
-                                                onClick={() => handleDownload(attachment.id, attachment.file_name)}
-                                                className="p-2 text-gray-600 hover:text-[var(--theme-primary)] hover:bg-white rounded-lg transition-colors"
-                                                title="Download"
-                                            >
-                                                <Download className="w-5 h-5" />
-                                            </button>
+                                            <Tooltip content="View" position="top">
+                                                <a
+                                                    href={attachment.file_url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="p-2 text-gray-600 hover:text-[var(--theme-primary)] hover:bg-white rounded-lg transition-colors inline-flex"
+                                                    aria-label="View attachment"
+                                                >
+                                                    <Eye className="w-5 h-5" strokeWidth={2.25} />
+                                                </a>
+                                            </Tooltip>
+                                            <Tooltip content="Download" position="top">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleDownload(attachment.id, attachment.file_name)}
+                                                    className="p-2 text-gray-600 hover:text-[var(--theme-primary)] hover:bg-white rounded-lg transition-colors"
+                                                    aria-label="Download attachment"
+                                                >
+                                                    <Download className="w-5 h-5" strokeWidth={2.25} />
+                                                </button>
+                                            </Tooltip>
                                         </div>
                                     </div>
                                 ))}

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Users, X, Check, UserPlus } from 'lucide-react';
 import api from '../services/api';
+import Tooltip from './ui/Tooltip';
 
 const ROLE_LABELS = {
   administrator: 'Administrator',
@@ -150,14 +151,16 @@ export default function EmailRecipientConfig({ facilityId, config, onChange }) {
                     {user.name || [user.first_name, user.last_name].filter(Boolean).join(' ')}
                     <span className="text-gray-500 font-normal"> — {user.email}</span>
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => toggleUser(user.id)}
-                    className="shrink-0 p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                    title="Remove"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
+                  <Tooltip content="Remove" position="left">
+                    <button
+                      type="button"
+                      onClick={() => toggleUser(user.id)}
+                      className="shrink-0 p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      aria-label="Remove user from recipients"
+                    >
+                      <X className="w-4 h-4" strokeWidth={2.25} />
+                    </button>
+                  </Tooltip>
                 </div>
               ))}
             </div>

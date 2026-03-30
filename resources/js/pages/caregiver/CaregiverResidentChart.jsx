@@ -8,6 +8,7 @@ import {
 import api from '../../services/api';
 import { toast } from 'sonner';
 import logger from '../../utils/logger';
+import Tooltip from '../../components/ui/Tooltip';
 
 export default function CaregiverResidentChart() {
     const { residentId } = useParams();
@@ -401,15 +402,17 @@ export default function CaregiverResidentChart() {
                                                 />
                                             </td>
                                             <td className="p-4 text-center">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleRemoveLog(index)}
-                                                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-red-50 border border-red-200 text-red-600 rounded-xl hover:bg-red-100 hover:border-red-300 transition-all active:scale-95 text-xs font-semibold"
-                                                    title="Remove Log"
-                                                >
-                                                    <X className="w-4 h-4 shrink-0" />
-                                                    <span>Remove</span>
-                                                </button>
+                                                <Tooltip content="Remove log" position="left">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleRemoveLog(index)}
+                                                        className="inline-flex items-center gap-1.5 px-3 py-2 bg-red-50 border border-red-200 text-red-600 rounded-xl hover:bg-red-100 hover:border-red-300 transition-all active:scale-95 text-xs font-semibold"
+                                                        aria-label="Remove log row"
+                                                    >
+                                                        <X className="w-4 h-4 shrink-0" />
+                                                        <span>Remove</span>
+                                                    </button>
+                                                </Tooltip>
                                             </td>
                                         </tr>
                                     ))}

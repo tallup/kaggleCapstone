@@ -12,6 +12,7 @@ import { useToastContext } from '../contexts/ToastContext';
 import FacilityPermissions from './FacilityPermissions';
 import EmptyState from '../components/ui/EmptyState';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
+import Tooltip from '../components/ui/Tooltip';
 import { getUserLocation } from '../utils/location';
 
 const COORDINATE_DECIMALS = 6;
@@ -296,71 +297,73 @@ function OverviewTab({ facility }) {
                 Location Coordinates
               </label>
               <div className="flex items-center space-x-2">
-                <button
-                  type="button"
-                  onClick={async () => {
-                    setGettingLocation(true);
-                    try {
-                      const location = await getUserLocation({
-                        timeout: 10000,
-                        maximumAge: 0,
-                        enableHighAccuracy: true,
-                      });
-                      if (location) {
-                        setForm({
-                          ...form,
-                          latitude: normalizeCoordinateInput(location.latitude),
-                          longitude: normalizeCoordinateInput(location.longitude),
+                <Tooltip content="Use your current GPS location" position="bottom">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setGettingLocation(true);
+                      try {
+                        const location = await getUserLocation({
+                          timeout: 10000,
+                          maximumAge: 0,
+                          enableHighAccuracy: true,
                         });
-                      } else {
-                        showToast('Unable to get your current location. Please allow location access or enter coordinates manually.', 'warning');
+                        if (location) {
+                          setForm({
+                            ...form,
+                            latitude: normalizeCoordinateInput(location.latitude),
+                            longitude: normalizeCoordinateInput(location.longitude),
+                          });
+                        } else {
+                          showToast('Unable to get your current location. Please allow location access or enter coordinates manually.', 'warning');
+                        }
+                      } catch (err) {
+                        showToast('Failed to get current location. Please enter coordinates manually.', 'error');
+                      } finally {
+                        setGettingLocation(false);
                       }
-                    } catch (err) {
-                      showToast('Failed to get current location. Please enter coordinates manually.', 'error');
-                    } finally {
-                      setGettingLocation(false);
-                    }
-                  }}
-                  disabled={gettingLocation}
-                  className="text-sm px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1"
-                  title="Use your current GPS location"
-                >
-                  <Navigation className="w-4 h-4" />
-                  <span>{gettingLocation ? 'Getting Location...' : 'Use Current Location'}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (!form.address) {
-                      showToast('Please enter an address first', 'warning');
-                      return;
-                    }
-                    setGeocoding(true);
-                    try {
-                      const response = await api.post('/geocode', { address: form.address });
-                      if (response.data.success) {
-                        setForm({
-                          ...form,
-                          latitude: normalizeCoordinateInput(response.data.latitude),
-                          longitude: normalizeCoordinateInput(response.data.longitude),
-                        });
-                        showToast('Coordinates geocoded successfully', 'success');
-                      } else {
-                        showToast('Unable to geocode address. Please enter coordinates manually.', 'warning');
+                    }}
+                    disabled={gettingLocation}
+                    className="text-sm px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1"
+                  >
+                    <Navigation className="w-4 h-4" />
+                    <span>{gettingLocation ? 'Getting Location...' : 'Use Current Location'}</span>
+                  </button>
+                </Tooltip>
+                <Tooltip content="Fill coordinates from the address field" position="bottom">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!form.address) {
+                        showToast('Please enter an address first', 'warning');
+                        return;
                       }
-                    } catch (err) {
-                      showToast('Geocoding failed. Please enter coordinates manually.', 'error');
-                    } finally {
-                      setGeocoding(false);
-                    }
-                  }}
-                  disabled={geocoding || !form.address}
-                  className="text-sm px-3 py-1 bg-[var(--theme-primary)] text-white rounded hover:bg-[var(--theme-primary-hover)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1"
-                  title="Geocode from address field"
-                >
-                  <MapPin className="w-4 h-4" />
-                  <span>{geocoding ? 'Geocoding...' : 'Geocode from Address'}</span>
-                </button>
+                      setGeocoding(true);
+                      try {
+                        const response = await api.post('/geocode', { address: form.address });
+                        if (response.data.success) {
+                          setForm({
+                            ...form,
+                            latitude: normalizeCoordinateInput(response.data.latitude),
+                            longitude: normalizeCoordinateInput(response.data.longitude),
+                          });
+                          showToast('Coordinates geocoded successfully', 'success');
+                        } else {
+                          showToast('Unable to geocode address. Please enter coordinates manually.', 'warning');
+                        }
+                      } catch (err) {
+                        showToast('Geocoding failed. Please enter coordinates manually.', 'error');
+                      } finally {
+                        setGeocoding(false);
+                      }
+                    }}
+                    disabled={geocoding || !form.address}
+                    className="text-sm px-3 py-1 bg-[var(--theme-primary)] text-white rounded hover:bg-[var(--theme-primary-hover)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1"
+                  >
+                    <MapPin className="w-4 h-4" />
+                    <span>{geocoding ? 'Geocoding...' : 'Geocode from Address'}</span>
+                  </button>
+                </Tooltip>
               </div>
             </div>
             <p className="text-xs text-gray-500 mb-3">Coordinates are used for location-based login restrictions (50 meters).</p>
@@ -773,21 +776,30 @@ function BrandingTab({ facility }) {
             <div>
               <div className="font-semibold text-gray-900">{facility.name}</div>
               <div className="flex gap-2 mt-2">
-                <div
-                  className="w-8 h-8 rounded border border-gray-300"
-                  style={{ backgroundColor: form.primary_color }}
-                  title="Primary Color"
-                />
-                <div
-                  className="w-8 h-8 rounded border border-gray-300"
-                  style={{ backgroundColor: form.secondary_color }}
-                  title="Secondary Color"
-                />
-                <div
-                  className="w-8 h-8 rounded border border-gray-300"
-                  style={{ backgroundColor: form.accent_color }}
-                  title="Accent Color"
-                />
+                <Tooltip content={`Primary: ${form.primary_color || ''}`} position="top">
+                  <div
+                    className="w-8 h-8 rounded border border-gray-300"
+                    style={{ backgroundColor: form.primary_color }}
+                    role="img"
+                    aria-label={`Primary color ${form.primary_color}`}
+                  />
+                </Tooltip>
+                <Tooltip content={`Secondary: ${form.secondary_color || ''}`} position="top">
+                  <div
+                    className="w-8 h-8 rounded border border-gray-300"
+                    style={{ backgroundColor: form.secondary_color }}
+                    role="img"
+                    aria-label={`Secondary color ${form.secondary_color}`}
+                  />
+                </Tooltip>
+                <Tooltip content={`Accent: ${form.accent_color || ''}`} position="top">
+                  <div
+                    className="w-8 h-8 rounded border border-gray-300"
+                    style={{ backgroundColor: form.accent_color }}
+                    role="img"
+                    aria-label={`Accent color ${form.accent_color}`}
+                  />
+                </Tooltip>
               </div>
             </div>
           </div>
@@ -1073,28 +1085,36 @@ function AccountsTab({ facilityId }) {
                   <p className="text-sm text-gray-600">{user.email}</p>
                 </div>
                 <div className="flex gap-1">
-                  <button
-                    onClick={() => navigate(`/administration/users/${user.id}/edit`)}
-                    className="p-1.5 text-[var(--theme-primary)] hover:bg-gray-100 rounded"
-                    title="Edit"
-                  >
-                    <Edit className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => setViewingProfile(user)}
-                    className="p-1.5 text-[var(--theme-primary)] hover:bg-gray-100 rounded"
-                    title="View"
-                  >
-                    <Eye className="w-4 h-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setDeleteConfirmUser(user)}
-                    className="p-1.5 text-red-600 hover:bg-red-50 rounded"
-                    title="Delete"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <Tooltip content="Edit user" position="top">
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/administration/users/${user.id}/edit`)}
+                      className="p-1.5 text-[var(--theme-primary)] hover:bg-gray-100 rounded"
+                      aria-label="Edit user"
+                    >
+                      <Edit className="w-4 h-4" strokeWidth={2.25} />
+                    </button>
+                  </Tooltip>
+                  <Tooltip content="View profile" position="top">
+                    <button
+                      type="button"
+                      onClick={() => setViewingProfile(user)}
+                      className="p-1.5 text-[var(--theme-primary)] hover:bg-gray-100 rounded"
+                      aria-label="View profile"
+                    >
+                      <Eye className="w-4 h-4" strokeWidth={2.25} />
+                    </button>
+                  </Tooltip>
+                  <Tooltip content="Remove from facility" position="top">
+                    <button
+                      type="button"
+                      onClick={() => setDeleteConfirmUser(user)}
+                      className="p-1.5 text-red-600 hover:bg-red-50 rounded"
+                      aria-label="Remove user from facility"
+                    >
+                      <Trash2 className="w-4 h-4" strokeWidth={2.25} />
+                    </button>
+                  </Tooltip>
                 </div>
               </div>
               <div className="space-y-1 text-sm">

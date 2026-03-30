@@ -8,6 +8,7 @@ import FormInput from '../components/forms/FormInput';
 import FormTextarea from '../components/forms/FormTextarea';
 import FormSelect from '../components/forms/FormSelect';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
+import Tooltip from '../components/ui/Tooltip';
 import { toast } from 'sonner';
 
 const TLOG_TYPES = [
@@ -306,24 +307,30 @@ export default function TLogForm({ tLog, onClose, onSuccess }) {
         <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-4">
-                    <button
-                        onClick={onClose}
-                        className="text-gray-500 hover:text-gray-700"
-                        title="Go back"
-                    >
-                        <ArrowLeft className="w-5 h-5" />
-                    </button>
+                    <Tooltip content="Go back" position="bottom">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="text-gray-500 hover:text-gray-700"
+                            aria-label="Go back"
+                        >
+                            <ArrowLeft className="w-5 h-5" strokeWidth={2.25} />
+                        </button>
+                    </Tooltip>
                     <h2 className="text-xl font-semibold text-gray-900">
                         {tLog ? 'Edit progress note' : 'New progress note'}
                     </h2>
                 </div>
-                <button
-                    onClick={onClose}
-                    className="text-gray-400 hover:text-gray-600"
-                    title="Close"
-                >
-                    <X className="w-6 h-6" />
-                </button>
+                <Tooltip content="Close" position="bottom">
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="text-gray-400 hover:text-gray-600"
+                        aria-label="Close"
+                    >
+                        <X className="w-6 h-6" strokeWidth={2.25} />
+                    </button>
+                </Tooltip>
             </div>
 
             <FormProvider {...methods}>

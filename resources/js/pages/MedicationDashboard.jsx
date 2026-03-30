@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import api from '../services/api';
 import SectionCard from '../components/SectionCard';
+import Tooltip from '../components/ui/Tooltip';
 
 ChartJS.register(
     CategoryScale, LinearScale, BarElement, PointElement,
@@ -636,13 +637,16 @@ export default function MedicationDashboard() {
                                             </div>
                                         </td>
                                         <td className="text-center py-3 px-2">
-                                            <button
-                                                onClick={() => navigate(`/medications/residents/${r.resident_id}`)}
-                                                className="text-[var(--theme-primary)] hover:text-[var(--theme-primary-hover)] transition-colors"
-                                                title="View details"
-                                            >
-                                                <Eye className="w-4 h-4" />
-                                            </button>
+                                            <Tooltip content="View details" position="left">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => navigate(`/medications/residents/${r.resident_id}`)}
+                                                    className="text-[var(--theme-primary)] hover:text-[var(--theme-primary-hover)] transition-colors"
+                                                    aria-label="View medication details for resident"
+                                                >
+                                                    <Eye className="w-4 h-4" strokeWidth={2.25} />
+                                                </button>
+                                            </Tooltip>
                                         </td>
                                     </tr>
                                 ))}

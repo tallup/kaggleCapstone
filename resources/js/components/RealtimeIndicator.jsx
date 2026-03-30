@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { WifiOff, Radio } from 'lucide-react';
 import { getEcho } from '../services/echo';
+import Tooltip from './ui/Tooltip';
 
 /**
  * Connection status indicator (top-right)
@@ -61,28 +62,33 @@ export default function RealtimeIndicator() {
     return null; // Online but real-time not connected: show nothing
   }
 
+  const statusLabel = isOffline ? 'No internet connection' : 'Real-time updates active';
+
   return (
     <div className="fixed top-4 right-4 z-50">
-      <div
-        className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium shadow-sm ${
-          isOffline
-            ? 'bg-red-100 text-red-700 border border-red-200'
-            : 'bg-green-100 text-green-700 border border-green-200'
-        }`}
-        title={isOffline ? 'No internet connection' : 'Real-time updates active'}
-      >
-        {isOffline ? (
-          <>
-            <WifiOff className="w-3 h-3" />
-            <span>Offline</span>
-          </>
-        ) : (
-          <>
-            <Radio className="w-3 h-3 animate-pulse" />
-            <span>Live</span>
-          </>
-        )}
-      </div>
+      <Tooltip content={statusLabel} position="left">
+        <div
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium shadow-sm ${
+            isOffline
+              ? 'bg-red-100 text-red-700 border border-red-200'
+              : 'bg-green-100 text-green-700 border border-green-200'
+          }`}
+          role="status"
+          aria-label={statusLabel}
+        >
+          {isOffline ? (
+            <>
+              <WifiOff className="w-3 h-3" />
+              <span>Offline</span>
+            </>
+          ) : (
+            <>
+              <Radio className="w-3 h-3 animate-pulse" />
+              <span>Live</span>
+            </>
+          )}
+        </div>
+      </Tooltip>
     </div>
   );
 }

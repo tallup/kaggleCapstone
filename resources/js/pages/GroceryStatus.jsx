@@ -699,84 +699,88 @@ export default function GroceryStatus() {
                                                             {/* Quick Status Update Buttons */}
                                                             <div className="flex items-center gap-2 flex-wrap">
                                                                 {update.status !== 'pending' && update.status !== 'completed' && (
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => handleQuickStatusUpdate(update.id, 'pending')}
-                                                                        className="px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors shadow-sm hover:shadow-md"
-                                                                        style={{
-                                                                            backgroundColor: 'var(--theme-primary-light)',
-                                                                            color: 'var(--theme-text-on-primary)',
-                                                                        }}
-                                                                        onMouseEnter={(e) => {
-                                                                            e.target.style.backgroundColor = 'var(--theme-primary)';
-                                                                        }}
-                                                                        onMouseLeave={(e) => {
-                                                                            e.target.style.backgroundColor = 'var(--theme-primary-light)';
-                                                                        }}
-                                                                        title="Mark as Pending"
-                                                                    >
-                                                                        Pending
-                                                                    </button>
+                                                                    <Tooltip content="Mark as pending" position="top">
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => handleQuickStatusUpdate(update.id, 'pending')}
+                                                                            className="px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors shadow-sm hover:shadow-md"
+                                                                            style={{
+                                                                                backgroundColor: 'var(--theme-primary-light)',
+                                                                                color: 'var(--theme-text-on-primary)',
+                                                                            }}
+                                                                            onMouseEnter={(e) => {
+                                                                                e.target.style.backgroundColor = 'var(--theme-primary)';
+                                                                            }}
+                                                                            onMouseLeave={(e) => {
+                                                                                e.target.style.backgroundColor = 'var(--theme-primary-light)';
+                                                                            }}
+                                                                        >
+                                                                            Pending
+                                                                        </button>
+                                                                    </Tooltip>
                                                                 )}
                                                                 {update.status !== 'in_progress' && update.status !== 'completed' && (
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => handleQuickStatusUpdate(update.id, 'in_progress')}
-                                                                        className="px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors shadow-sm hover:shadow-md"
-                                                                        style={{
-                                                                            backgroundColor: 'var(--theme-primary)',
-                                                                            color: 'var(--theme-text-on-primary)',
-                                                                        }}
-                                                                        onMouseEnter={(e) => {
-                                                                            e.target.style.backgroundColor = 'var(--theme-primary-hover)';
-                                                                        }}
-                                                                        onMouseLeave={(e) => {
-                                                                            e.target.style.backgroundColor = 'var(--theme-primary)';
-                                                                        }}
-                                                                        title="Mark as In Progress"
-                                                                    >
-                                                                        In Progress
-                                                                    </button>
+                                                                    <Tooltip content="Mark as in progress" position="top">
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => handleQuickStatusUpdate(update.id, 'in_progress')}
+                                                                            className="px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors shadow-sm hover:shadow-md"
+                                                                            style={{
+                                                                                backgroundColor: 'var(--theme-primary)',
+                                                                                color: 'var(--theme-text-on-primary)',
+                                                                            }}
+                                                                            onMouseEnter={(e) => {
+                                                                                e.target.style.backgroundColor = 'var(--theme-primary-hover)';
+                                                                            }}
+                                                                            onMouseLeave={(e) => {
+                                                                                e.target.style.backgroundColor = 'var(--theme-primary)';
+                                                                            }}
+                                                                        >
+                                                                            In Progress
+                                                                        </button>
+                                                                    </Tooltip>
                                                                 )}
                                                                 {update.status !== 'completed' && (
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => handleQuickStatusUpdate(update.id, 'completed')}
-                                                                        className="px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors shadow-sm hover:shadow-md"
-                                                                        style={{
-                                                                            backgroundColor: 'var(--theme-secondary)',
-                                                                            color: 'var(--theme-text-on-secondary)',
-                                                                        }}
-                                                                        onMouseEnter={(e) => {
-                                                                            e.target.style.backgroundColor = 'var(--theme-secondary-hover)';
-                                                                        }}
-                                                                        onMouseLeave={(e) => {
-                                                                            e.target.style.backgroundColor = 'var(--theme-secondary)';
-                                                                        }}
-                                                                        title="Mark as Completed"
-                                                                    >
-                                                                        Complete
-                                                                    </button>
+                                                                    <Tooltip content="Mark as completed" position="top">
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => handleQuickStatusUpdate(update.id, 'completed')}
+                                                                            className="px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors shadow-sm hover:shadow-md"
+                                                                            style={{
+                                                                                backgroundColor: 'var(--theme-secondary)',
+                                                                                color: 'var(--theme-text-on-secondary)',
+                                                                            }}
+                                                                            onMouseEnter={(e) => {
+                                                                                e.target.style.backgroundColor = 'var(--theme-secondary-hover)';
+                                                                            }}
+                                                                            onMouseLeave={(e) => {
+                                                                                e.target.style.backgroundColor = 'var(--theme-secondary)';
+                                                                            }}
+                                                                        >
+                                                                            Complete
+                                                                        </button>
+                                                                    </Tooltip>
                                                                 )}
                                                                 {update.status !== 'needs_attention' && update.status !== 'completed' && (
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => handleQuickStatusUpdate(update.id, 'needs_attention')}
-                                                                        className="px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors shadow-sm hover:shadow-md"
-                                                                        style={{
-                                                                            backgroundColor: 'var(--theme-primary-dark)',
-                                                                            color: 'var(--theme-text-on-primary)',
-                                                                        }}
-                                                                        onMouseEnter={(e) => {
-                                                                            e.target.style.backgroundColor = 'var(--theme-primary-hover)';
-                                                                        }}
-                                                                        onMouseLeave={(e) => {
-                                                                            e.target.style.backgroundColor = 'var(--theme-primary-dark)';
-                                                                        }}
-                                                                        title="Mark as Needs Attention"
-                                                                    >
-                                                                        Needs Attention
-                                                                    </button>
+                                                                    <Tooltip content="Mark as needs attention" position="top">
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => handleQuickStatusUpdate(update.id, 'needs_attention')}
+                                                                            className="px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors shadow-sm hover:shadow-md"
+                                                                            style={{
+                                                                                backgroundColor: 'var(--theme-primary-dark)',
+                                                                                color: 'var(--theme-text-on-primary)',
+                                                                            }}
+                                                                            onMouseEnter={(e) => {
+                                                                                e.target.style.backgroundColor = 'var(--theme-primary-hover)';
+                                                                            }}
+                                                                            onMouseLeave={(e) => {
+                                                                                e.target.style.backgroundColor = 'var(--theme-primary-dark)';
+                                                                            }}
+                                                                        >
+                                                                            Needs Attention
+                                                                        </button>
+                                                                    </Tooltip>
                                                                 )}
                                                             </div>
                                                             <div className="flex items-center gap-2">

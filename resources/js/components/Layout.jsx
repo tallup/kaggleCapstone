@@ -50,6 +50,7 @@ import PWAInstallPrompt from './PWAInstallPrompt';
 import OfflineIndicator from './OfflineIndicator';
 import RealtimeIndicator from './RealtimeIndicator';
 import DropdownMenu, { DropdownMenuItem, DropdownMenuSeparator } from './ui/radix/DropdownMenu';
+import Tooltip from './ui/Tooltip';
 import { filterNavigationByModuleAccess } from '../utils/moduleAccess';
 import { filterNavigationByPermissionAccess } from '../utils/permissionAccess';
 import {
@@ -773,67 +774,78 @@ export default function Layout() {
                         {currentUser?.role !== 'super_admin' && (
                             <>
                                 {!isCaregiver && (
-                                    <button
-                                        onClick={() => setCommandPaletteOpen(true)}
-                                        className="hidden md:flex items-center space-x-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors border border-gray-300"
-                                        title="Open command palette (Cmd+K)"
-                                    >
-                                        <Command className="w-4 h-4" />
-                                        <span className="hidden lg:inline">Search</span>
-                                        <kbd className="hidden lg:inline px-1.5 py-0.5 text-xs bg-gray-200 rounded">⌘K</kbd>
-                                    </button>
+                                    <Tooltip content="Open command palette (⌘K)" position="bottom">
+                                        <button
+                                            type="button"
+                                            onClick={() => setCommandPaletteOpen(true)}
+                                            className="hidden md:flex items-center space-x-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors border border-gray-300"
+                                            aria-label="Open command palette"
+                                        >
+                                            <Command className="w-4 h-4" />
+                                            <span className="hidden lg:inline">Search</span>
+                                            <kbd className="hidden lg:inline px-1.5 py-0.5 text-xs bg-gray-200 rounded">⌘K</kbd>
+                                        </button>
+                                    </Tooltip>
                                 )}
                                 <NotificationDropdown />
                                 <ReminderPanel />
-                                <Link
-                                    to={tLogsPath}
-                                    className="p-2 rounded-full hover:bg-gray-100 transition-colors relative"
-                                    title="Progress notes"
-                                >
-                                    <FileText className="w-5 h-5 text-gray-700" />
-                                </Link>
+                                <Tooltip content="Progress notes" position="bottom">
+                                    <Link
+                                        to={tLogsPath}
+                                        className="p-2 rounded-full hover:bg-gray-100 transition-colors relative inline-flex"
+                                        aria-label="Progress notes"
+                                    >
+                                        <FileText className="w-5 h-5 text-gray-700" strokeWidth={2.25} />
+                                    </Link>
+                                </Tooltip>
                             </>
                         )}
-                        <DropdownMenu
-                            trigger={
-                                <button className="w-10 h-10 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center overflow-hidden focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)]">
-                                    {currentUser?.profile_image_url ? (
-                                        <img
-                                            src={currentUser.profile_image_url}
-                                            alt={currentUser.name}
-                                            className="w-full h-full object-cover"
-                                        />
-                                    ) : (
-                                        <User className="w-6 h-6 text-gray-600" />
-                                    )}
-                                </button>
-                            }
-                            align="end"
-                        >
-                            <DropdownMenuItem asChild>
-                                <Link to="/profile" className="flex items-center">
-                                    <User className="w-4 h-4 mr-2" />
-                                    Profile
-                                </Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                                onClick={async () => {
-                                    try {
-                                        await api.post('/logout');
-                                    } catch (err) {
-                                        logger.error('Logout error:', err);
-                                    } finally {
-                                        localStorage.removeItem('auth_token');
-                                        localStorage.removeItem('user_name');
-                                        window.location.href = '/login';
-                                    }
-                                }}
+                        <Tooltip content="Account menu" position="bottom">
+                            <DropdownMenu
+                                trigger={
+                                    <button
+                                        type="button"
+                                        className="w-10 h-10 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center overflow-hidden focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)]"
+                                        aria-label="Open account menu"
+                                    >
+                                        {currentUser?.profile_image_url ? (
+                                            <img
+                                                src={currentUser.profile_image_url}
+                                                alt={currentUser.name}
+                                                className="w-full h-full object-cover"
+                                            />
+                                        ) : (
+                                            <User className="w-6 h-6 text-gray-600" strokeWidth={2.25} />
+                                        )}
+                                    </button>
+                                }
+                                align="end"
                             >
-                                <LogOut className="w-4 h-4 mr-2" />
-                                Sign out
-                            </DropdownMenuItem>
-                        </DropdownMenu>
+                                <DropdownMenuItem asChild>
+                                    <Link to="/profile" className="flex items-center">
+                                        <User className="w-4 h-4 mr-2" />
+                                        Profile
+                                    </Link>
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                    onClick={async () => {
+                                        try {
+                                            await api.post('/logout');
+                                        } catch (err) {
+                                            logger.error('Logout error:', err);
+                                        } finally {
+                                            localStorage.removeItem('auth_token');
+                                            localStorage.removeItem('user_name');
+                                            window.location.href = '/login';
+                                        }
+                                    }}
+                                >
+                                    <LogOut className="w-4 h-4 mr-2" />
+                                    Sign out
+                                </DropdownMenuItem>
+                            </DropdownMenu>
+                        </Tooltip>
                     </div>
                 </header>
 

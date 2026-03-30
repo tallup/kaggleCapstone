@@ -8,6 +8,10 @@ import { formatPhoneNumber, unformatPhoneNumber } from '../utils/phoneFormatter'
 import { useToastContext } from '../contexts/ToastContext';
 import logger from '../utils/logger';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
+import Tooltip from '../components/ui/Tooltip';
+import EntityCardShell, { EntityCardHeader } from '../components/ui/EntityCardShell';
+import CardIconButton from '../components/ui/CardIconButton';
+import DataPill from '../components/ui/DataPill';
 
 const COORDINATE_DECIMALS = 6;
 const normalizeCoordinateInput = (value) => {
@@ -162,69 +166,71 @@ export default function Branches() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {data?.data?.length ? (
             data.data.map((b) => (
-              <div key={b.id} className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-6">
-                <div className="flex flex-col h-full">
-                  {/* Header */}
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-2 mb-2">
-                        <Building className="w-5 h-5 text-[var(--theme-primary)]" />
-                        <h3 className="text-lg font-bold text-gray-900">{b.name}</h3>
-                      </div>
-                      {b.facility?.name && (
-                        <div className="flex items-center space-x-2 text-sm text-gray-500">
-                          <Building2 className="w-4 h-4" />
-                          <span>{b.facility.name}</span>
-                        </div>
-                      )}
+              <EntityCardShell key={b.id}>
+                <EntityCardHeader
+                  left={
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Building className="h-6 w-6 shrink-0 text-[var(--theme-primary)]" />
+                      <span className="font-mono text-xs font-bold tracking-wide text-slate-500">
+                        #{b.id}
+                      </span>
                     </div>
-                    {/* Actions */}
-                    <div className="flex items-center gap-2">
+                  }
+                  right={
+                    <>
                       {canEdit && (
-                        <button
-                          onClick={() => { setEditing(b); setShowForm(true); }}
-                          className="p-2.5 rounded-lg border-2 border-blue-500 bg-blue-50 text-blue-700 hover:bg-blue-500 hover:text-white hover:border-blue-600 transition-all shadow-sm hover:shadow-md"
-                          title="Edit"
-                        >
-                          <Edit className="w-5 h-5" />
-                        </button>
+                        <Tooltip content="Edit branch" position="top">
+                          <CardIconButton
+                            variant="edit"
+                            icon={Edit}
+                            aria-label="Edit branch"
+                            onClick={() => {
+                              setEditing(b);
+                              setShowForm(true);
+                            }}
+                          />
+                        </Tooltip>
                       )}
                       {canDelete && (
-                        <button
-                          type="button"
-                          onClick={() => setDeleteConfirmId(b.id)}
-                          className="p-2.5 rounded-lg border-2 border-red-500 bg-red-50 text-red-700 hover:bg-red-500 hover:text-white hover:border-red-600 transition-all shadow-sm hover:shadow-md"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-5 h-5" />
-                        </button>
+                        <Tooltip content="Delete branch" position="top">
+                          <CardIconButton
+                            variant="delete"
+                            icon={Trash2}
+                            aria-label="Delete branch"
+                            onClick={() => setDeleteConfirmId(b.id)}
+                          />
+                        </Tooltip>
                       )}
-                    </div>
-                  </div>
-                  
-                  {/* Details */}
-                  <div className="space-y-2 flex-1">
-                    {b.address && (
-                      <div className="flex items-start space-x-2 text-sm text-gray-600">
-                        <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                        <span className="line-clamp-2">{b.address}</span>
-                      </div>
-                    )}
-                    {b.phone && (
-                      <div className="flex items-center space-x-2 text-sm text-gray-600">
-                        <Phone className="w-4 h-4 flex-shrink-0" />
-                        <span>{b.phone}</span>
-                      </div>
-                    )}
-                    {b.email && (
-                      <div className="flex items-center space-x-2 text-sm text-gray-600">
-                        <Mail className="w-4 h-4 flex-shrink-0" />
-                        <span className="truncate">{b.email}</span>
-                      </div>
-                    )}
-                  </div>
+                    </>
+                  }
+                />
+
+                <h3 className="text-lg font-bold leading-snug text-slate-900 sm:text-xl">{b.name}</h3>
+                {b.facility?.name && (
+                  <p className="mt-1 flex items-center gap-2 text-sm text-slate-500">
+                    <Building2 className="h-4 w-4 shrink-0" />
+                    {b.facility.name}
+                  </p>
+                )}
+
+                <div className="mt-4 grid grid-cols-1 gap-2.5">
+                  {b.address && (
+                    <DataPill icon={MapPin}>
+                      <span className="line-clamp-2 font-normal text-slate-600">{b.address}</span>
+                    </DataPill>
+                  )}
+                  {b.phone && (
+                    <DataPill icon={Phone}>
+                      <span className="font-normal text-slate-600">{formatPhoneNumber(b.phone) || b.phone}</span>
+                    </DataPill>
+                  )}
+                  {b.email && (
+                    <DataPill icon={Mail}>
+                      <span className="truncate font-normal text-slate-600">{b.email}</span>
+                    </DataPill>
+                  )}
                 </div>
-              </div>
+              </EntityCardShell>
             ))
           ) : (
             <div className="col-span-2 bg-white rounded-lg shadow p-12 text-center">
@@ -426,70 +432,72 @@ function BranchForm({ record, facilities, currentUser, isSuperAdmin, isFacilityA
                   Location Coordinates
                 </label>
                 <div className="flex items-center space-x-2">
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      setGettingLocation(true);
-                      try {
-                        const location = await getUserLocation({
-                          timeout: 10000,
-                          maximumAge: 0, // Always get fresh location
-                          enableHighAccuracy: true,
-                        });
-                        if (location) {
-                          setForm((prev) => ({
-                            ...prev,
-                            latitude: normalizeCoordinateInput(location.latitude),
-                            longitude: normalizeCoordinateInput(location.longitude),
-                          }));
-                        } else {
-                          alert('Unable to get your current location. Please allow location access or enter coordinates manually.');
+                  <Tooltip content="Use your current GPS location" position="bottom">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        setGettingLocation(true);
+                        try {
+                          const location = await getUserLocation({
+                            timeout: 10000,
+                            maximumAge: 0, // Always get fresh location
+                            enableHighAccuracy: true,
+                          });
+                          if (location) {
+                            setForm((prev) => ({
+                              ...prev,
+                              latitude: normalizeCoordinateInput(location.latitude),
+                              longitude: normalizeCoordinateInput(location.longitude),
+                            }));
+                          } else {
+                            alert('Unable to get your current location. Please allow location access or enter coordinates manually.');
+                          }
+                        } catch (err) {
+                          alert('Failed to get current location. Please enter coordinates manually.');
+                        } finally {
+                          setGettingLocation(false);
                         }
-                      } catch (err) {
-                        alert('Failed to get current location. Please enter coordinates manually.');
-                      } finally {
-                        setGettingLocation(false);
-                      }
-                    }}
-                    disabled={gettingLocation}
-                    className="text-sm px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1"
-                    title="Use your current GPS location"
-                  >
-                    <Navigation className="w-4 h-4" />
-                    <span>{gettingLocation ? 'Getting Location...' : 'Use Current Location'}</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      if (!form.address) {
-                        alert('Please enter an address first');
-                        return;
-                      }
-                      setGeocoding(true);
-                      try {
-                        const response = await api.post('/geocode', { address: form.address });
-                        if (response.data.success) {
-                          setForm((prev) => ({
-                            ...prev,
-                            latitude: normalizeCoordinateInput(response.data.latitude),
-                            longitude: normalizeCoordinateInput(response.data.longitude),
-                          }));
-                        } else {
-                          alert('Unable to geocode address. Please enter coordinates manually.');
+                      }}
+                      disabled={gettingLocation}
+                      className="text-sm px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1"
+                    >
+                      <Navigation className="w-4 h-4" />
+                      <span>{gettingLocation ? 'Getting Location...' : 'Use Current Location'}</span>
+                    </button>
+                  </Tooltip>
+                  <Tooltip content="Fill coordinates from the address field" position="bottom">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (!form.address) {
+                          alert('Please enter an address first');
+                          return;
                         }
-                      } catch (err) {
-                        alert('Geocoding failed. Please enter coordinates manually.');
-                      } finally {
-                        setGeocoding(false);
-                      }
-                    }}
-                    disabled={geocoding || !form.address}
-                    className="text-sm px-3 py-1 bg-[var(--theme-primary)] text-white rounded hover:bg-[var(--theme-primary-hover)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1"
-                    title="Geocode from address field"
-                  >
-                    <MapPin className="w-4 h-4" />
-                    <span>{geocoding ? 'Geocoding...' : 'Geocode from Address'}</span>
-                  </button>
+                        setGeocoding(true);
+                        try {
+                          const response = await api.post('/geocode', { address: form.address });
+                          if (response.data.success) {
+                            setForm((prev) => ({
+                              ...prev,
+                              latitude: normalizeCoordinateInput(response.data.latitude),
+                              longitude: normalizeCoordinateInput(response.data.longitude),
+                            }));
+                          } else {
+                            alert('Unable to geocode address. Please enter coordinates manually.');
+                          }
+                        } catch (err) {
+                          alert('Geocoding failed. Please enter coordinates manually.');
+                        } finally {
+                          setGeocoding(false);
+                        }
+                      }}
+                      disabled={geocoding || !form.address}
+                      className="text-sm px-3 py-1 bg-[var(--theme-primary)] text-white rounded hover:bg-[var(--theme-primary-hover)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1"
+                    >
+                      <MapPin className="w-4 h-4" />
+                      <span>{geocoding ? 'Geocoding...' : 'Geocode from Address'}</span>
+                    </button>
+                  </Tooltip>
                 </div>
               </div>
               <p className="text-xs text-gray-500 mb-3">Coordinates are used for location-based login restrictions (50 meters).</p>

@@ -21,6 +21,7 @@ export default function StaffSchedule() {
   const [branchId, setBranchId] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingShift, setEditingShift] = useState(null);
+  const [deleteShiftId, setDeleteShiftId] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
   const [form, setForm] = useState({
     branch_id: '',

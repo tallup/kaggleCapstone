@@ -6,6 +6,7 @@ import SectionCard from '../components/SectionCard';
 import Card from '../components/Card';
 import { formatPhoneNumber } from '../utils/phoneFormatter';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
+import Tooltip from '../components/ui/Tooltip';
 
 export default function PharmacySuppliers() {
     const queryClient = useQueryClient();
@@ -361,20 +362,26 @@ export default function PharmacySuppliers() {
                                         {supplier.orders_count || 0} orders
                                     </div>
                                     <div className="flex gap-2">
-                                        <button
-                                            onClick={() => handleEdit(supplier)}
-                                            className="p-2.5 border-2 border-[var(--theme-primary)] bg-white text-[var(--theme-primary)] hover:bg-[var(--theme-primary-bg)] hover:border-[var(--theme-primary-dark)] rounded-lg transition-all shadow-sm"
-                                            title="Edit"
-                                        >
-                                            <Edit className="w-4 h-4" />
-                                        </button>
-                                        <button
-                                            onClick={() => handleDelete(supplier.id)}
-                                            className="p-2.5 border-2 border-red-400 bg-white text-red-700 hover:bg-red-50 hover:border-red-500 rounded-lg transition-all shadow-sm"
-                                            title="Delete"
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
+                                        <Tooltip content="Edit" position="top">
+                                            <button
+                                                type="button"
+                                                onClick={() => handleEdit(supplier)}
+                                                className="p-2.5 border-2 border-[var(--theme-primary)] bg-white text-[var(--theme-primary)] hover:bg-[var(--theme-primary-bg)] hover:border-[var(--theme-primary-dark)] rounded-lg transition-all shadow-sm"
+                                                aria-label="Edit supplier"
+                                            >
+                                                <Edit className="w-4 h-4" strokeWidth={2.25} />
+                                            </button>
+                                        </Tooltip>
+                                        <Tooltip content="Delete" position="top">
+                                            <button
+                                                type="button"
+                                                onClick={() => handleDelete(supplier.id)}
+                                                className="p-2.5 border-2 border-red-400 bg-white text-red-700 hover:bg-red-50 hover:border-red-500 rounded-lg transition-all shadow-sm"
+                                                aria-label="Delete supplier"
+                                            >
+                                                <Trash2 className="w-4 h-4" strokeWidth={2.25} />
+                                            </button>
+                                        </Tooltip>
                                     </div>
                                 </div>
                             </Card>

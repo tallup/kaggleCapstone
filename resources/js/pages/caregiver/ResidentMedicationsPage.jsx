@@ -38,6 +38,7 @@ import {
 
 
 import Select from '../../components/ui/radix/Select';
+import Tooltip from '../../components/ui/Tooltip';
 import logger from '../../utils/logger';
 import {
     parseAdminTimeToPacific,
@@ -699,13 +700,16 @@ export default function ResidentMedicationsPage() {
             {/* Header Section */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div className="flex items-center gap-4 min-w-0">
-                    <button
-                        onClick={() => navigate('/medications/residents')}
-                        className="p-2 hover:bg-gray-100 rounded-full transition-colors group shrink-0"
-                        title="Back to Residents"
-                    >
-                        <ArrowLeft className="w-5 h-5 text-gray-400 group-hover:text-[var(--theme-primary)]" />
-                    </button>
+                    <Tooltip content="Back to residents" position="bottom">
+                        <button
+                            type="button"
+                            onClick={() => navigate('/medications/residents')}
+                            className="p-2 hover:bg-gray-100 rounded-full transition-colors group shrink-0"
+                            aria-label="Back to residents"
+                        >
+                            <ArrowLeft className="w-5 h-5 text-gray-400 group-hover:text-[var(--theme-primary)]" strokeWidth={2.25} />
+                        </button>
+                    </Tooltip>
                     <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full border border-gray-200 bg-gray-100 shadow-sm">
                         {resident?.profile_image_url || resident?.profile_image ? (
                             <img
@@ -783,13 +787,16 @@ export default function ResidentMedicationsPage() {
                                     )}
                                     Administer All
                                 </button>
-                                <button
-                                    onClick={() => setSelectedMeds(new Set())}
-                                    className="p-2 text-gray-400 hover:text-red-500 transition-colors"
-                                    title="Deselect All"
-                                >
-                                    <X className="w-4 h-4" />
-                                </button>
+                                <Tooltip content="Deselect all" position="top">
+                                    <button
+                                        type="button"
+                                        onClick={() => setSelectedMeds(new Set())}
+                                        className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                                        aria-label="Deselect all"
+                                    >
+                                        <X className="w-4 h-4" strokeWidth={2.25} />
+                                    </button>
+                                </Tooltip>
                             </div>
                         )}
 
