@@ -116,21 +116,18 @@ class AppointmentController extends BaseApiController
     {
         $user = auth()->user();
         
-        // Allow administrators and super admins to create appointments even without specific permission
+        // Super admins and facility/branch admins can create without explicit permission check
         $isSuperAdmin = $user && ($user->role === 'super_admin' || $user->hasRole('super_admin'));
         $isAdmin = $user && $user->isAnyAdmin();
-        
-        // Check if user is a caregiver
-        $isCaregiver = $this->isCaregiver($user);
-        
-        // Caregivers can create appointments for residents in their assigned branch
-        // Admins and super admins can create appointments without specific permission
-        // Other users need the create_appointments permission
-        if (!$isSuperAdmin && !$isAdmin && !$isCaregiver) {
-        if ($error = $this->requirePermission('create_appointments')) {
-            return $error;
+
+        // Caregivers and all other non-admins must have create_appointments (respects facility role overrides)
+        if (!$isSuperAdmin && !$isAdmin) {
+            if ($error = $this->requirePermission('create_appointments')) {
+                return $error;
             }
         }
+
+        $isCaregiver = $this->isCaregiver($user);
 
         $validated = $request->validate([
             'title' => 'nullable|string|max:255',

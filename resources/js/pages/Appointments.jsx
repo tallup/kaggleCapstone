@@ -151,8 +151,8 @@ export default function Appointments() {
     const isFacilityAdmin = currentUser?.role === 'administrator';
     const isBranchAdmin = currentUser?.role === 'admin';
     const permissions = Array.isArray(currentUser?.permissions) ? currentUser.permissions : [];
-    // Caregivers can create appointments (similar to incidents)
-    const canCreate = isSuperAdmin || isAdmin || isCaregiver || permissions.includes('create_appointments');
+    // Admins bypass; everyone else (including caregivers) needs create_appointments (incl. facility overrides)
+    const canCreate = isSuperAdmin || isAdmin || permissions.includes('create_appointments');
     const canEdit = isSuperAdmin || isAdmin || permissions.includes('edit_appointments');
     const canDelete = isSuperAdmin || isAdmin || permissions.includes('delete_appointments');
 

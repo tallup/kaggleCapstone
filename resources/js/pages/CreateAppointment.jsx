@@ -97,6 +97,19 @@ export default function CreateAppointment() {
         },
     });
 
+    const { data: currentUser, isLoading: userLoading } = useQuery({
+        queryKey: ['current-user'],
+        queryFn: async () => {
+            const response = await api.get('/user');
+            return response.data;
+        },
+    });
+
+    const isSuperAdmin = currentUser?.role === 'super_admin';
+    const isAdmin = currentUser?.role === 'administrator' || currentUser?.role === 'admin';
+    const permissions = Array.isArray(currentUser?.permissions) ? currentUser.permissions : [];
+    const canCreateAppointment = isSuperAdmin || isAdmin || permissions.includes('create_appointments');
+
     // Submit appointment mutation
     const submitMutation = useMutation({
         mutationFn: async () => {
@@ -195,12 +208,30 @@ export default function CreateAppointment() {
         submitMutation.mutate();
     };
 
-    if (residentLoading) {
+    if (residentLoading || userLoading) {
         return (
             <div className="flex items-center justify-center min-h-screen">
                 <div className="text-center">
                     <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--theme-primary)]"></div>
                     <p className="mt-4 text-gray-600">Loading...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (currentUser && !canCreateAppointment) {
+        return (
+            <div className="flex min-h-screen items-center justify-center p-6">
+                <div className="max-w-md rounded-xl border border-gray-200 bg-white p-8 text-center shadow-sm">
+                    <p className="mb-2 font-medium text-gray-900">You don&apos;t have permission to schedule appointments.</p>
+                    <p className="mb-6 text-sm text-gray-600">Contact your administrator if you need this access.</p>
+                    <button
+                        type="button"
+                        onClick={() => navigate('/appointments')}
+                        className="rounded-lg bg-[var(--theme-primary)] px-4 py-2 text-[var(--theme-text-on-primary)] transition-colors hover:bg-[var(--theme-primary-hover)]"
+                    >
+                        Back to appointments
+                    </button>
                 </div>
             </div>
         );
