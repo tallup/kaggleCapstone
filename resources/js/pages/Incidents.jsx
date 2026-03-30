@@ -11,6 +11,7 @@ import {
     FileText, Image as ImageIcon, ChevronLeft, ChevronRight, ShieldAlert
 } from 'lucide-react';
 import Card from '../components/Card';
+import Tooltip from '../components/ui/Tooltip';
 import FormInput from '../components/forms/FormInput';
 import FormTextarea from '../components/forms/FormTextarea';
 import FormSelect from '../components/forms/FormSelect';
@@ -652,57 +653,91 @@ export default function Incidents() {
                                             </div>
                                         </div>
                                         <div className="flex shrink-0 gap-1.5">
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    setSelectedIncident(incident);
-                                                    setShowViewModal(true);
-                                                }}
-                                                className="rounded-lg border border-slate-300 bg-slate-100 p-2 text-slate-800 shadow-sm transition hover:border-slate-400 hover:bg-slate-200 hover:text-slate-950"
-                                                title="View"
-                                            >
-                                                <Eye className="h-4 w-4" strokeWidth={2.5} />
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => handleOpenForm(incident)}
-                                                className="rounded-lg border border-amber-400/90 bg-amber-50 p-2 text-amber-950 shadow-sm transition hover:border-amber-500 hover:bg-amber-100"
-                                                title="Edit"
-                                            >
-                                                <Edit className="h-4 w-4" strokeWidth={2.5} />
-                                            </button>
-                                            {incident.status !== 'resolved' && incident.status !== 'closed' && (
+                                            <Tooltip content="View details" position="top">
                                                 <button
                                                     type="button"
                                                     onClick={() => {
-                                                        if (incident.status === 'resolved') {
-                                                            markClosedMutation.mutate({ id: incident.id, notes: '' });
-                                                        } else {
-                                                            markResolvedMutation.mutate({ id: incident.id, notes: '' });
+                                                        setSelectedIncident(incident);
+                                                        setShowViewModal(true);
+                                                    }}
+                                                    className="rounded-lg border border-sky-200 bg-sky-50 p-2 shadow-sm transition hover:border-sky-300 hover:bg-sky-100"
+                                                    aria-label="View details"
+                                                >
+                                                    <Eye
+                                                        className="h-4 w-4 !text-sky-600"
+                                                        strokeWidth={2.5}
+                                                    />
+                                                </button>
+                                            </Tooltip>
+                                            <Tooltip content="Edit incident" position="top">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleOpenForm(incident)}
+                                                    className="rounded-lg border border-amber-300 bg-amber-50 p-2 shadow-sm transition hover:border-amber-400 hover:bg-amber-100"
+                                                    aria-label="Edit incident"
+                                                >
+                                                    <Edit
+                                                        className="h-4 w-4 !text-amber-700"
+                                                        strokeWidth={2.5}
+                                                    />
+                                                </button>
+                                            </Tooltip>
+                                            {incident.status !== 'resolved' && incident.status !== 'closed' && (
+                                                <Tooltip
+                                                    content={
+                                                        incident.status === 'resolved'
+                                                            ? 'Mark as closed'
+                                                            : 'Mark as resolved'
+                                                    }
+                                                    position="top"
+                                                >
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            if (incident.status === 'resolved') {
+                                                                markClosedMutation.mutate({ id: incident.id, notes: '' });
+                                                            } else {
+                                                                markResolvedMutation.mutate({ id: incident.id, notes: '' });
+                                                            }
+                                                        }}
+                                                        className="rounded-lg border border-emerald-300 bg-emerald-50 p-2 shadow-sm transition hover:border-emerald-400 hover:bg-emerald-100"
+                                                        aria-label={
+                                                            incident.status === 'resolved'
+                                                                ? 'Mark as closed'
+                                                                : 'Mark as resolved'
+                                                        }
+                                                    >
+                                                        {incident.status === 'resolved' ? (
+                                                            <Lock
+                                                                className="h-4 w-4 !text-emerald-800"
+                                                                strokeWidth={2.5}
+                                                            />
+                                                        ) : (
+                                                            <CheckCircle
+                                                                className="h-4 w-4 !text-emerald-600"
+                                                                strokeWidth={2.5}
+                                                            />
+                                                        )}
+                                                    </button>
+                                                </Tooltip>
+                                            )}
+                                            <Tooltip content="Delete incident" position="top">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        if (window.confirm('Are you sure you want to delete this incident?')) {
+                                                            deleteMutation.mutate(incident.id);
                                                         }
                                                     }}
-                                                    className="rounded-lg border border-emerald-400 bg-emerald-100 p-2 text-emerald-950 shadow-sm transition hover:border-emerald-500 hover:bg-emerald-200"
-                                                    title={incident.status === 'resolved' ? 'Mark closed' : 'Mark resolved'}
+                                                    className="rounded-lg border border-red-200 bg-red-50 p-2 shadow-sm transition hover:border-red-300 hover:bg-red-100"
+                                                    aria-label="Delete incident"
                                                 >
-                                                    {incident.status === 'resolved' ? (
-                                                        <Lock className="h-4 w-4" strokeWidth={2.5} />
-                                                    ) : (
-                                                        <CheckCircle className="h-4 w-4" strokeWidth={2.5} />
-                                                    )}
+                                                    <Trash2
+                                                        className="h-4 w-4 !text-red-600"
+                                                        strokeWidth={2.5}
+                                                    />
                                                 </button>
-                                            )}
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    if (window.confirm('Are you sure you want to delete this incident?')) {
-                                                        deleteMutation.mutate(incident.id);
-                                                    }
-                                                }}
-                                                className="rounded-lg border border-red-300 bg-red-50 p-2 text-red-800 shadow-sm transition hover:border-red-400 hover:bg-red-100 hover:text-red-950"
-                                                title="Delete"
-                                            >
-                                                <Trash2 className="h-4 w-4" strokeWidth={2.5} />
-                                            </button>
+                                            </Tooltip>
                                         </div>
                                     </div>
 
