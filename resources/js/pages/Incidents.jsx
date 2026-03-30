@@ -8,10 +8,9 @@ import { offlinePost } from '../services/offlineApi';
 import { 
     AlertTriangle, Plus, Edit, Trash2, Eye, X, 
     CheckCircle, Lock, Clock, User, MapPin, Calendar,
-    FileText, Image as ImageIcon
+    FileText, Image as ImageIcon, ChevronLeft, ChevronRight, ShieldAlert
 } from 'lucide-react';
 import Card from '../components/Card';
-import SectionCard from '../components/SectionCard';
 import FormInput from '../components/forms/FormInput';
 import FormTextarea from '../components/forms/FormTextarea';
 import FormSelect from '../components/forms/FormSelect';
@@ -66,7 +65,6 @@ export default function Incidents() {
     const [showForm, setShowForm] = useState(false);
     const [showViewModal, setShowViewModal] = useState(false);
     const [selectedIncident, setSelectedIncident] = useState(null);
-    const [viewMode, setViewMode] = useState('list');
     const [currentUser, setCurrentUser] = useState(null);
     const [filters, setFilters] = useState({
         status: searchParams.get('status') || 'all',
@@ -80,6 +78,8 @@ export default function Incidents() {
         date_from: searchParams.get('date_from') || '',
         date_to: searchParams.get('date_to') || '',
     });
+    const [currentPage, setCurrentPage] = useState(1);
+    const PER_PAGE = 10;
     const [attachments, setAttachments] = useState([]);
     
     // Initialize react-hook-form
@@ -101,11 +101,11 @@ export default function Incidents() {
         },
     });
 
-    // Fetch incidents
+    // Fetch incidents (paginated)
     const { data, isLoading, error, refetch } = useQuery({
-        queryKey: ['incidents', filters],
+        queryKey: ['incidents', filters, currentPage],
         queryFn: async () => {
-            const params = { per_page: 50 };
+            const params = { per_page: PER_PAGE, page: currentPage };
             Object.keys(filters).forEach(key => {
                 if (filters[key] && filters[key] !== 'all') {
                     params[key] = filters[key];
@@ -480,7 +480,8 @@ export default function Incidents() {
     const handleFilterChange = (key, value) => {
         const newFilters = { ...filters, [key]: value };
         setFilters(newFilters);
-        
+        setCurrentPage(1);
+
         // Update URL params
         const newParams = new URLSearchParams();
         Object.keys(newFilters).forEach(k => {
@@ -492,6 +493,8 @@ export default function Incidents() {
     };
 
     const incidents = data?.data || [];
+    const totalIncidents = data?.total ?? incidents.length;
+    const lastPage = Math.max(1, data?.last_page ?? 1);
     const residents = residentsData?.data || [];
     const branches = branchesData?.data || [];
     const users = usersData?.data || [];
@@ -539,179 +542,257 @@ export default function Incidents() {
     }
 
     return (
-        <div className="p-6 space-y-6">
-            {/* Header */}
-            <SectionCard>
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-                            <AlertTriangle className="w-8 h-8 text-red-600" />
-                            Incidents
-                        </h1>
-                        <p className="text-gray-600 mt-1">Manage and track facility incidents</p>
+        <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50/80 p-4 sm:p-6 lg:p-8 space-y-8">
+            {/* Hero header */}
+            <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.06)]">
+                <div
+                    className="absolute inset-0 opacity-[0.35]"
+                    style={{
+                        background:
+                            'radial-gradient(900px 280px at 10% -20%, var(--theme-primary-bg), transparent 55%), radial-gradient(600px 200px at 90% 0%, rgba(15, 23, 42, 0.06), transparent 50%)',
+                    }}
+                />
+                <div className="relative flex flex-col gap-6 p-6 sm:p-8 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="flex items-start gap-4">
+                        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[var(--theme-primary)] to-[var(--theme-primary-hover)] text-[var(--theme-text-on-primary)] shadow-lg shadow-[var(--theme-primary)]/25">
+                            <ShieldAlert className="h-7 w-7" strokeWidth={1.75} />
+                        </div>
+                        <div>
+                            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Safety & compliance</p>
+                            <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Incidents</h1>
+                            <p className="mt-1 max-w-xl text-sm leading-relaxed text-slate-600">
+                                Manage and track facility incidents with a clear, auditable record.
+                            </p>
+                            {totalIncidents > 0 && (
+                                <p className="mt-3 text-xs font-medium text-slate-500">
+                                    {totalIncidents} record{totalIncidents !== 1 ? 's' : ''}
+                                    {data?.last_page > 1 ? ` · Page ${currentPage} of ${lastPage}` : ''}
+                                </p>
+                            )}
+                        </div>
                     </div>
                     <button
+                        type="button"
                         onClick={() => handleOpenForm()}
-                        className="flex items-center gap-2 px-4 py-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] rounded-lg hover:bg-[var(--theme-primary-hover)] transition"
+                        className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[var(--theme-primary)] px-5 py-3 text-sm font-semibold text-[var(--theme-text-on-primary)] shadow-md shadow-[var(--theme-primary)]/25 transition hover:bg-[var(--theme-primary-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--theme-primary)]"
                     >
-                        <Plus className="w-5 h-5" />
+                        <Plus className="h-5 w-5" />
                         New Incident
                     </button>
                 </div>
-            </SectionCard>
+            </div>
 
-
-            {/* Incidents List */}
+            {/* Incidents grid */}
             {isLoading ? (
-                <div className="text-center py-12">
-                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                    <p className="mt-2 text-gray-600">Loading incidents...</p>
+                <div className="flex flex-col items-center justify-center rounded-2xl border border-slate-200/80 bg-white/80 py-20 shadow-sm">
+                    <div className="h-10 w-10 animate-spin rounded-full border-2 border-slate-200 border-t-[var(--theme-primary)]" />
+                    <p className="mt-4 text-sm font-medium text-slate-600">Loading incidents…</p>
                 </div>
             ) : error ? (
-                <Card>
-                    <div className="text-center py-12">
-                        <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+                <Card className="border-slate-200/80 shadow-lg">
+                    <div className="py-16 text-center">
+                        <AlertTriangle className="mx-auto mb-4 h-12 w-12 text-red-500" />
                         <p className="text-red-600">Failed to load incidents</p>
                         <button
+                            type="button"
                             onClick={() => refetch()}
-                            className="mt-4 px-4 py-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] rounded-lg hover:bg-[var(--theme-primary-hover)]"
+                            className="mt-4 rounded-xl bg-[var(--theme-primary)] px-5 py-2.5 text-sm font-semibold text-[var(--theme-text-on-primary)] hover:bg-[var(--theme-primary-hover)]"
                         >
                             Retry
                         </button>
                     </div>
                 </Card>
             ) : incidents.length === 0 ? (
-                <Card>
-                    <div className="text-center py-12">
-                        <AlertTriangle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                        <p className="text-gray-600">No incidents found</p>
+                <Card className="border-slate-200/80 shadow-lg">
+                    <div className="py-16 text-center">
+                        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100">
+                            <AlertTriangle className="h-8 w-8 text-slate-400" />
+                        </div>
+                        <p className="text-slate-600">No incidents found</p>
                         <button
+                            type="button"
                             onClick={() => handleOpenForm()}
-                            className="mt-4 px-4 py-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] rounded-lg hover:bg-[var(--theme-primary-hover)]"
+                            className="mt-6 rounded-xl bg-[var(--theme-primary)] px-5 py-2.5 text-sm font-semibold text-[var(--theme-text-on-primary)] hover:bg-[var(--theme-primary-hover)]"
                         >
-                            Create First Incident
+                            Create first incident
                         </button>
                     </div>
                 </Card>
             ) : (
-                <div className="space-y-4">
-                    {incidents.map((incident) => (
-                        <Card key={incident.id} className="hover:shadow-lg transition">
-                            <div className="flex items-start justify-between">
-                                <div className="flex-1">
-                                    <div className="flex items-center gap-3 mb-2">
-                                        <span className="font-mono text-sm font-semibold text-[var(--theme-primary)]">
-                                            {incident.incident_number}
-                                        </span>
-                                        <span className={`px-2 py-1 rounded text-xs font-medium border ${SEVERITY_COLORS[incident.severity] || SEVERITY_COLORS.low}`}>
-                                            {incident.severity?.toUpperCase()}
-                                        </span>
-                                        <span className={`px-2 py-1 rounded text-xs font-medium border ${PRIORITY_COLORS[incident.priority] || PRIORITY_COLORS.medium}`}>
-                                            {incident.priority?.toUpperCase()}
-                                        </span>
-                                        <span className={`px-2 py-1 rounded text-xs font-medium border ${STATUS_COLORS[incident.status] || STATUS_COLORS.open}`}>
-                                            {incident.status?.replace('_', ' ').toUpperCase()}
-                                        </span>
+                <>
+                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                        {incidents.map((incident) => (
+                            <article
+                                key={incident.id}
+                                className="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-[0_4px_24px_rgba(15,23,42,0.06)] transition duration-300 hover:-translate-y-0.5 hover:border-slate-300/90 hover:shadow-[0_12px_40px_rgba(15,23,42,0.1)]"
+                            >
+                                <div className="h-1 w-full bg-gradient-to-r from-[var(--theme-primary)] via-[var(--theme-primary-hover)] to-slate-300/80" />
+                                <div className="flex flex-1 flex-col p-5 sm:p-6">
+                                    <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+                                        <div className="space-y-2">
+                                            <span className="font-mono text-xs font-bold tracking-wide text-[var(--theme-primary)]">
+                                                {incident.incident_number}
+                                            </span>
+                                            <div className="flex flex-wrap gap-1.5">
+                                                <span
+                                                    className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${SEVERITY_COLORS[incident.severity] || SEVERITY_COLORS.low}`}
+                                                >
+                                                    {incident.severity}
+                                                </span>
+                                                <span
+                                                    className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${PRIORITY_COLORS[incident.priority] || PRIORITY_COLORS.medium}`}
+                                                >
+                                                    {incident.priority}
+                                                </span>
+                                                <span
+                                                    className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${STATUS_COLORS[incident.status] || STATUS_COLORS.open}`}
+                                                >
+                                                    {incident.status?.replace('_', ' ')}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div className="flex shrink-0 gap-1.5">
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setSelectedIncident(incident);
+                                                    setShowViewModal(true);
+                                                }}
+                                                className="rounded-lg border border-slate-200 bg-white p-2 text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
+                                                title="View"
+                                            >
+                                                <Eye className="h-4 w-4" />
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleOpenForm(incident)}
+                                                className="rounded-lg border border-[var(--theme-primary)]/30 bg-[var(--theme-primary-bg)]/50 p-2 text-[var(--theme-primary)] transition hover:bg-[var(--theme-primary-bg)]"
+                                                title="Edit"
+                                            >
+                                                <Edit className="h-4 w-4" />
+                                            </button>
+                                            {incident.status !== 'resolved' && incident.status !== 'closed' && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        if (incident.status === 'resolved') {
+                                                            markClosedMutation.mutate({ id: incident.id, notes: '' });
+                                                        } else {
+                                                            markResolvedMutation.mutate({ id: incident.id, notes: '' });
+                                                        }
+                                                    }}
+                                                    className="rounded-lg border border-emerald-200 bg-emerald-50/80 p-2 text-emerald-700 transition hover:bg-emerald-100"
+                                                    title={incident.status === 'resolved' ? 'Mark closed' : 'Mark resolved'}
+                                                >
+                                                    {incident.status === 'resolved' ? (
+                                                        <Lock className="h-4 w-4" />
+                                                    ) : (
+                                                        <CheckCircle className="h-4 w-4" />
+                                                    )}
+                                                </button>
+                                            )}
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    if (window.confirm('Are you sure you want to delete this incident?')) {
+                                                        deleteMutation.mutate(incident.id);
+                                                    }
+                                                }}
+                                                className="rounded-lg border border-red-200 bg-white p-2 text-red-600 transition hover:bg-red-50"
+                                                title="Delete"
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                            </button>
+                                        </div>
                                     </div>
 
-                                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                                    <h3 className="text-lg font-bold leading-snug text-slate-900 sm:text-xl">
                                         {incident.incident_type}
                                     </h3>
 
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-gray-600 mb-3">
-                                        <div className="flex items-center gap-2">
-                                            <User className="w-4 h-4" />
-                                            <span>
+                                    <div className="mt-4 grid grid-cols-1 gap-2.5 text-sm text-slate-600 sm:grid-cols-2">
+                                        <div className="flex items-center gap-2 rounded-lg bg-slate-50/80 px-3 py-2">
+                                            <User className="h-4 w-4 shrink-0 text-slate-400" />
+                                            <span className="truncate font-medium text-slate-800">
                                                 {incident.resident?.first_name} {incident.resident?.last_name}
                                             </span>
                                         </div>
                                         {incident.location && (
-                                            <div className="flex items-center gap-2">
-                                                <MapPin className="w-4 h-4" />
-                                                <span>{incident.location}</span>
+                                            <div className="flex items-center gap-2 rounded-lg bg-slate-50/80 px-3 py-2">
+                                                <MapPin className="h-4 w-4 shrink-0 text-slate-400" />
+                                                <span className="truncate">{incident.location}</span>
                                             </div>
                                         )}
-                                        <div className="flex items-center gap-2">
-                                            <Calendar className="w-4 h-4" />
-                                            <span>
-                                                {new Date(incident.incident_date).toLocaleString()}
-                                            </span>
+                                        <div className="flex items-center gap-2 rounded-lg bg-slate-50/80 px-3 py-2 sm:col-span-2">
+                                            <Calendar className="h-4 w-4 shrink-0 text-slate-400" />
+                                            <span>{new Date(incident.incident_date).toLocaleString()}</span>
                                         </div>
                                         {incident.assigned_to && incident.assigned_to_user && (
-                                            <div className="flex items-center gap-2">
-                                                <User className="w-4 h-4" />
-                                                <span>Assigned to: {incident.assigned_to_user.name}</span>
+                                            <div className="flex items-center gap-2 rounded-lg bg-slate-50/80 px-3 py-2 sm:col-span-2">
+                                                <User className="h-4 w-4 shrink-0 text-slate-400" />
+                                                <span className="truncate">Assigned: {incident.assigned_to_user.name}</span>
                                             </div>
                                         )}
                                     </div>
 
-                                    <p className="text-gray-700 text-sm line-clamp-2 mb-3">
-                                        {incident.description}
-                                    </p>
+                                    <div className="mt-4 flex-1">
+                                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Description</p>
+                                        <p className="mt-1 line-clamp-3 text-sm leading-relaxed text-slate-600">
+                                            {incident.description || '—'}
+                                        </p>
+                                    </div>
 
                                     {incident.attachments && incident.attachments.length > 0 && (
-                                        <div className="flex items-center gap-2 text-sm text-gray-600 mb-3">
-                                            <FileText className="w-4 h-4" />
-                                            <span>{incident.attachments.length} attachment(s)</span>
+                                        <div className="mt-3 flex items-center gap-2 text-xs font-medium text-slate-500">
+                                            <FileText className="h-3.5 w-3.5" />
+                                            {incident.attachments.length} attachment(s)
                                         </div>
                                     )}
                                 </div>
+                            </article>
+                        ))}
+                    </div>
 
-                                <div className="flex items-center gap-2 ml-4">
-                                    <button
-                                        onClick={() => {
-                                            setSelectedIncident(incident);
-                                            setShowViewModal(true);
-                                        }}
-                                        className="p-2.5 border-2 border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400 rounded-lg transition-all shadow-sm"
-                                        title="View"
-                                    >
-                                        <Eye className="w-5 h-5" />
-                                    </button>
-                                    <button
-                                        onClick={() => handleOpenForm(incident)}
-                                        className="p-2.5 border-2 border-[var(--theme-primary)] bg-white text-[var(--theme-primary)] hover:bg-[var(--theme-primary-bg)] hover:border-[var(--theme-primary-dark)] rounded-lg transition-all shadow-sm"
-                                        title="Edit"
-                                    >
-                                        <Edit className="w-5 h-5" />
-                                    </button>
-                                    {incident.status !== 'resolved' && incident.status !== 'closed' && (
-                                        <button
-                                            onClick={() => {
-                                                if (incident.status === 'resolved') {
-                                                    markClosedMutation.mutate({ id: incident.id, notes: '' });
-                                                } else {
-                                                    markResolvedMutation.mutate({ id: incident.id, notes: '' });
-                                                }
-                                            }}
-                                            className="p-2.5 border-2 border-green-400 bg-white text-green-700 hover:bg-green-50 hover:border-green-500 rounded-lg transition-all shadow-sm"
-                                            title={incident.status === 'resolved' ? 'Mark Closed' : 'Mark Resolved'}
-                                        >
-                                            {incident.status === 'resolved' ? (
-                                                <Lock className="w-5 h-5" />
-                                            ) : (
-                                                <CheckCircle className="w-5 h-5" />
-                                            )}
-                                        </button>
-                                    )}
-                                    <button
-                                        onClick={() => {
-                                            if (window.confirm('Are you sure you want to delete this incident?')) {
-                                                deleteMutation.mutate(incident.id);
-                                            }
-                                        }}
-                                        className="p-2.5 border-2 border-red-400 bg-white text-red-700 hover:bg-red-50 hover:border-red-500 rounded-lg transition-all shadow-sm"
-                                        title="Delete"
-                                    >
-                                        <Trash2 className="w-5 h-5" />
-                                    </button>
-                                </div>
+                    {lastPage > 1 && (
+                        <div className="flex flex-col items-center justify-between gap-4 rounded-2xl border border-slate-200/80 bg-white px-4 py-4 shadow-sm sm:flex-row sm:px-6">
+                            <p className="text-sm text-slate-600">
+                                Showing{' '}
+                                <span className="font-semibold text-slate-900">
+                                    {data?.from ?? (incidents.length ? (currentPage - 1) * PER_PAGE + 1 : 0)}
+                                </span>
+                                –
+                                <span className="font-semibold text-slate-900">
+                                    {data?.to ?? (currentPage - 1) * PER_PAGE + incidents.length}
+                                </span>{' '}
+                                of <span className="font-semibold text-slate-900">{totalIncidents}</span>
+                            </p>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    disabled={currentPage <= 1}
+                                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                                >
+                                    <ChevronLeft className="h-4 w-4" />
+                                    Previous
+                                </button>
+                                <span className="min-w-[5rem] text-center text-sm font-medium tabular-nums text-slate-600">
+                                    {currentPage} / {lastPage}
+                                </span>
+                                <button
+                                    type="button"
+                                    disabled={currentPage >= lastPage}
+                                    onClick={() => setCurrentPage((p) => Math.min(lastPage, p + 1))}
+                                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                                >
+                                    Next
+                                    <ChevronRight className="h-4 w-4" />
+                                </button>
                             </div>
-                        </Card>
-                    ))}
-                </div>
+                        </div>
+                    )}
+                </>
             )}
-
         </div>
     );
 }
