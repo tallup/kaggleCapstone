@@ -1,18 +1,15 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Users, Search, MapPin, Calendar, Pill } from 'lucide-react';
 import api from '../../services/api';
 import logger from '../../utils/logger';
-import Tooltip from '../../components/ui/Tooltip';
 import EntityCardShell, { EntityCardHeader } from '../../components/ui/EntityCardShell';
-import CardIconButton from '../../components/ui/CardIconButton';
 import DataPill from '../../components/ui/DataPill';
 import ResidentAvatarInline from '../../components/ui/ResidentAvatarInline';
 import { formatPacificCalendarMedium, formatPacificDateTimeShort } from '../../utils/pacificTime';
 
 export default function CaregiverMedicationsResidents() {
-    const navigate = useNavigate();
     const [search, setSearch] = React.useState('');
     const [debouncedSearch, setDebouncedSearch] = React.useState('');
     const [currentUser, setCurrentUser] = React.useState(null);
@@ -58,38 +55,42 @@ export default function CaregiverMedicationsResidents() {
         const branchName = resident?.branch?.name ?? 'Unassigned';
 
         return (
-            <EntityCardShell key={resident.id}>
-                <EntityCardHeader
-                    left={
-                        <div className="flex flex-wrap items-start gap-3">
-                            <ResidentAvatarInline resident={resident} className="h-10 w-10 text-xs" />
-                            <div className="space-y-2">
-                                <span className="font-mono text-xs font-bold tracking-wide text-slate-500">
-                                    #{resident.id}
-                                </span>
-                                <span
-                                    className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
-                                        isActive
-                                            ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
-                                            : 'border-amber-200 bg-amber-50 text-amber-800'
-                                    }`}
-                                >
-                                    {isActive ? 'Active' : 'Inactive'}
-                                </span>
+            <Link
+                key={resident.id}
+                to={`/medications/residents/${resident.id}`}
+                aria-label={fullName ? `View medications for ${fullName}` : 'View medications for this resident'}
+                className="block rounded-2xl text-left text-inherit no-underline outline-none focus-visible:ring-2 focus-visible:ring-[var(--theme-primary)] focus-visible:ring-offset-2"
+            >
+                <EntityCardShell className="cursor-pointer">
+                    <EntityCardHeader
+                        left={
+                            <div className="flex flex-wrap items-start gap-3">
+                                <ResidentAvatarInline resident={resident} className="h-10 w-10 text-xs" />
+                                <div className="space-y-2">
+                                    <span className="font-mono text-xs font-bold tracking-wide text-slate-500">
+                                        #{resident.id}
+                                    </span>
+                                    <span
+                                        className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                                            isActive
+                                                ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                                                : 'border-amber-200 bg-amber-50 text-amber-800'
+                                        }`}
+                                    >
+                                        {isActive ? 'Active' : 'Inactive'}
+                                    </span>
+                                </div>
                             </div>
-                        </div>
-                    }
-                    right={
-                        <Tooltip content="View medications" position="top">
-                            <CardIconButton
-                                variant="primary"
-                                icon={Pill}
-                                aria-label="View medications"
-                                onClick={() => navigate(`/medications/residents/${resident.id}`)}
-                            />
-                        </Tooltip>
-                    }
-                />
+                        }
+                        right={
+                            <span
+                                className="inline-flex rounded-lg border border-emerald-200/80 bg-emerald-50/80 p-2 text-[var(--theme-primary)]"
+                                aria-hidden
+                            >
+                                <Pill className="h-4 w-4" strokeWidth={2.25} />
+                            </span>
+                        }
+                    />
 
                 <h3 className="text-lg font-bold leading-snug text-slate-900 sm:text-xl">
                     {fullName || 'Unnamed Resident'}
@@ -112,7 +113,8 @@ export default function CaregiverMedicationsResidents() {
                 <p className="mt-4 text-xs text-slate-400">
                     Last updated {formatPacificDateTimeShort(resident.updated_at)}
                 </p>
-            </EntityCardShell>
+                </EntityCardShell>
+            </Link>
         );
     };
 
