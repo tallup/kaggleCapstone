@@ -7,6 +7,7 @@ use App\Models\ReminderEvent;
 use App\Models\FireDrill;
 use App\Models\Medication;
 use App\Models\MedicationAdministration;
+use App\Models\User;
 use App\Services\ReminderService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -48,10 +49,38 @@ class ReminderController extends BaseApiController
         $data = $this->validateReminder($request);
         $user = $request->user();
 
+        $assigneeUserId = $data['assignee_user_id'] ?? null;
+        unset($data['assignee_user_id']);
+
+        $reminderUserId = $user->id;
+        $facilityId = $user->facility_id;
+
+        if ($assigneeUserId !== null) {
+            $assignee = User::findOrFail($assigneeUserId);
+            $this->assertCanAssignReminderToUser(
+                $user,
+                $assignee,
+                isset($data['branch_id']) ? (int) $data['branch_id'] : null
+            );
+            $reminderUserId = $assignee->id;
+            if ($assignee->facility_id) {
+                $facilityId = $assignee->facility_id;
+            }
+        }
+
+        $clientMeta = $data['metadata'] ?? [];
+        if (! is_array($clientMeta)) {
+            $clientMeta = [];
+        }
+        if ($assigneeUserId !== null) {
+            $clientMeta['scheduled_by_user_id'] = $user->id;
+        }
+        $data['metadata'] = $clientMeta;
+
         $reminder = Reminder::create([
             ...$data,
-            'user_id' => $user->id,
-            'facility_id' => $user->facility_id,
+            'user_id' => $reminderUserId,
+            'facility_id' => $facilityId,
         ]);
 
         $this->reminderService->syncEvents($reminder);
@@ -226,6 +255,8 @@ class ReminderController extends BaseApiController
             'action_url' => ['nullable', 'string', 'max:255'],
             'metadata' => ['nullable', 'array'],
             'status' => ['nullable', Rule::in(['active', 'paused', 'completed', 'cancelled'])],
+            'branch_id' => ['nullable', 'integer', 'exists:branches,id'],
+            'assignee_user_id' => ['nullable', 'integer', 'exists:users,id'],
         ];
 
         $validated = $request->validate($rules);
@@ -252,6 +283,39 @@ class ReminderController extends BaseApiController
         }
 
         return $reminder;
+    }
+
+    private function assertCanAssignReminderToUser(User $auth, User $assignee, ?int $branchId): void
+    {
+        if ((int) $assignee->id === (int) $auth->id) {
+            return;
+        }
+
+        if (! $assignee->is_active) {
+            abort(422, 'Selected user is not active.');
+        }
+
+        if ($auth->role === 'super_admin') {
+            return;
+        }
+
+        if ($auth->facility_id && $assignee->facility_id
+            && (int) $auth->facility_id !== (int) $assignee->facility_id) {
+            abort(403, 'You can only schedule reminders for staff in your facility.');
+        }
+
+        $authBranch = $auth->assigned_branch_id ? (int) $auth->assigned_branch_id : null;
+        $assigneeBranch = $assignee->assigned_branch_id ? (int) $assignee->assigned_branch_id : null;
+
+        if (in_array($auth->role, ['caregiver', 'care_giver'], true)) {
+            if ($authBranch !== null && $assigneeBranch !== null && $authBranch !== $assigneeBranch) {
+                abort(403, 'You can only assign follow-ups to staff in your branch.');
+            }
+        }
+
+        if ($branchId !== null && $assigneeBranch !== null && $assigneeBranch !== $branchId) {
+            abort(422, 'Selected staff member is not assigned to this resident\'s branch.');
+        }
     }
 
     private function getActiveMedicationWindows($user): \Illuminate\Support\Collection

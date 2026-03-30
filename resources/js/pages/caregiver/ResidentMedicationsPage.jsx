@@ -17,6 +17,7 @@ import {
     getPacificDayIdentifier,
     getPacificParts,
     parsePacificDateString,
+    convertPacificLocalInputToISO,
 } from '../../utils/pacificTime';
 import {
     Pill,
@@ -587,6 +588,8 @@ export default function ResidentMedicationsPage() {
                                     <QuickAdminister 
                                         medication={medication}
                                         residentId={residentId}
+                                        residentName={residentDisplayName}
+                                        currentUser={currentUser}
                                         todayResidentAdminsQueryKey={todayResidentAdminsQueryKey}
                                         todayAdminData={todayAdminDataForRow}
                                         onSuccess={() => { 
@@ -1070,7 +1073,7 @@ function MedicationTimeBadges({ medication, activeTab, todayAdminData }) {
 }
 
 // Quick Administer Component
-function QuickAdminister({ medication, onSuccess, residentId, todayResidentAdminsQueryKey, todayAdminData }) {
+function QuickAdminister({ medication, onSuccess, residentId, residentName, currentUser, todayResidentAdminsQueryKey, todayAdminData }) {
     const queryClient = useQueryClient();
     const [status, setStatus] = useState('completed');
     const [submitting, setSubmitting] = useState(false);
@@ -1087,6 +1090,14 @@ function QuickAdminister({ medication, onSuccess, residentId, todayResidentAdmin
     const [nextWindowCountdown, setNextWindowCountdown] = useState('');
     const [upcomingScheduledDisplay, setUpcomingScheduledDisplay] = useState('');
     const [isMedicationPeriodActive, setIsMedicationPeriodActive] = useState(true);
+    const [prnFollowupOpen, setPrnFollowupOpen] = useState(false);
+    const [followupDate, setFollowupDate] = useState('');
+    const [followupTime, setFollowupTime] = useState('09:00');
+    const [assigneeUserId, setAssigneeUserId] = useState('');
+    const [followupComments, setFollowupComments] = useState('');
+    const [followupSubmitting, setFollowupSubmitting] = useState(false);
+    const [followupError, setFollowupError] = useState('');
+    const [lastAdministrationId, setLastAdministrationId] = useState(null);
 
     const closeDosageModal = React.useCallback(() => {
         if (submitting) return;
@@ -1102,9 +1113,40 @@ function QuickAdminister({ medication, onSuccess, residentId, todayResidentAdmin
         [medication.instructions]
     );
     const isPrnMedication = React.useMemo(
-        () => normalizedInstruction.includes('prn'),
+        () => normalizedInstruction.includes('prn') || normalizedInstruction.includes('as needed'),
         [normalizedInstruction]
     );
+
+    const openPrnFollowupModal = React.useCallback((administrationId) => {
+        const p = getPacificParts(getPacificNow());
+        const t = Date.UTC(p.year, p.month - 1, p.day + 1);
+        const d = new Date(t);
+        const nextStr = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+        setFollowupDate(nextStr);
+        setFollowupTime('09:00');
+        setAssigneeUserId(currentUser?.id != null ? String(currentUser.id) : '');
+        setFollowupComments('');
+        setFollowupError('');
+        setLastAdministrationId(administrationId ?? null);
+        setPrnFollowupOpen(true);
+    }, [currentUser]);
+
+    const { data: branchStaffPage } = useQuery({
+        queryKey: ['branch-users-prn-followup', medication.branch_id],
+        queryFn: async () => (await api.get('/users', { params: { branch_id: medication.branch_id, active_only: 'true', per_page: 100 } })).data,
+        enabled: prnFollowupOpen && Boolean(medication.branch_id),
+    });
+
+    const branchStaffOptions = React.useMemo(() => {
+        const rows = branchStaffPage?.data ?? [];
+        const mapped = Array.isArray(rows)
+            ? rows.map((u) => ({ value: String(u.id), label: u.name || u.email || `User ${u.id}` }))
+            : [];
+        if (mapped.length === 0 && currentUser?.id) {
+            return [{ value: String(currentUser.id), label: currentUser.name || currentUser.email || 'Current user' }];
+        }
+        return mapped;
+    }, [branchStaffPage, currentUser]);
 
     // Today's administrations for this medication (from parent single-resident query)
     const todayAdminDataResolved = todayAdminData ?? { data: [] };
@@ -1566,6 +1608,10 @@ function QuickAdminister({ medication, onSuccess, residentId, todayResidentAdmin
                                         }
 
                                         onSuccess?.();
+
+                                        if (isPrnMedication && status === 'completed' && realAdmin?.id) {
+                                            openPrnFollowupModal(realAdmin.id);
+                                        }
                                     } catch (e) {
                                         if (sharedKey) {
                                             queryClient.setQueryData(sharedKey, currentShared);
@@ -1581,6 +1627,127 @@ function QuickAdminister({ medication, onSuccess, residentId, todayResidentAdmin
                                 disabled={submitting}
                             >
                                 {submitting ? 'Saving...' : 'Confirm'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {prnFollowupOpen && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: 'rgba(0, 0, 0, 0.2)' }}>
+                    <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden border border-gray-200">
+                        <div className="px-5 py-3 border-b border-sky-100 bg-sky-50">
+                            <h3 className="text-lg font-semibold text-slate-800">Schedule Followup</h3>
+                            <p className="text-xs text-slate-600 mt-0.5">PRN dose recorded — optionally remind staff when to check back.</p>
+                        </div>
+                        <div className="px-5 py-4 space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    <span className="text-red-500">*</span> Schedule Date
+                                </label>
+                                <input
+                                    type="date"
+                                    value={followupDate}
+                                    onChange={(e) => setFollowupDate(e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
+                                    disabled={followupSubmitting}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    <span className="text-red-500">*</span> Schedule Time
+                                </label>
+                                <input
+                                    type="time"
+                                    value={followupTime}
+                                    onChange={(e) => setFollowupTime(e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
+                                    disabled={followupSubmitting}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    <span className="text-red-500">*</span> Schedule For
+                                </label>
+                                <Select
+                                    value={assigneeUserId}
+                                    onValueChange={setAssigneeUserId}
+                                    options={branchStaffOptions}
+                                    placeholder="Select staff member"
+                                    className="w-full"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Comments</label>
+                                <textarea
+                                    value={followupComments}
+                                    onChange={(e) => setFollowupComments(e.target.value)}
+                                    rows={3}
+                                    placeholder="Optional context for the follow-up..."
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
+                                    disabled={followupSubmitting}
+                                />
+                            </div>
+                            {followupError && (
+                                <p className="text-xs text-red-600">{followupError}</p>
+                            )}
+                        </div>
+                        <div className="flex justify-end gap-2 border-t px-5 py-4 bg-gray-50">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (!followupSubmitting) setPrnFollowupOpen(false);
+                                }}
+                                className="px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-white disabled:opacity-50"
+                                disabled={followupSubmitting}
+                            >
+                                Skip
+                            </button>
+                            <button
+                                type="button"
+                                onClick={async () => {
+                                    if (!followupDate || !followupTime) {
+                                        setFollowupError('Schedule date and time are required.');
+                                        return;
+                                    }
+                                    if (!assigneeUserId) {
+                                        setFollowupError('Choose who should receive this reminder.');
+                                        return;
+                                    }
+                                    setFollowupSubmitting(true);
+                                    setFollowupError('');
+                                    try {
+                                        const iso = convertPacificLocalInputToISO(`${followupDate}T${followupTime}`);
+                                        const medLabel = medication.name || medication.drug?.name || 'Medication';
+                                        await api.post('/reminders', {
+                                            title: `PRN follow-up: ${medLabel} — ${residentName || 'Resident'}`,
+                                            category: 'medication',
+                                            schedule_type: 'one_time',
+                                            due_at: iso,
+                                            description: followupComments.trim() || null,
+                                            channel: 'in_app',
+                                            branch_id: medication.branch_id,
+                                            assignee_user_id: parseInt(assigneeUserId, 10),
+                                            metadata: {
+                                                type: 'prn_followup',
+                                                resident_id: parseInt(residentId, 10),
+                                                medication_id: medication.id,
+                                                medication_administration_id: lastAdministrationId,
+                                            },
+                                            action_url: `/medications/residents/${residentId}`,
+                                        });
+                                        setPrnFollowupOpen(false);
+                                        setSuccessMessage((prev) => (prev ? `${prev} Follow-up scheduled.` : 'Follow-up scheduled.'));
+                                    } catch (err) {
+                                        const msg = err?.response?.data?.message || 'Could not schedule follow-up.';
+                                        setFollowupError(msg);
+                                    } finally {
+                                        setFollowupSubmitting(false);
+                                    }
+                                }}
+                                className="px-4 py-2 text-sm bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] rounded-lg hover:bg-[var(--theme-primary-hover)] disabled:cursor-not-allowed disabled:opacity-50"
+                                disabled={followupSubmitting}
+                            >
+                                {followupSubmitting ? 'Saving...' : 'Schedule'}
                             </button>
                         </div>
                     </div>
