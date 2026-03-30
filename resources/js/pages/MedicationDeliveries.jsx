@@ -485,7 +485,7 @@ export default function MedicationDeliveries() {
                                         <div className="flex flex-wrap items-center gap-2">
                                             <Truck className="h-5 w-5 shrink-0 text-[var(--theme-primary)]" />
                                             <span className="font-mono text-xs font-bold tracking-wide text-slate-500">
-                                                #{delivery.id}
+                                                {delivery.id}
                                             </span>
                                             {getTypeBadge(delivery.delivery_type)}
                                             <select

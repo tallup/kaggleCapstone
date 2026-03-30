@@ -172,7 +172,7 @@ export default function Branches() {
                     <div className="flex flex-wrap items-center gap-2">
                       <Building className="h-6 w-6 shrink-0 text-[var(--theme-primary)]" />
                       <span className="font-mono text-xs font-bold tracking-wide text-slate-500">
-                        #{b.id}
+                        {b.id}
                       </span>
                     </div>
                   }

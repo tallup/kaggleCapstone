@@ -174,7 +174,7 @@ export default function UsersPage() {
                             </div>
                             <div className="min-w-0 space-y-2">
                                 <span className="font-mono text-xs font-bold tracking-wide text-slate-500">
-                                    #{user.id}
+                                    {user.id}
                                 </span>
                                 <div className="flex flex-wrap gap-1.5">
                                     <span

@@ -237,7 +237,7 @@ export default function DeactivatedRecords() {
                                     </div>
                                     <div className="space-y-2">
                                         <span className="font-mono text-xs font-bold tracking-wide text-slate-500">
-                                            #{user.id}
+                                            {user.id}
                                         </span>
                                         <span className="inline-flex rounded-full border border-red-200 bg-red-50 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-red-800">
                                             Inactive

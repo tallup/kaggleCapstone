@@ -291,7 +291,7 @@ export default function Vitals() {
                                                 ) : null}
                                                 <div className="space-y-2">
                                                     <span className="font-mono text-xs font-bold tracking-wide text-slate-500">
-                                                        #{vital.id}
+                                                        {vital.id}
                                                     </span>
                                                 </div>
                                             </div>

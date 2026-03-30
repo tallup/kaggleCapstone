@@ -196,7 +196,7 @@ export default function LeaveRequests() {
                   left={
                     <div className="space-y-2">
                       <span className="font-mono text-xs font-bold tracking-wide text-slate-500">
-                        #{lr.id}
+                        {lr.id}
                       </span>
                       <span
                         className={`inline-flex rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
