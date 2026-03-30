@@ -47,6 +47,19 @@ import {
     getMedicationAdministrations,
 } from '../../utils/medicationSchedule';
 
+function getInitials(first = '', last = '') {
+    return `${first?.[0] ?? ''}${last?.[0] ?? ''}`.toUpperCase();
+}
+
+function getResidentAvatarInitials(resident, displayName) {
+    const fromFl = getInitials(resident?.first_name, resident?.last_name);
+    if (fromFl) return fromFl;
+    if (!displayName || displayName === 'Resident') return '';
+    const parts = displayName.trim().split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+    return displayName.slice(0, 2).toUpperCase();
+}
+
 const INSTRUCTION_DISPLAY_MAP = {
     'q.i.d': 'Four times a day',
     'q.i.d.': 'Four times a day',
@@ -190,7 +203,7 @@ export default function ResidentMedicationsPage() {
     });
 
     // Fetch medications for this resident
-    const { data, isLoading, isFetching: isMedsFetching, refetch: refetchMeds } = useQuery({
+    const { data, isLoading, refetch: refetchMeds } = useQuery({
         queryKey: ['resident-medications', residentId, activeOnly],
         queryFn: async () => {
             const response = await api.get('/medications', {
@@ -207,22 +220,16 @@ export default function ResidentMedicationsPage() {
         enabled: !!residentId,
     });
 
-    const handleManualSync = async () => {
-        // Trigger refetch for the resident list and medications
-        await Promise.all([
-            refetchMeds(),
-            queryClient.invalidateQueries(['medication-administrations']),
-        ]);
-        // Also fire a global sync if available (app.js often handles this)
-        window.dispatchEvent(new Event('online')); 
-    };
-
-
     const medicationsList = React.useMemo(() => data?.data ?? [], [data?.data]);
     const resident = residentData;
-    const residentName = resident 
-        ? [resident.first_name, resident.middle_names, resident.last_name].filter(Boolean).join(' ') 
-        : 'Resident';
+    const residentDisplayName = React.useMemo(() => {
+        if (!resident) return 'Resident';
+        const fromName = (resident.name || '').trim();
+        if (fromName) return fromName;
+        const fromParts = [resident.first_name, resident.middle_names, resident.last_name].filter(Boolean).join(' ').trim();
+        if (fromParts) return fromParts;
+        return 'Resident';
+    }, [resident]);
 
     const { activePeriodMedications, endedPeriodMedications } = React.useMemo(() => {
         const now = getPacificNow();
@@ -666,37 +673,50 @@ export default function ResidentMedicationsPage() {
         <div className="space-y-6">
             {/* Header Section */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4 min-w-0">
                     <button
                         onClick={() => navigate('/medications/residents')}
-                        className="p-2 hover:bg-gray-100 rounded-full transition-colors group"
+                        className="p-2 hover:bg-gray-100 rounded-full transition-colors group shrink-0"
                         title="Back to Residents"
                     >
                         <ArrowLeft className="w-5 h-5 text-gray-400 group-hover:text-[var(--theme-primary)]" />
                     </button>
-                    <div className="w-12 h-12 rounded-full bg-[var(--theme-primary)]/10 flex items-center justify-center">
-                        <User className="w-6 h-6 text-[var(--theme-primary)]" />
+                    <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full border border-gray-200 bg-gray-100 shadow-sm">
+                        {resident?.profile_image_url || resident?.profile_image ? (
+                            <img
+                                src={resident.profile_image_url || `/storage/${resident.profile_image}`}
+                                alt={residentDisplayName}
+                                className="h-full w-full object-cover"
+                                onError={(event) => {
+                                    event.currentTarget.style.display = 'none';
+                                    const next = event.currentTarget.nextElementSibling;
+                                    if (next) {
+                                        next.classList.remove('hidden');
+                                        next.classList.add('flex');
+                                    }
+                                }}
+                            />
+                        ) : null}
+                        <div
+                            className={`absolute inset-0 ${resident?.profile_image_url || resident?.profile_image ? 'hidden' : 'flex'} items-center justify-center bg-[var(--theme-primary)]/10 text-[var(--theme-primary)]`}
+                        >
+                            {getResidentAvatarInitials(resident, residentDisplayName) || <User className="w-6 h-6" />}
+                        </div>
                     </div>
-                    <div>
-                        <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Medications for {residentName}</h2>
+                    <div className="min-w-0">
+                        <h2 className="text-2xl font-bold text-gray-900 tracking-tight truncate">
+                            Medications for {residentDisplayName}
+                        </h2>
                         <p className="text-sm text-gray-500 font-medium">View and administer medications for this resident.</p>
                     </div>
                 </div>
                 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 shrink-0">
                     <div className="text-right hidden lg:block">
                         <p className="text-[10px] text-gray-400 uppercase font-bold tracking-widest">Today's Date</p>
                         <p className="text-sm font-semibold text-gray-700">{formatPacificDate(getPacificNow())}</p>
                     </div>
                     <div className="h-10 w-px bg-gray-100 hidden lg:block mx-1"></div>
-                    <button
-                        onClick={handleManualSync}
-                        disabled={isMedsFetching}
-                        className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm flex items-center gap-2 disabled:opacity-50"
-                    >
-                        <RefreshCw className={`w-4 h-4 ${isMedsFetching ? 'animate-spin text-[var(--theme-primary)]' : 'text-gray-400'}`} />
-                        {isMedsFetching ? 'Syncing...' : 'Sync Data'}
-                    </button>
 
                     <button
                         type="button"
