@@ -3,6 +3,7 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { LayoutDashboard, FileText, MessageSquare, LogOut } from 'lucide-react';
 import api from '../services/api';
+import PortalResidentHeader from './portal/PortalResidentHeader';
 
 const nav = [
   { name: 'Dashboard', path: '/portal', icon: LayoutDashboard },
@@ -44,36 +45,32 @@ export default function PortalLayout() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <header className="min-h-14 bg-white border-b border-gray-200 flex items-center justify-between gap-4 px-4 py-2 shrink-0">
-        <div className="min-w-0">
-          <Link to="/portal" className="text-lg font-semibold text-gray-900 block truncate">
-            Family Portal
-          </Link>
-          {(careSummary?.linked_resident_ids?.length ?? careSummary?.residents?.length) ? (
-            <p className="text-xs text-gray-500 truncate">
-              {careSummary?.residents?.length === 1
-                ? careSummary.residents[0].name
-                : careSummary?.residents?.length > 1
-                  ? `${careSummary.residents.length} residents`
-                  : careSummary?.linked_resident_ids?.length
-                    ? `${careSummary.linked_resident_ids.length} linked resident(s)`
-                    : null}
-            </p>
-          ) : null}
+      <header className="bg-white border-b border-gray-200 shadow-sm shrink-0">
+        <div className="flex items-center justify-between gap-4 px-4 py-3 max-w-[1600px] mx-auto w-full">
+          <div className="flex items-center gap-4 min-w-0 flex-1">
+            <Link
+              to="/portal"
+              className="hidden sm:flex flex-col shrink-0 border-r border-gray-200 pr-4"
+            >
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Family</span>
+              <span className="text-base font-bold text-[var(--theme-primary)] leading-tight">Portal</span>
+            </Link>
+            <PortalResidentHeader residents={careSummary?.residents ?? []} />
+          </div>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors shrink-0"
+          >
+            <LogOut className="w-4 h-4" />
+            <span className="hidden sm:inline">Sign out</span>
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={handleLogout}
-          className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors"
-        >
-          <LogOut className="w-4 h-4" />
-          Sign out
-        </button>
       </header>
       <div className="flex flex-1 overflow-hidden">
       <aside className="w-56 bg-white border-r border-gray-200 flex flex-col shrink-0">
         <div className="p-4 border-b border-gray-200">
-          <span className="text-sm text-gray-500">Menu</span>
+          <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">Navigate</span>
         </div>
         <nav className="p-2 flex-1 overflow-y-auto">
           {nav.map((item) => {

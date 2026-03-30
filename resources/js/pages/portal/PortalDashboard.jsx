@@ -3,7 +3,28 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
 import { format } from 'date-fns';
-import { FileText, Pill, Calendar, Heart, ChevronRight, MapPin, AlertCircle } from 'lucide-react';
+import { FileText, Pill, Calendar, Heart, ChevronRight, AlertCircle, Info } from 'lucide-react';
+import PortalPagination, { usePaginationState } from '../../components/portal/PortalPagination';
+
+const PREVIEW_PAGE = 6;
+
+function statusBadge(status) {
+  if (!status) return null;
+  const s = String(status).toLowerCase();
+  const cls =
+    s === 'completed' || s === 'pharmacy_administration_confirm'
+      ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+      : s === 'missed'
+        ? 'bg-amber-50 text-amber-900 border-amber-200'
+        : s === 'refused'
+          ? 'bg-rose-50 text-rose-800 border-rose-200'
+          : 'bg-gray-50 text-gray-700 border-gray-200';
+  return (
+    <span className={`inline-block rounded-full border px-2 py-0.5 text-[10px] font-medium capitalize ${cls}`}>
+      {s.replace(/_/g, ' ')}
+    </span>
+  );
+}
 
 export default function PortalDashboard() {
   const { data, isLoading } = useQuery({
@@ -14,6 +35,21 @@ export default function PortalDashboard() {
     },
   });
 
+  const residents = data?.residents ?? [];
+  const linkedIds = data?.linked_resident_ids;
+  const tLogs = data?.t_logs ?? [];
+  const meds = data?.medication_administrations ?? [];
+  const appointments = data?.appointments ?? [];
+  const vitals = data?.vitals_summary ?? [];
+  const notLinked = Array.isArray(linkedIds) ? linkedIds.length === 0 : residents.length === 0;
+
+  const notesPag = usePaginationState(tLogs.length, PREVIEW_PAGE);
+  const medsPag = usePaginationState(meds.length, PREVIEW_PAGE);
+  const apptPag = usePaginationState(appointments.length, PREVIEW_PAGE);
+  const vitalsPag = usePaginationState(vitals.length, PREVIEW_PAGE);
+
+  const dietaryNotes = residents.filter((r) => r.dietary_restrictions || r.special_instructions);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -22,193 +58,243 @@ export default function PortalDashboard() {
     );
   }
 
-  const residents = data?.residents ?? [];
-  const linkedIds = data?.linked_resident_ids;
-  const tLogs = data?.t_logs ?? [];
-  const meds = data?.medication_administrations ?? [];
-  const appointments = data?.appointments ?? [];
-  const vitals = data?.vitals_summary ?? [];
-  // Prefer server-linked IDs from ResidentContact; "residents" payload can be empty if FacilityScope hid them before the fix.
-  const notLinked = Array.isArray(linkedIds) ? linkedIds.length === 0 : residents.length === 0;
-
   return (
-    <div className="max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold text-gray-900 mb-2">Dashboard</h1>
-      <p className="text-gray-600 mb-6">Summary of care updates for your loved one(s).</p>
+    <div className="max-w-5xl mx-auto px-1">
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Dashboard</h1>
+        <p className="text-gray-600 mt-1">Recent activity and today&apos;s snapshot.</p>
+      </div>
 
       {notLinked ? (
-        <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 flex gap-3 text-sm text-amber-950">
+        <div className="mb-8 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 flex gap-3 text-sm text-amber-950">
           <AlertCircle className="w-5 h-5 shrink-0 text-amber-600" />
           <div>
             <p className="font-medium">No resident linked to this account yet</p>
             <p className="text-amber-900/90 mt-1">
-              Ask your care home to send a family portal invite to your email, or accept the invite link if you already received one. Until you are linked, medications and appointments will not appear here.
+              Ask your care home to send a family portal invite to your email, or accept the invite link if you already
+              received one. Until you are linked, medications and appointments will not appear here.
             </p>
           </div>
         </div>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 mb-8">
-          {residents.map((r) => (
-            <div
-              key={r.id}
-              className="flex gap-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
-            >
-              <div className="h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-gray-100">
-                {r.profile_image_url ? (
-                  <img src={r.profile_image_url} alt="" className="h-full w-full object-cover" />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center text-2xl font-semibold text-gray-400">
-                    {(r.first_name?.[0] || r.name?.[0] || '?').toUpperCase()}
-                  </div>
-                )}
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="font-semibold text-gray-900 truncate">{r.name}</p>
-                {(r.room || r.room_number) && (
-                  <p className="mt-1 flex items-center gap-1 text-sm text-gray-600">
-                    <MapPin className="w-3.5 h-3.5 shrink-0" />
-                    Room {r.room_number || r.room}
+      ) : dietaryNotes.length > 0 ? (
+        <div className="mb-8 rounded-xl border border-sky-100 bg-sky-50/80 px-4 py-3 flex gap-3 text-sm text-sky-950">
+          <Info className="w-5 h-5 shrink-0 text-sky-600 mt-0.5" />
+          <div className="space-y-2 min-w-0">
+            <p className="font-semibold text-sky-900">Care preferences & notes</p>
+            {dietaryNotes.map((r) => (
+              <div key={r.id} className="text-sky-900/90">
+                {residents.length > 1 && <span className="font-medium text-sky-950">{r.name}: </span>}
+                {r.dietary_restrictions && (
+                  <p>
+                    <span className="text-sky-800 font-medium">Diet: </span>
+                    {r.dietary_restrictions}
                   </p>
                 )}
-                {r.branch_name && <p className="text-sm text-gray-500">{r.branch_name}</p>}
-                {r.admission_date && (
-                  <p className="text-xs text-gray-400 mt-1">Admitted {r.admission_date}</p>
-                )}
-                {(r.dietary_restrictions || r.special_instructions) && (
-                  <div className="mt-2 text-xs text-gray-600 space-y-1">
-                    {r.dietary_restrictions ? (
-                      <p>
-                        <span className="font-medium text-gray-700">Diet: </span>
-                        {r.dietary_restrictions}
-                      </p>
-                    ) : null}
-                    {r.special_instructions ? (
-                      <p>
-                        <span className="font-medium text-gray-700">Notes: </span>
-                        {r.special_instructions}
-                      </p>
-                    ) : null}
-                  </div>
+                {r.special_instructions && (
+                  <p className="mt-0.5">
+                    <span className="text-sky-800 font-medium">Instructions: </span>
+                    {r.special_instructions}
+                  </p>
                 )}
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      )}
+      ) : null}
 
-      <div className="grid gap-6">
-        <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+      <div className="grid gap-6 lg:grid-cols-2">
+        <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 lg:col-span-2">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <FileText className="w-5 h-5" />
+            <h2 className="text-base font-semibold text-gray-900 flex items-center gap-2">
+              <FileText className="w-5 h-5 text-gray-500" />
               Recent care notes
             </h2>
-            <Link to="/portal/care-updates" className="text-sm text-[var(--theme-primary)] hover:underline flex items-center gap-1">
+            <Link
+              to="/portal/care-updates"
+              className="text-sm text-[var(--theme-primary)] hover:underline flex items-center gap-1 font-medium"
+            >
               View all <ChevronRight className="w-4 h-4" />
             </Link>
           </div>
           {tLogs.length === 0 ? (
             <p className="text-gray-500 text-sm">No recent care notes.</p>
           ) : (
-            <ul className="space-y-3">
-              {tLogs.slice(0, 5).map((t) => (
-                <li key={t.id} className="text-sm border-b border-gray-100 pb-2 last:border-0">
-                  <span className="text-gray-500">{t.reported_on ? format(new Date(t.reported_on), 'MMM d, h:mm a') : ''}</span>
-                  <p className="text-gray-900 mt-0.5">{t.summary || '—'}</p>
-                </li>
-              ))}
-            </ul>
+            <>
+              <ul className="divide-y divide-gray-100">
+                {notesPag.slice(tLogs).map((t) => (
+                  <li key={t.id} className="py-3 first:pt-0">
+                    <time className="text-xs font-medium text-gray-500">
+                      {t.reported_on ? format(new Date(t.reported_on), 'MMM d, yyyy · h:mm a') : ''}
+                    </time>
+                    <p className="text-gray-900 text-sm mt-1 leading-relaxed">{t.summary || '—'}</p>
+                    {t.type && <p className="text-xs text-gray-400 mt-1">Type: {t.type}</p>}
+                  </li>
+                ))}
+              </ul>
+              <PortalPagination
+                page={notesPag.page}
+                pageSize={PREVIEW_PAGE}
+                total={tLogs.length}
+                onPageChange={notesPag.setPage}
+              />
+            </>
           )}
         </section>
 
-        <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <Pill className="w-5 h-5" />
+            <h2 className="text-base font-semibold text-gray-900 flex items-center gap-2">
+              <Pill className="w-5 h-5 text-gray-500" />
               Today&apos;s medications
             </h2>
-            <Link to="/portal/care-updates" className="text-sm text-[var(--theme-primary)] hover:underline flex items-center gap-1">
+            <Link
+              to="/portal/care-updates"
+              className="text-sm text-[var(--theme-primary)] hover:underline flex items-center gap-1 font-medium"
+            >
               View all <ChevronRight className="w-4 h-4" />
             </Link>
           </div>
           {meds.length === 0 ? (
             <p className="text-gray-500 text-sm">No medications recorded for today.</p>
           ) : (
-            <ul className="space-y-2">
-              {meds.slice(0, 8).map((m, i) => (
-                <li key={i} className="text-sm flex justify-between gap-2">
-                  <span className="text-gray-900 min-w-0">
-                    {residents.length > 1 && (
-                      <span className="text-gray-500 block text-xs">
-                        {residents.find((x) => x.id === m.resident_id)?.name || 'Resident'}
-                      </span>
-                    )}
-                    {m.medication_name}
-                  </span>
-                  <span className="text-gray-500 shrink-0">{m.administered_at ? format(new Date(m.administered_at), 'h:mm a') : ''}</span>
-                </li>
-              ))}
-            </ul>
+            <>
+              <div className="overflow-x-auto rounded-lg border border-gray-100">
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      {residents.length > 1 && <th className="px-3 py-2">Resident</th>}
+                      <th className="px-3 py-2">Medication</th>
+                      <th className="px-3 py-2 text-right">Time</th>
+                      <th className="px-3 py-2 text-right">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {medsPag.slice(meds).map((m, i) => (
+                      <tr key={`${m.resident_id}-${m.administered_at}-${i}`} className="hover:bg-gray-50/80">
+                        {residents.length > 1 && (
+                          <td className="px-3 py-2.5 text-gray-600 whitespace-nowrap">
+                            {residents.find((x) => x.id === m.resident_id)?.name?.split(' ')[0] ?? '—'}
+                          </td>
+                        )}
+                        <td className="px-3 py-2.5 font-medium text-gray-900">{m.medication_name}</td>
+                        <td className="px-3 py-2.5 text-right text-gray-600 whitespace-nowrap">
+                          {m.administered_at ? format(new Date(m.administered_at), 'h:mm a') : '—'}
+                        </td>
+                        <td className="px-3 py-2.5 text-right">{statusBadge(m.status)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <PortalPagination
+                page={medsPag.page}
+                pageSize={PREVIEW_PAGE}
+                total={meds.length}
+                onPageChange={medsPag.setPage}
+              />
+            </>
           )}
         </section>
 
-        <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <Calendar className="w-5 h-5" />
+            <h2 className="text-base font-semibold text-gray-900 flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-gray-500" />
               Upcoming appointments
             </h2>
-            <Link to="/portal/care-updates" className="text-sm text-[var(--theme-primary)] hover:underline flex items-center gap-1">
+            <Link
+              to="/portal/care-updates"
+              className="text-sm text-[var(--theme-primary)] hover:underline flex items-center gap-1 font-medium"
+            >
               View all <ChevronRight className="w-4 h-4" />
             </Link>
           </div>
           {appointments.length === 0 ? (
             <p className="text-gray-500 text-sm">No upcoming appointments.</p>
           ) : (
-            <ul className="space-y-2">
-              {appointments.slice(0, 5).map((a) => (
-                <li key={a.id} className="text-sm border-b border-gray-50 pb-2 last:border-0 last:pb-0">
-                  <span className="font-medium text-gray-900">{a.title || a.appointment_type || 'Appointment'}</span>
-                  {a.status && (
-                    <span className="ml-2 rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600 capitalize">{a.status}</span>
-                  )}
-                  <div className="text-gray-600 mt-0.5">
-                    <span className="font-medium text-gray-800">{a.resident_name}</span>
-                    <span className="text-gray-500">
-                      {' '}
-                      — {a.appointment_date}
-                      {a.appointment_time ? ` at ${String(a.appointment_time).slice(0, 5)}` : ''}
-                    </span>
-                    {a.appointment_type && a.title !== a.appointment_type && (
-                      <span className="text-gray-500"> · {a.appointment_type}</span>
-                    )}
-                  </div>
-                  {a.provider_name && <span className="text-gray-500 text-xs">Provider: {a.provider_name}</span>}
-                  {a.location && <span className="text-gray-500 text-xs block">{a.location}</span>}
-                </li>
-              ))}
-            </ul>
+            <>
+              <ul className="space-y-3">
+                {apptPag.slice(appointments).map((a) => (
+                  <li key={a.id} className="rounded-lg border border-gray-100 bg-gray-50/50 p-3">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <p className="font-semibold text-gray-900">{a.title || a.appointment_type || 'Appointment'}</p>
+                      {a.status && statusBadge(a.status)}
+                    </div>
+                    <p className="text-sm text-gray-600 mt-1">
+                      {a.resident_name}
+                      <span className="text-gray-500">
+                        {' '}
+                        · {a.appointment_date}
+                        {a.appointment_time ? ` · ${String(a.appointment_time).slice(0, 5)}` : ''}
+                      </span>
+                    </p>
+                    {a.provider_name && <p className="text-xs text-gray-500 mt-1">Provider: {a.provider_name}</p>}
+                    {a.location && <p className="text-xs text-gray-500">{a.location}</p>}
+                  </li>
+                ))}
+              </ul>
+              <PortalPagination
+                page={apptPag.page}
+                pageSize={PREVIEW_PAGE}
+                total={appointments.length}
+                onPageChange={apptPag.setPage}
+              />
+            </>
           )}
         </section>
 
-        <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2 mb-4">
-            <Heart className="w-5 h-5" />
-            Recent vitals
-          </h2>
+        <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 lg:col-span-2">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-base font-semibold text-gray-900 flex items-center gap-2">
+              <Heart className="w-5 h-5 text-gray-500" />
+              Recent vitals
+            </h2>
+            <Link
+              to="/portal/care-updates"
+              className="text-sm text-[var(--theme-primary)] hover:underline flex items-center gap-1 font-medium"
+            >
+              View all <ChevronRight className="w-4 h-4" />
+            </Link>
+          </div>
           {vitals.length === 0 ? (
             <p className="text-gray-500 text-sm">No recent vitals.</p>
           ) : (
-            <ul className="space-y-2 text-sm">
-              {vitals.slice(0, 5).map((v, i) => (
-                <li key={i} className="text-gray-700">
-                  {v.recorded_at ? format(new Date(v.recorded_at), 'MMM d, h:mm a') : ''}
-                  {v.blood_pressure_systolic != null && ` — BP ${v.blood_pressure_systolic}/${v.blood_pressure_diastolic ?? '—'}`}
-                  {v.heart_rate != null && ` — HR ${v.heart_rate}`}
-                  {v.temperature != null && ` — Temp ${v.temperature}`}
-                </li>
-              ))}
-            </ul>
+            <>
+              <div className="overflow-x-auto rounded-lg border border-gray-100">
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      <th className="px-3 py-2">Recorded</th>
+                      <th className="px-3 py-2">BP</th>
+                      <th className="px-3 py-2">HR</th>
+                      <th className="px-3 py-2">Temp</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {vitalsPag.slice(vitals).map((v, i) => (
+                      <tr key={i} className="hover:bg-gray-50/80">
+                        <td className="px-3 py-2.5 text-gray-700 whitespace-nowrap">
+                          {v.recorded_at ? format(new Date(v.recorded_at), 'MMM d, h:mm a') : '—'}
+                        </td>
+                        <td className="px-3 py-2.5 text-gray-800">
+                          {v.blood_pressure_systolic != null
+                            ? `${v.blood_pressure_systolic}/${v.blood_pressure_diastolic ?? '—'}`
+                            : '—'}
+                        </td>
+                        <td className="px-3 py-2.5 text-gray-800">{v.heart_rate ?? '—'}</td>
+                        <td className="px-3 py-2.5 text-gray-800">{v.temperature ?? '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <PortalPagination
+                page={vitalsPag.page}
+                pageSize={PREVIEW_PAGE}
+                total={vitals.length}
+                onPageChange={vitalsPag.setPage}
+              />
+            </>
           )}
         </section>
       </div>
