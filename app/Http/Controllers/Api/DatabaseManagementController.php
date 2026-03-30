@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use App\Services\DatabaseBackupService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -14,13 +15,29 @@ use Carbon\Carbon;
 class DatabaseManagementController extends Controller
 {
     /**
+     * Super admin access may be stored on users.role or only on Spatie roles — keep checks in sync with User model.
+     */
+    private function canManageDatabase(?User $user): bool
+    {
+        if (! $user instanceof User) {
+            return false;
+        }
+
+        if (in_array($user->role, ['super_admin', 'administrator'], true)) {
+            return true;
+        }
+
+        return $user->hasRole('super_admin') || $user->hasRole('administrator');
+    }
+
+    /**
      * Get database statistics
      */
     public function stats(): JsonResponse
     {
         $user = Auth::user();
-        
-        if (!$user || ($user->role !== 'super_admin' && $user->role !== 'administrator')) {
+
+        if (! $this->canManageDatabase($user)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -65,7 +82,7 @@ class DatabaseManagementController extends Controller
     {
         $user = Auth::user();
 
-        if (! $user || ($user->role !== 'super_admin' && $user->role !== 'administrator')) {
+        if (! $this->canManageDatabase($user)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -95,8 +112,8 @@ class DatabaseManagementController extends Controller
     public function recentBackups(): JsonResponse
     {
         $user = Auth::user();
-        
-        if (!$user || ($user->role !== 'super_admin' && $user->role !== 'administrator')) {
+
+        if (! $this->canManageDatabase($user)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -135,8 +152,8 @@ class DatabaseManagementController extends Controller
     public function downloadBackup(Request $request, string $filename): \Symfony\Component\HttpFoundation\BinaryFileResponse|\Illuminate\Http\JsonResponse
     {
         $user = Auth::user();
-        
-        if (!$user || ($user->role !== 'super_admin' && $user->role !== 'administrator')) {
+
+        if (! $this->canManageDatabase($user)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -168,8 +185,8 @@ class DatabaseManagementController extends Controller
     public function restoreBackup(Request $request): JsonResponse
     {
         $user = Auth::user();
-        
-        if (!$user || ($user->role !== 'super_admin' && $user->role !== 'administrator')) {
+
+        if (! $this->canManageDatabase($user)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -235,8 +252,8 @@ class DatabaseManagementController extends Controller
     public function refreshData(): JsonResponse
     {
         $user = Auth::user();
-        
-        if (!$user || ($user->role !== 'super_admin' && $user->role !== 'administrator')) {
+
+        if (! $this->canManageDatabase($user)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 

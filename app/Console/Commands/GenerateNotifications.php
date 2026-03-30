@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
+use App\Services\NotificationService;
 use App\Models\Notification;
 use App\Models\Appointment;
 use App\Models\Medication;
@@ -35,23 +36,35 @@ class GenerateNotifications extends Command
     {
         $this->info('Generating notifications...');
 
-        // Generate appointment notifications
-        $appointmentsCreated = $this->generateAppointmentNotifications();
-        $this->info("Created {$appointmentsCreated} appointment notifications");
+        try {
+            // Generate appointment notifications
+            $appointmentsCreated = $this->generateAppointmentNotifications();
+            $this->info("Created {$appointmentsCreated} appointment notifications");
 
-        // Generate medication notifications
-        $medicationsCreated = $this->generateMedicationNotifications();
-        $this->info("Created {$medicationsCreated} medication notifications");
+            // Generate medication notifications
+            $medicationsCreated = $this->generateMedicationNotifications();
+            $this->info("Created {$medicationsCreated} medication notifications");
 
-        // Generate fire drill notifications
-        $fireDrillsCreated = $this->generateFireDrillNotifications();
-        $this->info("Created {$fireDrillsCreated} fire drill notifications");
+            // Generate fire drill notifications
+            $fireDrillsCreated = $this->generateFireDrillNotifications();
+            $this->info("Created {$fireDrillsCreated} fire drill notifications");
 
-        // Check for late medications and vital signs
-        $this->checkLateMedications();
-        $this->checkLateVitalSigns();
+            // Check for late medications and vital signs (requires container-resolved NotificationService)
+            $this->checkLateMedications();
+            $this->checkLateVitalSigns();
 
-        $this->info('Notification generation complete!');
+            $this->info('Notification generation complete!');
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('notifications:generate failed', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            $this->error($e->getMessage());
+
+            return Command::FAILURE;
+        }
 
         return Command::SUCCESS;
     }
@@ -71,8 +84,12 @@ class GenerateNotifications extends Command
             ->get();
 
         foreach ($appointments as $appointment) {
+            if (! $appointment->resident) {
+                continue;
+            }
+
             // Get assigned caregivers for this resident
-            $caregivers = $appointment->resident?->assignments
+            $caregivers = $appointment->resident->assignments
                 ->where('is_active', true)
                 ->pluck('caregiver')
                 ->filter();
@@ -149,8 +166,12 @@ class GenerateNotifications extends Command
             ->get();
 
         foreach ($medications as $medication) {
+            if (! $medication->resident) {
+                continue;
+            }
+
             // Get assigned caregivers for this resident
-            $caregivers = $medication->resident?->assignments
+            $caregivers = $medication->resident->assignments
                 ->where('is_active', true)
                 ->pluck('caregiver')
                 ->filter();
@@ -306,11 +327,12 @@ class GenerateNotifications extends Command
                     ->exists();
 
                 if (!$exists) {
+                    $branchLabel = $drill->branch?->name ?? 'Unknown branch';
                     \App\Models\Notification::create([
                         'user_id' => $user->id,
                         'type' => $type,
                         'title' => $title,
-                        'message' => "Fire drill scheduled for {$drill->branch->name} on {$drillDate} at {$drillTime}",
+                        'message' => "Fire drill scheduled for {$branchLabel} on {$drillDate} at {$drillTime}",
                         'icon' => 'alert-triangle',
                         'icon_color' => 'text-orange-600',
                         'action_url' => '/fire-drills',
@@ -333,7 +355,7 @@ class GenerateNotifications extends Command
      */
     private function checkLateMedications(): void
     {
-        $service = new \App\Services\NotificationService();
+        $service = app(NotificationService::class);
         $now = now();
 
         // Get active medications with scheduled times
@@ -350,6 +372,10 @@ class GenerateNotifications extends Command
             ->get();
 
         foreach ($medications as $medication) {
+            if (! $medication->resident) {
+                continue;
+            }
+
             $adminTimes = $this->getScheduledAdminTimes($medication);
             
             foreach ($adminTimes as $adminTime) {
@@ -431,7 +457,7 @@ class GenerateNotifications extends Command
      */
     private function checkLateVitalSigns(): void
     {
-        $service = new \App\Services\NotificationService();
+        $service = app(NotificationService::class);
         $now = now();
 
         // Get all active residents

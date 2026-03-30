@@ -164,10 +164,31 @@ export default function DatabaseSettings() {
     try {
       const response = await api.get(`/database/backup/${encodeURIComponent(filename)}`, {
         responseType: 'blob',
+        // Large SQL dumps; avoid default axios timeout cutting off the transfer
+        timeout: 600000,
+        headers: {
+          Accept: 'application/octet-stream, application/sql, */*',
+        },
       });
       const blob = response.data;
       if (!(blob instanceof Blob)) {
         throw new Error('Invalid response');
+      }
+      const contentType = (response.headers?.['content-type'] || '').toLowerCase();
+      if (contentType.includes('application/json')) {
+        const text = await blob.text();
+        try {
+          const parsed = JSON.parse(text);
+          throw new Error(parsed.message || 'Download failed');
+        } catch (e) {
+          if (e instanceof SyntaxError) {
+            throw new Error('Unexpected response when downloading backup');
+          }
+          throw e;
+        }
+      }
+      if (blob.size === 0) {
+        throw new Error('Downloaded file is empty');
       }
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -191,6 +212,8 @@ export default function DatabaseSettings() {
             message = 'Unauthorized. Please log in again.';
           } else if (error.response?.status === 403) {
             message = 'You do not have permission to download this backup.';
+          } else if (error.response?.status === 404) {
+            message = 'Backup file not found.';
           }
         }
       } else if (error.response?.data?.message) {
@@ -199,7 +222,11 @@ export default function DatabaseSettings() {
         message = error.message;
       }
       toast.showToast(message, 'error');
-      logger.error('Download error:', error);
+      logger.error('Download error', {
+        status: error.response?.status,
+        message: error.message,
+        filename,
+      });
     }
   };
 
