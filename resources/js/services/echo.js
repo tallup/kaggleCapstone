@@ -12,6 +12,7 @@ const reverbKey    = import.meta.env.VITE_REVERB_APP_KEY    || '';
 const reverbHost   = import.meta.env.VITE_REVERB_HOST       || 'localhost';
 const reverbPort   = parseInt(import.meta.env.VITE_REVERB_PORT   || '8080', 10);
 const reverbScheme = import.meta.env.VITE_REVERB_SCHEME     || 'http';
+const forceTLS     = reverbScheme === 'https';
 
 function getAuthToken() {
     return localStorage.getItem('auth_token');
@@ -36,10 +37,13 @@ export function initializeEcho() {
             broadcaster: 'reverb',
             key: reverbKey,
             wsHost: reverbHost,
-            wsPort: reverbPort,
-            wssPort: reverbPort,
-            forceTLS: reverbScheme === 'https',
+            // Non-TLS dev: wsPort; TLS prod (Nginx proxies 443 → Reverb): use same public port (usually 443)
+            wsPort: forceTLS ? (reverbPort || 443) : (reverbPort || 8080),
+            wssPort: reverbPort || 443,
+            forceTLS,
             enabledTransports: ['ws', 'wss'],
+            // Avoid Pusher analytics calls to third-party hosts (not used with Reverb)
+            disableStats: true,
             authEndpoint: '/api/v1/broadcasting/auth',
             auth: {
                 headers: {
