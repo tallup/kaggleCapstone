@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Database, Download, Upload, RefreshCw, HardDrive, Archive } from 'lucide-react';
+import { Database, Download, Upload, RefreshCw, HardDrive, Archive, Clock, Usb } from 'lucide-react';
 import api from '../../services/api';
 import logger from '../../utils/logger';
 import { useToastContext } from '../../contexts/ToastContext';
@@ -383,10 +383,21 @@ export default function DatabaseSettings() {
                 key={index}
                 className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50"
               >
-                <div className="flex-1">
-                  <div className="font-medium text-gray-900">{backup.filename}</div>                                                                            
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium text-gray-900 truncate">{backup.filename}</span>
+                    {backup.is_automatic ? (
+                      <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full border border-emerald-200 bg-emerald-50 text-emerald-800">
+                        Auto
+                      </span>
+                    ) : (
+                      <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full border border-slate-200 bg-slate-50 text-slate-700">
+                        Manual
+                      </span>
+                    )}
+                  </div>
                   <div className="text-sm text-gray-500">
-                    {new Date(backup.created_at).toLocaleString()} • {backup.size}                                                                              
+                    {new Date(backup.created_at).toLocaleString()} • {backup.size}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">

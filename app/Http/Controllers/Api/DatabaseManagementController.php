@@ -3,11 +3,11 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Services\DatabaseBackupService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Artisan;
 use Carbon\Carbon;
 
@@ -47,6 +47,11 @@ class DatabaseManagementController extends Controller
                     'database_size' => 'N/A',
                     'total_backups' => 0,
                     'storage_used' => 'N/A',
+                    'auto_backup_enabled' => (bool) config('backup.scheduled_enabled', true),
+                    'auto_backup_time' => config('backup.scheduled_time', '02:00'),
+                    'auto_backup_keep' => (int) config('backup.scheduled_keep', 30),
+                    'last_auto_backup_at' => null,
+                    'last_auto_backup_filename' => null,
                 ],
                 'error' => 'Unable to fetch statistics',
             ], 200);
@@ -54,84 +59,34 @@ class DatabaseManagementController extends Controller
     }
 
     /**
-     * Create a database backup
+     * Create a database backup (manual; filename prefix backup_, not pruned automatically)
      */
     public function createBackup(Request $request): JsonResponse
     {
         $user = Auth::user();
-        
-        if (!$user || ($user->role !== 'super_admin' && $user->role !== 'administrator')) {
+
+        if (! $user || ($user->role !== 'super_admin' && $user->role !== 'administrator')) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        try {
-            $timestamp = Carbon::now()->format('Y-m-d_H-i-s');
-            $filename = "backup_{$timestamp}.sql";
-            $backupPath = storage_path("app/backups/{$filename}");
+        $result = app(DatabaseBackupService::class)->createBackup(false);
 
-            // Ensure backups directory exists
-            if (!is_dir(storage_path('app/backups'))) {
-                mkdir(storage_path('app/backups'), 0755, true);
-            }
+        if (! ($result['success'] ?? false)) {
+            $status = ($result['message'] ?? '') === 'Database file not found' ? 404 : 500;
 
-            // Get database connection details
-            $connection = config('database.default');
-            $config = config("database.connections.{$connection}");
-
-            // Create backup using mysqldump or sqlite dump
-            if ($config['driver'] === 'mysql') {
-                $host = $config['host'] ?? 'localhost';
-                $database = $config['database'] ?? '';
-                $username = $config['username'] ?? '';
-                $password = $config['password'] ?? '';
-
-                $command = sprintf(
-                    'mysqldump -h %s -u %s -p%s %s > %s 2>&1',
-                    escapeshellarg($host),
-                    escapeshellarg($username),
-                    escapeshellarg($password),
-                    escapeshellarg($database),
-                    escapeshellarg($backupPath)
-                );
-                exec($command, $output, $returnVar);
-            } elseif ($config['driver'] === 'sqlite') {
-                // Handle both absolute paths and relative paths
-                $sourcePath = $config['database'];
-                if (!str_starts_with($sourcePath, '/')) {
-                    $sourcePath = database_path($sourcePath);
-                }
-                
-                if (file_exists($sourcePath)) {
-                    copy($sourcePath, $backupPath);
-                } else {
-                    return response()->json(['message' => 'Database file not found'], 404);
-                }
-            } else {
-                return response()->json(['message' => 'Unsupported database driver'], 400);
-            }
-
-            if (file_exists($backupPath)) {
-                $fileSize = filesize($backupPath);
-                
-                // Store backup metadata
-                $this->saveBackupMetadata($filename, $fileSize);
-
-                return response()->json([
-                    'message' => 'Backup created successfully',
-                    'data' => [
-                        'filename' => $filename,
-                        'size' => $this->formatBytes($fileSize),
-                        'created_at' => Carbon::now()->toIso8601String(),
-                    ],
-                ]);
-            } else {
-                return response()->json(['message' => 'Failed to create backup'], 500);
-            }
-        } catch (\Exception $e) {
             return response()->json([
-                'message' => 'Failed to create backup: ' . $e->getMessage(),
-            ], 500);
+                'message' => $result['message'] ?? 'Failed to create backup',
+            ], $status);
         }
+
+        return response()->json([
+            'message' => 'Backup created successfully',
+            'data' => [
+                'filename' => $result['filename'],
+                'size' => $result['size'],
+                'created_at' => $result['created_at'],
+            ],
+        ]);
     }
 
     /**
@@ -150,14 +105,15 @@ class DatabaseManagementController extends Controller
             $backups = [];
 
             if (is_dir($backupsDir)) {
-                $files = glob($backupsDir . '/backup_*.sql');
-                
+                $files = glob($backupsDir.'/backup_*.sql');
+
                 foreach ($files as $file) {
                     $filename = basename($file);
                     $backups[] = [
                         'filename' => $filename,
                         'size' => $this->formatBytes(filesize($file)),
                         'created_at' => Carbon::createFromTimestamp(filemtime($file))->toIso8601String(),
+                        'is_automatic' => str_starts_with($filename, 'backup_auto_'),
                     ];
                 }
 
@@ -187,8 +143,8 @@ class DatabaseManagementController extends Controller
         try {
             $backupPath = storage_path("app/backups/{$filename}");
 
-            // Security: Only allow backup files
-            if (!str_starts_with($filename, 'backup_') || !str_ends_with($filename, '.sql')) {
+            // Security: backup_*.sql includes manual (backup_2026-...) and automatic (backup_auto_...)
+            if (! str_starts_with($filename, 'backup_') || ! str_ends_with($filename, '.sql')) {
                 return response()->json(['message' => 'Invalid backup file'], 400);
             }
 
@@ -403,26 +359,5 @@ class DatabaseManagementController extends Controller
         return round($bytes, $precision) . ' ' . $units[$i];
     }
 
-    /**
-     * Save backup metadata
-     */
-    private function saveBackupMetadata(string $filename, int $size): void
-    {
-        // Store metadata in a JSON file
-        $metadataFile = storage_path('app/backups/metadata.json');
-        $metadata = [];
-
-        if (file_exists($metadataFile)) {
-            $metadata = json_decode(file_get_contents($metadataFile), true) ?: [];
-        }
-
-        $metadata[] = [
-            'filename' => $filename,
-            'size' => $size,
-            'created_at' => Carbon::now()->toIso8601String(),
-        ];
-
-        file_put_contents($metadataFile, json_encode($metadata, JSON_PRETTY_PRINT));
-    }
 }
 
