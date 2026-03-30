@@ -2,14 +2,15 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Models\ResidentContact;
-use App\Models\Resident;
-use App\Models\TLog;
-use App\Models\MedicationAdministration;
 use App\Models\Appointment;
+use App\Models\MedicationAdministration;
+use App\Models\Resident;
+use App\Models\ResidentContact;
+use App\Models\TLog;
 use App\Models\VitalSign;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class FamilyController extends Controller
@@ -20,7 +21,7 @@ class FamilyController extends Controller
     public function residents(Request $request): JsonResponse
     {
         $user = $request->user();
-        if (!$user || !$user->isFamily()) {
+        if (! $user || ! $user->isFamily()) {
             return response()->json(['message' => 'Unauthorized.'], 403);
         }
 
@@ -47,7 +48,7 @@ class FamilyController extends Controller
     public function careUpdates(Request $request): JsonResponse
     {
         $user = $request->user();
-        if (!$user || !$user->isFamily()) {
+        if (! $user || ! $user->isFamily()) {
             return response()->json(['message' => 'Unauthorized.'], 403);
         }
 
@@ -63,6 +64,22 @@ class FamilyController extends Controller
 
         $dateFrom = $request->get('date_from', now()->subDays(7)->format('Y-m-d'));
         $dateTo = $request->get('date_to', now()->format('Y-m-d'));
+
+        $tz = config('app.timezone');
+        // When the client omits date filters (family dashboard), keep T-logs on a 7-day window but
+        // only show medications for the facility's "today" — same as the dashboard card label.
+        // When date_from/date_to are sent (e.g. portal Care Updates), use that range for meds.
+        $explicitRange = $request->filled('date_from') || $request->filled('date_to');
+        if ($explicitRange) {
+            $medDateFrom = $request->get('date_from', $dateFrom);
+            $medDateTo = $request->get('date_to', $dateTo);
+        } else {
+            $today = now($tz)->toDateString();
+            $medDateFrom = $today;
+            $medDateTo = $today;
+        }
+        $medStart = Carbon::parse($medDateFrom, $tz)->startOfDay();
+        $medEnd = Carbon::parse($medDateTo, $tz)->endOfDay();
 
         $tLogs = TLog::whereIn('resident_id', $residentIds)
             ->whereBetween(DB::raw('DATE(reported_on)'), [$dateFrom, $dateTo])
@@ -81,7 +98,7 @@ class FamilyController extends Controller
 
         $medicationAdministrations = MedicationAdministration::with(['medication:id,name'])
             ->whereIn('resident_id', $residentIds)
-            ->whereDate('administered_at', now()->toDateString())
+            ->whereBetween('administered_at', [$medStart, $medEnd])
             ->orderBy('administered_at')
             ->limit(100)
             ->get()
