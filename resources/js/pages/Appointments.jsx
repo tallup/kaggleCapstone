@@ -521,8 +521,8 @@ export default function Appointments() {
                                     const nextAppt = getNextAppointment(resident.id);
                                     const age = calculateAge(resident.date_of_birth);
 
-                                    return (
-                                        <EntityCardShell key={resident.id}>
+                                    const cardContent = (
+                                        <>
                                             <EntityCardHeader
                                                 left={
                                                     <div className="flex min-w-0 items-start gap-3">
@@ -544,19 +544,13 @@ export default function Appointments() {
                                                 }
                                                 right={
                                                     canCreate ? (
-                                                        <Tooltip content="Schedule appointment">
-                                                            <Link
-                                                                to={`/appointments/create/${resident.id}`}
-                                                                onClick={(e) => {
-                                                                    e.preventDefault();
-                                                                    e.stopPropagation();
-                                                                    window.location.href = `/appointments/create/${resident.id}`;
-                                                                }}
-                                                                className="inline-flex rounded-lg border border-[var(--theme-primary)]/40 bg-[var(--theme-primary-bg)] p-2 shadow-sm transition hover:border-[var(--theme-primary)]/60 hover:bg-[var(--theme-primary-bg)]/80 [&_svg]:!text-[var(--theme-primary)]"
-                                                                aria-label="Schedule appointment"
+                                                        <Tooltip content="Add appointment">
+                                                            <span
+                                                                className="inline-flex rounded-lg border border-[var(--theme-primary)]/40 bg-[var(--theme-primary-bg)] p-2 shadow-sm [&_svg]:!text-[var(--theme-primary)]"
+                                                                aria-hidden
                                                             >
-                                                                <Calendar className="h-4 w-4" strokeWidth={2.5} />
-                                                            </Link>
+                                                                <Plus className="h-4 w-4" strokeWidth={2.5} />
+                                                            </span>
                                                         </Tooltip>
                                                     ) : null
                                                 }
@@ -625,6 +619,31 @@ export default function Appointments() {
                                                     </div>
                                                 </div>
                                             )}
+                                        </>
+                                    );
+
+                                    if (canCreate) {
+                                        return (
+                                            <Link
+                                                key={resident.id}
+                                                to={`/appointments/create/${resident.id}`}
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    window.location.href = `/appointments/create/${resident.id}`;
+                                                }}
+                                                className="block rounded-2xl text-inherit no-underline outline-none transition focus-visible:ring-2 focus-visible:ring-[var(--theme-primary)] focus-visible:ring-offset-2"
+                                                aria-label={`Add appointment for ${resident.first_name} ${resident.last_name}`}
+                                            >
+                                                <EntityCardShell className="h-full cursor-pointer">
+                                                    {cardContent}
+                                                </EntityCardShell>
+                                            </Link>
+                                        );
+                                    }
+
+                                    return (
+                                        <EntityCardShell key={resident.id}>
+                                            {cardContent}
                                         </EntityCardShell>
                                     );
                                 })}
