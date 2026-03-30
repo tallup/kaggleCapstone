@@ -12,6 +12,7 @@ import FormCheckbox from '../components/forms/FormCheckbox';
 import { useToastContext } from '../contexts/ToastContext';
 import ModuleProtectedRoute from '../components/ModuleProtectedRoute';
 import EmptyState from '../components/ui/EmptyState';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
 
 function ExpenseCategories() {
   const queryClient = useQueryClient();
@@ -42,8 +43,25 @@ function ExpenseCategories() {
     setEditing(null);
   };
 
-  if (showForm) {
-    return (
+  const categories = data?.data || [];
+
+  return (
+    <>
+      <ConfirmDialog
+        isOpen={deleteConfirmId != null}
+        onClose={() => !deleteMutation.isPending && setDeleteConfirmId(null)}
+        onConfirm={() => {
+          if (deleteConfirmId == null) return;
+          deleteMutation.mutate(deleteConfirmId, { onSuccess: () => setDeleteConfirmId(null) });
+        }}
+        title="Delete this category?"
+        description="This category will be permanently removed."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        isPending={deleteMutation.isPending}
+      />
+      {showForm ? (
       <div>
         <ExpenseCategoryForm
           record={editing}
@@ -51,12 +69,7 @@ function ExpenseCategories() {
           onSuccess={() => { handleCloseForm(); queryClient.invalidateQueries(['expense-categories']); }}
         />
       </div>
-    );
-  }
-
-  const categories = data?.data || [];
-
-  return (
+      ) : (
     <div>
       <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
@@ -150,7 +163,8 @@ function ExpenseCategories() {
                             <Edit className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() => window.confirm('Delete category?') && deleteMutation.mutate(category.id)}
+                            type="button"
+                            onClick={() => setDeleteConfirmId(category.id)}
                             className="p-2 bg-red-600 text-white hover:bg-red-700 rounded-lg transition-all"
                             title="Delete"
                           >
@@ -177,6 +191,8 @@ function ExpenseCategories() {
         </div>
       )}
     </div>
+      )}
+    </>
   );
 }
 

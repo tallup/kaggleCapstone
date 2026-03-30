@@ -109,7 +109,10 @@ export default function CaregiverChartsPage() {
                                     <div className="space-y-1 mt-1">
                                         <p className="text-xs text-gray-500 truncate">DOB: {resident.date_of_birth}</p>
                                         <p className="text-xs text-gray-500 truncate">Diagnosis: {resident.diagnosis || 'N/A'}</p>
-                                        <p className="text-xs text-gray-500 truncate">Physician: {resident.physician_name || 'N/A'}</p>
+                                        <p className="text-xs text-gray-500 truncate">
+                                            Physician:{' '}
+                                            {resident.primary_care_doctor || resident.physician_name || 'N/A'}
+                                        </p>
                                     </div>
                                 </div>
                             </div>

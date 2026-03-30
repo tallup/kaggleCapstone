@@ -5,6 +5,7 @@ import { format, startOfWeek, endOfWeek, addWeeks, subWeeks } from 'date-fns';
 import { Calendar, Plus, Edit, Trash2, ChevronLeft, ChevronRight, Clock, User, Building2 } from 'lucide-react';
 import SectionCard from '../../components/SectionCard';
 import EmptyState from '../../components/ui/EmptyState';
+import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import logger from '../../utils/logger';
 
 const SHIFT_TYPES = [
@@ -156,11 +157,22 @@ export default function StaffSchedule() {
       createMutation.mutate(payload);
     }
   };
-  const handleDelete = (shift) => {
-    if (window.confirm('Delete this shift?')) deleteMutation.mutate(shift.id);
-  };
-
   return (
+    <>
+      <ConfirmDialog
+        isOpen={deleteShiftId != null}
+        onClose={() => !deleteMutation.isPending && setDeleteShiftId(null)}
+        onConfirm={() => {
+          if (deleteShiftId == null) return;
+          deleteMutation.mutate(deleteShiftId, { onSuccess: () => setDeleteShiftId(null) });
+        }}
+        title="Delete this shift?"
+        description="This shift will be permanently removed."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        isPending={deleteMutation.isPending}
+      />
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
@@ -262,7 +274,7 @@ export default function StaffSchedule() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleDelete(s)}
+                          onClick={() => setDeleteShiftId(s.id)}
                           className="p-1.5 text-red-600 hover:bg-red-50 rounded ml-1"
                           aria-label="Delete"
                         >
@@ -386,5 +398,6 @@ export default function StaffSchedule() {
         </div>
       )}
     </div>
+    </>
   );
 }

@@ -7,6 +7,7 @@ import logger from '../utils/logger';
 import FormInput from '../components/forms/FormInput';
 import FormTextarea from '../components/forms/FormTextarea';
 import FormSelect from '../components/forms/FormSelect';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
 import { toast } from 'sonner';
 
 const TLOG_TYPES = [
@@ -29,6 +30,7 @@ export default function TLogForm({ tLog, onClose, onSuccess }) {
     const queryClient = useQueryClient();
     const [attachments, setAttachments] = useState([]);
     const [existingAttachments, setExistingAttachments] = useState([]);
+    const [attachmentDeleteId, setAttachmentDeleteId] = useState(null);
 
     const methods = useForm({
         defaultValues: {
@@ -214,11 +216,11 @@ export default function TLogForm({ tLog, onClose, onSuccess }) {
         mutationFn: async ({ tLogId, attachmentId }) => {
             return await api.delete(`/t-logs/${tLogId}/attachments/${attachmentId}`);
         },
-        onSuccess: () => {
+        onSuccess: (_data, variables) => {
             queryClient.invalidateQueries(['t-logs']);
             toast.success('Attachment deleted successfully');
-            // Remove from local state
-            setExistingAttachments(prev => prev.filter(a => a.id !== attachmentId));
+            const removedId = variables.attachmentId;
+            setExistingAttachments((prev) => prev.filter((a) => a.id !== removedId));
         },
         onError: (error) => {
             logger.error('Error deleting attachment:', error);
@@ -236,10 +238,12 @@ export default function TLogForm({ tLog, onClose, onSuccess }) {
         setAttachments(prev => prev.filter((_, i) => i !== index));
     };
 
-    const removeExistingAttachment = (attachmentId) => {
-        if (window.confirm('Are you sure you want to delete this attachment?')) {
-            deleteAttachmentMutation.mutate({ tLogId: tLog.id, attachmentId });
-        }
+    const handleConfirmAttachmentDelete = () => {
+        if (attachmentDeleteId == null || !tLog?.id) return;
+        deleteAttachmentMutation.mutate(
+            { tLogId: tLog.id, attachmentId: attachmentDeleteId },
+            { onSuccess: () => setAttachmentDeleteId(null) }
+        );
     };
 
     const handleSubmit = (data) => {
@@ -287,6 +291,18 @@ export default function TLogForm({ tLog, onClose, onSuccess }) {
     const users = usersData?.data || [];
 
     return (
+        <>
+            <ConfirmDialog
+                isOpen={attachmentDeleteId != null}
+                onClose={() => !deleteAttachmentMutation.isPending && setAttachmentDeleteId(null)}
+                onConfirm={handleConfirmAttachmentDelete}
+                title="Delete this attachment?"
+                description="The file will be permanently removed from this progress note."
+                confirmLabel="Delete"
+                cancelLabel="Cancel"
+                variant="danger"
+                isPending={deleteAttachmentMutation.isPending}
+            />
         <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-4">
@@ -451,7 +467,7 @@ export default function TLogForm({ tLog, onClose, onSuccess }) {
                                         </div>
                                         <button
                                             type="button"
-                                            onClick={() => removeExistingAttachment(attachment.id)}
+                                            onClick={() => setAttachmentDeleteId(attachment.id)}
                                             className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                         >
                                             <Trash2 className="w-4 h-4" />
@@ -533,5 +549,6 @@ export default function TLogForm({ tLog, onClose, onSuccess }) {
                 </form>
             </FormProvider>
         </div>
+        </>
     );
 }

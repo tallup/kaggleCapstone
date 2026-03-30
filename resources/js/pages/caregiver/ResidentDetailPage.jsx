@@ -463,7 +463,9 @@ export default function ResidentDetailPage() {
                             <DefinitionItem label="Preferred Name">{resident.name || fullName}</DefinitionItem>
                             <DefinitionItem label="Gender">{resident.gender || 'N/A'}</DefinitionItem>
                             <DefinitionItem label="Status">{resident.status || statusBadge.label}</DefinitionItem>
-                            <DefinitionItem label="Physician">{resident.physician_name || 'Not documented'}</DefinitionItem>
+                            <DefinitionItem label="Physician">
+                                {resident.primary_care_doctor || resident.physician_name || 'Not documented'}
+                            </DefinitionItem>
                             <DefinitionItem label="Primary Diagnosis">{resident.diagnosis || 'Not documented'}</DefinitionItem>
                             <DefinitionItem label="Allergies">
                                 {allergies.length ? allergies.join(', ') : 'No allergies recorded'}

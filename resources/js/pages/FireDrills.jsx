@@ -12,6 +12,7 @@ import Select from '../components/ui/radix/Select';
 import FormInput from '../components/forms/FormInput';
 import FormTextarea from '../components/forms/FormTextarea';
 import FormSelect from '../components/forms/FormSelect';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
 
 export default function FireDrills() {
     const queryClient = useQueryClient();
@@ -24,6 +25,8 @@ export default function FireDrills() {
     const [showForm, setShowForm] = useState(false);
     const [editing, setEditing] = useState(null);
     const [currentUser, setCurrentUser] = useState(null);
+    /** { type: 'delete' | 'complete' | 'cancel', id: number } | null */
+    const [fireConfirm, setFireConfirm] = useState(null);
 
     // Fetch current user
     React.useEffect(() => {
@@ -132,23 +135,27 @@ export default function FireDrills() {
         );
     }, [drills, search]);
 
-    const handleDelete = (id) => {
-        if (window.confirm('Are you sure you want to delete this fire drill?')) {
-            deleteMutation.mutate(id);
+    const fireConfirmPending =
+        deleteMutation.isPending || markCompleteMutation.isPending || cancelMutation.isPending;
+
+    const handleFireConfirm = () => {
+        if (!fireConfirm) return;
+        const done = () => setFireConfirm(null);
+        const { id } = fireConfirm;
+        if (fireConfirm.type === 'delete') {
+            deleteMutation.mutate(id, { onSuccess: done });
+        } else if (fireConfirm.type === 'complete') {
+            markCompleteMutation.mutate(id, { onSuccess: done });
+        } else if (fireConfirm.type === 'cancel') {
+            cancelMutation.mutate(id, { onSuccess: done });
         }
     };
 
-    const handleMarkComplete = (id) => {
-        if (window.confirm('Mark this fire drill as complete?')) {
-            markCompleteMutation.mutate(id);
-        }
-    };
+    const handleDelete = (id) => setFireConfirm({ type: 'delete', id });
 
-    const handleCancel = (id) => {
-        if (window.confirm('Cancel this fire drill? This action cannot be undone.')) {
-            cancelMutation.mutate(id);
-        }
-    };
+    const handleMarkComplete = (id) => setFireConfirm({ type: 'complete', id });
+
+    const handleCancel = (id) => setFireConfirm({ type: 'cancel', id });
 
     const handleCloseForm = () => {
         setShowForm(false);
@@ -200,27 +207,59 @@ export default function FireDrills() {
         ).slice(0, 3);
     }, [filteredDrills]);
 
-    if (showForm) {
-        return (
-            <div>
-                <FireDrillForm
-                    record={editing}
-                    branches={branches}
-                    isCaregiver={isCaregiver}
-                    caregiverBranchId={currentUser?.assigned_branch_id}
-                    onClose={handleCloseForm}
-                    onSuccess={() => {
-                        handleCloseForm();
-                        queryClient.invalidateQueries(['fire-drills']);
-                        queryClient.invalidateQueries(['reminders', 'upcoming']);
-                    }}
-                />
-            </div>
-        );
-    }
-
+    const fireConfirmCopy =
+        fireConfirm?.type === 'delete'
+            ? {
+                  title: 'Delete this fire drill?',
+                  description: 'This fire drill will be permanently removed.',
+                  confirmLabel: 'Delete',
+                  variant: 'danger',
+              }
+            : fireConfirm?.type === 'complete'
+              ? {
+                    title: 'Mark fire drill complete?',
+                    description: 'This will record the drill as completed.',
+                    confirmLabel: 'Mark complete',
+                    variant: 'primary',
+                }
+              : fireConfirm?.type === 'cancel'
+                ? {
+                      title: 'Cancel this fire drill?',
+                      description: 'This action cannot be undone.',
+                      confirmLabel: 'Cancel drill',
+                      variant: 'danger',
+                  }
+                : { title: '', description: '', confirmLabel: 'Confirm', variant: 'neutral' };
 
     return (
+        <>
+            <ConfirmDialog
+                isOpen={fireConfirm != null}
+                onClose={() => !fireConfirmPending && setFireConfirm(null)}
+                onConfirm={handleFireConfirm}
+                title={fireConfirmCopy.title}
+                description={fireConfirmCopy.description}
+                confirmLabel={fireConfirmCopy.confirmLabel}
+                cancelLabel="Back"
+                variant={fireConfirmCopy.variant}
+                isPending={fireConfirmPending}
+            />
+            {showForm ? (
+                <div>
+                    <FireDrillForm
+                        record={editing}
+                        branches={branches}
+                        isCaregiver={isCaregiver}
+                        caregiverBranchId={currentUser?.assigned_branch_id}
+                        onClose={handleCloseForm}
+                        onSuccess={() => {
+                            handleCloseForm();
+                            queryClient.invalidateQueries(['fire-drills']);
+                            queryClient.invalidateQueries(['reminders', 'upcoming']);
+                        }}
+                    />
+                </div>
+            ) : (
         <div>
             <SectionCard>
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
@@ -498,22 +537,9 @@ export default function FireDrills() {
                     </div>
                 )}
             </SectionCard>
-
-            {showForm && (
-                <FireDrillForm
-                    record={editing}
-                    branches={branches}
-                    isCaregiver={isCaregiver}
-                    caregiverBranchId={currentUser?.assigned_branch_id}
-                    onClose={handleCloseForm}
-                    onSuccess={() => {
-                        queryClient.invalidateQueries(['fire-drills']);
-                        queryClient.invalidateQueries(['reminders', 'upcoming']);
-                        handleCloseForm();
-                    }}
-                />
-            )}
         </div>
+            )}
+        </>
     );
 }
 

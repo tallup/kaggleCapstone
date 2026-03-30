@@ -4,6 +4,7 @@ import api from '../services/api';
 import { Shield, Plus, Edit, Trash2 } from 'lucide-react';
 import FacilityPermissions from './FacilityPermissions';
 import logger from '../utils/logger';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
 
 export default function Roles() {
   const queryClient = useQueryClient();
@@ -45,6 +46,8 @@ export default function Roles() {
     mutationFn: async (id) => api.delete(`/roles/${id}`),
     onSuccess: () => queryClient.invalidateQueries(['roles']),
   });
+
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
   // For facility admin, load their facility using useQuery
   const { data: facilityData, isLoading: facilityLoading, error: facilityError } = useQuery({
@@ -120,6 +123,21 @@ export default function Roles() {
   }
 
   return (
+    <>
+      <ConfirmDialog
+        isOpen={deleteConfirmId != null}
+        onClose={() => !deleteMutation.isPending && setDeleteConfirmId(null)}
+        onConfirm={() => {
+          if (deleteConfirmId == null) return;
+          deleteMutation.mutate(deleteConfirmId, { onSuccess: () => setDeleteConfirmId(null) });
+        }}
+        title="Delete this role?"
+        description="Users assigned this role may be affected."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        isPending={deleteMutation.isPending}
+      />
     <div>
       <div className="bg-white rounded-lg shadow p-6 mb-6">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
@@ -150,7 +168,7 @@ export default function Roles() {
                   </div>
                   <div className="flex space-x-2">
                     <button onClick={() => { setEditing(role); setShowForm(true); }} className="p-2 text-[var(--theme-primary)] hover:bg-green-50 rounded-lg" title="Edit"><Edit className="w-4 h-4" /></button>
-                    <button onClick={() => window.confirm('Delete role?') && deleteMutation.mutate(role.id)} className="p-2 text-[var(--theme-secondary)] hover:bg-amber-50 rounded-lg" title="Delete"><Trash2 className="w-4 h-4" /></button>
+                    <button type="button" onClick={() => setDeleteConfirmId(role.id)} className="p-2 text-[var(--theme-secondary)] hover:bg-amber-50 rounded-lg" title="Delete"><Trash2 className="w-4 h-4" /></button>
                   </div>
                 </div>
               </div>
@@ -173,6 +191,7 @@ export default function Roles() {
         />
       )}
     </div>
+    </>
   );
 }
 

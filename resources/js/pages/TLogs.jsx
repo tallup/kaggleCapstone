@@ -4,6 +4,8 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Plus, Edit, Trash2, Eye, X, FileText, Calendar, User, Search, Filter, ArrowLeft, AlertTriangle, ExternalLink, Download } from 'lucide-react';
 import api from '../services/api';
 import Card from '../components/Card';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
+import Tooltip from '../components/ui/Tooltip';
 import { toast } from 'sonner';
 import TLogForm from './TLogForm';
 import logger from '../utils/logger';
@@ -32,6 +34,7 @@ export default function TLogs() {
     const [showForm, setShowForm] = useState(false);
     const [showViewModal, setShowViewModal] = useState(false);
     const [selectedTLog, setSelectedTLog] = useState(null);
+    const [deleteConfirmId, setDeleteConfirmId] = useState(null);
     const [filters, setFilters] = useState({
         type: searchParams.get('type') || 'all',
         notification_level: searchParams.get('notification_level') || 'all',
@@ -212,10 +215,9 @@ export default function TLogs() {
         setSelectedTLog(null);
     };
 
-    const handleDelete = (id) => {
-        if (window.confirm('Are you sure you want to delete this progress note?')) {
-            deleteMutation.mutate(id);
-        }
+    const handleConfirmDelete = () => {
+        if (deleteConfirmId == null) return;
+        deleteMutation.mutate(deleteConfirmId, { onSuccess: () => setDeleteConfirmId(null) });
     };
 
     const canModifyProgressNotes = !isCaregiver;
@@ -281,6 +283,18 @@ export default function TLogs() {
     }
 
     return (
+        <>
+            <ConfirmDialog
+                isOpen={deleteConfirmId != null}
+                onClose={() => !deleteMutation.isPending && setDeleteConfirmId(null)}
+                onConfirm={handleConfirmDelete}
+                title="Delete this progress note?"
+                description="This action cannot be undone."
+                confirmLabel="Delete"
+                cancelLabel="Cancel"
+                variant="danger"
+                isPending={deleteMutation.isPending}
+            />
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <h1 className="text-2xl font-bold text-gray-900">Progress notes</h1>
@@ -444,30 +458,39 @@ export default function TLogs() {
                                     </div>
                                 </div>
 
-                                <div className="flex gap-2 ml-4">
-                                    <button
-                                        onClick={() => handleView(tLog)}
-                                        className="p-2.5 border-2 border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400 rounded-lg transition-all shadow-sm"
-                                        title="View"
-                                    >
-                                        <Eye className="w-5 h-5" />
-                                    </button>
+                                <div className="ml-4 flex gap-2">
+                                    <Tooltip content="View" position="top">
+                                        <button
+                                            type="button"
+                                            onClick={() => handleView(tLog)}
+                                            className="rounded-lg border-2 border-gray-300 bg-white p-2.5 text-gray-700 shadow-sm transition-all hover:border-gray-400 hover:bg-gray-50"
+                                            aria-label="View progress note"
+                                        >
+                                            <Eye className="h-5 w-5 !text-slate-700" strokeWidth={2.5} />
+                                        </button>
+                                    </Tooltip>
                                     {canModifyProgressNotes && (
                                         <>
-                                            <button
-                                                onClick={() => handleOpenForm(tLog)}
-                                                className="p-2.5 border-2 border-[var(--theme-primary)] bg-white text-[var(--theme-primary)] hover:bg-[var(--theme-primary-bg)] hover:border-[var(--theme-primary-dark)] rounded-lg transition-all shadow-sm"
-                                                title="Edit"
-                                            >
-                                                <Edit className="w-5 h-5" />
-                                            </button>
-                                            <button
-                                                onClick={() => handleDelete(tLog.id)}
-                                                className="p-2.5 border-2 border-red-400 bg-white text-red-700 hover:bg-red-50 hover:border-red-500 rounded-lg transition-all shadow-sm"
-                                                title="Delete"
-                                            >
-                                                <Trash2 className="w-5 h-5" />
-                                            </button>
+                                            <Tooltip content="Edit" position="top">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleOpenForm(tLog)}
+                                                    className="rounded-lg border-2 border-gray-300 bg-white p-2.5 text-[var(--theme-primary)] shadow-sm transition-all hover:border-[var(--theme-primary-dark)] hover:bg-[var(--theme-primary-bg)]"
+                                                    aria-label="Edit progress note"
+                                                >
+                                                    <Edit className="h-5 w-5 !text-emerald-700" strokeWidth={2.5} />
+                                                </button>
+                                            </Tooltip>
+                                            <Tooltip content="Delete" position="top">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setDeleteConfirmId(tLog.id)}
+                                                    className="rounded-lg border-2 border-red-400 bg-white p-2.5 text-red-700 shadow-sm transition-all hover:border-red-500 hover:bg-red-50"
+                                                    aria-label="Delete progress note"
+                                                >
+                                                    <Trash2 className="h-5 w-5 !text-red-700" strokeWidth={2.5} />
+                                                </button>
+                                            </Tooltip>
                                         </>
                                     )}
                                 </div>
@@ -501,6 +524,7 @@ export default function TLogs() {
             )}
 
         </div>
+        </>
     );
 }
 

@@ -9,6 +9,7 @@ import FormInput from '../components/forms/FormInput';
 import FormSelect from '../components/forms/FormSelect';
 import FormTextarea from '../components/forms/FormTextarea';
 import { useToastContext } from '../contexts/ToastContext';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
 
 export default function VitalRanges() {
   const queryClient = useQueryClient();
@@ -50,8 +51,23 @@ export default function VitalRanges() {
     setEditing(null);
   };
 
-  if (showForm) {
-    return (
+  return (
+    <>
+      <ConfirmDialog
+        isOpen={deleteConfirmId != null}
+        onClose={() => !deleteMutation.isPending && setDeleteConfirmId(null)}
+        onConfirm={() => {
+          if (deleteConfirmId == null) return;
+          deleteMutation.mutate(deleteConfirmId, { onSuccess: () => setDeleteConfirmId(null) });
+        }}
+        title="Delete this vital range?"
+        description="This reference range will be permanently removed."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        isPending={deleteMutation.isPending}
+      />
+      {showForm ? (
       <div>
         <RangeForm
           record={editing}
@@ -59,10 +75,7 @@ export default function VitalRanges() {
           onSuccess={() => { handleCloseForm(); queryClient.invalidateQueries(['vital-ranges']); }}
         />
       </div>
-    );
-  }
-
-  return (
+      ) : (
     <div>
       <div className="bg-white rounded-lg shadow p-6 mb-6">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
@@ -116,7 +129,8 @@ export default function VitalRanges() {
                       )}
                       {canDelete && (
                         <button 
-                          onClick={() => window.confirm('Delete range?') && deleteMutation.mutate(r.id)} 
+                          type="button"
+                          onClick={() => setDeleteConfirmId(r.id)} 
                           className="p-2.5 rounded-lg border-2 border-red-500 bg-red-50 text-red-700 hover:bg-red-500 hover:text-white hover:border-red-600 transition-all shadow-sm hover:shadow-md"
                           title="Delete"
                         >
@@ -138,6 +152,8 @@ export default function VitalRanges() {
         </div>
       )}
     </div>
+      )}
+    </>
   );
 }
 

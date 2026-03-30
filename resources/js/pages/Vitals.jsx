@@ -8,6 +8,8 @@ import { Activity, User, Heart, Plus, Thermometer, Droplet, Edit, Trash2, Chevro
 import { getLocalDateString } from '../utils/pacificTime';
 import { TableSkeleton, ListSkeleton } from '../components/ui/SkeletonLoader';
 import EmptyState from '../components/ui/EmptyState';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
+import Tooltip from '../components/ui/Tooltip';
 import { useToastContext } from '../contexts/ToastContext';
 import BranchSelector from '../components/BranchSelector';
 
@@ -173,6 +175,18 @@ export default function Vitals() {
     }
 
     return (
+        <>
+            <ConfirmDialog
+                isOpen={deleteConfirmId != null}
+                onClose={() => !deleteMutation.isPending && setDeleteConfirmId(null)}
+                onConfirm={handleConfirmDelete}
+                title="Delete vital sign record?"
+                description="This record will be permanently removed."
+                confirmLabel="Delete"
+                cancelLabel="Cancel"
+                variant="danger"
+                isPending={deleteMutation.isPending}
+            />
         <div className="space-y-6">
             <BranchSelector currentUser={currentUser} />
             <div className="bg-white rounded-lg shadow p-6 mb-6">
@@ -272,29 +286,31 @@ export default function Vitals() {
                                         </div>
                                         <div className="flex space-x-2">
                                             {canEdit && (
-                                                <button
-                                                    onClick={() => {
-                                                        setEditing(vital);
-                                                        setShowForm(true);
-                                                    }}
-                                                    className="p-2 text-[var(--theme-primary)] hover:bg-green-50 rounded-lg transition-colors"
-                                                    title="Edit"
-                                                >
-                                                    <Edit className="w-4 h-4" />
-                                                </button>
+                                                <Tooltip content="Edit" position="top">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setEditing(vital);
+                                                            setShowForm(true);
+                                                        }}
+                                                        className="rounded-lg border border-emerald-200 bg-emerald-50/80 p-2 transition-colors hover:bg-emerald-100"
+                                                        aria-label="Edit vital sign"
+                                                    >
+                                                        <Edit className="h-4 w-4 !text-emerald-700" strokeWidth={2.5} />
+                                                    </button>
+                                                </Tooltip>
                                             )}
                                             {canDelete && (
-                                                <button
-                                                    onClick={() => {
-                                                        if (window.confirm('Are you sure you want to delete this vital sign record?')) {
-                                                            deleteMutation.mutate(vital.id);
-                                                        }
-                                                    }}
-                                                    className="p-2 text-[var(--theme-secondary)] hover:bg-amber-50 rounded-lg transition-colors"
-                                                    title="Delete"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
+                                                <Tooltip content="Delete" position="top">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setDeleteConfirmId(vital.id)}
+                                                        className="rounded-lg border border-red-200 bg-red-50/80 p-2 transition-colors hover:bg-red-100"
+                                                        aria-label="Delete vital sign"
+                                                    >
+                                                        <Trash2 className="h-4 w-4 !text-red-700" strokeWidth={2.5} />
+                                                    </button>
+                                                </Tooltip>
                                             )}
                                         </div>
                                     </div>
@@ -389,6 +405,7 @@ export default function Vitals() {
                 </div>
             )}
         </div>
+        </>
     );
 }
 

@@ -12,6 +12,7 @@ import EmptyState from '../components/ui/EmptyState';
 import { formatPhoneNumber } from '../utils/phoneFormatter';
 import BranchSelector from '../components/BranchSelector';
 import ResidentForm from '../components/ResidentForm';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
 import { formatPacificDate, calculateAgeFromPacificBirthDate } from '../utils/pacificTime';
 
 export default function Residents() {
@@ -24,6 +25,7 @@ export default function Residents() {
     const [showForm, setShowForm] = useState(false);
     const [editing, setEditing] = useState(null);
     const [currentUser, setCurrentUser] = useState(null);
+    const [residentStatusConfirm, setResidentStatusConfirm] = useState(null);
 
     React.useEffect(() => {
         const loadUser = async () => {
@@ -189,13 +191,13 @@ export default function Residents() {
                         )}
                         {canEdit && (
                             <button
-                                onClick={() => {
-                                    const action = resident.is_active ? 'deactivate' : 'activate';
-                                    const message = 'Are you sure you want to ' + action + ' this resident?';
-                                    if (window.confirm(message)) {
-                                        toggleActiveMutation.mutate({ id: resident.id, isActive: isResidentActive(resident) });
-                                    }
-                                }}
+                                type="button"
+                                onClick={() =>
+                                    setResidentStatusConfirm({
+                                        id: resident.id,
+                                        currentActive: isResidentActive(resident),
+                                    })
+                                }
                                 className={
                                     'p-1.5 rounded-lg transition-all duration-200 border-2 shadow-md hover:shadow-lg transform hover:scale-105 ' +
                                     (resident.is_active 
@@ -297,6 +299,28 @@ export default function Residents() {
     }
 
     return (
+        <>
+            <ConfirmDialog
+                isOpen={residentStatusConfirm != null}
+                onClose={() => !toggleActiveMutation.isPending && setResidentStatusConfirm(null)}
+                onConfirm={() => {
+                    if (!residentStatusConfirm) return;
+                    toggleActiveMutation.mutate(
+                        { id: residentStatusConfirm.id, isActive: residentStatusConfirm.currentActive },
+                        { onSuccess: () => setResidentStatusConfirm(null) }
+                    );
+                }}
+                title={residentStatusConfirm?.currentActive ? 'Deactivate this resident?' : 'Activate this resident?'}
+                description={
+                    residentStatusConfirm?.currentActive
+                        ? 'They will be marked inactive in the system.'
+                        : 'They will be marked active in the system.'
+                }
+                confirmLabel={residentStatusConfirm?.currentActive ? 'Deactivate' : 'Activate'}
+                cancelLabel="Cancel"
+                variant={residentStatusConfirm?.currentActive ? 'danger' : 'primary'}
+                isPending={toggleActiveMutation.isPending}
+            />
         <div>
             <BranchSelector currentUser={currentUserData} />
             <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
@@ -429,6 +453,7 @@ export default function Residents() {
                 </div>
             )}
         </div>
+        </>
     );
 }
 

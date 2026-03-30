@@ -11,6 +11,7 @@ import FormTextarea from '../components/forms/FormTextarea';
 import FormCheckbox from '../components/forms/FormCheckbox';
 import { useToastContext } from '../contexts/ToastContext';
 import EmptyState from '../components/ui/EmptyState';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
 
 export default function Drugs() {
   const queryClient = useQueryClient();
@@ -56,8 +57,23 @@ export default function Drugs() {
     setEditing(null);
   };
 
-  if (showForm) {
-    return (
+  return (
+    <>
+      <ConfirmDialog
+        isOpen={deleteConfirmId != null}
+        onClose={() => !deleteMutation.isPending && setDeleteConfirmId(null)}
+        onConfirm={() => {
+          if (deleteConfirmId == null) return;
+          deleteMutation.mutate(deleteConfirmId, { onSuccess: () => setDeleteConfirmId(null) });
+        }}
+        title="Delete this drug?"
+        description="This drug record will be permanently removed."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        isPending={deleteMutation.isPending}
+      />
+      {showForm ? (
       <div>
         <DrugForm
           record={editing}
@@ -65,10 +81,7 @@ export default function Drugs() {
           onSuccess={() => { handleCloseForm(); queryClient.invalidateQueries(['drugs']); }}
         />
       </div>
-    );
-  }
-
-  return (
+      ) : (
     <div>
       <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
@@ -155,7 +168,8 @@ export default function Drugs() {
                           )}
                           {canDelete && (
                             <button
-                              onClick={() => window.confirm('Delete drug?') && deleteMutation.mutate(drug.id)}
+                              type="button"
+                              onClick={() => setDeleteConfirmId(drug.id)}
                               className="p-2 bg-red-600 text-white hover:bg-red-700 rounded-lg transition-all duration-200 border-2 border-red-600 shadow-md hover:shadow-lg transform hover:scale-105"
                               title="Delete"
                             >
@@ -183,6 +197,8 @@ export default function Drugs() {
         </div>
       )}
     </div>
+      )}
+    </>
   );
 }
 

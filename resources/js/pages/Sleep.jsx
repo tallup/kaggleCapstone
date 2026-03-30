@@ -4,6 +4,8 @@ import api from '../services/api';
 import { Moon, Plus, Search, Calendar, Clock, User, Edit, Trash2, Filter, ChevronDown, X } from 'lucide-react';
 import { getLocalDateString } from '../utils/pacificTime';
 import CalendarComponent from '../components/ui/Calendar';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
+import Tooltip from '../components/ui/Tooltip';
 
 export default function Sleep() {
     const queryClient = useQueryClient();
@@ -356,40 +358,47 @@ export default function Sleep() {
         setShowForm(true);
     };
 
-    const handleDelete = async (id) => {
-        if (window.confirm('Are you sure you want to delete this sleep record?')) {
-            deleteMutation.mutate(id);
-        }
+    const handleDelete = (id) => {
+        setSleepDeleteId(id);
     };
 
-    if (showForm) {
-        return (
-            <div>
-                <SleepRecordForm
-                    record={editingRecord}
-                    residents={residentOptions}
-                    isCaregiver={isCaregiver}
-                    caregiverBranchId={caregiverBranchId}
-                    caregiverBranchName={caregiverBranchName}
-                    currentUser={currentUser}
-                    isFacilityAdmin={isFacilityAdmin}
-                    isBranchAdmin={isBranchAdmin}
-                    onClose={() => {
-                        setShowForm(false);
-                        setEditingRecord(null);
-                    }}
-                    onSuccess={() => {
-                        setShowForm(false);
-                        setEditingRecord(null);
-                        queryClient.invalidateQueries(['sleep-records']);
-                        queryClient.invalidateQueries(['sleep-records-calendar']);
-                    }}
-                />
-            </div>
-        );
-    }
-
     return (
+        <>
+            <ConfirmDialog
+                isOpen={sleepDeleteId != null}
+                onClose={() => !deleteMutation.isPending && setSleepDeleteId(null)}
+                onConfirm={handleConfirmSleepDelete}
+                title="Delete sleep record?"
+                description="This record will be permanently removed."
+                confirmLabel="Delete"
+                cancelLabel="Cancel"
+                variant="danger"
+                isPending={deleteMutation.isPending}
+            />
+            {showForm ? (
+                <div>
+                    <SleepRecordForm
+                        record={editingRecord}
+                        residents={residentOptions}
+                        isCaregiver={isCaregiver}
+                        caregiverBranchId={caregiverBranchId}
+                        caregiverBranchName={caregiverBranchName}
+                        currentUser={currentUser}
+                        isFacilityAdmin={isFacilityAdmin}
+                        isBranchAdmin={isBranchAdmin}
+                        onClose={() => {
+                            setShowForm(false);
+                            setEditingRecord(null);
+                        }}
+                        onSuccess={() => {
+                            setShowForm(false);
+                            setEditingRecord(null);
+                            queryClient.invalidateQueries(['sleep-records']);
+                            queryClient.invalidateQueries(['sleep-records-calendar']);
+                        }}
+                    />
+                </div>
+            ) : (
         <div>
             {/* Filters */}
             <div className="bg-white rounded-lg shadow p-6 mb-6">
@@ -568,21 +577,27 @@ export default function Sleep() {
                                         )}
                                     </div>
 
-                                    <div className="flex space-x-2 ml-4">
-                                        <button
-                                            onClick={() => handleEdit(record)}
-                                            className="p-2 text-[var(--theme-primary)] hover:bg-green-50 rounded-lg transition-colors"
-                                            title="Edit"
-                                        >
-                                            <Edit className="w-4 h-4" />
-                                        </button>
-                                        <button
-                                            onClick={() => handleDelete(record.id)}
-                                            className="p-2 text-[var(--theme-secondary)] hover:bg-amber-50 rounded-lg transition-colors"
-                                            title="Delete"
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
+                                    <div className="ml-4 flex space-x-2">
+                                        <Tooltip content="Edit" position="top">
+                                            <button
+                                                type="button"
+                                                onClick={() => handleEdit(record)}
+                                                className="rounded-lg border border-emerald-200 bg-emerald-50/80 p-2 transition-colors hover:bg-emerald-100"
+                                                aria-label="Edit sleep record"
+                                            >
+                                                <Edit className="h-4 w-4 !text-emerald-700" strokeWidth={2.5} />
+                                            </button>
+                                        </Tooltip>
+                                        <Tooltip content="Delete" position="top">
+                                            <button
+                                                type="button"
+                                                onClick={() => handleDelete(record.id)}
+                                                className="rounded-lg border border-red-200 bg-red-50/80 p-2 transition-colors hover:bg-red-100"
+                                                aria-label="Delete sleep record"
+                                            >
+                                                <Trash2 className="h-4 w-4 !text-red-700" strokeWidth={2.5} />
+                                            </button>
+                                        </Tooltip>
                                     </div>
                                 </div>
                             </div>
@@ -601,6 +616,8 @@ export default function Sleep() {
                 </div>
             )}
         </div>
+            )}
+        </>
     );
 }
 

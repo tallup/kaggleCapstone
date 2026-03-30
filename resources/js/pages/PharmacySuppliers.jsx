@@ -5,6 +5,7 @@ import { Building2, Plus, Search, Edit, Trash2, Phone, Mail, MapPin, CheckCircle
 import SectionCard from '../components/SectionCard';
 import Card from '../components/Card';
 import { formatPhoneNumber } from '../utils/phoneFormatter';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
 
 export default function PharmacySuppliers() {
     const queryClient = useQueryClient();
@@ -74,6 +75,8 @@ export default function PharmacySuppliers() {
         },
     });
 
+    const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+
     const suppliers = data?.data || [];
 
     const handleCloseForm = () => {
@@ -120,14 +123,23 @@ export default function PharmacySuppliers() {
         }
     };
 
-    const handleDelete = (id) => {
-        if (window.confirm('Are you sure you want to delete this supplier?')) {
-            deleteMutation.mutate(id);
-        }
-    };
-
-    if (showForm) {
-        return (
+    return (
+        <>
+            <ConfirmDialog
+                isOpen={deleteConfirmId != null}
+                onClose={() => !deleteMutation.isPending && setDeleteConfirmId(null)}
+                onConfirm={() => {
+                    if (deleteConfirmId == null) return;
+                    deleteMutation.mutate(deleteConfirmId, { onSuccess: () => setDeleteConfirmId(null) });
+                }}
+                title="Delete this supplier?"
+                description="This supplier will be permanently removed."
+                confirmLabel="Delete"
+                cancelLabel="Cancel"
+                variant="danger"
+                isPending={deleteMutation.isPending}
+            />
+            {showForm ? (
             <div>
                 <SectionCard>
                     <div className="flex items-center justify-between mb-6">
@@ -255,10 +267,7 @@ export default function PharmacySuppliers() {
                     </form>
                 </SectionCard>
             </div>
-        );
-    }
-
-    return (
+            ) : (
         <div>
             <SectionCard>
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
@@ -374,6 +383,8 @@ export default function PharmacySuppliers() {
                 )}
             </SectionCard>
         </div>
+            )}
+        </>
     );
 }
 

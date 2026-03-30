@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { Truck, Plus, Search, Filter, Edit, Trash2, Calendar, Package, User, X, Sparkles } from 'lucide-react';
 import SectionCard from '../components/SectionCard';
 import Card from '../components/Card';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
 import Select from '../components/ui/radix/Select';
 import logger from '../utils/logger';
 
@@ -125,6 +126,8 @@ export default function MedicationDeliveries() {
         },
     });
 
+    const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+
     const updateStatusMutation = useMutation({
         mutationFn: async ({ id, status }) => {
             await api.put(`/medication-deliveries/${id}`, { status });
@@ -163,12 +166,6 @@ export default function MedicationDeliveries() {
             d.branch?.name?.toLowerCase().includes(searchLower)
         );
     }, [deliveries, search]);
-
-    const handleDelete = (id) => {
-        if (window.confirm('Are you sure you want to delete this medication delivery?')) {
-            deleteMutation.mutate(id);
-        }
-    };
 
     const handleCloseForm = () => {
         setShowForm(false);
@@ -258,6 +255,21 @@ export default function MedicationDeliveries() {
     }
 
     return (
+        <>
+            <ConfirmDialog
+                isOpen={deleteConfirmId != null}
+                onClose={() => !deleteMutation.isPending && setDeleteConfirmId(null)}
+                onConfirm={() => {
+                    if (deleteConfirmId == null) return;
+                    deleteMutation.mutate(deleteConfirmId, { onSuccess: () => setDeleteConfirmId(null) });
+                }}
+                title="Delete this medication delivery?"
+                description="This delivery record will be permanently removed."
+                confirmLabel="Delete"
+                cancelLabel="Cancel"
+                variant="danger"
+                isPending={deleteMutation.isPending}
+            />
         <div>
             <SectionCard>
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
@@ -530,7 +542,7 @@ export default function MedicationDeliveries() {
                                             <Edit className="w-5 h-5" />
                                         </button>
                                         <button
-                                            onClick={() => handleDelete(delivery.id)}
+                                            onClick={() => setDeleteConfirmId(delivery.id)}
                                             className="p-2.5 bg-red-600 text-white hover:bg-red-700 rounded-lg transition-colors shadow-md hover:shadow-lg"
                                             title="Delete"
                                         >
@@ -552,6 +564,7 @@ export default function MedicationDeliveries() {
                 )}
             </SectionCard>
         </div>
+        </>
     );
 }
 

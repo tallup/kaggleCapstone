@@ -8,15 +8,17 @@ import SectionCard from '../components/SectionCard';
 import Card from '../components/Card';
 import WeeklyCalendarView from '../components/WeeklyCalendarView';
 import Select from '../components/ui/radix/Select';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
+import Tooltip from '../components/ui/Tooltip';
 import { Doughnut } from 'react-chartjs-2';
 import {
     Chart as ChartJS,
     ArcElement,
-    Tooltip,
+    Tooltip as ChartTooltipPlugin,
     Legend,
 } from 'chart.js';
 
-ChartJS.register(ArcElement, Tooltip, Legend);
+ChartJS.register(ArcElement, ChartTooltipPlugin, Legend);
 
 export default function GroceryStatus() {
     const queryClient = useQueryClient();
@@ -29,6 +31,8 @@ export default function GroceryStatus() {
     const [showForm, setShowForm] = useState(false);
     const [editing, setEditing] = useState(null);
     const [currentUser, setCurrentUser] = useState(null);
+    const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+    const [completeConfirmId, setCompleteConfirmId] = useState(null);
 
     // Fetch current user
     React.useEffect(() => {
@@ -199,19 +203,13 @@ export default function GroceryStatus() {
     }, [updates, search]);
 
     const handleDelete = (id) => {
-        if (window.confirm('Are you sure you want to delete this grocery status update?')) {
-            deleteMutation.mutate(id);
-        }
+        setDeleteConfirmId(id);
     };
 
     const handleQuickStatusUpdate = (id, newStatus) => {
         if (newStatus === 'completed') {
-            const ok = window.confirm(
-                'Mark this grocery status update as completed? You will not be able to set it back to Pending afterward.',
-            );
-            if (!ok) {
-                return;
-            }
+            setCompleteConfirmId(id);
+            return;
         }
         updateStatusMutation.mutate({ id, status: newStatus });
     };
@@ -262,31 +260,64 @@ export default function GroceryStatus() {
         return weekUpdates.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0] || null;
     }, [updates, currentWeekMonday]);
 
-    if (showForm) {
-        return (
-            <div>
-                <GroceryStatusForm
-                    record={editing}
-                    branches={branches}
-                    templates={templates}
-                    isCaregiver={isCaregiver}
-                    caregiverBranchId={currentUser?.assigned_branch_id}
-                    currentUser={currentUser}
-                    isFacilityAdmin={isFacilityAdmin}
-                    isBranchAdmin={isBranchAdmin}
-                    onClose={handleCloseForm}
-                    onSaveTemplate={(payload) => createTemplateMutation.mutateAsync(payload)}
-                    onSuccess={() => {
-                        queryClient.invalidateQueries(['grocery-status-updates']);
-                        queryClient.invalidateQueries(['grocery-item-templates']);
-                        handleCloseForm();
-                    }}
-                />
-            </div>
-        );
-    }
-
     return (
+        <>
+            <ConfirmDialog
+                isOpen={deleteConfirmId != null}
+                onClose={() => !deleteMutation.isPending && setDeleteConfirmId(null)}
+                onConfirm={() => {
+                    if (deleteConfirmId == null) return;
+                    deleteMutation.mutate(deleteConfirmId, {
+                        onSuccess: () => setDeleteConfirmId(null),
+                    });
+                }}
+                title="Delete this update?"
+                description="This grocery status update will be permanently removed."
+                confirmLabel="Delete"
+                cancelLabel="Cancel"
+                variant="danger"
+                isPending={deleteMutation.isPending}
+            />
+            <ConfirmDialog
+                isOpen={completeConfirmId != null}
+                onClose={() => !updateStatusMutation.isPending && setCompleteConfirmId(null)}
+                onConfirm={() => {
+                    if (completeConfirmId == null) return;
+                    updateStatusMutation.mutate(
+                        { id: completeConfirmId, status: 'completed' },
+                        {
+                            onSuccess: () => setCompleteConfirmId(null),
+                        }
+                    );
+                }}
+                title="Mark as completed?"
+                description="You will not be able to set this update back to Pending afterward."
+                confirmLabel="Mark completed"
+                cancelLabel="Cancel"
+                variant="primary"
+                isPending={updateStatusMutation.isPending}
+            />
+            {showForm ? (
+                <div>
+                    <GroceryStatusForm
+                        record={editing}
+                        branches={branches}
+                        templates={templates}
+                        isCaregiver={isCaregiver}
+                        caregiverBranchId={currentUser?.assigned_branch_id}
+                        currentUser={currentUser}
+                        isFacilityAdmin={isFacilityAdmin}
+                        isBranchAdmin={isBranchAdmin}
+                        onClose={handleCloseForm}
+                        onSaveTemplate={(payload) => createTemplateMutation.mutateAsync(payload)}
+                        onSuccess={() => {
+                            queryClient.invalidateQueries(['grocery-status-updates']);
+                            queryClient.invalidateQueries(['grocery-item-templates']);
+                            handleCloseForm();
+                        }}
+                    />
+                </div>
+            ) : (
         <div>
             <SectionCard>
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
@@ -749,21 +780,27 @@ export default function GroceryStatus() {
                                                                 )}
                                                             </div>
                                                             <div className="flex items-center gap-2">
-                                                                <button
-                                                                    onClick={() => handleEdit(update)}
-                                                                    className="p-2 text-gray-600 hover:text-[var(--theme-primary)] transition-colors"
-                                                                    title="Edit"
-                                                                >
-                                                                    <Edit className="w-4 h-4" />
-                                                                </button>
-                                                                {(!isCaregiver || update.updated_by?.id === currentUser?.id) && (
+                                                                <Tooltip content="Edit update" position="top">
                                                                     <button
-                                                                        onClick={() => handleDelete(update.id)}
-                                                                        className="p-2 text-gray-600 hover:text-red-600 transition-colors"
-                                                                        title="Delete"
+                                                                        type="button"
+                                                                        onClick={() => handleEdit(update)}
+                                                                        className="rounded-lg border border-amber-200 bg-amber-50 p-2 shadow-sm transition hover:border-amber-300 hover:bg-amber-100"
+                                                                        aria-label="Edit update"
                                                                     >
-                                                                        <Trash2 className="w-4 h-4" />
+                                                                        <Edit className="h-4 w-4 !text-amber-700" strokeWidth={2.5} />
                                                                     </button>
+                                                                </Tooltip>
+                                                                {(!isCaregiver || update.updated_by?.id === currentUser?.id) && (
+                                                                    <Tooltip content="Delete update" position="top">
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => handleDelete(update.id)}
+                                                                            className="rounded-lg border border-red-200 bg-red-50 p-2 shadow-sm transition hover:border-red-300 hover:bg-red-100"
+                                                                            aria-label="Delete update"
+                                                                        >
+                                                                            <Trash2 className="h-4 w-4 !text-red-600" strokeWidth={2.5} />
+                                                                        </button>
+                                                                    </Tooltip>
                                                                 )}
                                                             </div>
                                                         </div>
@@ -777,6 +814,8 @@ export default function GroceryStatus() {
                 )}
             </SectionCard>
         </div>
+            )}
+        </>
     );
 }
 
@@ -808,24 +847,13 @@ function GroceryStatusForm({ record, branches, templates = [], isCaregiver, care
 
     const [errors, setErrors] = useState({});
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [completeFormDialogOpen, setCompleteFormDialogOpen] = useState(false);
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setErrors({});
-        if (formData.status === 'completed' && (!record || record.status !== 'completed')) {
-            const ok = window.confirm(
-                'Mark this grocery status update as completed? You will not be able to set it back to Pending afterward.',
-            );
-            if (!ok) {
-                return;
-            }
-        }
-
+    const performSave = async () => {
         setIsSubmitting(true);
-
         try {
             const payload = { ...formData };
-            
+
             if (record) {
                 await api.put(`/grocery-status-updates/${record.id}`, payload);
             } else {
@@ -845,7 +873,32 @@ function GroceryStatusForm({ record, branches, templates = [], isCaregiver, care
         }
     };
 
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setErrors({});
+        if (formData.status === 'completed' && (!record || record.status !== 'completed')) {
+            setCompleteFormDialogOpen(true);
+            return;
+        }
+        await performSave();
+    };
+
     return (
+        <>
+            <ConfirmDialog
+                isOpen={completeFormDialogOpen}
+                onClose={() => !isSubmitting && setCompleteFormDialogOpen(false)}
+                onConfirm={async () => {
+                    setCompleteFormDialogOpen(false);
+                    await performSave();
+                }}
+                title="Mark as completed?"
+                description="You will not be able to set this update back to Pending afterward."
+                confirmLabel="Mark completed"
+                cancelLabel="Cancel"
+                variant="primary"
+                isPending={isSubmitting}
+            />
         <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-semibold text-gray-900">
@@ -976,6 +1029,7 @@ function GroceryStatusForm({ record, branches, templates = [], isCaregiver, care
                         </div>
                     </form>
         </div>
+        </>
     );
 }
 

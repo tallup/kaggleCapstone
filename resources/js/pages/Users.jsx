@@ -5,6 +5,7 @@ import api from '../services/api';
 import logger from '../utils/logger';
 import { Users, Plus, Edit, Trash2, Search, Filter, Upload, X, Eye, Mail, Phone, Calendar, Briefcase, MapPin, Award, Shield, Clock, User as UserIcon, AlertCircle, Building2 } from 'lucide-react';
 import EmptyState from '../components/ui/EmptyState';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
 import { formatPhoneNumber } from '../utils/phoneFormatter';
 
 export default function UsersPage() {
@@ -18,6 +19,7 @@ export default function UsersPage() {
     const [editing, setEditing] = useState(null);
     const [viewingProfile, setViewingProfile] = useState(null);
     const [currentPage, setCurrentPage] = useState(1);
+    const [deleteConfirmUser, setDeleteConfirmUser] = useState(null);
 
     const { data, isLoading } = useQuery({
         queryKey: ['users', search, branchFilter, facilityFilter, activeFilter, currentPage],
@@ -96,10 +98,9 @@ export default function UsersPage() {
         toggleActiveMutation.mutate({ id: user.id, isActive: newStatus });
     };
 
-    const handleDelete = (user) => {
-        if (window.confirm(`Are you sure you want to delete ${user.name || user.email}? This action cannot be undone.`)) {
-            deleteMutation.mutate(user.id);
-        }
+    const handleConfirmDeleteUser = () => {
+        if (!deleteConfirmUser) return;
+        deleteMutation.mutate(deleteConfirmUser.id, { onSuccess: () => setDeleteConfirmUser(null) });
     };
 
     const handleEditFromProfile = async (user) => {
@@ -200,7 +201,8 @@ export default function UsersPage() {
                         )}
                         {canDelete && (
                             <button
-                                onClick={() => handleDelete(user)}
+                                type="button"
+                                onClick={() => setDeleteConfirmUser(user)}
                                 className="p-2 bg-red-600 text-white hover:bg-red-700 rounded-lg transition-all duration-200 border-2 border-red-600 shadow-md hover:shadow-lg transform hover:scale-105"
                                 title="Delete User"
                             >
@@ -246,6 +248,22 @@ export default function UsersPage() {
 
 
     return (
+        <>
+            <ConfirmDialog
+                isOpen={deleteConfirmUser != null}
+                onClose={() => !deleteMutation.isPending && setDeleteConfirmUser(null)}
+                onConfirm={handleConfirmDeleteUser}
+                title="Delete this user?"
+                description={
+                    deleteConfirmUser
+                        ? `Delete ${deleteConfirmUser.name || deleteConfirmUser.email}? This cannot be undone.`
+                        : ''
+                }
+                confirmLabel="Delete"
+                cancelLabel="Cancel"
+                variant="danger"
+                isPending={deleteMutation.isPending}
+            />
         <div>
             <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
@@ -400,6 +418,7 @@ export default function UsersPage() {
                 </div>
             )}
         </div>
+        </>
     );
 }
 
@@ -1200,8 +1219,28 @@ function UserForm({ record, branches, roles, facilities, isSuperAdmin, onClose, 
 
 // User Profile Viewer Component
 function UserProfileViewer({ user, onClose, onEdit, onToggleActive }) {
-    const [isDeactivating, setIsDeactivating] = React.useState(false);
+    const [toggleConfirm, setToggleConfirm] = React.useState(null);
+
     return (
+        <>
+            <ConfirmDialog
+                isOpen={toggleConfirm != null}
+                onClose={() => setToggleConfirm(null)}
+                onConfirm={() => {
+                    if (toggleConfirm == null) return;
+                    onToggleActive(user, toggleConfirm.nextActive);
+                    setToggleConfirm(null);
+                }}
+                title={toggleConfirm?.nextActive ? 'Activate this user?' : 'Deactivate this user?'}
+                description={
+                    toggleConfirm?.nextActive
+                        ? 'This user will be able to sign in again.'
+                        : 'This user will not be able to sign in until reactivated.'
+                }
+                confirmLabel={toggleConfirm?.nextActive ? 'Activate' : 'Deactivate'}
+                cancelLabel="Cancel"
+                variant={toggleConfirm?.nextActive ? 'primary' : 'danger'}
+            />
         <div className="bg-white rounded-lg shadow p-6">
             {/* Header */}
             <div className="bg-gradient-to-r from-[var(--theme-primary)] to-[#4a7a2a] p-4 md:p-8 text-white rounded-t-xl mb-6">
@@ -1414,16 +1453,11 @@ function UserProfileViewer({ user, onClose, onEdit, onToggleActive }) {
                                 <input
                                     type="checkbox"
                                     checked={user.is_active}
-                                    onChange={(e) => {
-                                        if (window.confirm(
-                                            user.is_active
-                                                ? 'Are you sure you want to deactivate this user?'
-                                                : 'Are you sure you want to activate this user?'
-                                        )) {
-                                            onToggleActive(user, !user.is_active);
-                                        }
+                                    readOnly
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        setToggleConfirm({ nextActive: !user.is_active });
                                     }}
-                                    disabled={isDeactivating}
                                     className="sr-only peer"
                                 />
                                 <div className="w-14 h-7 bg-gray-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-[var(--theme-primary)] rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-[var(--theme-primary)]"></div>
@@ -1454,6 +1488,7 @@ function UserProfileViewer({ user, onClose, onEdit, onToggleActive }) {
                 </div>
             </div>
         </div>
+        </>
     );
 }
 

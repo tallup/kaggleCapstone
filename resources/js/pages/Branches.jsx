@@ -7,6 +7,7 @@ import { getUserLocation } from '../utils/location';
 import { formatPhoneNumber, unformatPhoneNumber } from '../utils/phoneFormatter';
 import { useToastContext } from '../contexts/ToastContext';
 import logger from '../utils/logger';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
 
 const COORDINATE_DECIMALS = 6;
 const normalizeCoordinateInput = (value) => {
@@ -71,13 +72,30 @@ export default function Branches() {
     },
   });
 
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+
   const handleCloseForm = () => {
     setShowForm(false);
     setEditing(null);
   };
 
-  if (showForm) {
-    return (
+  return (
+    <>
+      <ConfirmDialog
+        isOpen={deleteConfirmId != null}
+        onClose={() => !deleteMutation.isPending && setDeleteConfirmId(null)}
+        onConfirm={() => {
+          if (deleteConfirmId == null) return;
+          deleteMutation.mutate(deleteConfirmId, { onSuccess: () => setDeleteConfirmId(null) });
+        }}
+        title="Delete this branch?"
+        description="This branch will be permanently removed."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        isPending={deleteMutation.isPending}
+      />
+      {showForm ? (
       <div>
         <BranchForm
           record={editing}
@@ -93,10 +111,7 @@ export default function Branches() {
           }}
         />
       </div>
-    );
-  }
-
-  return (
+      ) : (
     <div>
       <div className="bg-white rounded-lg shadow p-6 mb-6">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
@@ -176,7 +191,8 @@ export default function Branches() {
                       )}
                       {canDelete && (
                         <button
-                          onClick={() => window.confirm('Delete branch?') && deleteMutation.mutate(b.id)}
+                          type="button"
+                          onClick={() => setDeleteConfirmId(b.id)}
                           className="p-2.5 rounded-lg border-2 border-red-500 bg-red-50 text-red-700 hover:bg-red-500 hover:text-white hover:border-red-600 transition-all shadow-sm hover:shadow-md"
                           title="Delete"
                         >
@@ -219,6 +235,8 @@ export default function Branches() {
         </div>
       )}
     </div>
+      )}
+    </>
   );
 }
 

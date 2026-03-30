@@ -11,6 +11,7 @@ import EmptyState from '../components/ui/EmptyState';
 import FormInput from '../components/forms/FormInput';
 import FormTextarea from '../components/forms/FormTextarea';
 import FormSelect from '../components/forms/FormSelect';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
 
 function BillingInvoices() {
   const queryClient = useQueryClient();
@@ -55,6 +56,8 @@ function BillingInvoices() {
     },
   });
 
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
   };
@@ -66,8 +69,23 @@ function BillingInvoices() {
     setEditing(null);
   };
 
-  if (showForm) {
-    return (
+  return (
+    <>
+      <ConfirmDialog
+        isOpen={deleteConfirmId != null}
+        onClose={() => !deleteMutation.isPending && setDeleteConfirmId(null)}
+        onConfirm={() => {
+          if (deleteConfirmId == null) return;
+          deleteMutation.mutate(deleteConfirmId, { onSuccess: () => setDeleteConfirmId(null) });
+        }}
+        title="Delete this invoice?"
+        description="This draft invoice will be permanently removed."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        isPending={deleteMutation.isPending}
+      />
+      {showForm ? (
       <div>
         <InvoiceForm
           record={editing}
@@ -75,10 +93,7 @@ function BillingInvoices() {
           onSuccess={() => { handleCloseForm(); queryClient.invalidateQueries(['billing-invoices']); }}
         />
       </div>
-    );
-  }
-
-  return (
+      ) : (
     <div>
       <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
@@ -199,7 +214,8 @@ function BillingInvoices() {
                           )}
                           {invoice.status === 'draft' && (
                             <button
-                              onClick={() => window.confirm('Delete invoice?') && deleteMutation.mutate(invoice.id)}
+                              type="button"
+                              onClick={() => setDeleteConfirmId(invoice.id)}
                               className="p-2 bg-red-600 text-white hover:bg-red-700 rounded-lg"
                               title="Delete"
                             >
@@ -227,6 +243,8 @@ function BillingInvoices() {
         </div>
       )}
     </div>
+      )}
+    </>
   );
 }
 

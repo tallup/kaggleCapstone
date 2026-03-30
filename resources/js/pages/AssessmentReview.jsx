@@ -1,14 +1,16 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import api from '../services/api';
 import logger from '../utils/logger';
 import { ArrowLeft, ClipboardList, Calendar, User, CheckCircle, FileText, TrendingUp, Award } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
 
 export default function AssessmentReview() {
     const { id } = useParams();
     const queryClient = useQueryClient();
+    const [completeConfirmOpen, setCompleteConfirmOpen] = useState(false);
 
     const { data, isLoading, error } = useQuery({
         queryKey: ['assessment-review', id],
@@ -92,6 +94,22 @@ export default function AssessmentReview() {
     ];
 
     return (
+        <>
+            <ConfirmDialog
+                isOpen={completeConfirmOpen}
+                onClose={() => !markCompleteMutation.isPending && setCompleteConfirmOpen(false)}
+                onConfirm={() =>
+                    markCompleteMutation.mutate('completed', {
+                        onSuccess: () => setCompleteConfirmOpen(false),
+                    })
+                }
+                title="Mark assessment as complete?"
+                description="Once marked complete, this assessment will be finalized."
+                confirmLabel="Mark complete"
+                cancelLabel="Cancel"
+                variant="primary"
+                isPending={markCompleteMutation.isPending}
+            />
         <div className="min-h-screen bg-white">
             {/* Header */}
             <div className="bg-white border-b border-gray-200 shadow-sm mb-6">
@@ -342,11 +360,8 @@ export default function AssessmentReview() {
                                     </p>
                                 </div>
                                 <button
-                                    onClick={() => {
-                                        if (window.confirm('Are you sure you want to mark this assessment as complete?')) {
-                                            markCompleteMutation.mutate('completed');
-                                        }
-                                    }}
+                                    type="button"
+                                    onClick={() => setCompleteConfirmOpen(true)}
                                     disabled={markCompleteMutation.isPending || assessment.status === 'completed'}
                                     className="px-6 py-3 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] rounded-lg hover:bg-[var(--theme-primary-hover)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 font-medium"
                                 >
@@ -359,5 +374,6 @@ export default function AssessmentReview() {
                 </div>
             </div>
         </div>
+        </>
     );
 }

@@ -6,6 +6,7 @@ import { useToastContext } from '../contexts/ToastContext';
 import {
   FacilityList
 } from '../components/facility';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
 
 export default function Facilities() {
   const queryClient = useQueryClient();
@@ -88,19 +89,29 @@ export default function Facilities() {
     navigate(`/super-admin/facilities/${facility.id}`);
   };
 
-  const handleDelete = (facility) => {
-    if (window.confirm(`Are you sure you want to delete ${facility.name}? This action cannot be undone.`)) {
-      deleteMutation.mutate(facility.id);
-    }
+  const handleConfirmDelete = () => {
+    if (!deleteTarget) return;
+    deleteMutation.mutate(deleteTarget.id, { onSuccess: () => setDeleteTarget(null) });
   };
 
   return (
     <div className="p-6">
+      <ConfirmDialog
+        isOpen={deleteTarget != null}
+        onClose={() => !deleteMutation.isPending && setDeleteTarget(null)}
+        onConfirm={handleConfirmDelete}
+        title={deleteTarget ? `Delete ${deleteTarget.name}?` : ''}
+        description="This action cannot be undone."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        isPending={deleteMutation.isPending}
+      />
       <FacilityList
         facilities={data?.data || []}
         isLoading={isLoading}
         onEdit={handleEdit}
-        onDelete={handleDelete}
+        onDelete={setDeleteTarget}
         onView={handleView}
         onCreate={handleCreate}
         searchTerm={search}

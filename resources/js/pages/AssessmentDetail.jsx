@@ -1,14 +1,16 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import { ArrowLeft, ClipboardList, Calendar, User, CheckCircle, AlertCircle } from 'lucide-react';
 import logger from '../utils/logger';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
 
 export default function AssessmentDetail() {
     const { id } = useParams();
     const navigate = useNavigate();
     const queryClient = useQueryClient();
+    const [submitConfirmOpen, setSubmitConfirmOpen] = useState(false);
 
     const { data, isLoading, error, isSuccess } = useQuery({
         queryKey: ['assessment-detail', id],
@@ -170,7 +172,7 @@ export default function AssessmentDetail() {
             }
             if (normalized.includes('physician name') || 
                 (normalized.includes('physician') && normalized.includes('name'))) {
-                return resident.physician_name || null;
+                return resident.primary_care_doctor || resident.physician_name || null;
             }
             if (normalized.includes('physician phone') || 
                 (normalized.includes('physician') && normalized.includes('phone'))) {
@@ -272,10 +274,8 @@ export default function AssessmentDetail() {
         return totalQuestions > 0 ? Math.round((answeredQuestions / totalQuestions) * 100) : 0;
     }, [data]);
 
-    const handleSubmit = () => {
-        if (window.confirm('Are you sure you want to submit this assessment for review? You can continue editing later if needed.')) {
-            submitMutation.mutate('reviewed');
-        }
+    const handleConfirmSubmitForReview = () => {
+        submitMutation.mutate('reviewed', { onSuccess: () => setSubmitConfirmOpen(false) });
     };
 
     if (isLoading) {
@@ -298,6 +298,18 @@ export default function AssessmentDetail() {
     const assessment = data;
 
     return (
+        <>
+            <ConfirmDialog
+                isOpen={submitConfirmOpen}
+                onClose={() => !submitMutation.isPending && setSubmitConfirmOpen(false)}
+                onConfirm={handleConfirmSubmitForReview}
+                title="Submit for review?"
+                description="You can continue editing later if needed. This will move the assessment to reviewed status."
+                confirmLabel="Submit"
+                cancelLabel="Cancel"
+                variant="primary"
+                isPending={submitMutation.isPending}
+            />
         <div>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4 md:mb-6">
                 <div className="flex items-center space-x-3">
@@ -313,7 +325,8 @@ export default function AssessmentDetail() {
                 </div>
                 {assessment.status !== 'approved' && assessment.status !== 'archived' && (
                     <button
-                        onClick={handleSubmit}
+                        type="button"
+                        onClick={() => setSubmitConfirmOpen(true)}
                         disabled={submitMutation.isPending}
                         className="px-4 py-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] rounded-lg hover:bg-[var(--theme-primary-hover)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
                     >
@@ -440,6 +453,7 @@ export default function AssessmentDetail() {
                 )}
             </div>
         </div>
+        </>
     );
 }
 

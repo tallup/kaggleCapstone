@@ -505,7 +505,7 @@ export default function ResidentForm({ record, branches, onClose, onSuccess, sel
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-semibold text-slate-800 mb-1">Primary Care Doctor</label>
+                            <label className="block text-sm font-semibold text-slate-800 mb-1">Physician</label>
                             <input
                                 type="text"
                                 value={formData.primary_care_doctor}

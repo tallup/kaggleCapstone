@@ -6,6 +6,7 @@ import { format } from 'date-fns';
 import { Users, Plus, Mail, Edit, Trash2, Copy, Check, Building2, MessageSquare, Send } from 'lucide-react';
 import SectionCard from '../../components/SectionCard';
 import EmptyState from '../../components/ui/EmptyState';
+import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import logger from '../../utils/logger';
 
 function extractResidentsList(res) {
@@ -27,6 +28,7 @@ export default function ResidentContacts() {
   const [inviteLink, setInviteLink] = useState(null);
   const [copied, setCopied] = useState(false);
   const [messageBody, setMessageBody] = useState('');
+  const [deleteContactId, setDeleteContactId] = useState(null);
 
   const { data: branchesData } = useQuery({
     queryKey: ['branches-list-contacts'],
@@ -183,6 +185,21 @@ export default function ResidentContacts() {
   };
 
   return (
+    <>
+      <ConfirmDialog
+        isOpen={deleteContactId != null}
+        onClose={() => !deleteMutation.isPending && setDeleteContactId(null)}
+        onConfirm={() => {
+          if (deleteContactId == null) return;
+          deleteMutation.mutate(deleteContactId, { onSuccess: () => setDeleteContactId(null) });
+        }}
+        title="Remove this contact?"
+        description="This contact will be removed from the resident."
+        confirmLabel="Remove"
+        cancelLabel="Cancel"
+        variant="danger"
+        isPending={deleteMutation.isPending}
+      />
     <div className="max-w-6xl mx-auto px-1">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Family Portal (Resident Contacts)</h1>
@@ -387,7 +404,7 @@ export default function ResidentContacts() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => window.confirm('Remove this contact?') && deleteMutation.mutate(c.id)}
+                        onClick={() => setDeleteContactId(c.id)}
                         className="p-2 text-red-700 bg-red-50 border border-red-200 hover:bg-red-100 hover:border-red-300 rounded-lg transition-colors"
                         title="Delete"
                       >
@@ -463,5 +480,6 @@ export default function ResidentContacts() {
         </>
       )}
     </div>
+    </>
   );
 }

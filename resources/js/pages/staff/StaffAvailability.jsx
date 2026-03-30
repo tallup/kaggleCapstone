@@ -5,6 +5,7 @@ import { format } from 'date-fns';
 import { Calendar, Plus, Edit, Trash2, Clock, User } from 'lucide-react';
 import SectionCard from '../../components/SectionCard';
 import EmptyState from '../../components/ui/EmptyState';
+import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import logger from '../../utils/logger';
 
 const DAYS = [
@@ -23,6 +24,7 @@ export default function StaffAvailability() {
   const [userId, setUserId] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [deleteAvailId, setDeleteAvailId] = useState(null);
   const [recurringOnly, setRecurringOnly] = useState('');
   const [form, setForm] = useState({
     user_id: '',
@@ -165,11 +167,22 @@ export default function StaffAvailability() {
       createMutation.mutate(payload);
     }
   };
-  const handleDelete = (item) => {
-    if (window.confirm('Remove this availability?')) deleteMutation.mutate(item.id);
-  };
-
   return (
+    <>
+      <ConfirmDialog
+        isOpen={deleteAvailId != null}
+        onClose={() => !deleteMutation.isPending && setDeleteAvailId(null)}
+        onConfirm={() => {
+          if (deleteAvailId == null) return;
+          deleteMutation.mutate(deleteAvailId, { onSuccess: () => setDeleteAvailId(null) });
+        }}
+        title="Remove this availability?"
+        description="This availability rule will be deleted."
+        confirmLabel="Remove"
+        cancelLabel="Cancel"
+        variant="danger"
+        isPending={deleteMutation.isPending}
+      />
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
@@ -257,7 +270,7 @@ export default function StaffAvailability() {
                       <button type="button" onClick={() => openEdit(item)} className="p-1.5 text-gray-600 hover:bg-gray-100 rounded" aria-label="Edit">
                         <Edit className="w-4 h-4" />
                       </button>
-                      <button type="button" onClick={() => handleDelete(item)} className="p-1.5 text-red-600 hover:bg-red-50 rounded ml-1" aria-label="Delete">
+                      <button type="button" onClick={() => setDeleteAvailId(item.id)} className="p-1.5 text-red-600 hover:bg-red-50 rounded ml-1" aria-label="Delete">
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </td>
@@ -365,5 +378,6 @@ export default function StaffAvailability() {
         </div>
       )}
     </div>
+    </>
   );
 }

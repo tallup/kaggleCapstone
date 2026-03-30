@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import { FileText, Plus, Edit, Trash2, Search, Filter, Download, Calendar, AlertCircle, X } from 'lucide-react';
 import logger from '../utils/logger';
+import ConfirmDialog from './ui/ConfirmDialog';
 
 const documentTypeOptions = {
     insurance: 'Insurance',
@@ -29,7 +30,7 @@ export default function ResidentDocuments({ residentId }) {
     const [showForm, setShowForm] = useState(false);
     const [editing, setEditing] = useState(null);
     const [currentPage, setCurrentPage] = useState(1);
-
+    const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
     const { data, isLoading, refetch } = useQuery({
         queryKey: ['resident-documents', residentId, search, typeFilter, currentPage],
@@ -68,10 +69,9 @@ export default function ResidentDocuments({ residentId }) {
         },
     });
 
-    const handleDelete = (id) => {
-        if (window.confirm('Are you sure you want to delete this document?')) {
-            deleteMutation.mutate(id);
-        }
+    const handleConfirmDelete = () => {
+        if (deleteConfirmId == null) return;
+        deleteMutation.mutate(deleteConfirmId, { onSuccess: () => setDeleteConfirmId(null) });
     };
 
     const handleDownload = async (doc) => {
@@ -100,6 +100,18 @@ export default function ResidentDocuments({ residentId }) {
     const pagination = data?.meta || {};
 
     return (
+        <>
+            <ConfirmDialog
+                isOpen={deleteConfirmId != null}
+                onClose={() => !deleteMutation.isPending && setDeleteConfirmId(null)}
+                onConfirm={handleConfirmDelete}
+                title="Delete this document?"
+                description="The file will be permanently removed."
+                confirmLabel="Delete"
+                cancelLabel="Cancel"
+                variant="danger"
+                isPending={deleteMutation.isPending}
+            />
         <div className="space-y-6">
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -335,7 +347,7 @@ export default function ResidentDocuments({ residentId }) {
                                                     </button>
                                                     <button
                                                         type="button"
-                                                        onClick={() => handleDelete(doc.id)}
+                                                        onClick={() => setDeleteConfirmId(doc.id)}
                                                         className="p-2.5 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors shadow-sm hover:shadow-md"
                                                         title="Delete"
                                                     >
@@ -378,6 +390,7 @@ export default function ResidentDocuments({ residentId }) {
             )}
 
         </div>
+        </>
     );
 }
 

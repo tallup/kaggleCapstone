@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import { FileText, Plus, Edit, Trash2, Search, Filter, Download, Calendar, User as UserIcon, AlertCircle, X } from 'lucide-react';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
 
 export default function EmployeeDocuments() {
     const queryClient = useQueryClient();
@@ -12,6 +13,7 @@ export default function EmployeeDocuments() {
     const [activeFilter, setActiveFilter] = useState('all');
     const [showForm, setShowForm] = useState(false);
     const [editing, setEditing] = useState(null);
+    const [deleteConfirmId, setDeleteConfirmId] = useState(null);
     const [currentPage, setCurrentPage] = useState(1);
 
     const { data, isLoading } = useQuery({
@@ -80,8 +82,23 @@ export default function EmployeeDocuments() {
         return { text: `${days} days`, color: 'text-green-600' };
     };
 
-    if (showForm) {
-        return (
+    return (
+        <>
+            <ConfirmDialog
+                isOpen={deleteConfirmId != null}
+                onClose={() => !deleteMutation.isPending && setDeleteConfirmId(null)}
+                onConfirm={() => {
+                    if (deleteConfirmId == null) return;
+                    deleteMutation.mutate(deleteConfirmId, { onSuccess: () => setDeleteConfirmId(null) });
+                }}
+                title="Delete this document?"
+                description="The file will be permanently removed."
+                confirmLabel="Delete"
+                cancelLabel="Cancel"
+                variant="danger"
+                isPending={deleteMutation.isPending}
+            />
+            {showForm ? (
             <div>
                 <EmployeeDocumentForm
                     record={editing}
@@ -97,10 +114,7 @@ export default function EmployeeDocuments() {
                     }}
                 />
             </div>
-        );
-    }
-
-    return (
+            ) : (
         <div>
             <div className="bg-white rounded-lg shadow p-6 mb-6">
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
@@ -306,11 +320,8 @@ export default function EmployeeDocuments() {
                                                         <Edit className="w-5 h-5" />
                                                     </button>
                                                     <button
-                                                        onClick={() => {
-                                                            if (window.confirm('Are you sure you want to delete this document?')) {
-                                                                deleteMutation.mutate(document.id);
-                                                            }
-                                                        }}
+                                                        type="button"
+                                                        onClick={() => setDeleteConfirmId(document.id)}
                                                         className="p-2.5 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors shadow-sm hover:shadow-md"
                                                         title="Delete"
                                                     >
@@ -360,6 +371,8 @@ export default function EmployeeDocuments() {
                 </div>
             )}
         </div>
+            )}
+        </>
     );
 }
 

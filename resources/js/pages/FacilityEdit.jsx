@@ -11,6 +11,7 @@ import {
 import { useToastContext } from '../contexts/ToastContext';
 import FacilityPermissions from './FacilityPermissions';
 import EmptyState from '../components/ui/EmptyState';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
 import { getUserLocation } from '../utils/location';
 
 const COORDINATE_DECIMALS = 6;
@@ -945,6 +946,7 @@ function AccountsTab({ facilityId }) {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
   const [viewingProfile, setViewingProfile] = useState(null);
+  const [deleteConfirmUser, setDeleteConfirmUser] = useState(null);
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['facility-users', facilityId, search],
@@ -997,16 +999,31 @@ function AccountsTab({ facilityId }) {
     },
   });
 
-  const handleDelete = (user) => {
-    if (window.confirm(`Are you sure you want to delete ${user.name || user.email}?`)) {
-      deleteMutation.mutate(user.id);
-    }
+  const handleConfirmDeleteUser = () => {
+    if (!deleteConfirmUser) return;
+    deleteMutation.mutate(deleteConfirmUser.id, { onSuccess: () => setDeleteConfirmUser(null) });
   };
 
   const users = data?.data || [];
   const navigate = useNavigate();
 
   return (
+    <>
+      <ConfirmDialog
+        isOpen={deleteConfirmUser != null}
+        onClose={() => !deleteMutation.isPending && setDeleteConfirmUser(null)}
+        onConfirm={handleConfirmDeleteUser}
+        title="Delete this user?"
+        description={
+          deleteConfirmUser
+            ? `Delete ${deleteConfirmUser.name || deleteConfirmUser.email}? This cannot be undone.`
+            : ''
+        }
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        isPending={deleteMutation.isPending}
+      />
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -1071,7 +1088,8 @@ function AccountsTab({ facilityId }) {
                     <Eye className="w-4 h-4" />
                   </button>
                   <button
-                    onClick={() => handleDelete(user)}
+                    type="button"
+                    onClick={() => setDeleteConfirmUser(user)}
                     className="p-1.5 text-red-600 hover:bg-red-50 rounded"
                     title="Delete"
                   >
@@ -1112,6 +1130,7 @@ function AccountsTab({ facilityId }) {
         />
       )}
     </div>
+    </>
   );
 }
 

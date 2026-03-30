@@ -10,6 +10,7 @@ import ModuleProtectedRoute from '../components/ModuleProtectedRoute';
 import FormInput from '../components/forms/FormInput';
 import FormTextarea from '../components/forms/FormTextarea';
 import FormSelect from '../components/forms/FormSelect';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
 
 function Expenses() {
   const queryClient = useQueryClient();
@@ -51,6 +52,8 @@ function Expenses() {
     },
   });
 
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
   };
@@ -60,8 +63,25 @@ function Expenses() {
     setEditing(null);
   };
 
-  if (showForm) {
-    return (
+  const expenses = data?.data || [];
+
+  return (
+    <>
+      <ConfirmDialog
+        isOpen={deleteConfirmId != null}
+        onClose={() => !deleteMutation.isPending && setDeleteConfirmId(null)}
+        onConfirm={() => {
+          if (deleteConfirmId == null) return;
+          deleteMutation.mutate(deleteConfirmId, { onSuccess: () => setDeleteConfirmId(null) });
+        }}
+        title="Delete this expense?"
+        description="This expense record will be permanently removed."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        isPending={deleteMutation.isPending}
+      />
+      {showForm ? (
       <div>
         <ExpenseForm
           record={editing}
@@ -69,12 +89,7 @@ function Expenses() {
           onSuccess={() => { handleCloseForm(); queryClient.invalidateQueries(['expenses']); }}
         />
       </div>
-    );
-  }
-
-  const expenses = data?.data || [];
-
-  return (
+      ) : (
     <div>
       <div className="bg-white rounded-lg shadow p-6 mb-6">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
@@ -214,7 +229,8 @@ function Expenses() {
                             <Edit className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() => window.confirm('Delete expense?') && deleteMutation.mutate(expense.id)}
+                            type="button"
+                            onClick={() => setDeleteConfirmId(expense.id)}
                             className="p-2 bg-red-600 text-white hover:bg-red-700 rounded-lg"
                             title="Delete"
                           >
@@ -244,7 +260,7 @@ function Expenses() {
                 formatCurrency={formatCurrency}
                 onMarkPaid={() => markPaidMutation.mutate(expense.id)}
                 onEdit={() => { setEditing(expense); setShowForm(true); }}
-                onDelete={() => window.confirm('Delete expense?') && deleteMutation.mutate(expense.id)}
+                onDelete={() => setDeleteConfirmId(expense.id)}
               />
             ))}
           </div>
@@ -256,6 +272,8 @@ function Expenses() {
         </div>
       )}
     </div>
+      )}
+    </>
   );
 }
 

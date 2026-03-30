@@ -10,12 +10,13 @@ import {
     PointElement,
     LineElement,
     Title,
-    Tooltip,
+    Tooltip as ChartTooltipPlugin,
     Legend,
     Filler
 } from 'chart.js';
 import { Download, Plus, MoreVertical, Calendar, User, Building2, ChevronLeft, ChevronRight, CheckCircle, XCircle } from 'lucide-react';
 import logger from '../utils/logger';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
 
 ChartJS.register(
     CategoryScale,
@@ -23,7 +24,7 @@ ChartJS.register(
     PointElement,
     LineElement,
     Title,
-    Tooltip,
+    ChartTooltipPlugin,
     Legend,
     Filler
 );
@@ -42,6 +43,7 @@ export default function ViewVitals() {
     const [currentPage, setCurrentPage] = useState(1);
     const [perPage] = useState(10);
     const [openMenuId, setOpenMenuId] = useState(null);
+    const [approveConfirmId, setApproveConfirmId] = useState(null);
     const menuRefs = useRef({});
 
     const { data: currentUser } = useQuery({
@@ -296,10 +298,13 @@ export default function ViewVitals() {
         }
     }, [openMenuId]);
 
-    const handleApprove = (vitalId) => {
-        if (window.confirm('Are you sure you want to approve this vital sign?')) {
-            updateStatusMutation.mutate({ id: vitalId, status: 'approved' });
-        }
+    const handleApproveConfirm = () => {
+        if (approveConfirmId == null) return;
+        const id = approveConfirmId;
+        updateStatusMutation.mutate(
+            { id, status: 'approved' },
+            { onSuccess: () => setApproveConfirmId(null) }
+        );
     };
 
     // Fetch vitals data
@@ -584,6 +589,18 @@ export default function ViewVitals() {
     const totalPages = vitalsData?.last_page || 1;
 
     return (
+        <>
+            <ConfirmDialog
+                isOpen={approveConfirmId != null}
+                onClose={() => !updateStatusMutation.isPending && setApproveConfirmId(null)}
+                onConfirm={handleApproveConfirm}
+                title="Approve this vital sign?"
+                description="This will mark the reading as approved."
+                confirmLabel="Approve"
+                cancelLabel="Cancel"
+                variant="primary"
+                isPending={updateStatusMutation.isPending}
+            />
         <div className="min-h-screen bg-gray-50">
             <div className="p-6">
                 {/* Filters Section */}
@@ -828,7 +845,7 @@ export default function ViewVitals() {
                                                                                         onClick={(e) => {
                                                                                             e.preventDefault();
                                                                                             e.stopPropagation();
-                                                                                            handleApprove(vital.id);
+                                                                                            setApproveConfirmId(vital.id);
                                                                                             setOpenMenuId(null);
                                                                                         }}
                                                                                         disabled={updateStatusMutation.isPending}
@@ -885,6 +902,7 @@ export default function ViewVitals() {
                 </div>
             </div>
         </div>
+        </>
     );
 }
 

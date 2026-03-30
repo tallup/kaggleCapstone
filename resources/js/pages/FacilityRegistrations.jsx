@@ -5,6 +5,7 @@ import api from '../services/api';
 import { Clock, CheckCircle, XCircle, Search, Eye, Check, X, Building2, Mail, Phone, MapPin } from 'lucide-react';
 import { DashboardSkeleton } from '../components/ui/SkeletonLoader';
 import { useToastContext } from '../contexts/ToastContext';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
 
 export default function FacilityRegistrations() {
   const queryClient = useQueryClient();
@@ -12,6 +13,7 @@ export default function FacilityRegistrations() {
   const { showToast } = useToastContext();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('pending');
+  const [rejectConfirmId, setRejectConfirmId] = useState(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['facility-registrations', statusFilter, search],
@@ -56,6 +58,20 @@ export default function FacilityRegistrations() {
 
   return (
     <div className="space-y-6">
+      <ConfirmDialog
+        isOpen={rejectConfirmId != null}
+        onClose={() => !rejectMutation.isPending && setRejectConfirmId(null)}
+        onConfirm={() => {
+          if (rejectConfirmId == null) return;
+          rejectMutation.mutate(rejectConfirmId, { onSuccess: () => setRejectConfirmId(null) });
+        }}
+        title="Reject this registration?"
+        description="The applicant will be notified that their request was rejected."
+        confirmLabel="Reject"
+        cancelLabel="Cancel"
+        variant="danger"
+        isPending={rejectMutation.isPending}
+      />
       {/* Header */}
       <div className="bg-white rounded-lg shadow p-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
@@ -151,11 +167,8 @@ export default function FacilityRegistrations() {
                       Approve & Setup
                     </button>
                     <button
-                      onClick={() => {
-                        if (window.confirm('Are you sure you want to reject this registration?')) {
-                          rejectMutation.mutate(registration.id);
-                        }
-                      }}
+                      type="button"
+                      onClick={() => setRejectConfirmId(registration.id)}
                       className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2 whitespace-nowrap"
                     >
                       <X className="w-4 h-4" />

@@ -5,6 +5,7 @@ import logger from '../utils/logger';
 import { ShoppingCart, Plus, Search, Edit, Trash2, Calendar, Package, CheckCircle, Clock, XCircle, Truck, X } from 'lucide-react';
 import SectionCard from '../components/SectionCard';
 import Card from '../components/Card';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
 
 export default function PharmacyOrders() {
     const queryClient = useQueryClient();
@@ -106,6 +107,8 @@ export default function PharmacyOrders() {
         },
     });
 
+    const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+
     const updateStatusMutation = useMutation({
         mutationFn: async ({ id, status }) => {
             const response = await api.put(`/pharmacy-orders/${id}`, { status });
@@ -166,12 +169,6 @@ export default function PharmacyOrders() {
     const branches = branchesData?.data || [];
     const suppliers = suppliersData?.data || [];
     const drugs = drugsData?.data || [];
-
-    const handleDelete = (id) => {
-        if (window.confirm('Are you sure you want to delete this order?')) {
-            deleteMutation.mutate(id);
-        }
-    };
 
     const handleViewItems = (order) => {
         setSelectedOrder(order);
@@ -674,6 +671,21 @@ export default function PharmacyOrders() {
     }
 
     return (
+        <>
+            <ConfirmDialog
+                isOpen={deleteConfirmId != null}
+                onClose={() => !deleteMutation.isPending && setDeleteConfirmId(null)}
+                onConfirm={() => {
+                    if (deleteConfirmId == null) return;
+                    deleteMutation.mutate(deleteConfirmId, { onSuccess: () => setDeleteConfirmId(null) });
+                }}
+                title="Delete this order?"
+                description="This order will be permanently removed."
+                confirmLabel="Delete"
+                cancelLabel="Cancel"
+                variant="danger"
+                isPending={deleteMutation.isPending}
+            />
         <div>
             <SectionCard>
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
@@ -829,7 +841,7 @@ export default function PharmacyOrders() {
                                         {order.status === 'draft' && (
                                             <>
                                                 <button
-                                                    onClick={() => handleDelete(order.id)}
+                                                    onClick={() => setDeleteConfirmId(order.id)}
                                                     className="px-4 py-2 text-sm font-medium bg-red-600 text-white hover:bg-red-700 rounded-lg transition-colors flex items-center gap-2"
                                                 >
                                                     <Trash2 className="w-4 h-4" />
@@ -845,6 +857,7 @@ export default function PharmacyOrders() {
                 )}
             </SectionCard>
         </div>
+        </>
     );
 }
 

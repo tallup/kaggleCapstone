@@ -23,6 +23,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import SectionCard from '../components/SectionCard';
 import EmptyState from '../components/ui/EmptyState';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
 import { getUserLocation } from '../utils/location';
 import logger from '../utils/logger';
 
@@ -274,6 +275,50 @@ export default function CheckInDashboard() {
         },
     });
 
+    /** staffClockOut | residentSignIn | visitorCheckOut */
+    const [dashboardConfirm, setDashboardConfirm] = useState(null);
+
+    const dashboardConfirmPending =
+        staffClockOutMutation.isPending ||
+        residentSignInMutation.isPending ||
+        visitorCheckOutMutation.isPending;
+
+    const handleDashboardConfirm = () => {
+        if (!dashboardConfirm) return;
+        const done = () => setDashboardConfirm(null);
+        if (dashboardConfirm.type === 'staffClockOut') {
+            staffClockOutMutation.mutate({ clockInId: dashboardConfirm.clockInId }, { onSuccess: done });
+        } else if (dashboardConfirm.type === 'residentSignIn') {
+            residentSignInMutation.mutate({ residentId: dashboardConfirm.residentId }, { onSuccess: done });
+        } else if (dashboardConfirm.type === 'visitorCheckOut') {
+            visitorCheckOutMutation.mutate({ visitorId: dashboardConfirm.visitorId }, { onSuccess: done });
+        }
+    };
+
+    const dashboardConfirmCopy =
+        dashboardConfirm == null
+            ? { title: '', description: '', confirmLabel: 'Confirm', variant: 'neutral' }
+            : dashboardConfirm.type === 'staffClockOut'
+              ? {
+                    title: 'Clock out staff member?',
+                    description: `Clock out ${dashboardConfirm.name}?`,
+                    confirmLabel: 'Clock out',
+                    variant: 'primary',
+                }
+              : dashboardConfirm.type === 'residentSignIn'
+                ? {
+                      title: 'Sign resident in?',
+                      description: `Sign in ${dashboardConfirm.name}?`,
+                      confirmLabel: 'Sign in',
+                      variant: 'primary',
+                  }
+                : {
+                      title: 'Check out visitor?',
+                      description: `Check out ${dashboardConfirm.name}?`,
+                      confirmLabel: 'Check out',
+                      variant: 'primary',
+                  };
+
     const handleExportHistory = () => {
         if (!historyData?.data || historyData.data.length === 0) {
             alert('No data to export');
@@ -362,6 +407,18 @@ export default function CheckInDashboard() {
     const isLoading = clockInsLoading || signOutsLoading || visitorsLoading;
 
     return (
+        <>
+            <ConfirmDialog
+                isOpen={dashboardConfirm != null}
+                onClose={() => !dashboardConfirmPending && setDashboardConfirm(null)}
+                onConfirm={handleDashboardConfirm}
+                title={dashboardConfirmCopy.title}
+                description={dashboardConfirmCopy.description}
+                confirmLabel={dashboardConfirmCopy.confirmLabel}
+                cancelLabel="Cancel"
+                variant={dashboardConfirmCopy.variant}
+                isPending={dashboardConfirmPending}
+            />
         <div className="space-y-6">
             {/* Header */}
             <header 
@@ -537,9 +594,11 @@ export default function CheckInDashboard() {
                                         </div>
                                         <button
                                             onClick={() => {
-                                                if (window.confirm(`Clock out ${clockIn.staff?.name || 'this staff member'}?`)) {
-                                                    staffClockOutMutation.mutate({ clockInId: clockIn.id });
-                                                }
+                                                setDashboardConfirm({
+                                                    type: 'staffClockOut',
+                                                    clockInId: clockIn.id,
+                                                    name: clockIn.staff?.name || 'this staff member',
+                                                });
                                             }}
                                             disabled={staffClockOutMutation.isPending}
                                             className="px-4 py-2 rounded-lg text-sm font-semibold text-white transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
@@ -688,9 +747,11 @@ export default function CheckInDashboard() {
                                         </div>
                                         <button
                                             onClick={() => {
-                                                if (window.confirm(`Sign in ${signOut.resident?.name || 'this resident'}?`)) {
-                                                    residentSignInMutation.mutate({ residentId: signOut.resident_id });
-                                                }
+                                                setDashboardConfirm({
+                                                    type: 'residentSignIn',
+                                                    residentId: signOut.resident_id,
+                                                    name: signOut.resident?.name || 'this resident',
+                                                });
                                             }}
                                             disabled={residentSignInMutation.isPending}
                                             className="px-4 py-2 rounded-lg text-sm font-semibold text-white transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
@@ -824,9 +885,11 @@ export default function CheckInDashboard() {
                                         </div>
                                         <button
                                             onClick={() => {
-                                                if (window.confirm(`Check out ${visitor.first_name} ${visitor.last_name}?`)) {
-                                                    visitorCheckOutMutation.mutate({ visitorId: visitor.id });
-                                                }
+                                                setDashboardConfirm({
+                                                    type: 'visitorCheckOut',
+                                                    visitorId: visitor.id,
+                                                    name: `${visitor.first_name} ${visitor.last_name}`,
+                                                });
                                             }}
                                             disabled={visitorCheckOutMutation.isPending}
                                             className="px-4 py-2 rounded-lg text-sm font-semibold text-white transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
@@ -1127,6 +1190,7 @@ export default function CheckInDashboard() {
                 )}
             </SectionCard>
         </div>
+        </>
     );
 }
 

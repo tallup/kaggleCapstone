@@ -4,6 +4,7 @@ import api from '../services/api';
 import { Package, Plus, Search, Edit, Trash2, AlertTriangle, CheckCircle, TrendingDown, TrendingUp, MapPin } from 'lucide-react';
 import SectionCard from '../components/SectionCard';
 import Card from '../components/Card';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
 
 export default function PharmacyInventory() {
     const queryClient = useQueryClient();
@@ -101,6 +102,8 @@ export default function PharmacyInventory() {
         },
     });
 
+    const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+
     const inventory = data?.data || [];
     const branches = branchesData?.data || [];
     const drugs = drugsData?.data || [];
@@ -177,12 +180,6 @@ export default function PharmacyInventory() {
         }
     };
 
-    const handleDelete = (id) => {
-        if (window.confirm('Are you sure you want to delete this inventory item?')) {
-            deleteMutation.mutate(id);
-        }
-    };
-
     const getStockStatusBadge = (item) => {
         const quantity = item.quantity || 0;
         const minLevel = item.minimum_stock_level || 0;
@@ -199,8 +196,23 @@ export default function PharmacyInventory() {
         return <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">In Stock</span>;
     };
 
-    if (showForm) {
-        return (
+    return (
+        <>
+            <ConfirmDialog
+                isOpen={deleteConfirmId != null}
+                onClose={() => !deleteMutation.isPending && setDeleteConfirmId(null)}
+                onConfirm={() => {
+                    if (deleteConfirmId == null) return;
+                    deleteMutation.mutate(deleteConfirmId, { onSuccess: () => setDeleteConfirmId(null) });
+                }}
+                title="Delete inventory item?"
+                description="This inventory item will be permanently removed."
+                confirmLabel="Delete"
+                cancelLabel="Cancel"
+                variant="danger"
+                isPending={deleteMutation.isPending}
+            />
+            {showForm ? (
             <div>
                 <SectionCard>
                     <div className="flex items-center justify-between mb-6">
@@ -389,10 +401,7 @@ export default function PharmacyInventory() {
                     </form>
                 </SectionCard>
             </div>
-        );
-    }
-
-    return (
+            ) : (
         <div>
             <SectionCard>
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
@@ -510,7 +519,7 @@ export default function PharmacyInventory() {
                                                     <Edit className="w-4 h-4" />
                                                 </button>
                                                 <button
-                                                    onClick={() => handleDelete(item.id)}
+                                                    onClick={() => setDeleteConfirmId(item.id)}
                                                     className="p-2 border-2 border-red-400 bg-white text-red-700 hover:bg-red-50 hover:border-red-500 rounded-lg transition-all shadow-sm"
                                                     title="Delete"
                                                 >
@@ -526,6 +535,8 @@ export default function PharmacyInventory() {
                 )}
             </SectionCard>
         </div>
+            )}
+        </>
     );
 }
 

@@ -4,6 +4,7 @@ import api from '../services/api';
 import logger from '../utils/logger';
 import { Calendar, Plus, Edit, Trash2, CheckCircle, XCircle } from 'lucide-react';
 import SectionCard from '../components/SectionCard';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
 
 export default function LeaveRequests() {
   const queryClient = useQueryClient();
@@ -11,6 +12,8 @@ export default function LeaveRequests() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
+  const [approveConfirmId, setApproveConfirmId] = useState(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
   // Fetch current user
   React.useEffect(() => {
@@ -88,12 +91,6 @@ export default function LeaveRequests() {
     },
   });
 
-  const handleApprove = (id) => {
-    if (window.confirm('Approve this leave request?')) {
-      approveMutation.mutate(id);
-    }
-  };
-
   const handleReject = (id) => {
     const declineReason = window.prompt('Please provide a reason for declining this request (optional):');
     if (declineReason !== null) { // User didn't cancel
@@ -106,8 +103,37 @@ export default function LeaveRequests() {
     setEditing(null);
   };
 
-  if (showForm) {
-    return (
+  return (
+    <>
+      <ConfirmDialog
+        isOpen={approveConfirmId != null}
+        onClose={() => !approveMutation.isPending && setApproveConfirmId(null)}
+        onConfirm={() => {
+          if (approveConfirmId == null) return;
+          approveMutation.mutate(approveConfirmId, { onSuccess: () => setApproveConfirmId(null) });
+        }}
+        title="Approve this leave request?"
+        description="The request will be marked as approved."
+        confirmLabel="Approve"
+        cancelLabel="Cancel"
+        variant="primary"
+        isPending={approveMutation.isPending}
+      />
+      <ConfirmDialog
+        isOpen={deleteConfirmId != null}
+        onClose={() => !deleteMutation.isPending && setDeleteConfirmId(null)}
+        onConfirm={() => {
+          if (deleteConfirmId == null) return;
+          deleteMutation.mutate(deleteConfirmId, { onSuccess: () => setDeleteConfirmId(null) });
+        }}
+        title="Delete this leave request?"
+        description="This request will be permanently removed."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        isPending={deleteMutation.isPending}
+      />
+      {showForm ? (
       <div>
         <LeaveForm
           record={editing}
@@ -120,10 +146,7 @@ export default function LeaveRequests() {
           }}
         />
       </div>
-    );
-  }
-
-  return (
+      ) : (
     <div>
       <div className="bg-white rounded-lg shadow p-6 mb-6">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
@@ -184,7 +207,8 @@ export default function LeaveRequests() {
                       {isAdmin && lr.status === 'pending' && (
                         <>
                           <button 
-                            onClick={() => handleApprove(lr.id)} 
+                            type="button"
+                            onClick={() => setApproveConfirmId(lr.id)} 
                             disabled={approveMutation.isLoading}
                             className="p-2 bg-green-600 text-white hover:bg-green-700 rounded-lg transition-colors shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed" 
                             title="Approve"
@@ -212,7 +236,8 @@ export default function LeaveRequests() {
                             <Edit className="w-4 h-4" />
                           </button>
                           <button 
-                            onClick={() => window.confirm('Delete leave request?') && deleteMutation.mutate(lr.id)} 
+                            type="button"
+                            onClick={() => setDeleteConfirmId(lr.id)} 
                             className="p-2 bg-red-600 text-white hover:bg-red-700 rounded-lg transition-colors shadow-md hover:shadow-lg" 
                             title="Delete"
                           >
@@ -242,6 +267,8 @@ export default function LeaveRequests() {
         </div>
       )}
     </div>
+      )}
+    </>
   );
 }
 

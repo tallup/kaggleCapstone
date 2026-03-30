@@ -46,6 +46,7 @@ import {
     RefreshCw,
 } from 'lucide-react';
 import CalendarView from '../components/CalendarView';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
 import {
     parseAdminTimeToPacific,
     isMedicationSlotCoveredToday,
@@ -167,6 +168,8 @@ export default function Medications() {
     const [currentPage, setCurrentPage] = useState(1);
     const [currentUser, setCurrentUser] = useState(null);
     const [viewMode, setViewMode] = useState('list'); // 'list' or 'calendar' - default to list (calendar hidden)
+    /** { type: 'enable'|'disable'|'delete', id: number, medName: string, residentName: string } | null */
+    const [medConfirm, setMedConfirm] = useState(null);
     const [activeTab, setActiveTab] = useState('scheduled'); // 'scheduled', 'am', 'pm', 'prn'
     const [expandedRows, setExpandedRows] = useState(new Set());
     const [selectedMeds, setSelectedMeds] = useState(new Set());
@@ -820,9 +823,12 @@ export default function Medications() {
                                                     onClick={(e) => {
                                                         e.stopPropagation();
                                                         const medName2 = medication.name || 'Medication';
-                                                        if (window.confirm(`Re-enable "${medName2}" for ${residentName}? It will appear on active medication lists again.`)) {
-                                                            enableMutation.mutate(medication.id);
-                                                        }
+                                                        setMedConfirm({
+                                                            type: 'enable',
+                                                            id: medication.id,
+                                                            medName: medName2,
+                                                            residentName,
+                                                        });
                                                     }}
                                                     disabled={enableMutation.isPending}
                                                     className="w-full px-3 py-2 text-sm font-medium text-emerald-900 border border-emerald-700 rounded-lg bg-white hover:bg-emerald-600 hover:text-white hover:border-emerald-600 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed [&_svg]:shrink-0"
@@ -837,9 +843,12 @@ export default function Medications() {
                                                     onClick={(e) => {
                                                         e.stopPropagation();
                                                         const medName2 = medication.name || 'Medication';
-                                                        if (window.confirm(`Disable "${medName2}" for ${residentName}? It will be hidden from active lists but history is kept. You can turn it back on by editing the medication.`)) {
-                                                            disableMutation.mutate(medication.id);
-                                                        }
+                                                        setMedConfirm({
+                                                            type: 'disable',
+                                                            id: medication.id,
+                                                            medName: medName2,
+                                                            residentName,
+                                                        });
                                                     }}
                                                     disabled={disableMutation.isPending}
                                                     className="w-full px-3 py-2 text-sm font-medium text-amber-950 border border-amber-700 rounded-lg bg-white hover:bg-amber-600 hover:text-white hover:border-amber-600 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed [&_svg]:shrink-0"
@@ -856,13 +865,12 @@ export default function Medications() {
                                                         onClick={(e) => {
                                                             e.stopPropagation();
                                                             const medName2 = medication.name || 'Medication';
-                                                            if (
-                                                                window.confirm(
-                                                                    `Permanently delete "${medName2}" for ${residentName}?\n\nThis removes the medication order from the system. Related administration (MAR) rows for this order are also removed. This cannot be undone.`
-                                                                )
-                                                            ) {
-                                                                deleteMedicationMutation.mutate(medication.id);
-                                                            }
+                                                            setMedConfirm({
+                                                                type: 'delete',
+                                                                id: medication.id,
+                                                                medName: medName2,
+                                                                residentName,
+                                                            });
                                                         }}
                                                         disabled={deleteMedicationMutation.isPending}
                                                         className="w-full px-3 py-2 text-sm font-medium text-red-900 border border-red-700 rounded-lg bg-white hover:bg-red-600 hover:text-white hover:border-red-600 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed [&_svg]:shrink-0"
@@ -1010,6 +1018,47 @@ export default function Medications() {
         onSuccess: () => queryClient.invalidateQueries(['medications']),
     });
 
+    const medActionPending =
+        (medConfirm?.type === 'enable' && enableMutation.isPending) ||
+        (medConfirm?.type === 'disable' && disableMutation.isPending) ||
+        (medConfirm?.type === 'delete' && deleteMedicationMutation.isPending);
+
+    const handleMedConfirmAction = () => {
+        if (!medConfirm) return;
+        const done = () => setMedConfirm(null);
+        if (medConfirm.type === 'enable') {
+            enableMutation.mutate(medConfirm.id, { onSuccess: done });
+        } else if (medConfirm.type === 'disable') {
+            disableMutation.mutate(medConfirm.id, { onSuccess: done });
+        } else if (medConfirm.type === 'delete') {
+            deleteMedicationMutation.mutate(medConfirm.id, { onSuccess: done });
+        }
+    };
+
+    const medConfirmCopy =
+        medConfirm?.type === 'enable'
+            ? {
+                  title: 'Re-enable medication?',
+                  description: `Re-enable "${medConfirm.medName}" for ${medConfirm.residentName}? It will appear on active medication lists again.`,
+                  confirmLabel: 'Re-enable',
+                  variant: 'primary',
+              }
+            : medConfirm?.type === 'disable'
+              ? {
+                    title: 'Disable medication?',
+                    description: `Disable "${medConfirm.medName}" for ${medConfirm.residentName}? It will be hidden from active lists but history is kept. You can turn it back on by editing the medication.`,
+                    confirmLabel: 'Disable',
+                    variant: 'neutral',
+                }
+              : medConfirm?.type === 'delete'
+                ? {
+                      title: 'Permanently delete medication?',
+                      description: `Permanently delete "${medConfirm.medName}" for ${medConfirm.residentName}? This removes the medication order from the system. Related administration (MAR) rows for this order are also removed. This cannot be undone.`,
+                      confirmLabel: 'Delete permanently',
+                      variant: 'danger',
+                  }
+                : { title: '', description: '', confirmLabel: 'Confirm', variant: 'neutral' };
+
     const formatTime = (timeValue) => formatPacificTimeValue(timeValue);
 
     // Don't render for caregivers (they'll be redirected)
@@ -1068,6 +1117,18 @@ export default function Medications() {
     }
 
     return (
+        <>
+            <ConfirmDialog
+                isOpen={medConfirm != null}
+                onClose={() => !medActionPending && setMedConfirm(null)}
+                onConfirm={handleMedConfirmAction}
+                title={medConfirmCopy.title}
+                description={medConfirmCopy.description}
+                confirmLabel={medConfirmCopy.confirmLabel}
+                cancelLabel="Cancel"
+                variant={medConfirmCopy.variant}
+                isPending={medActionPending}
+            />
         <div>
             <div className="bg-white rounded-lg shadow p-6 mb-6">
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
@@ -1379,6 +1440,7 @@ export default function Medications() {
                 </div>
             )}
         </div>
+        </>
     );
 }
 

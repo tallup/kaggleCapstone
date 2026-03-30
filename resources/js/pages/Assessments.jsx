@@ -7,6 +7,8 @@ import { ClipboardList, Plus, Search, Filter, Edit, Trash2, Calendar, User, Chec
 import SectionCard from '../components/SectionCard';
 import Card from '../components/Card';
 import CalendarComponent from '../components/ui/Calendar';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
+import Tooltip from '../components/ui/Tooltip';
 import { hasModuleAccess } from '../utils/moduleAccess';
 
 export default function Assessments() {
@@ -167,6 +169,13 @@ export default function Assessments() {
         },
     });
 
+    const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+
+    const handleConfirmDeleteAssessment = () => {
+        if (deleteConfirmId == null) return;
+        deleteMutation.mutate(deleteConfirmId, { onSuccess: () => setDeleteConfirmId(null) });
+    };
+
     // Process assessments for calendar
     const calendarData = useMemo(() => {
         if (!allAssessmentsForCalendar?.data) return [];
@@ -285,32 +294,41 @@ export default function Assessments() {
         );
     }
 
-    if (showForm) {
-        return (
-            <div>
-                <AssessmentForm
-                    record={editing}
-                    residents={residentsData?.data || []}
-                    branches={branchesData?.data || []}
-                    currentUser={currentUser}
-                    isFacilityAdmin={isFacilityAdmin}
-                    isBranchAdmin={isBranchAdmin}
-                    onClose={() => {
-                        setShowForm(false);
-                        setEditing(null);
-                    }}
-                    onSuccess={() => {
-                        setShowForm(false);
-                        setEditing(null);
-                        queryClient.invalidateQueries(['assessments']);
-                        queryClient.invalidateQueries(['assessments-calendar']);
-                    }}
-                />
-            </div>
-        );
-    }
-
     return (
+        <>
+            <ConfirmDialog
+                isOpen={deleteConfirmId != null}
+                onClose={() => !deleteMutation.isPending && setDeleteConfirmId(null)}
+                onConfirm={handleConfirmDeleteAssessment}
+                title="Delete this assessment?"
+                description="This assessment will be permanently removed."
+                confirmLabel="Delete"
+                cancelLabel="Cancel"
+                variant="danger"
+                isPending={deleteMutation.isPending}
+            />
+            {showForm ? (
+                <div>
+                    <AssessmentForm
+                        record={editing}
+                        residents={residentsData?.data || []}
+                        branches={branchesData?.data || []}
+                        currentUser={currentUser}
+                        isFacilityAdmin={isFacilityAdmin}
+                        isBranchAdmin={isBranchAdmin}
+                        onClose={() => {
+                            setShowForm(false);
+                            setEditing(null);
+                        }}
+                        onSuccess={() => {
+                            setShowForm(false);
+                            setEditing(null);
+                            queryClient.invalidateQueries(['assessments']);
+                            queryClient.invalidateQueries(['assessments-calendar']);
+                        }}
+                    />
+                </div>
+            ) : (
         <div>
             <SectionCard>
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
@@ -500,31 +518,33 @@ export default function Assessments() {
                                 )}
 
                                 {!isCaregiver && (canEdit || canDelete) && (
-                                    <div className="flex space-x-2 mt-4">
+                                    <div className="mt-4 flex space-x-2">
                                         {canEdit && (
-                                            <button
-                                                onClick={() => {
-                                                    setEditing(assessment);
-                                                    setShowForm(true);
-                                                }}
-                                                className="p-2 text-[var(--theme-secondary)] hover:bg-amber-50 rounded-lg transition-colors"
-                                                title="Edit"
-                                            >
-                                                <Edit className="w-4 h-4" />
-                                            </button>
+                                            <Tooltip content="Edit" position="top">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setEditing(assessment);
+                                                        setShowForm(true);
+                                                    }}
+                                                    className="rounded-lg border border-amber-200 bg-amber-50/80 p-2 transition-colors hover:bg-amber-100"
+                                                    aria-label="Edit assessment"
+                                                >
+                                                    <Edit className="h-4 w-4 !text-amber-800" strokeWidth={2.5} />
+                                                </button>
+                                            </Tooltip>
                                         )}
                                         {canDelete && (
-                                            <button
-                                                onClick={() => {
-                                                    if (window.confirm('Are you sure you want to delete this assessment?')) {
-                                                        deleteMutation.mutate(assessment.id);
-                                                    }
-                                                }}
-                                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                                title="Delete"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
+                                            <Tooltip content="Delete" position="top">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setDeleteConfirmId(assessment.id)}
+                                                    className="rounded-lg border border-red-200 bg-red-50/80 p-2 transition-colors hover:bg-red-100"
+                                                    aria-label="Delete assessment"
+                                                >
+                                                    <Trash2 className="h-4 w-4 !text-red-700" strokeWidth={2.5} />
+                                                </button>
+                                            </Tooltip>
                                         )}
                                     </div>
                                 )}
@@ -544,6 +564,8 @@ export default function Assessments() {
                 </div>
             )}
         </div>
+            )}
+        </>
     );
 }
 

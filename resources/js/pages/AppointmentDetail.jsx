@@ -441,10 +441,12 @@ export default function AppointmentDetail() {
                                         <p className="text-sm font-medium text-gray-900">{appointment.resident.diagnosis}</p>
                                     </div>
                                 )}
-                                {appointment.resident.physician_name && (
+                                {(appointment.resident.primary_care_doctor || appointment.resident.physician_name) && (
                                     <div>
                                         <p className="text-xs text-gray-500">Physician</p>
-                                        <p className="text-sm font-medium text-gray-900">{appointment.resident.physician_name}</p>
+                                        <p className="text-sm font-medium text-gray-900">
+                                            {appointment.resident.primary_care_doctor || appointment.resident.physician_name}
+                                        </p>
                                     </div>
                                 )}
                                 <Link

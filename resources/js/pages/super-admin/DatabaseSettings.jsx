@@ -1,13 +1,15 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Database, Download, Upload, RefreshCw, HardDrive, Archive } from 'lucide-react';
 import api from '../../services/api';
 import logger from '../../utils/logger';
 import { useToastContext } from '../../contexts/ToastContext';
+import ConfirmDialog from '../../components/ui/ConfirmDialog';
 
 export default function DatabaseSettings() {
   const toast = useToastContext();
   const queryClient = useQueryClient();
+  const [restoreConfirmFile, setRestoreConfirmFile] = useState(null);
 
   const { data: currentUser } = useQuery({
     queryKey: ['me'],
@@ -152,10 +154,9 @@ export default function DatabaseSettings() {
     },
   });
 
-  const handleRestore = (filename) => {
-    if (window.confirm(`Are you sure you want to restore from ${filename}? This will overwrite the current database.`)) {
-      restoreBackupMutation.mutate(filename);
-    }
+  const handleConfirmRestore = () => {
+    if (!restoreConfirmFile) return;
+    restoreBackupMutation.mutate(restoreConfirmFile, { onSuccess: () => setRestoreConfirmFile(null) });
   };
 
   const handleDownload = (filename) => {
@@ -222,6 +223,21 @@ export default function DatabaseSettings() {
 
   return (
     <div className="space-y-6">
+      <ConfirmDialog
+        isOpen={restoreConfirmFile != null}
+        onClose={() => !restoreBackupMutation.isPending && setRestoreConfirmFile(null)}
+        onConfirm={handleConfirmRestore}
+        title="Restore database backup?"
+        description={
+          restoreConfirmFile
+            ? `Restore from ${restoreConfirmFile}? This will overwrite the current database.`
+            : ''
+        }
+        confirmLabel="Restore"
+        cancelLabel="Cancel"
+        variant="danger"
+        isPending={restoreBackupMutation.isPending}
+      />
       <div className="bg-white rounded-xl shadow-sm p-6 flex items-center space-x-3">
         <div className="h-10 w-10 flex items-center justify-center rounded-lg bg-[var(--theme-primary)]/10 text-[var(--theme-primary)]">
           <Database className="w-5 h-5" />
@@ -307,7 +323,7 @@ export default function DatabaseSettings() {
               onClick={() => {
                 if (backups && backups.length > 0) {
                   const latest = backups[0];
-                  handleRestore(latest.filename);
+                  setRestoreConfirmFile(latest.filename);
                 } else {
                   toast.showToast('No backups available', 'error');
                 }
@@ -382,7 +398,7 @@ export default function DatabaseSettings() {
                     Download
                   </button>
                   <button
-                    onClick={() => handleRestore(backup.filename)}
+                    onClick={() => setRestoreConfirmFile(backup.filename)}
                     disabled={restoreBackupMutation.isPending}
                     className="px-2.5 py-1 text-xs sm:px-3 sm:py-1.5 sm:text-sm text-[var(--theme-primary)] border border-[var(--theme-primary)] rounded-lg hover:bg-[var(--theme-primary)]/10 disabled:opacity-50"
                   >

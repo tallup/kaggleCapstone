@@ -24,6 +24,7 @@ import FormTextarea from '../components/forms/FormTextarea';
 import FormCheckbox from '../components/forms/FormCheckbox';
 import FormSelect from '../components/forms/FormSelect';
 import BranchSelector from '../components/BranchSelector';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
 
 const frequencyOptions = [
     { value: 'daily', label: 'Daily' },
@@ -80,6 +81,8 @@ export default function HousekeepingSchedule() {
     const [assignmentDate, setAssignmentDate] = React.useState(() => getLocalDateString());
     const [assignmentTask, setAssignmentTask] = React.useState(null);
     const [isAssignmentModalOpen, setIsAssignmentModalOpen] = React.useState(false);
+    const [deleteAreaConfirm, setDeleteAreaConfirm] = React.useState(null);
+    const [deleteTaskConfirmId, setDeleteTaskConfirmId] = React.useState(null);
 
     const { data: currentUser } = useQuery({
         queryKey: ['current-user'],
@@ -168,6 +171,18 @@ const caregivers = caregiversData?.data ?? [];
         mutationFn: (id) => api.delete(`/cleaning/tasks/${id}`),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['cleaning-tasks'] });
+        },
+    });
+
+    const deleteArea = useMutation({
+        mutationFn: (id) => api.delete(`/cleaning/areas/${id}`).then(() => id),
+        onSuccess: (deletedId) => {
+            queryClient.invalidateQueries({ queryKey: ['cleaning-areas'] });
+            setSelectedAreaId((prev) => (prev === deletedId ? null : prev));
+            setDeleteAreaConfirm(null);
+        },
+        onError: (err) => {
+            window.alert(err?.response?.data?.message || err.message);
         },
     });
 
@@ -440,20 +455,9 @@ const closeAssignmentModal = () => {
                                                 </button>
                                                 <button
                                                     type="button"
-                                                    onClick={async () => {
-                                                        if (!window.confirm(`Delete area "${area.name}"? This cannot be undone.`)) {
-                                                            return;
-                                                        }
-                                                        try {
-                                                            await api.delete(`/cleaning/areas/${area.id}`);
-                                                            if (selectedAreaId === area.id) {
-                                                                setSelectedAreaId(null);
-                                                            }
-                                                            await queryClient.invalidateQueries({ queryKey: ['cleaning-areas'] });
-                                                        } catch (err) {
-                                                            window.alert(err?.response?.data?.message || err.message);
-                                                        }
-                                                    }}
+                                                    onClick={() =>
+                                                        setDeleteAreaConfirm({ id: area.id, name: area.name })
+                                                    }
                                                     className={`inline-flex items-center rounded-lg border-2 p-2 transition-colors ${
                                                         isActive 
                                                             ? 'border-white/40 bg-white/25 text-white hover:bg-white/40 hover:border-white/60' 
@@ -585,15 +589,7 @@ const closeAssignmentModal = () => {
                                             </button>
                                             <button
                                                 type="button"
-                                                onClick={async () => {
-                                                    if (window.confirm('Delete this task? This cannot be undone.')) {
-                                                        try {
-                                                            await deleteTask.mutateAsync(task.id);
-                                                        } catch (err) {
-                                                            window.alert(err?.response?.data?.message || err.message);
-                                                        }
-                                                    }
-                                                }}
+                                                onClick={() => setDeleteTaskConfirmId(task.id)}
                                                 className="inline-flex items-center gap-1.5 rounded-lg border-2 border-red-400 px-4 py-2.5 text-sm font-bold text-red-700 transition-colors hover:bg-red-50 bg-white shadow-md"
                                             >
                                                 <Trash2 className="h-4 w-4" />
@@ -625,6 +621,42 @@ const closeAssignmentModal = () => {
                 />
             ) : null}
 
+            <ConfirmDialog
+                isOpen={deleteAreaConfirm != null}
+                onClose={() => !deleteArea.isPending && setDeleteAreaConfirm(null)}
+                onConfirm={() => {
+                    if (deleteAreaConfirm == null) return;
+                    deleteArea.mutate(deleteAreaConfirm.id);
+                }}
+                title="Delete this area?"
+                description={
+                    deleteAreaConfirm
+                        ? `Delete "${deleteAreaConfirm.name}"? This cannot be undone.`
+                        : ''
+                }
+                confirmLabel="Delete"
+                cancelLabel="Cancel"
+                variant="danger"
+                isPending={deleteArea.isPending}
+            />
+            <ConfirmDialog
+                isOpen={deleteTaskConfirmId != null}
+                onClose={() => !deleteTask.isPending && setDeleteTaskConfirmId(null)}
+                onConfirm={() => {
+                    if (deleteTaskConfirmId == null) return;
+                    deleteTask.mutate(deleteTaskConfirmId, {
+                        onSuccess: () => setDeleteTaskConfirmId(null),
+                        onError: (err) =>
+                            window.alert(err?.response?.data?.message || err.message),
+                    });
+                }}
+                title="Delete this task?"
+                description="This task will be permanently removed. This cannot be undone."
+                confirmLabel="Delete"
+                cancelLabel="Cancel"
+                variant="danger"
+                isPending={deleteTask.isPending}
+            />
         </div>
     );
 }
@@ -1243,6 +1275,7 @@ function AreaForm({ onClose, branchId, currentUser, initialValues, onSuccess }) 
 
 function AssignmentForm({ task, date, caregivers, onAssign, onRemove, isSaving, onClose }) {
     const [selectedCaregiver, setSelectedCaregiver] = React.useState('');
+    const [removeConfirmId, setRemoveConfirmId] = React.useState(null);
     const assignments = task.assignments ?? [];
 
     const handleAssign = async (event) => {
@@ -1258,6 +1291,22 @@ function AssignmentForm({ task, date, caregivers, onAssign, onRemove, isSaving, 
 
     return (
         <div className="space-y-6">
+            <ConfirmDialog
+                isOpen={removeConfirmId != null}
+                onClose={() => !isSaving && setRemoveConfirmId(null)}
+                onConfirm={async () => {
+                    if (removeConfirmId == null) return;
+                    const id = removeConfirmId;
+                    setRemoveConfirmId(null);
+                    await onRemove(id);
+                }}
+                title="Remove caregiver?"
+                description="Remove this caregiver from the task for this date?"
+                confirmLabel="Remove"
+                cancelLabel="Cancel"
+                variant="danger"
+                isPending={isSaving}
+            />
             <div className="flex items-center gap-3">
                 <button
                     type="button"
@@ -1339,12 +1388,7 @@ function AssignmentForm({ task, date, caregivers, onAssign, onRemove, isSaving, 
                                             </div>
                                             <button
                                                 type="button"
-                                                onClick={async () => {
-                                                    if (!window.confirm('Remove this caregiver from the task for this date?')) {
-                                                        return;
-                                                    }
-                                                    await onRemove(assignment.id);
-                                                }}
+                                                onClick={() => setRemoveConfirmId(assignment.id)}
                                                 disabled={isSaving}
                                                 className="rounded-lg px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 active:bg-red-800 transition-colors shadow-md hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-red-600"
                                             >

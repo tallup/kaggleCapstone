@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { UserX, RefreshCcw, Home, Building, Mail, Phone, Calendar, Repeat2 } from 'lucide-react';
 import api from '../services/api';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
 
 function EmptyState({ title, description }) {
     return (
@@ -61,15 +62,25 @@ export default function DeactivatedRecords() {
 
     const handleReactivateResident = (resident) => {
         if (!resident?.id) return;
-        if (window.confirm(`Reactivate ${resident.first_name || resident.name || 'this resident'}?`)) {
-            reactivateResidentMutation.mutate(resident.id);
-        }
+        const label =
+            `${resident.first_name || ''} ${resident.last_name || ''}`.trim() ||
+            resident.name ||
+            'this resident';
+        setReactivateConfirm({ type: 'resident', id: resident.id, label });
     };
 
     const handleReactivateUser = (user) => {
         if (!user?.id) return;
-        if (window.confirm(`Reactivate ${user.name || user.email}?`)) {
-            reactivateUserMutation.mutate(user.id);
+        setReactivateConfirm({ type: 'user', id: user.id, label: user.name || user.email || 'this user' });
+    };
+
+    const handleConfirmReactivate = () => {
+        if (!reactivateConfirm) return;
+        const done = () => setReactivateConfirm(null);
+        if (reactivateConfirm.type === 'resident') {
+            reactivateResidentMutation.mutate(reactivateConfirm.id, { onSuccess: done });
+        } else {
+            reactivateUserMutation.mutate(reactivateConfirm.id, { onSuccess: done });
         }
     };
 
@@ -243,6 +254,21 @@ export default function DeactivatedRecords() {
 
     return (
         <div className="space-y-6">
+            <ConfirmDialog
+                isOpen={reactivateConfirm != null}
+                onClose={() =>
+                    !reactivateResidentMutation.isPending &&
+                    !reactivateUserMutation.isPending &&
+                    setReactivateConfirm(null)
+                }
+                onConfirm={handleConfirmReactivate}
+                title="Reactivate this record?"
+                description={reactivateConfirm ? `Reactivate ${reactivateConfirm.label}?` : ''}
+                confirmLabel="Reactivate"
+                cancelLabel="Cancel"
+                variant="primary"
+                isPending={reactivateResidentMutation.isPending || reactivateUserMutation.isPending}
+            />
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     <div>
