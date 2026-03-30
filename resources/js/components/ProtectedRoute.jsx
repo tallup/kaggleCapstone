@@ -14,9 +14,9 @@ function needsValidation() {
 export default function ProtectedRoute({ children }) {
     const token = localStorage.getItem('auth_token');
     const skipValidation = token && !needsValidation();
-    const [status, setStatus] = useState(
-        !token ? 'unauthenticated' : skipValidation ? 'authenticated' : 'validating'
-    );
+    // Optimistic: render protected UI immediately when a token exists; validate in the
+    // background and redirect to login only if the token is invalid (no full-screen gate).
+    const [status, setStatus] = useState(!token ? 'unauthenticated' : 'authenticated');
     const didValidate = useRef(false);
 
     useEffect(() => {
@@ -47,17 +47,6 @@ export default function ProtectedRoute({ children }) {
 
     if (status === 'unauthenticated') {
         return <Navigate to="/login" replace />;
-    }
-
-    if (status === 'validating') {
-        return (
-            <div className="flex items-center justify-center min-h-screen bg-gray-50">
-                <div className="text-center">
-                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--theme-primary)]"></div>
-                    <p className="mt-4 text-sm text-gray-500">Verifying session...</p>
-                </div>
-            </div>
-        );
     }
 
     return children;
