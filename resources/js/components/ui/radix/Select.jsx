@@ -15,6 +15,8 @@ export default function Select({
     options = [],
     disabled = false,
     className = '',
+    /** Appended to dropdown content (e.g. z-index above modals). */
+    contentClassName = '',
     ...props
 }) {
     const contentRef = useRef(null);
@@ -81,7 +83,7 @@ export default function Select({
                     ref={contentRef}
                     position="popper"
                     sideOffset={4}
-                    className="z-[60] min-w-[var(--radix-select-trigger-width)] bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden"
+                    className={`${contentClassName || 'z-[60]'} min-w-[var(--radix-select-trigger-width)] bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden`}
                 >
                     <SelectPrimitive.ScrollUpButton className="flex items-center justify-center h-6 bg-white text-gray-700 cursor-default">
                         <ChevronUp className="w-4 h-4" />

@@ -1,59 +1,58 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\ResidentController;
+use App\Http\Controllers\Api\ActivityLogController;
 use App\Http\Controllers\Api\AppointmentController;
-use App\Http\Controllers\Api\VitalSignController;
-use App\Http\Controllers\Api\MedicationController;
-use App\Http\Controllers\Api\FacilityController;
-use App\Http\Controllers\Api\BranchController;
-use App\Http\Controllers\Api\VitalRangeController;
-use App\Http\Controllers\Api\LeaveRequestController;
-use App\Http\Controllers\Api\RoleController;
-use App\Http\Controllers\Api\ChartController;
-use App\Http\Controllers\Api\MedicationAdministrationController;
-use App\Http\Controllers\Api\MedicationDashboardController;
 use App\Http\Controllers\Api\AssessmentController;
 use App\Http\Controllers\Api\AssessmentQuestionController;
-use App\Http\Controllers\Api\SleepRecordController;
-use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\AuthController;
-use App\Http\Controllers\Api\DrugController;
-use App\Http\Controllers\Api\UserController;
-use App\Http\Controllers\Api\EmployeeDocumentController;
-use App\Http\Controllers\Api\NotificationController;
-use App\Http\Controllers\Api\ActivityLogController;
-use App\Http\Controllers\Api\CleaningChecklistController;
-use App\Http\Controllers\Api\CleaningAreaController;
-use App\Http\Controllers\Api\CleaningTaskController;
-use App\Http\Controllers\Api\CleaningTaskAssignmentController;
-use App\Http\Controllers\Api\HousekeepingReportController;
-use App\Http\Controllers\Api\SystemSettingsController;
-use App\Http\Controllers\Api\ExpenseCategoryController;
-use App\Http\Controllers\Api\ExpenseController;
+use App\Http\Controllers\Api\BehaviorDataController;
 use App\Http\Controllers\Api\BillingInvoiceController;
-use App\Http\Controllers\Api\ExpenseReportController;
-use App\Http\Controllers\Api\PaymentNotificationPreferenceController;
-use App\Http\Controllers\Api\StaffEmailPreferenceController;
-use App\Http\Controllers\Api\GeocodingController;
-use App\Http\Controllers\Api\StaffClockInController;
-use App\Http\Controllers\Api\PublicStaffClockInController;
-use App\Http\Controllers\Api\PublicContactController;
-use App\Http\Controllers\Api\ResidentSignOutController;
-use App\Http\Controllers\Api\VisitorController;
-use App\Http\Controllers\Api\FacilitySettingsController;
+use App\Http\Controllers\Api\BranchController;
+use App\Http\Controllers\Api\ChartController;
+use App\Http\Controllers\Api\CleaningAreaController;
+use App\Http\Controllers\Api\CleaningChecklistController;
+use App\Http\Controllers\Api\CleaningTaskAssignmentController;
+use App\Http\Controllers\Api\CleaningTaskController;
+use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\DatabaseManagementController;
-use App\Http\Controllers\Api\TLogController;
-use App\Http\Controllers\Api\ReminderController;
-use App\Http\Controllers\Api\ReminderEventController;
+use App\Http\Controllers\Api\DrugController;
 use App\Http\Controllers\Api\EmailNotificationConfigController;
 use App\Http\Controllers\Api\EmailTemplateController;
-use App\Http\Controllers\Api\BehaviorDataController;
-use App\Http\Controllers\Api\ResidentChartController;
+use App\Http\Controllers\Api\EmployeeDocumentController;
+use App\Http\Controllers\Api\ExpenseCategoryController;
+use App\Http\Controllers\Api\ExpenseController;
+use App\Http\Controllers\Api\ExpenseReportController;
+use App\Http\Controllers\Api\FacilityController;
+use App\Http\Controllers\Api\FacilitySettingsController;
+use App\Http\Controllers\Api\GeocodingController;
+use App\Http\Controllers\Api\HousekeepingReportController;
+use App\Http\Controllers\Api\LeaveRequestController;
+use App\Http\Controllers\Api\MedicationAdministrationController;
+use App\Http\Controllers\Api\MedicationController;
+use App\Http\Controllers\Api\MedicationDashboardController;
+use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\PasswordResetController;
-use Illuminate\Cookie\Middleware\EncryptCookies;
+use App\Http\Controllers\Api\PaymentNotificationPreferenceController;
+use App\Http\Controllers\Api\PublicContactController;
+use App\Http\Controllers\Api\PublicStaffClockInController;
+use App\Http\Controllers\Api\ReminderController;
+use App\Http\Controllers\Api\ReminderEventController;
+use App\Http\Controllers\Api\ResidentChartController;
+use App\Http\Controllers\Api\ResidentController;
+use App\Http\Controllers\Api\ResidentSignOutController;
+use App\Http\Controllers\Api\RoleController;
+use App\Http\Controllers\Api\SleepRecordController;
+use App\Http\Controllers\Api\StaffClockInController;
+use App\Http\Controllers\Api\StaffEmailPreferenceController;
+use App\Http\Controllers\Api\SystemSettingsController;
+use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\VisitorController;
+use App\Http\Controllers\Api\VitalRangeController;
+use App\Http\Controllers\Api\VitalSignController;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
+use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Session\Middleware\StartSession;
+use Illuminate\Support\Facades\Route;
 
 // Public routes (no authentication required)
 Route::prefix('public')->group(function () {
@@ -163,7 +162,7 @@ Route::prefix('v1')->middleware([\App\Http\Middleware\SetFacilityContext::class]
     // Medications
     Route::apiResource('medications', MedicationController::class)->middleware('auth:sanctum');
     Route::get('/medications/administrations', [MedicationController::class, 'administrations'])->middleware('auth:sanctum');
-    
+
     // Drugs
     Route::apiResource('drugs', DrugController::class)->middleware('auth:sanctum');
 
@@ -186,20 +185,20 @@ Route::prefix('v1')->middleware([\App\Http\Middleware\SetFacilityContext::class]
     Route::post('/fire-drills/from-template', [\App\Http\Controllers\Api\FireDrillController::class, 'createFromTemplate'])->middleware('auth:sanctum');
     Route::post('/fire-drills/{id}/mark-complete', [\App\Http\Controllers\Api\FireDrillController::class, 'markComplete'])->middleware('auth:sanctum');
     Route::post('/fire-drills/{id}/cancel', [\App\Http\Controllers\Api\FireDrillController::class, 'cancel'])->middleware('auth:sanctum');
-    
+
     // Fire Drill Templates
     Route::apiResource('fire-drill-templates', \App\Http\Controllers\Api\FireDrillTemplateController::class)->middleware('auth:sanctum');
-    
+
     // Pharmacy Templates
     Route::apiResource('pharmacy-templates', \App\Http\Controllers\Api\PharmacyTemplateController::class)->middleware('auth:sanctum');
-    
+
     // Pharmacy Management
     Route::get('/pharmacy/dashboard/stats', [\App\Http\Controllers\Api\PharmacyDashboardController::class, 'stats'])->middleware('auth:sanctum');
     Route::apiResource('pharmacy-suppliers', \App\Http\Controllers\Api\PharmacySupplierController::class)->middleware('auth:sanctum');
     Route::apiResource('pharmacy-inventory', \App\Http\Controllers\Api\PharmacyInventoryController::class)->middleware('auth:sanctum');
     Route::apiResource('pharmacy-orders', \App\Http\Controllers\Api\PharmacyOrderController::class)->middleware('auth:sanctum');
     Route::post('/pharmacy-orders/{id}/mark-received', [\App\Http\Controllers\Api\PharmacyOrderController::class, 'markAsReceived'])->middleware('auth:sanctum');
-    
+
     // Grocery Item Templates
     Route::apiResource('grocery-item-templates', \App\Http\Controllers\Api\GroceryItemTemplateController::class)->middleware('auth:sanctum');
 
@@ -211,20 +210,20 @@ Route::prefix('v1')->middleware([\App\Http\Middleware\SetFacilityContext::class]
     Route::apiResource('facilities', FacilityController::class)->middleware('auth:sanctum');
     Route::post('facilities/{id}', [FacilityController::class, 'update'])->middleware('auth:sanctum'); // For file uploads
     Route::post('facilities/approve-registration/{registrationId}', [FacilityController::class, 'approveRegistration'])->middleware('auth:sanctum');
-    
+
     // Facility Permissions (Super Admin only)
     Route::get('facilities/{facility}/permissions', [\App\Http\Controllers\Api\FacilityPermissionController::class, 'show'])->middleware('auth:sanctum');
     Route::put('facilities/{facility}/permissions/modules', [\App\Http\Controllers\Api\FacilityPermissionController::class, 'updateModules'])->middleware('auth:sanctum');
     Route::get('facilities/{facility}/permissions/roles/{role}', [\App\Http\Controllers\Api\FacilityPermissionController::class, 'getRolePermissions'])->middleware('auth:sanctum');
     Route::put('facilities/{facility}/permissions/roles/{role}', [\App\Http\Controllers\Api\FacilityPermissionController::class, 'updateRolePermissions'])->middleware('auth:sanctum');
-    
+
     Route::apiResource('branches', BranchController::class)->middleware('auth:sanctum');
     Route::get('branches/{id}/residents', [BranchController::class, 'residents'])->middleware('auth:sanctum');
     Route::post('branches/{id}/transfer-residents', [BranchController::class, 'transferResidents'])->middleware('auth:sanctum');
-    
+
     // Geocoding endpoint
     Route::post('/geocode', [GeocodingController::class, 'geocode'])->middleware('auth:sanctum');
-    
+
     // Facility Registrations
     // Public endpoint for submitting registrations (rate limited to prevent abuse)
     Route::post('facility-registrations', [\App\Http\Controllers\Api\FacilityRegistrationController::class, 'store'])
@@ -294,6 +293,7 @@ Route::prefix('v1')->middleware([\App\Http\Middleware\SetFacilityContext::class]
     // Reminders
     Route::get('/reminders', [ReminderController::class, 'index'])->middleware('auth:sanctum');
     Route::get('/reminders/upcoming', [ReminderController::class, 'upcoming'])->middleware('auth:sanctum');
+    Route::get('/reminders/prn-followups/resident/{resident}', [ReminderController::class, 'prnFollowupsForResident'])->middleware('auth:sanctum');
     Route::post('/reminders', [ReminderController::class, 'store'])->middleware('auth:sanctum');
     Route::get('/reminders/{id}', [ReminderController::class, 'show'])->middleware('auth:sanctum');
     Route::put('/reminders/{id}', [ReminderController::class, 'update'])->middleware('auth:sanctum');
@@ -347,18 +347,18 @@ Route::prefix('v1')->middleware([\App\Http\Middleware\SetFacilityContext::class]
     Route::prefix('billing')->middleware('auth:sanctum')->group(function () {
         // Expense Categories
         Route::apiResource('expense-categories', ExpenseCategoryController::class);
-        
+
         // Expenses
         Route::apiResource('expenses', ExpenseController::class);
         Route::post('/expenses/{id}/approve', [ExpenseController::class, 'approve']);
         Route::post('/expenses/{id}/mark-paid', [ExpenseController::class, 'markAsPaid']);
         Route::post('/expenses/{id}/upload-receipt', [ExpenseController::class, 'uploadReceipt']);
-        
+
         // Billing Invoices
         Route::apiResource('invoices', BillingInvoiceController::class);
         Route::post('/invoices/{id}/send', [BillingInvoiceController::class, 'send']);
         Route::post('/invoices/{id}/mark-paid', [BillingInvoiceController::class, 'markAsPaid']);
-        
+
         // Expense Reports
         Route::prefix('reports')->group(function () {
             Route::get('/summary', [ExpenseReportController::class, 'summary']);
@@ -367,7 +367,7 @@ Route::prefix('v1')->middleware([\App\Http\Middleware\SetFacilityContext::class]
             Route::get('/resident-billing', [ExpenseReportController::class, 'residentBilling']);
             Route::get('/vendor-payments', [ExpenseReportController::class, 'vendorPayments']);
         });
-        
+
         // Payment Notification Preferences
         Route::get('/notification-preferences', [PaymentNotificationPreferenceController::class, 'index']);
         Route::post('/notification-preferences', [PaymentNotificationPreferenceController::class, 'store']);
@@ -408,13 +408,13 @@ Route::prefix('v1')->middleware([\App\Http\Middleware\SetFacilityContext::class]
         Route::get('/{facility}/settings/{category}', [FacilitySettingsController::class, 'show']);
         Route::put('/{facility}/settings/{category}', [FacilitySettingsController::class, 'update']);
         Route::post('/{facility}/settings/email/test', [FacilitySettingsController::class, 'testEmail']);
-        
+
         // Email Notification Configs
         Route::get('/{facility}/email-notification-configs', [EmailNotificationConfigController::class, 'index']);
         Route::get('/{facility}/email-notification-configs/{notificationType}', [EmailNotificationConfigController::class, 'show']);
         Route::put('/{facility}/email-notification-configs/{notificationType}', [EmailNotificationConfigController::class, 'update']);
         Route::put('/{facility}/email-notification-configs', [EmailNotificationConfigController::class, 'bulkUpdate']);
-        
+
         // Email Templates
         Route::get('/{facility}/email-templates', [EmailTemplateController::class, 'index']);
         Route::get('/{facility}/email-templates/{notificationType}', [EmailTemplateController::class, 'show']);
@@ -426,11 +426,11 @@ Route::prefix('v1')->middleware([\App\Http\Middleware\SetFacilityContext::class]
     // Database Management
     Route::prefix('database')->middleware('auth:sanctum')->group(function () {
         Route::get('/stats', [DatabaseManagementController::class, 'stats']);
-        Route::post('/backup', [DatabaseManagementController::class, 'createBackup']);                                                                          
-        Route::get('/backups', [DatabaseManagementController::class, 'recentBackups']);                                                                         
-        Route::get('/backup/{filename}', [DatabaseManagementController::class, 'downloadBackup']);                                                                         
-        Route::post('/restore', [DatabaseManagementController::class, 'restoreBackup']);                                                                        
-        Route::post('/refresh', [DatabaseManagementController::class, 'refreshData']);                                                                          
+        Route::post('/backup', [DatabaseManagementController::class, 'createBackup']);
+        Route::get('/backups', [DatabaseManagementController::class, 'recentBackups']);
+        Route::get('/backup/{filename}', [DatabaseManagementController::class, 'downloadBackup']);
+        Route::post('/restore', [DatabaseManagementController::class, 'restoreBackup']);
+        Route::post('/refresh', [DatabaseManagementController::class, 'refreshData']);
     });
 
     // Behavior Chart Data Definitions
@@ -451,4 +451,3 @@ Route::prefix('v1')->middleware([\App\Http\Middleware\SetFacilityContext::class]
         return \Illuminate\Support\Facades\Broadcast::auth(request());
     })->middleware('auth:sanctum');
 });
-

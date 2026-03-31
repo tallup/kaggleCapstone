@@ -35,6 +35,7 @@ import {
     Filter,
     RefreshCw,
     X,
+    BellRing,
 } from 'lucide-react';
 
 
@@ -245,6 +246,17 @@ export default function ResidentMedicationsPage() {
         staleTime: 30 * 1000,
     });
 
+    const pacificTodayForFollowups = getPacificISODate();
+    const { data: prnFollowupPayload } = useQuery({
+        queryKey: ['resident-prn-followups', residentId, pacificTodayForFollowups],
+        queryFn: async () => {
+            const response = await api.get(`/reminders/prn-followups/resident/${residentId}`);
+            return response.data?.data ?? [];
+        },
+        enabled: !!residentId,
+        staleTime: 60 * 1000,
+    });
+
     const todayAdminsList = React.useMemo(() => {
         const rows = todayResidentAdminsPage?.data ?? todayResidentAdminsPage ?? [];
         return Array.isArray(rows) ? rows : [];
@@ -325,8 +337,40 @@ export default function ResidentMedicationsPage() {
             }
         });
 
+        const rawFollowups = Array.isArray(prnFollowupPayload) ? prnFollowupPayload : [];
+        const followupsFiltered = search
+            ? rawFollowups.filter((r) => (r.medication_name || '').toLowerCase().includes(search.toLowerCase()))
+            : rawFollowups;
+        for (const r of followupsFiltered) {
+            const row = {
+                isPrnFollowupReminder: true,
+                uniqueId: `prnfu-${r.reminder_event_id}`,
+                reminderId: r.reminder_id,
+                reminderEventId: r.reminder_event_id,
+                scheduledFor: r.scheduled_for,
+                medicationId: r.medication_id,
+                medicationName: r.medication_name || 'Medication',
+                assigneeName: r.assignee_name,
+                assigneeUserId: r.assignee_user_id,
+                title: r.title,
+                description: r.description,
+                resident_id: Number(residentId),
+                is_active: true,
+                name: r.medication_name,
+                drug: null,
+                instructions: 'PRN (as needed)',
+            };
+            scheduled.push(row);
+            const hour = getPacificParts(new Date(r.scheduled_for)).hour;
+            if (hour < 12) {
+                am.push(row);
+            } else {
+                pm.push(row);
+            }
+        }
+
         return { scheduledMeds: scheduled, amMeds: am, pmMeds: pm, prnMeds: prn };
-    }, [medicationsList, activePeriodMedications, activeOnly, search]);
+    }, [medicationsList, activePeriodMedications, activeOnly, search, prnFollowupPayload, residentId]);
 
     // Get current tab's medications with smart sorting
     const currentTabMedications = React.useMemo(() => {
@@ -341,10 +385,20 @@ export default function ResidentMedicationsPage() {
 
         const now = getPacificNow();
         const getSortWeight = (med) => {
-            if (med.uniqueId.startsWith('prn')) return 999999;
+            if (med.uniqueId.startsWith('prn-')) return 999999;
+            if (med.isPrnFollowupReminder && med.scheduledFor) {
+                const scheduled = new Date(med.scheduledFor);
+                if (Number.isNaN(scheduled.getTime())) return 777777;
+                const diff = scheduled.getTime() - now.getTime();
+                const windowStart = scheduled.getTime() - 60 * 60 * 1000;
+                const windowEnd = scheduled.getTime() + 60 * 60 * 1000;
+                if (now.getTime() >= windowStart && now.getTime() <= windowEnd) {
+                    return -1000000 + Math.abs(diff);
+                }
+                return diff > -60 * 60 * 1000 ? diff : 555555 + Math.abs(diff);
+            }
             if (!med.slotTime) return 888888;
 
-            const now = getPacificNow();
             const scheduled = toPacificDateFromTime(med.slotTime, { referenceDate: now });
             if (!scheduled) return 777777;
 
@@ -408,6 +462,85 @@ export default function ResidentMedicationsPage() {
 
 
     const renderMedicationRow = (medication, index) => {
+        if (medication.isPrnFollowupReminder) {
+            const isExpanded = expandedRows.has(medication.uniqueId);
+            const medLabel = (medication.medicationName || medication.name || 'Medication').toUpperCase();
+            const followupTimeDisplay = medication.scheduledFor
+                ? formatPacificTime(new Date(medication.scheduledFor))
+                : '';
+            return (
+                <div key={medication.uniqueId} className={`${index > 0 ? 'border-t border-gray-100' : ''}`}>
+                    <div
+                        className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors hover:bg-sky-50/60 ${isExpanded ? 'bg-sky-50/50' : (index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50')}`}
+                        onClick={() => toggleRow(medication.uniqueId)}
+                    >
+                        {activeTab !== 'prn' && <div className="flex-shrink-0 w-9 mr-1" aria-hidden />}
+                        <div className="flex-shrink-0 text-gray-400">
+                            {isExpanded ? (
+                                <ChevronDown className="w-4 h-4 text-sky-600" />
+                            ) : (
+                                <ChevronRight className="w-4 h-4" />
+                            )}
+                        </div>
+                        <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-sky-100">
+                            <BellRing className="w-4 h-4 text-sky-700" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <h3 className="text-sm font-bold text-gray-900 truncate">{medLabel}</h3>
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-amber-100 text-amber-900 border border-amber-200">
+                                    PRN follow-up
+                                </span>
+                            </div>
+                            <p className="text-xs text-sky-900/70 mt-0.5">
+                                Follow-up for this PRN — check whether the dose is working as expected
+                            </p>
+                        </div>
+                        <div className="hidden md:flex items-center gap-2 flex-shrink-0">
+                            {followupTimeDisplay ? (
+                                <div className="px-2 py-1 bg-sky-100 rounded text-xs font-black text-sky-900 flex items-center gap-1">
+                                    <Clock className="w-3 h-3" />
+                                    {followupTimeDisplay}
+                                </div>
+                            ) : null}
+                        </div>
+                        <div className="flex-shrink-0">
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-semibold bg-sky-100 text-sky-800">
+                                Scheduled
+                            </span>
+                        </div>
+                    </div>
+                    {isExpanded && (
+                        <div className="bg-sky-50/40 border-t border-sky-100 px-4 py-4 sm:px-8">
+                            <div className="max-w-xl space-y-3 text-sm text-gray-700">
+                                <p>
+                                    <span className="font-semibold text-gray-900">PRN medication: </span>
+                                    {medication.medicationName || medication.name || 'Medication'}
+                                </p>
+                                <p>
+                                    <span className="font-semibold text-gray-900">Reminder assigned to: </span>
+                                    {medication.assigneeName || 'Staff'}
+                                </p>
+                                {medication.description ? (
+                                    <p className="text-gray-600 italic border-l-2 border-sky-200 pl-3">{medication.description}</p>
+                                ) : null}
+                                <button
+                                    type="button"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        navigate('/reminders');
+                                    }}
+                                    className="text-sm font-semibold text-sky-800 hover:underline"
+                                >
+                                    Open reminders
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
         const periodActive = isMedicationPeriodActiveNow(medication);
         const isExpanded = expandedRows.has(medication.uniqueId);
         const isSelected = selectedMeds.has(medication.uniqueId);
@@ -1126,11 +1259,7 @@ function QuickAdminister({ medication, onSuccess, residentId, residentName, curr
     );
 
     const openPrnFollowupModal = React.useCallback((administrationId) => {
-        const p = getPacificParts(getPacificNow());
-        const t = Date.UTC(p.year, p.month - 1, p.day + 1);
-        const d = new Date(t);
-        const nextStr = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
-        setFollowupDate(nextStr);
+        setFollowupDate(getPacificISODate(getPacificNow()));
         setFollowupTime('09:00');
         setAssigneeUserId(currentUser?.id != null ? String(currentUser.id) : '');
         setFollowupComments('');
@@ -1696,6 +1825,8 @@ function QuickAdminister({ medication, onSuccess, residentId, residentName, curr
                                     options={branchStaffOptions}
                                     placeholder="Select staff member"
                                     className="w-full"
+                                    contentClassName="z-[220]"
+                                    disabled={followupSubmitting}
                                 />
                             </div>
                             <div>
@@ -1759,6 +1890,7 @@ function QuickAdminister({ medication, onSuccess, residentId, residentName, curr
                                         });
                                         setPrnFollowupOpen(false);
                                         setSuccessMessage((prev) => (prev ? `${prev} Follow-up scheduled.` : 'Follow-up scheduled.'));
+                                        queryClient.invalidateQueries({ queryKey: ['resident-prn-followups', residentId] });
                                     } catch (err) {
                                         const msg = err?.response?.data?.message || 'Could not schedule follow-up.';
                                         setFollowupError(msg);
