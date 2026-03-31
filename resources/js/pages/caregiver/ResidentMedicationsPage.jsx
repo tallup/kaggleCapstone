@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../../services/api';
@@ -1460,11 +1461,17 @@ function QuickAdminister({ medication, onSuccess, residentId, residentName, curr
                     {nextWindowCountdown && ` • Next window in ${nextWindowCountdown}`}
                 </p>
             )}
-            {isDosageModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: 'rgba(0, 0, 0, 0.15)' }}>
-                    <div className="bg-white rounded-lg shadow-xl w-full max-w-sm">
+            {isDosageModalOpen && createPortal(
+                (
+                <div
+                    className="fixed inset-0 z-[210] flex items-center justify-center p-4 backdrop-blur-sm bg-black/15 overflow-y-auto"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="resident-confirm-administration-title"
+                >
+                    <div className="bg-white rounded-lg shadow-xl w-full max-w-sm max-h-[min(90vh,100dvh)] overflow-y-auto my-auto">
                         <div className="flex items-center justify-between border-b px-5 py-4">
-                            <h3 className="text-lg font-semibold text-gray-900">Confirm Administration</h3>
+                            <h3 id="resident-confirm-administration-title" className="text-lg font-semibold text-gray-900">Confirm Administration</h3>
                             <button
                                 type="button"
                                 onClick={() => {
@@ -1638,15 +1645,23 @@ function QuickAdminister({ medication, onSuccess, residentId, residentName, curr
                         </div>
                     </div>
                 </div>
+                ),
+                document.body
             )}
-            {prnFollowupOpen && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: 'rgba(0, 0, 0, 0.2)' }}>
-                    <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden border border-gray-200">
-                        <div className="px-5 py-3 border-b border-sky-100 bg-sky-50">
-                            <h3 className="text-lg font-semibold text-slate-800">Schedule Followup</h3>
+            {prnFollowupOpen && createPortal(
+                (
+                <div
+                    className="fixed inset-0 z-[210] flex items-center justify-center p-4 backdrop-blur-sm bg-black/20 overflow-y-auto"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="prn-followup-modal-title"
+                >
+                    <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[min(90vh,100dvh)] overflow-hidden border border-gray-200 my-auto flex flex-col">
+                        <div className="px-5 py-3 border-b border-sky-100 bg-sky-50 flex-shrink-0">
+                            <h3 id="prn-followup-modal-title" className="text-lg font-semibold text-slate-800">Schedule Followup</h3>
                             <p className="text-xs text-slate-600 mt-0.5">PRN dose recorded — optionally remind staff when to check back.</p>
                         </div>
-                        <div className="px-5 py-4 space-y-4">
+                        <div className="px-5 py-4 space-y-4 min-h-0 flex-1 overflow-y-auto">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                     <span className="text-red-500">*</span> Schedule Date
@@ -1698,7 +1713,7 @@ function QuickAdminister({ medication, onSuccess, residentId, residentName, curr
                                 <p className="text-xs text-red-600">{followupError}</p>
                             )}
                         </div>
-                        <div className="flex justify-end gap-2 border-t px-5 py-4 bg-gray-50">
+                        <div className="flex justify-end gap-2 border-t px-5 py-4 bg-gray-50 flex-shrink-0">
                             <button
                                 type="button"
                                 onClick={() => {
@@ -1759,6 +1774,8 @@ function QuickAdminister({ medication, onSuccess, residentId, residentName, curr
                         </div>
                     </div>
                 </div>
+                ),
+                document.body
             )}
         </div>
     );

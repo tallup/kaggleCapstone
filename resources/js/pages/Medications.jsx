@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
@@ -2726,11 +2727,17 @@ function QuickAdminister({ medication, onSuccess }) {
                     {nextWindowCountdown && ` • Next window in ${nextWindowCountdown}`}
                 </p>
             )}
-            {isDosageModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: 'rgba(0, 0, 0, 0.15)' }}>
-                    <div className="bg-white rounded-lg shadow-xl w-full max-w-sm">
+            {isDosageModalOpen && createPortal(
+                (
+                <div
+                    className="fixed inset-0 z-[210] flex items-center justify-center p-4 backdrop-blur-sm bg-black/15 overflow-y-auto"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="confirm-administration-title"
+                >
+                    <div className="bg-white rounded-lg shadow-xl w-full max-w-sm max-h-[min(90vh,100dvh)] overflow-y-auto my-auto">
                         <div className="flex items-center justify-between border-b px-5 py-4">
-                            <h3 className="text-lg font-semibold text-gray-900">Confirm Administration</h3>
+                            <h3 id="confirm-administration-title" className="text-lg font-semibold text-gray-900">Confirm Administration</h3>
                             <button
                                 type="button"
                                 onClick={() => {
@@ -2980,12 +2987,20 @@ function QuickAdminister({ medication, onSuccess }) {
                         </div>
                     </div>
                 </div>
+                ),
+                document.body
             )}
-            {isHospitalModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ backgroundColor: 'rgba(0, 0, 0, 0.15)' }}>
-                    <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+            {isHospitalModalOpen && createPortal(
+                (
+                <div
+                    className="fixed inset-0 z-[210] flex items-center justify-center p-4 backdrop-blur-sm bg-black/15 overflow-y-auto"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="hospital-admission-modal-title"
+                >
+                    <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[min(90vh,100dvh)] overflow-y-auto my-auto">
                         <div className="flex items-center justify-between border-b px-5 py-4">
-                            <h3 className="text-lg font-semibold text-gray-900">Hospital Admission Details</h3>
+                            <h3 id="hospital-admission-modal-title" className="text-lg font-semibold text-gray-900">Hospital Admission Details</h3>
                             <button
                                 type="button"
                                 onClick={() => {
@@ -3122,6 +3137,8 @@ function QuickAdminister({ medication, onSuccess }) {
                         </div>
                     </div>
                 </div>
+                ),
+                document.body
             )}
         </div>
     );
