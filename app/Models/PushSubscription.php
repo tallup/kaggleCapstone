@@ -8,6 +8,8 @@ use Minishlink\WebPush\Subscription as WebPushSubscription;
 
 class PushSubscription extends Model
 {
+    protected $table = 'user_push_subscriptions';
+
     protected $fillable = [
         'user_id',
         'endpoint',

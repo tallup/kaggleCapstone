@@ -2,7 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import logger from '../utils/logger';
-import { subscribeToPush, unsubscribeFromPush, isSubscribed } from '../services/pushNotifications';
+import {
+    subscribeToPush,
+    unsubscribeFromPush,
+    isSubscribed,
+    isVapidConfigured,
+} from '../services/pushNotifications';
 import {
     User as UserIcon,
     Mail,
@@ -178,11 +183,26 @@ export default function Profile() {
 
     const handleTogglePush = async (enable) => {
         if (!pushSupported || pushLoading) return;
+        if (enable && !isVapidConfigured()) {
+            setErrorMessage(
+                'Push is not configured on this server. Add VAPID keys: run php artisan webpush:vapid, set VAPID_* and VITE_VAPID_PUBLIC_KEY in .env, then npm run build and deploy.',
+            );
+            setTimeout(() => setErrorMessage(null), 12000);
+            return;
+        }
         setPushLoading(true);
         setErrorMessage(null);
         try {
             if (enable) {
-                await subscribeToPush();
+                const subscription = await subscribeToPush();
+                if (!subscription) {
+                    setPushEnabled(false);
+                    setErrorMessage(
+                        'Could not enable push (permission denied, or browser blocked notifications). Check site settings and try again.',
+                    );
+                    setTimeout(() => setErrorMessage(null), 8000);
+                    return;
+                }
                 setPushEnabled(true);
                 setSuccessMessage('Push notifications enabled. You’ll get alerts even when the app is closed.');
             } else {
@@ -702,13 +722,22 @@ export default function Profile() {
                                             ? 'Receive notifications on this device when the app is in the background or closed.'
                                             : 'Enable to get alerts (e.g. new incidents, reminders) on your device.'}
                                     </p>
+                                    {!isVapidConfigured() && (
+                                        <p className="text-xs text-amber-800 mt-1">
+                                            Not available until the server sets VAPID keys (see .env.example:{' '}
+                                            <code className="text-[11px]">webpush:vapid</code>).
+                                        </p>
+                                    )}
                                     {errorMessage && (
                                         <p className="text-xs text-red-600 mt-1">{errorMessage}</p>
                                     )}
                                 </div>
                                 <button
                                     onClick={() => handleTogglePush(!pushEnabled)}
-                                    disabled={pushLoading}
+                                    disabled={
+                                        pushLoading ||
+                                        (!isVapidConfigured() && !pushEnabled)
+                                    }
                                     className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)] focus:ring-offset-2 disabled:opacity-50 ${
                                         pushEnabled ? 'bg-[var(--theme-primary)]' : 'bg-gray-300'
                                     }`}

@@ -8,6 +8,11 @@ import logger from '../utils/logger';
 
 const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY || '';
 
+/** True when the build includes a VAPID public key (required to subscribe). */
+export function isVapidConfigured() {
+  return VAPID_PUBLIC_KEY.length > 0;
+}
+
 /**
  * Request push notification permission
  */
