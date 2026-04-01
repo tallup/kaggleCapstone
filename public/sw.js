@@ -4,7 +4,7 @@
  */
 
 // Bump when changing fetch/caching logic so clients drop stale HTML cached as "JS"
-const CACHE_VERSION = 'v1.0.2';
+const CACHE_VERSION = 'v1.0.3';
 const STATIC_CACHE = `homeLogic360-static-${CACHE_VERSION}`;
 const API_CACHE = `homeLogic360-api-${CACHE_VERSION}`;
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
@@ -83,6 +83,13 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Full page loads (refresh, open in new tab): do not intercept. Let the browser fetch the
+  // document. Intercepting + a thrown error from fetch() caused "FetchEvent ... rejected" and
+  // blank/broken pages when the network was flaky or DevTools throttled the connection.
+  if (request.mode === 'navigate') {
+    return;
+  }
+
   // Vite / Laravel Mix hashed assets: NEVER intercept.
   // Cache-first here previously cached HTML (SPA fallback) as if it were JS →
   // "text/html is not a valid JavaScript MIME type" on mobile after deploys.
@@ -146,7 +153,16 @@ async function networkFirstStrategy(request) {
       );
     }
 
-    throw error;
+    // Non-API (e.g. same-origin XHR to HTML): never reject the FetchEvent — return shell or 503.
+    const shell = await caches.match('/');
+    if (shell) {
+      return shell;
+    }
+    return new Response('Network error', {
+      status: 503,
+      statusText: 'Service Unavailable',
+      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+    });
   }
 }
 

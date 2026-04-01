@@ -446,8 +446,9 @@ Route::prefix('v1')->middleware([\App\Http\Middleware\SetFacilityContext::class]
     Route::get('/resident-charts/{resident}/pending', [ResidentChartController::class, 'pending'])->middleware('auth:sanctum');
     Route::get('/resident-charts/{resident}/history', [ResidentChartController::class, 'history'])->middleware('auth:sanctum');
 
-    // Broadcasting authentication
+    // Broadcasting authentication (same as /user: no SetFacilityContext — auth runs cleanly for Sanctum)
     Route::post('/broadcasting/auth', function () {
         return \Illuminate\Support\Facades\Broadcast::auth(request());
-    })->middleware('auth:sanctum');
+    })->middleware('auth:sanctum')
+        ->withoutMiddleware([\App\Http\Middleware\SetFacilityContext::class]);
 });
