@@ -447,9 +447,10 @@ export default function DatabaseSettings() {
               <Archive className="w-5 h-5 text-gray-400" strokeWidth={2.5} />
             </div>
             <div className="text-2xl font-bold text-gray-900 mb-1">
-              {statsLoading ? '...' : stats?.total_backups || 0}
+              {backupsLoading ? '...' : backups?.length ?? 0}
             </div>
-            <div className="text-sm text-gray-500">Available backups</div>
+            <div className="text-sm text-gray-500">Backups for selected facility</div>
+            <div className="text-xs text-gray-400 mt-1">All sites: {statsLoading ? '…' : stats?.total_backups ?? 0}</div>
           </div>
           <div className="p-4 border border-gray-200 rounded-lg">
             <div className="flex items-center justify-between mb-2">
@@ -461,6 +462,111 @@ export default function DatabaseSettings() {
             <div className="text-sm text-gray-500">Total storage usage</div>
           </div>
         </div>
+      </div>
+
+      {/* Facility backup files — always visible so operators know where to download */}
+      <div className="bg-white rounded-xl shadow-sm p-6">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">Facility backup files</h2>
+            <p className="text-sm text-gray-600 mt-1">
+              SQL files for the facility selected above. Download to keep a copy off-server; Restore replaces data for
+              that facility only (type <span className="font-medium">Facility</span>), unless marked{' '}
+              <span className="font-medium">Full DB</span>.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => refetchBackups()}
+            disabled={backupsLoading || !backupFacilityId}
+            className="shrink-0 inline-flex items-center gap-2 px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+          >
+            <RefreshCw className={`w-4 h-4 ${backupsLoading ? 'animate-spin' : ''}`} strokeWidth={2.5} />
+            Refresh list
+          </button>
+        </div>
+        {backupsLoading ? (
+          <p className="text-sm text-gray-500">Loading backups…</p>
+        ) : !backupFacilityId ? (
+          <p className="text-sm text-gray-500">Select a facility to list backup files.</p>
+        ) : !backups?.length ? (
+          <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50/80 px-4 py-6 text-center">
+            <p className="text-sm text-gray-700 font-medium">No backup files for this facility yet</p>
+            <p className="text-sm text-gray-500 mt-1">
+              Use <span className="font-medium">Backup now</span> below, or wait for the scheduled run. Files are stored
+              under{' '}
+              <code className="text-xs bg-white px-1 py-0.5 rounded border">
+                storage/app/backups/facilities/[facility_id]/
+              </code>{' '}
+              on the server.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {backups.slice(0, 50).map((backup) => (
+              <div
+                key={`${backup.type}-${backup.filename}`}
+                className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50"
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium text-gray-900 truncate">{backup.filename}</span>
+                    {backup.type === 'full_mysqldump' ? (
+                      <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full border border-amber-200 bg-amber-50 text-amber-900">
+                        Full DB
+                      </span>
+                    ) : backup.is_automatic ? (
+                      <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full border border-emerald-200 bg-emerald-50 text-emerald-800">
+                        Auto
+                      </span>
+                    ) : (
+                      <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full border border-slate-200 bg-slate-50 text-slate-700">
+                        Manual
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    {new Date(backup.created_at).toLocaleString()} • {backup.size}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Tooltip content="Download backup" position="top">
+                    <button
+                      type="button"
+                      onClick={() => handleDownload(backup)}
+                      className="px-2.5 py-1 text-xs sm:px-3 sm:py-1.5 sm:text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer flex items-center gap-1.5"
+                      aria-label="Download backup"
+                    >
+                      <Download className="w-4 h-4" strokeWidth={2.5} />
+                      Download
+                    </button>
+                  </Tooltip>
+                  <Tooltip
+                    content={
+                      backup.type === 'full_mysqldump'
+                        ? 'Restores entire database (all tenants)'
+                        : 'Replaces this facility’s data only'
+                    }
+                    position="top"
+                  >
+                    <button
+                      type="button"
+                      onClick={() =>
+                        openRestoreDialog(backup.filename, backup.type === 'full_mysqldump')
+                      }
+                      disabled={restoreBackupMutation.isPending}
+                      className="inline-flex items-center gap-1.5 whitespace-nowrap px-2.5 py-1 text-xs sm:px-3 sm:py-1.5 sm:text-sm font-medium text-red-800 bg-white border border-red-300 rounded-lg hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                      aria-label={`Restore backup ${backup.filename}`}
+                    >
+                      <RotateCcw className="w-4 h-4 shrink-0" strokeWidth={2.5} />
+                      Restore
+                    </button>
+                  </Tooltip>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Quick Actions */}
@@ -580,77 +686,6 @@ export default function DatabaseSettings() {
           </div>
         </div>
       </div>
-
-      {/* Recent Backups */}
-      {backups && backups.length > 0 && (
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Backups for this list</h2>
-          <div className="space-y-2">
-            {backups.slice(0, 15).map((backup) => (
-              <div
-                key={`${backup.type}-${backup.filename}`}
-                className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50"
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-medium text-gray-900 truncate">{backup.filename}</span>
-                    {backup.type === 'full_mysqldump' ? (
-                      <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full border border-amber-200 bg-amber-50 text-amber-900">
-                        Full DB
-                      </span>
-                    ) : backup.is_automatic ? (
-                      <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full border border-emerald-200 bg-emerald-50 text-emerald-800">
-                        Auto
-                      </span>
-                    ) : (
-                      <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full border border-slate-200 bg-slate-50 text-slate-700">
-                        Manual
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-sm text-gray-500">
-                    {new Date(backup.created_at).toLocaleString()} • {backup.size}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <Tooltip content="Download backup" position="top">
-                    <button
-                      type="button"
-                      onClick={() => handleDownload(backup)}
-                      className="px-2.5 py-1 text-xs sm:px-3 sm:py-1.5 sm:text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer flex items-center gap-1.5"
-                      aria-label="Download backup"
-                    >
-                      <Download className="w-4 h-4" strokeWidth={2.5} />
-                      Download
-                    </button>
-                  </Tooltip>
-                  <Tooltip
-                    content={
-                      backup.type === 'full_mysqldump'
-                        ? 'Restores entire database (all tenants)'
-                        : 'Replaces this facility’s data only'
-                    }
-                    position="top"
-                  >
-                    <button
-                      type="button"
-                      onClick={() =>
-                        openRestoreDialog(backup.filename, backup.type === 'full_mysqldump')
-                      }
-                      disabled={restoreBackupMutation.isPending}
-                      className="inline-flex items-center gap-1.5 whitespace-nowrap px-2.5 py-1 text-xs sm:px-3 sm:py-1.5 sm:text-sm font-medium text-red-800 bg-white border border-red-300 rounded-lg hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                      aria-label={`Restore backup ${backup.filename}`}
-                    >
-                      <RotateCcw className="w-4 h-4 shrink-0" strokeWidth={2.5} />
-                      Restore
-                    </button>
-                  </Tooltip>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm p-6 space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
