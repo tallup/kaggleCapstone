@@ -194,7 +194,9 @@ class DatabaseManagementController extends Controller
                 }
             }
 
-            if ($request->boolean('include_full_database') && config('backup.enable_full_database_mysqldump', false)) {
+            // Whole-database mysqldumps in storage/app/backups/backup_*.sql — list for visibility even when
+            // ENABLE_FULL_DATABASE_MYSQLDUMP is false; download/restore still enforce config.
+            if ($request->boolean('include_full_database', true)) {
                 $rootDir = storage_path('app/backups');
                 if (is_dir($rootDir)) {
                     $legacy = glob($rootDir.'/backup_*.sql') ?: [];
@@ -210,6 +212,7 @@ class DatabaseManagementController extends Controller
                             'created_at' => Carbon::createFromTimestamp(filemtime($file))->toIso8601String(),
                             'is_automatic' => str_starts_with($filename, 'backup_auto_'),
                             'type' => 'full_mysqldump',
+                            'download_requires_full_database_config' => ! config('backup.enable_full_database_mysqldump', false),
                         ];
                     }
                 }
@@ -219,9 +222,15 @@ class DatabaseManagementController extends Controller
                 return strtotime($b['created_at']) - strtotime($a['created_at']);
             });
 
-            return response()->json(['data' => $backups]);
+            $meta = $this->getBackupListingMeta($facilityId);
+            $meta['legacy_full_database_enabled'] = (bool) config('backup.enable_full_database_mysqldump', false);
+
+            return response()->json(['data' => $backups, 'meta' => $meta]);
         } catch (\Exception $e) {
-            return response()->json(['data' => []]);
+            return response()->json([
+                'data' => [],
+                'meta' => $this->getBackupListingMeta((int) $request->input('facility_id', 0)),
+            ]);
         }
     }
 
@@ -620,7 +629,7 @@ class DatabaseManagementController extends Controller
     }
 
     /**
-     * Get backup count
+     * Get backup count (all facility-scoped SQL files + legacy root mysqldumps). Matches what can appear in the list.
      */
     private function getBackupCount(): int
     {
@@ -634,14 +643,75 @@ class DatabaseManagementController extends Controller
                     }
                 }
             }
-            if (config('backup.enable_full_database_mysqldump', false) && is_dir(storage_path('app/backups'))) {
-                $n += count(glob(storage_path('app/backups/backup_*.sql')) ?: []);
+            $rootDir = storage_path('app/backups');
+            if (is_dir($rootDir)) {
+                foreach (glob($rootDir.'/backup_*.sql') ?: [] as $f) {
+                    if (is_file($f)) {
+                        $n++;
+                    }
+                }
             }
 
             return $n;
         } catch (\Exception $e) {
             return 0;
         }
+    }
+
+    /**
+     * Inventory for super-admin backup UI (explains why “all sites” may not match the selected facility).
+     *
+     * @return array{files_for_selected_facility: int, facility_scoped_files_total: int, legacy_root_files_total: int, facility_ids_with_backups: array<int, int>}
+     */
+    private function getBackupListingMeta(int $selectedFacilityId): array
+    {
+        $filesForSelected = 0;
+        $facilityScopedTotal = 0;
+        $legacyRootTotal = 0;
+        /** @var array<int, int> */
+        $facilityIdsWithBackups = [];
+
+        $facilitiesRoot = storage_path('app/backups/facilities');
+        if (is_dir($facilitiesRoot)) {
+            foreach (glob($facilitiesRoot.'/*', GLOB_ONLYDIR) ?: [] as $dir) {
+                $basename = basename((string) $dir);
+                if (! ctype_digit($basename)) {
+                    continue;
+                }
+                $fid = (int) $basename;
+                $count = 0;
+                foreach (glob($dir.'/*.sql') ?: [] as $sqlPath) {
+                    if (is_file($sqlPath)) {
+                        $count++;
+                    }
+                }
+                if ($count > 0) {
+                    $facilityIdsWithBackups[$fid] = $count;
+                    $facilityScopedTotal += $count;
+                }
+                if ($fid === $selectedFacilityId) {
+                    $filesForSelected = $count;
+                }
+            }
+        }
+
+        $rootDir = storage_path('app/backups');
+        if (is_dir($rootDir)) {
+            foreach (glob($rootDir.'/backup_*.sql') ?: [] as $sqlPath) {
+                if (is_file($sqlPath)) {
+                    $legacyRootTotal++;
+                }
+            }
+        }
+
+        ksort($facilityIdsWithBackups);
+
+        return [
+            'files_for_selected_facility' => $filesForSelected,
+            'facility_scoped_files_total' => $facilityScopedTotal,
+            'legacy_root_files_total' => $legacyRootTotal,
+            'facility_ids_with_backups' => $facilityIdsWithBackups,
+        ];
     }
 
     /**

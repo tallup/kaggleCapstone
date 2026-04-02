@@ -39,7 +39,6 @@ import {
     ArrowLeftToLine,
     UserPlus,
     BarChart3,
-    Trash2
 } from 'lucide-react';
 import NotificationDropdown from './NotificationDropdown';
 import ReminderPanel from './ReminderPanel';
@@ -176,7 +175,6 @@ const navigation = [
             { name: 'Drugs', path: '/administration/drugs' },
             { name: 'Behavior Category Charts', path: '/administration/chart-data' },
             { name: 'Inactive Records', path: '/administration/deactivated' },
-            { name: 'Test data purge', path: '/administration/test-data-purge' },
             { name: 'Employee Documents', path: '/administration/employee-documents' },
             { name: 'Activity Logs', path: '/administration/activity-logs' },
         ]
@@ -188,7 +186,6 @@ const superAdminNavigation = [
     { name: 'Facility Registrations', icon: Clock, path: '/super-admin/facility-registrations', children: null },
     { name: 'Facilities', icon: Building2, path: '/super-admin/facilities', children: null },
     { name: 'Permissions', icon: Shield, path: '/super-admin/permissions', children: null },
-    { name: 'Test data purge', icon: Trash2, path: '/administration/test-data-purge', children: null },
     { name: 'Settings', icon: Settings, path: '/super-admin/settings', children: null },
 ];
 

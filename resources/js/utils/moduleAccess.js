@@ -48,7 +48,6 @@ export const MODULE_MAP = {
   
   // Residents module
   '/administration/residents': 'residents',
-  '/administration/test-data-purge': 'residents',
   '/my-residents': 'residents',
   
   // Grocery Status module

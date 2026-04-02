@@ -11,7 +11,6 @@ use App\Mail\FireDrillNotification;
 use App\Mail\GroceryStatusNotification;
 use App\Mail\IncidentNotification;
 use App\Mail\LateMedicationNotification;
-use App\Mail\LateVitalSignNotification;
 use App\Mail\LeaveRequestNotification;
 use App\Mail\MedicationAdministrationNotification;
 use App\Mail\MedicationDeliveryNotification;
@@ -167,54 +166,11 @@ class NotificationService
     }
 
     /**
-     * Send email notification for late vital signs
+     * Late vital sign emails are disabled. In-app notifications are still created by GenerateNotifications.
      */
     public function sendLateVitalSignEmail(Resident $resident, $caregivers, int $hoursOverdue): void
     {
-        $residentName = trim(($resident->first_name ?? '') . ' ' . ($resident->last_name ?? ''));
-        
-        // Get facility from resident's branch
-        $facility = $this->mailConfigService->getFacilityFromResident($resident);
-        if ($this->shouldSkipNotificationForFacility($facility)) {
-            Log::info('Late vital sign email skipped - facility missing or deleted', ['resident_id' => $resident->id]);
-            return;
-        }
-        
-        // Configure mail for facility if available
-        if ($facility) {
-            $this->mailConfigService->configureForFacility($facility);
-        }
-        
-        // Filter caregivers based on email preferences
-        $caregiversToNotify = $this->emailPreferenceService->filterUsersForEmail(
-            $caregivers,
-            'late_vital_sign',
-            $facility
-        );
-        
-        foreach ($caregiversToNotify as $caregiver) {
-            if ($caregiver->email) {
-                try {
-                    Mail::to($caregiver->email)->send(
-                        new LateVitalSignNotification($resident, $hoursOverdue)
-                    );
-                    
-                    // Log email sent
-                    Log::info('Late vital sign email sent', [
-                        'to' => $caregiver->email,
-                        'resident' => $residentName,
-                        'hours_overdue' => $hoursOverdue,
-                        'facility_id' => $facility?->id,
-                    ]);
-                } catch (\Exception $e) {
-                    Log::error('Failed to send late vital sign email', [
-                        'to' => $caregiver->email,
-                        'error' => $e->getMessage(),
-                        'facility_id' => $facility?->id,
-                    ]);
-                }
-            }
-        }
+        // Intentionally no mail — product requirement.
     }
 
     /**

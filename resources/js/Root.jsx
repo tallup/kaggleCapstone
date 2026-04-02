@@ -133,7 +133,6 @@ const Medications = lazyWithRetry(() => import('./pages/Medications'));
 const MedicationsReport = lazyWithRetry(() => import('./pages/MedicationsReport'));
 const Reminders = lazyWithRetry(() => import('./pages/Reminders'));
 const MedicationHistory = lazyWithRetry(() => import('./pages/MedicationHistory'));
-const ModuleTestDataPurge = lazyWithRetry(() => import('./pages/ModuleTestDataPurge'));
 const CaregiverMedicationsResidents = lazyWithRetry(() => import('./pages/caregiver/CaregiverMedicationsResidents'));
 const ResidentMedicationsPage = lazyWithRetry(() => import('./pages/caregiver/ResidentMedicationsPage'));
 const Reports = lazyWithRetry(() => import('./pages/Reports'));
@@ -402,7 +401,6 @@ function App() {
                 <Route path="administration/employee-documents" element={<Suspense fallback={<PageLoader />}><EmployeeDocuments /></Suspense>} />
                 <Route path="administration/activity-logs" element={<Suspense fallback={<PageLoader />}><ActivityLogs /></Suspense>} />
                 <Route path="administration/deactivated" element={<Suspense fallback={<PageLoader />}><DeactivatedRecords /></Suspense>} />
-                <Route path="administration/test-data-purge" element={<Suspense fallback={<PageLoader />}><ModuleTestDataPurge /></Suspense>} />
 
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Route>

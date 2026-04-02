@@ -4,7 +4,6 @@
 export const PERMISSION_MAP = {
   // Administration menu items
   '/administration/residents': 'view_residents',
-  '/administration/test-data-purge': 'view_residents',
   '/administration/branches': 'view_branches',
   '/administration/vital-ranges': 'view_vital_ranges',
   '/administration/leave-requests': 'view_leave_requests',

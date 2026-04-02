@@ -121,7 +121,7 @@ export default function DatabaseSettings() {
     },
   });
 
-  const { data: backups, isLoading: backupsLoading, refetch: refetchBackups } = useQuery({
+  const { data: backupPayload, isLoading: backupsLoading, refetch: refetchBackups } = useQuery({
     queryKey: ['database-backups', backupFacilityId],
     queryFn: async () => {
       const response = await api.get('/database/backups', {
@@ -130,10 +130,16 @@ export default function DatabaseSettings() {
           include_full_database: true,
         },
       });
-      return response.data?.data || [];
+      return {
+        list: response.data?.data ?? [],
+        meta: response.data?.meta ?? {},
+      };
     },
     enabled: !!backupFacilityId,
   });
+
+  const backups = backupPayload?.list ?? [];
+  const backupMeta = backupPayload?.meta ?? {};
 
   const createBackupMutation = useMutation({
     mutationFn: async ({ fullDatabase = false } = {}) => {
@@ -226,6 +232,13 @@ export default function DatabaseSettings() {
   const handleDownload = async (backup) => {
     const filename = backup.filename;
     const isFull = backup.type === 'full_mysqldump';
+    if (backup.download_requires_full_database_config && !stats?.full_database_mysqldump_enabled) {
+      toast.showToast(
+        'Set ENABLE_FULL_DATABASE_MYSQLDUMP=true in .env to download whole-database (root) .sql files.',
+        'error'
+      );
+      return;
+    }
     try {
       const params = isFull
         ? { filename, full_database: true }
@@ -447,10 +460,15 @@ export default function DatabaseSettings() {
               <Archive className="w-5 h-5 text-gray-400" strokeWidth={2.5} />
             </div>
             <div className="text-2xl font-bold text-gray-900 mb-1">
-              {backupsLoading ? '...' : backups?.length ?? 0}
+              {backupsLoading
+                ? '...'
+                : backupMeta.files_for_selected_facility ?? backups.filter((b) => b.type === 'facility').length}
             </div>
-            <div className="text-sm text-gray-500">Backups for selected facility</div>
-            <div className="text-xs text-gray-400 mt-1">All sites: {statsLoading ? '…' : stats?.total_backups ?? 0}</div>
+            <div className="text-sm text-gray-500">Files in this facility&apos;s folder</div>
+            <div className="text-xs text-gray-400 mt-1">
+              All .sql on server: {statsLoading ? '…' : stats?.total_backups ?? 0}
+              {backupMeta.legacy_root_files_total > 0 ? ` (${backupMeta.legacy_root_files_total} whole-DB in backups/)` : ''}
+            </div>
           </div>
           <div className="p-4 border border-gray-200 rounded-lg">
             <div className="flex items-center justify-between mb-2">
@@ -470,9 +488,10 @@ export default function DatabaseSettings() {
           <div>
             <h2 className="text-lg font-semibold text-gray-900">Facility backup files</h2>
             <p className="text-sm text-gray-600 mt-1">
-              SQL files for the facility selected above. Download to keep a copy off-server; Restore replaces data for
-              that facility only (type <span className="font-medium">Facility</span>), unless marked{' '}
-              <span className="font-medium">Full DB</span>.
+              This list includes per-facility exports for the selection, and any legacy whole-database{' '}
+              <code className="text-xs bg-gray-100 px-1 rounded">backup_*.sql</code> files in the backups root (those
+              apply to the entire app). Download to keep a copy off-server; restore for <span className="font-medium">Facility</span>{' '}
+              rows only overwrites that tenant; <span className="font-medium">Full DB</span> restores everything.
             </p>
           </div>
           <button
@@ -490,16 +509,31 @@ export default function DatabaseSettings() {
         ) : !backupFacilityId ? (
           <p className="text-sm text-gray-500">Select a facility to list backup files.</p>
         ) : !backups?.length ? (
-          <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50/80 px-4 py-6 text-center">
-            <p className="text-sm text-gray-700 font-medium">No backup files for this facility yet</p>
-            <p className="text-sm text-gray-500 mt-1">
-              Use <span className="font-medium">Backup now</span> below, or wait for the scheduled run. Files are stored
-              under{' '}
+          <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50/80 px-4 py-6 text-center space-y-2">
+            <p className="text-sm text-gray-700 font-medium">No backup files to show for this selection</p>
+            <p className="text-sm text-gray-500">
+              Use <span className="font-medium">Backup now</span> below, or wait for the scheduled run. Per-facility files
+              live under{' '}
               <code className="text-xs bg-white px-1 py-0.5 rounded border">
                 storage/app/backups/facilities/[facility_id]/
               </code>{' '}
               on the server.
             </p>
+            {backupMeta.facility_scoped_files_total > 0 && backupMeta.files_for_selected_facility === 0 && (
+              <p className="text-sm text-amber-900 text-left max-w-xl mx-auto bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                This facility&apos;s folder is empty, but the server has{' '}
+                <span className="font-semibold">{backupMeta.facility_scoped_files_total}</span> facility backup file(s)
+                under other facilities. Change <span className="font-medium">Facility for backup / restore</span> above
+                to a facility that has backups
+                {Object.keys(backupMeta.facility_ids_with_backups || {}).length > 0 && (
+                  <>
+                    {' '}
+                    (facility IDs with files:{' '}
+                    {Object.keys(backupMeta.facility_ids_with_backups).join(', ')}).
+                  </>
+                )}
+              </p>
+            )}
           </div>
         ) : (
           <div className="space-y-2">
@@ -530,11 +564,22 @@ export default function DatabaseSettings() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <Tooltip content="Download backup" position="top">
+                  <Tooltip
+                    content={
+                      backup.download_requires_full_database_config && !stats?.full_database_mysqldump_enabled
+                        ? 'Enable ENABLE_FULL_DATABASE_MYSQLDUMP in .env to download whole-database dumps'
+                        : 'Download backup'
+                    }
+                    position="top"
+                  >
                     <button
                       type="button"
                       onClick={() => handleDownload(backup)}
-                      className="px-2.5 py-1 text-xs sm:px-3 sm:py-1.5 sm:text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer flex items-center gap-1.5"
+                      disabled={
+                        backup.download_requires_full_database_config &&
+                        !stats?.full_database_mysqldump_enabled
+                      }
+                      className="px-2.5 py-1 text-xs sm:px-3 sm:py-1.5 sm:text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1.5"
                       aria-label="Download backup"
                     >
                       <Download className="w-4 h-4" strokeWidth={2.5} />

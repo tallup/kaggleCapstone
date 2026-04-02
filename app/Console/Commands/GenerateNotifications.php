@@ -453,11 +453,10 @@ class GenerateNotifications extends Command
     }
 
     /**
-     * Check for late vital signs and send email notifications
+     * Check for late vital signs and create in-app notifications (no email).
      */
     private function checkLateVitalSigns(): void
     {
-        $service = app(NotificationService::class);
         $now = now();
 
         // Get all active residents
@@ -497,10 +496,7 @@ class GenerateNotifications extends Command
                             ->get();
                     }
 
-                    // Send email notification
-                    $service->sendLateVitalSignEmail($resident, $caregivers, $hoursOverdue);
-
-                    // Create notification record
+                    // Create in-app notification record
                     foreach ($caregivers as $caregiver) {
                         \App\Models\Notification::create([
                             'user_id' => $caregiver->id,

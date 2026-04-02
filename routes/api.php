@@ -45,7 +45,6 @@ use App\Http\Controllers\Api\SleepRecordController;
 use App\Http\Controllers\Api\StaffClockInController;
 use App\Http\Controllers\Api\StaffEmailPreferenceController;
 use App\Http\Controllers\Api\SystemSettingsController;
-use App\Http\Controllers\Api\TestDataPurgeController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\VisitorController;
 use App\Http\Controllers\Api\VitalRangeController;
@@ -172,9 +171,6 @@ Route::prefix('v1')->middleware([\App\Http\Middleware\SetFacilityContext::class]
     Route::post('/medication-administrations/mark-missed', [MedicationAdministrationController::class, 'markMissed'])->middleware('auth:sanctum');
     Route::post('/medication-administrations/bulk', [MedicationAdministrationController::class, 'bulkStore'])->middleware('auth:sanctum');
     Route::post('/medication-administrations/bulk-delete', [MedicationAdministrationController::class, 'bulkDestroy'])->middleware('auth:sanctum');
-    Route::post('/test-data/purge', [TestDataPurgeController::class, 'store'])
-        ->middleware('auth:sanctum')
-        ->withoutMiddleware([\App\Http\Middleware\SetFacilityContext::class]);
     Route::apiResource('medication-administrations', MedicationAdministrationController::class)->middleware('auth:sanctum');
 
     // Medication Deliveries

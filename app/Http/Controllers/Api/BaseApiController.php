@@ -296,7 +296,7 @@ abstract class BaseApiController extends Controller
     }
 
     /**
-     * Resident IDs the user may act on for bulk facility operations (test data purge, bulk MAR delete, etc.).
+     * Resident IDs the user may act on for bulk facility operations (e.g. bulk MAR delete).
      *
      * @param  array<int>  $residentIds
      * @param  int|null  $facilityIdOverride  Super admin: facility to scope residents (when user has no facility_id)
