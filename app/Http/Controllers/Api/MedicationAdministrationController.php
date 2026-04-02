@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\MedicationAdministration;
 use App\Models\Medication;
-use App\Models\Resident;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -480,7 +479,7 @@ class MedicationAdministrationController extends BaseApiController
 
         $residentIds = array_values(array_unique(array_map('intval', $validated['resident_ids'])));
 
-        $allowedIds = $this->residentIdsAllowedForBulkDelete($request, $residentIds);
+        $allowedIds = $this->resolveResidentIdsForBulk($request, $residentIds);
         $rejected = array_values(array_diff($residentIds, $allowedIds));
 
         if ($rejected !== []) {
@@ -544,32 +543,6 @@ class MedicationAdministrationController extends BaseApiController
             'deleted_count' => $deletedCount,
             'resident_ids' => $allowedIds,
         ]);
-    }
-
-    /**
-     * @param  array<int>  $residentIds
-     * @return array<int>
-     */
-    private function residentIdsAllowedForBulkDelete(Request $request, array $residentIds): array
-    {
-        $user = $request->user();
-        if (!$user) {
-            return [];
-        }
-
-        $q = Resident::query()->whereIn('id', $residentIds);
-
-        if ($user->facility_id) {
-            $q->whereHas('branch', function ($b) use ($user) {
-                $b->where('facility_id', $user->facility_id);
-            });
-        }
-
-        if ($user->isBranchAdmin() && $user->assigned_branch_id) {
-            $q->where('branch_id', $user->assigned_branch_id);
-        }
-
-        return $q->pluck('id')->map(fn ($id) => (int) $id)->all();
     }
 
     public function update(Request $request, $id): JsonResponse

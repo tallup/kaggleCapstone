@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { reconnectEcho } from './echo';
 
 const api = axios.create({
     baseURL: '/api/v1',
@@ -148,6 +149,7 @@ api.interceptors.response.use(
 
                 const newToken = response.data.token;
                 storeAuthToken(newToken);
+                reconnectEcho();
                 isRefreshing = false;
                 onRefreshed(newToken);
 
@@ -187,6 +189,7 @@ export const setupProactiveRefresh = () => {
         try {
             const response = await api.post('/token/refresh');
             storeAuthToken(response.data.token);
+            reconnectEcho();
         } catch {
             // Refresh failed; the 401 interceptor will handle it on the next real request
         }

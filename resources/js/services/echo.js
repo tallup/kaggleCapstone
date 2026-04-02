@@ -18,24 +18,36 @@ const reverbPort = parseInt(import.meta.env.VITE_REVERB_PORT || '8080', 10);
 const reverbScheme = import.meta.env.VITE_REVERB_SCHEME || 'http';
 const reverbForceTLS = reverbScheme === 'https';
 
+/** Match api.js fallbacks so Echo auth matches axios after login/refresh */
 function getAuthToken() {
-    return localStorage.getItem('auth_token');
+    const candidates = [
+        localStorage.getItem('auth_token'),
+        localStorage.getItem('token'),
+        localStorage.getItem('access_token'),
+    ];
+    const t = candidates.find(
+        (v) => typeof v === 'string' && v.trim() !== '' && v !== 'null' && v !== 'undefined'
+    );
+    return t || '';
 }
 
 function getCsrfToken() {
     return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 }
 
-const authConfig = {
-    authEndpoint: '/api/v1/broadcasting/auth',
-    auth: {
-        headers: {
-            Authorization: `Bearer ${getAuthToken()}`,
-            'X-CSRF-TOKEN': getCsrfToken(),
-            Accept: 'application/json',
+/** Built per Echo instance so Bearer token is never frozen from first module load */
+function getBroadcastAuthOptions() {
+    return {
+        authEndpoint: '/api/v1/broadcasting/auth',
+        auth: {
+            headers: {
+                Authorization: `Bearer ${getAuthToken()}`,
+                'X-CSRF-TOKEN': getCsrfToken(),
+                Accept: 'application/json',
+            },
         },
-    },
-};
+    };
+}
 
 function bindConnectionLogging(echoInstance, label) {
     const conn = echoInstance?.connector?.pusher?.connection;
@@ -63,7 +75,7 @@ export function initializeEcho() {
                 key: pusherKey,
                 cluster: pusherCluster,
                 forceTLS: true,
-                ...authConfig,
+                ...getBroadcastAuthOptions(),
             });
             bindConnectionLogging(echoInstance, 'Pusher');
             logger.debug('[Echo] Initialized (Pusher)');
@@ -85,7 +97,7 @@ export function initializeEcho() {
                 forceTLS: reverbForceTLS,
                 enabledTransports: ['ws', 'wss'],
                 disableStats: true,
-                ...authConfig,
+                ...getBroadcastAuthOptions(),
             });
             bindConnectionLogging(echoInstance, 'Reverb');
             logger.debug('[Echo] Initialized (Reverb)');

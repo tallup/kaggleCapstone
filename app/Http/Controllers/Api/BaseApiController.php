@@ -296,6 +296,38 @@ abstract class BaseApiController extends Controller
     }
 
     /**
+     * Resident IDs the user may act on for bulk facility operations (test data purge, bulk MAR delete, etc.).
+     *
+     * @param  array<int>  $residentIds
+     * @param  int|null  $facilityIdOverride  Super admin: facility to scope residents (when user has no facility_id)
+     * @return array<int>
+     */
+    protected function resolveResidentIdsForBulk(Request $request, array $residentIds, ?int $facilityIdOverride = null): array
+    {
+        $user = $request->user();
+        if (! $user) {
+            return [];
+        }
+
+        $q = \App\Models\Resident::query()->whereIn('id', $residentIds);
+
+        if ($user->isBranchAdmin() && $user->assigned_branch_id) {
+            $q->where('branch_id', $user->assigned_branch_id);
+        } else {
+            $facilityId = $facilityIdOverride ?? $user->facility_id;
+            if ($facilityId) {
+                $q->whereHas('branch', function ($b) use ($facilityId) {
+                    $b->where('facility_id', $facilityId);
+                });
+            } else {
+                return [];
+            }
+        }
+
+        return $q->pluck('id')->map(fn ($id) => (int) $id)->all();
+    }
+
+    /**
      * Get facility branch IDs with caching for performance.
      * Use this method instead of whereHas('branch') when filtering by facility.
      * 
