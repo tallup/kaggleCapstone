@@ -35,6 +35,7 @@ use App\Models\ResidentContact;
 use App\Models\ResidentDocument;
 use App\Models\ResidentSignOut;
 use App\Models\Shift;
+use App\Models\StaffClockIn;
 use App\Models\SleepHourlyData;
 use App\Models\SleepPattern;
 use App\Models\SleepRecord;
@@ -388,10 +389,16 @@ class ModuleTestDataPurgeService
         if ($branchIds === []) {
             return 0;
         }
-        $q = Shift::withoutGlobalScopes()->whereIn('branch_id', $branchIds);
-        $this->applyDateRange($q, 'start_at', $dateFrom, $dateTo);
+        $shiftQ = Shift::withoutGlobalScopes()->whereIn('branch_id', $branchIds);
+        $this->applyDateRange($shiftQ, 'start_at', $dateFrom, $dateTo);
+        $total = $shiftQ->delete();
 
-        return $q->delete();
+        // Actual clock-in/out records (separate from scheduled shifts)
+        $clockQ = StaffClockIn::withoutGlobalScopes()->withTrashed()->whereIn('branch_id', $branchIds);
+        $this->applyDateRange($clockQ, 'clock_in_at', $dateFrom, $dateTo);
+        $total += $clockQ->forceDelete();
+
+        return $total;
     }
 
     private function purgePharmacy(array $branchIds, ?Carbon $dateFrom, ?Carbon $dateTo): int

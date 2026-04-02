@@ -14,8 +14,8 @@ class TestDataPurgeController extends BaseApiController
     public function store(Request $request, ModuleTestDataPurgeService $purgeService): JsonResponse
     {
         $user = $request->user();
-        $isSuperAdmin = $user && ($user->role === 'super_admin' || $user->hasRole('super_admin'));
-        $isAdmin = $user && in_array($user->role, ['administrator', 'admin'], true);
+        $isSuperAdmin = $user && $user->isSuperAdmin();
+        $isAdmin = $user && $user->isAnyAdmin();
 
         if ($this->isCaregiver($user)) {
             return response()->json([

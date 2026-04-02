@@ -20,7 +20,7 @@ const MODULE_ENTRIES = [
     ['grocery_status', 'Grocery status'],
     ['fire_drills', 'Fire drills (branch-wide)'],
     ['billing_expenses', 'Billing & expenses (invoices & expenses for selected residents)'],
-    ['staff_scheduling', 'Staff scheduling (shifts)'],
+    ['staff_scheduling', 'Staff scheduling (shifts & clock-ins)'],
 ];
 
 export default function ModuleTestDataPurge() {
@@ -83,8 +83,17 @@ export default function ModuleTestDataPurge() {
 
     const canPurge = useMemo(() => {
         if (!currentUser || isCaregiver) return false;
-        const role = currentUser.role;
-        return role === 'super_admin' || role === 'administrator' || role === 'admin';
+        const role = String(currentUser.role || '').toLowerCase();
+        if (['super_admin', 'administrator', 'admin'].includes(role)) return true;
+        if (currentUser.is_any_admin === true) return true;
+        const roles = currentUser.roles;
+        if (Array.isArray(roles)) {
+            return roles.some((r) => {
+                const name = String((r && typeof r === 'object' && r.name) ? r.name : r || '').toLowerCase();
+                return ['super_admin', 'administrator', 'admin'].includes(name);
+            });
+        }
+        return false;
     }, [currentUser, isCaregiver]);
 
     const [selectedResidents, setSelectedResidents] = useState([]);
