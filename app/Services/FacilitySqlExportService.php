@@ -166,8 +166,11 @@ class FacilitySqlExportService
                     $q->select('drug_id')->from('medications')->whereIn('resident_id', $s->residentIds)->whereNotNull('drug_id');
                 })
                 : null],
-            ['table' => 'healthcare_providers', 'query' => fn (FacilityTenantScope $s) => $s->hasResidents()
-                ? DB::table('healthcare_providers')->whereIn('resident_id', $s->residentIds)
+            // Catalog table: no resident_id; scope by providers linked from this facility's appointments.
+            ['table' => 'healthcare_providers', 'query' => fn (FacilityTenantScope $s) => $s->hasResidents() && FacilityTenantScopeResolver::tableExists('appointments')
+                ? DB::table('healthcare_providers')->whereIn('id', function ($q) use ($s) {
+                    $q->select('healthcare_provider_id')->from('appointments')->whereIn('resident_id', $s->residentIds)->whereNotNull('healthcare_provider_id');
+                })
                 : null],
             ['table' => 'assignments', 'query' => fn (FacilityTenantScope $s) => $s->hasResidents()
                 ? DB::table('assignments')->whereIn('resident_id', $s->residentIds)
