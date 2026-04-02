@@ -167,12 +167,12 @@ class DatabaseManagementController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        $request->validate([
-            'facility_id' => 'required|integer|min:1',
-            'include_full_database' => 'sometimes|boolean',
+        // Query params are strings; avoid `integer` + `boolean` rules that 422 on ?facility_id=1&include_full_database=true
+        $validated = $request->validate([
+            'facility_id' => ['required', 'numeric', 'min:1'],
         ]);
 
-        $facilityId = (int) $request->input('facility_id');
+        $facilityId = (int) $validated['facility_id'];
         $backups = [];
 
         try {
