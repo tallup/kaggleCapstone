@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '../services/api';
-import { Calendar, ClipboardList, Pill, User, ChevronLeft, ChevronRight, FileText } from 'lucide-react';
+import { Calendar, ClipboardList, Pill, User, ChevronLeft, ChevronRight, FileText, Download } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { formatPacificDate as formatDate, formatPacificTime as formatTime } from '../utils/pacificTime';
 import EmptyState from '../components/ui/EmptyState';
@@ -34,6 +34,8 @@ export default function MedicationHistory() {
         const raw = parseInt(searchParams.get('page') || '1', 10);
         return Number.isNaN(raw) || raw < 1 ? 1 : raw;
     });
+    const [exportingPdf, setExportingPdf] = useState(false);
+    const [exportPdfError, setExportPdfError] = useState('');
     const perPage = 25;
 
     useEffect(() => {
@@ -143,6 +145,50 @@ export default function MedicationHistory() {
     const total = historyResponse?.total || 0;
     const lateNoteMarker = '[Late Administration]';
 
+    const canExportMedicationLogPdf = Boolean(residentId && dateFrom && dateTo);
+
+    const handleExportMedicationLogPdf = async () => {
+        if (!canExportMedicationLogPdf) return;
+        setExportingPdf(true);
+        setExportPdfError('');
+        try {
+            const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
+            const params = new URLSearchParams({ date_from: dateFrom, date_to: dateTo });
+            const res = await fetch(`/api/v1/residents/${residentId}/reports/medication-log?${params}`, {
+                method: 'GET',
+                headers: {
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                    Accept: 'application/pdf',
+                },
+                credentials: 'include',
+            });
+            if (!res.ok) {
+                const text = await res.text();
+                let message = `Export failed (${res.status})`;
+                try {
+                    const data = JSON.parse(text);
+                    if (data?.message) message = data.message;
+                } catch {
+                    if (text && text.length < 500) message = text;
+                }
+                throw new Error(message);
+            }
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Medication_Log_${dateFrom}_${dateTo}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            setExportPdfError(e?.message || 'Unable to export PDF.');
+        } finally {
+            setExportingPdf(false);
+        }
+    };
+
     const getStatusLabel = (statusValue) => {
         if (statusValue === 'hospital_admission') return 'Hospital Admission';
         if (statusValue === 'pharmacy_administration_confirm') return 'Pharmacy Administration Confirm';
@@ -237,6 +283,23 @@ export default function MedicationHistory() {
                         </div>
                     </div>
                 </div>
+
+                <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-t border-gray-100 pt-4">
+                    <p className="text-sm text-gray-500 max-w-xl">
+                        Download a printable medication administration log (MAR-style PDF) for one resident and the date range
+                        above.
+                    </p>
+                    <button
+                        type="button"
+                        onClick={handleExportMedicationLogPdf}
+                        disabled={!canExportMedicationLogPdf || exportingPdf}
+                        className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] hover:bg-[var(--theme-primary-hover)] disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+                    >
+                        <Download className="w-4 h-4" />
+                        {exportingPdf ? 'Exporting…' : 'Export medication log (PDF)'}
+                    </button>
+                </div>
+                {exportPdfError ? <p className="text-sm text-red-600 mt-2">{exportPdfError}</p> : null}
             </div>
 
             <div className="bg-white rounded-lg shadow-sm overflow-hidden">

@@ -30,6 +30,7 @@ use App\Http\Controllers\Api\LeaveRequestController;
 use App\Http\Controllers\Api\MedicationAdministrationController;
 use App\Http\Controllers\Api\MedicationController;
 use App\Http\Controllers\Api\MedicationDashboardController;
+use App\Http\Controllers\Api\MedicationLogReportController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\PaymentNotificationPreferenceController;
@@ -102,6 +103,7 @@ Route::prefix('v1')->middleware([\App\Http\Middleware\SetFacilityContext::class]
     Route::get('/dashboard/todays-schedule', [DashboardController::class, 'todaysSchedule'])->middleware('auth:sanctum');
 
     // Residents
+    Route::get('/residents/{resident}/reports/medication-log', MedicationLogReportController::class)->middleware('auth:sanctum');
     Route::apiResource('residents', ResidentController::class)->middleware('auth:sanctum');
     Route::get('/residents/{id}/appointments', [ResidentController::class, 'appointments'])->middleware('auth:sanctum');
     Route::get('/residents/{id}/vitals', [ResidentController::class, 'vitals'])->middleware('auth:sanctum');
