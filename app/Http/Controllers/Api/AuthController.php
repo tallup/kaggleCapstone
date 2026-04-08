@@ -67,10 +67,16 @@ class AuthController extends Controller
                 ], 401);
             }
 
+            if (!$user->is_active) {
+                return response()->json([
+                    'message' => 'This account has been deactivated. Please contact an administrator.',
+                ], 403);
+            }
+
             if ($request->hasSession()) {
                 $request->session()->flush();
             }
-            Auth::login($user);
+            Auth::guard('web')->login($user);
             if ($request->hasSession()) {
                 $request->session()->regenerate();
             }
@@ -124,21 +130,23 @@ class AuthController extends Controller
                 $request->session()->flush();
             }
 
-            Auth::login($user, true);
+            Auth::guard('web')->login($user, true);
             if ($request->hasSession()) {
                 $request->session()->regenerate();
             }
         }
 
-        if (Auth::check()) {
+        if (Auth::guard('web')->check()) {
             /** @var \App\Models\User $user */
-            $user = Auth::user();
+            $user = Auth::guard('web')->user();
 
             if (!$user?->is_active) {
                 // Immediately end the session and block login for inactive accounts
-                Auth::logout();
-                $request->session()->invalidate();
-                $request->session()->regenerateToken();
+                Auth::guard('web')->logout();
+                if ($request->hasSession()) {
+                    $request->session()->invalidate();
+                    $request->session()->regenerateToken();
+                }
 
                 return response()->json([
                     'message' => 'This account has been deactivated. Please contact an administrator.',
@@ -151,7 +159,7 @@ class AuthController extends Controller
                 if (!$userFacility || !$userFacility->is_active) {
                     // Revoke tokens before clearing auth (after logout, $request->user() is null)
                     $user->tokens()->delete();
-                    Auth::logout();
+                    Auth::guard('web')->logout();
                     if ($request->hasSession()) {
                         $request->session()->invalidate();
                         $request->session()->regenerateToken();
@@ -171,9 +179,11 @@ class AuthController extends Controller
                     $facility = Facility::whereRaw('LOWER(provider_code) = ?', [strtolower($request->provider_code)])->first();
 
                     if (!$facility || !$facility->is_active) {
-                        Auth::logout();
-                        $request->session()->invalidate();
-                        $request->session()->regenerateToken();
+                        Auth::guard('web')->logout();
+                        if ($request->hasSession()) {
+                            $request->session()->invalidate();
+                            $request->session()->regenerateToken();
+                        }
 
                         return response()->json([
                             'message' => 'Invalid provider code or facility is no longer active.',
@@ -182,9 +192,11 @@ class AuthController extends Controller
 
                     // Verify user belongs to this facility
                     if ($user->facility_id !== $facility->id) {
-                        Auth::logout();
-                        $request->session()->invalidate();
-                        $request->session()->regenerateToken();
+                        Auth::guard('web')->logout();
+                        if ($request->hasSession()) {
+                            $request->session()->invalidate();
+                            $request->session()->regenerateToken();
+                        }
 
                         return response()->json([
                             'message' => 'You don\'t belong to this facility',
@@ -199,9 +211,11 @@ class AuthController extends Controller
             
             if ($locationCheckResult !== null) {
                 // Location check failed
-                Auth::logout();
-                $request->session()->invalidate();
-                $request->session()->regenerateToken();
+                Auth::guard('web')->logout();
+                if ($request->hasSession()) {
+                    $request->session()->invalidate();
+                    $request->session()->regenerateToken();
+                }
 
                 return response()->json([
                     'message' => $locationCheckResult['message'],
@@ -211,17 +225,35 @@ class AuthController extends Controller
 
             $token = $user->createToken('api-token')->plainTextToken;
 
-            // Log login
-            ActivityLogService::login($user, [
-                'ip_address' => $request->ip(),
-                'user_agent' => $request->userAgent(),
-            ]);
+            // Log login (non-fatal — activity log failures must not block sign-in)
+            try {
+                ActivityLogService::login($user, [
+                    'ip_address' => $request->ip(),
+                    'user_agent' => $request->userAgent(),
+                ]);
+            } catch (\Throwable $e) {
+                Log::warning('Activity log login failed', [
+                    'user_id' => $user->id,
+                    'message' => $e->getMessage(),
+                ]);
+            }
 
             // Automatically clock in the user if they have an assigned branch
             $this->autoClockIn($user, $request);
 
+            try {
+                $userPayload = $this->transformUser($user);
+            } catch (\Throwable $e) {
+                Log::error('transformUser failed during login', [
+                    'user_id' => $user->id,
+                    'message' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                ]);
+                $userPayload = $this->minimalLoginUserPayload($user);
+            }
+
             return response()->json([
-                'user' => $this->transformUser($user),
+                'user' => $userPayload,
                 'token' => $token,
             ]);
         }
@@ -412,6 +444,70 @@ class AuthController extends Controller
     }
 
     /**
+     * Minimal user payload when full transformUser fails (keeps sign-in working).
+     */
+    protected function minimalLoginUserPayload(\App\Models\User $user): array
+    {
+        try {
+            $user->loadMissing(['assignedBranch', 'facility']);
+        } catch (\Throwable $e) {
+            Log::warning('minimalLoginUserPayload: loadMissing failed', [
+                'user_id' => $user->id,
+                'message' => $e->getMessage(),
+            ]);
+        }
+
+        $facility = null;
+        try {
+            $facility = $user->facility ?? ($user->assignedBranch ? $user->assignedBranch->facility : null);
+        } catch (\Throwable $e) {
+            Log::warning('minimalLoginUserPayload: facility resolve failed', [
+                'user_id' => $user->id,
+                'message' => $e->getMessage(),
+            ]);
+        }
+
+        $brandingName = 'HomeLogic360';
+        if ($facility && $facility->name) {
+            $brandingName = $facility->name;
+        }
+
+        $tz = config('app.timezone', 'UTC');
+        $now = Carbon::now($tz);
+
+        return [
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'role' => $user->role,
+            'facility_id' => $user->facility_id,
+            'assigned_branch_id' => $user->assigned_branch_id,
+            'facility_branding' => [
+                'name' => $brandingName,
+                'logo' => asset('images/logonew.png'),
+                'primary_color' => '#1E3A5F',
+                'secondary_color' => '#86EFAC',
+                'accent_color' => '#FFFFFF',
+            ],
+            'enabled_modules' => ($user->role === 'super_admin' || $user->hasRole('super_admin'))
+                ? array_keys(\App\Constants\Modules::all())
+                : [],
+            'permissions' => [],
+            'report_context' => [
+                'facility_name' => $facility ? $facility->name : $brandingName,
+                'facility_address' => $facility ? (string) ($facility->address ?? '') : '',
+                'facility_phone' => $facility ? (string) ($facility->phone ?? '') : '',
+                'branch_name' => $user->assignedBranch ? $user->assignedBranch->name : null,
+                'branch_address' => $user->assignedBranch ? (string) ($user->assignedBranch->address ?? '') : '',
+            ],
+            'app_timezone' => $tz,
+            'app_timezone_abbr' => $now->format('T'),
+            'app_timezone_offset' => $now->format('P'),
+            'app_current_time' => $now->toIso8601String(),
+        ];
+    }
+
+    /**
      * Attach application timezone metadata to the user payload.
      */
     protected function transformUser(?\App\Models\User $user): array
@@ -479,7 +575,16 @@ class AuthController extends Controller
         // Include effective permissions for navigation checks
         // Get all permissions the user effectively has (considering facility overrides)
         // Ensure it's always an array to prevent frontend errors
-        $permissions = $this->getEffectivePermissions($user);
+        try {
+            $permissions = $this->getEffectivePermissions($user);
+        } catch (\Throwable $e) {
+            Log::error('getEffectivePermissions failed during transformUser', [
+                'user_id' => $user->id,
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            $permissions = [];
+        }
         $payload['permissions'] = is_array($permissions) ? $permissions : [];
 
         return $payload;

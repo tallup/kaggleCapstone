@@ -14,6 +14,7 @@ export default function Login() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
+    const [errorDebug, setErrorDebug] = useState(null);
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [userLocation, setUserLocation] = useState(null);
@@ -144,6 +145,7 @@ export default function Login() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
+        setErrorDebug(null);
         setLoading(true);
 
         try {
@@ -183,7 +185,11 @@ export default function Login() {
                 errorMessage = 'Sign-in could not complete. Please try again.';
             }
             const distance = err.response?.data?.distance;
-            
+            const debug = err.response?.data?.debug;
+            if (debug && typeof debug === 'object') {
+                setErrorDebug(debug);
+            }
+
             if (distance !== undefined && distance !== null) {
                 // Format the error message to include distance if available
                 setError(errorMessage);
@@ -290,8 +296,15 @@ export default function Login() {
 
                             <div className="bg-white border-2 border-gray-300 rounded-xl shadow-xl p-6 space-y-4">
                                 {error && (
-                                    <div ref={errorRef} className="p-3 bg-red-100 border-2 border-red-400 rounded-lg">
+                                    <div ref={errorRef} className="p-3 bg-red-100 border-2 border-red-400 rounded-lg space-y-2">
                                         <p className="text-sm font-semibold text-red-900">{error}</p>
+                                        {errorDebug && (
+                                            <pre className="text-xs text-red-950/90 whitespace-pre-wrap break-words max-h-40 overflow-auto bg-red-50/80 border border-red-200 rounded p-2 font-mono">
+                                                {errorDebug.message && `[${errorDebug.message}]\n`}
+                                                {errorDebug.file && `${errorDebug.file}`}
+                                                {errorDebug.line != null && `:${errorDebug.line}`}
+                                            </pre>
+                                        )}
                                     </div>
                                 )}
 

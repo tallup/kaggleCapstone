@@ -39,6 +39,37 @@ class AuthenticationTest extends TestCase
             ->assertJsonStructure(['token', 'user']);
     }
 
+    public function test_user_can_login_again_after_logout(): void
+    {
+        $user = User::factory()->create([
+            'facility_id' => $this->facility->id,
+            'assigned_branch_id' => $this->branch->id,
+            'role' => 'administrator',
+            'email' => 'relogin@test.com',
+            'password' => Hash::make('password123'),
+            'is_active' => true,
+        ]);
+
+        $login = $this->postJson('/api/v1/login', [
+            'email' => 'relogin@test.com',
+            'password' => 'password123',
+        ]);
+        $login->assertOk();
+        $token = $login->json('token');
+
+        $this->postJson('/api/v1/logout', [], [
+            'Authorization' => 'Bearer '.$token,
+        ])->assertOk();
+
+        $again = $this->postJson('/api/v1/login', [
+            'email' => 'relogin@test.com',
+            'password' => 'password123',
+        ]);
+
+        $again->assertOk()
+            ->assertJsonStructure(['token', 'user']);
+    }
+
     public function test_login_fails_with_wrong_password(): void
     {
         $user = User::factory()->create([
