@@ -63,8 +63,9 @@ class Reports extends Page
 
     public function getResidentCareData(): array
     {
-        $residents = Resident::with(['vitalSigns', 'assessments', 'appointments'])->get();
-        
+        // Constrained eager load: only fetch the latest vital sign per resident
+        $residents = Resident::with(['vitalSigns' => fn($q) => $q->latest('measurement_date')->limit(1)])->get();
+
         $healthStatus = [
             'excellent' => 0,
             'good' => 0,
@@ -73,7 +74,7 @@ class Reports extends Page
         ];
 
         foreach ($residents as $resident) {
-            $latestVitals = $resident->vitalSigns->sortByDesc('measurement_date')->first();
+            $latestVitals = $resident->vitalSigns->first();
             
             if ($latestVitals) {
                 if ($latestVitals->systolic <= 120 && $latestVitals->diastolic <= 80 && 
@@ -98,18 +99,17 @@ class Reports extends Page
 
     public function getStaffPerformanceData(): array
     {
-        $caregivers = User::where('role', 'caregiver')->with(['vitalSigns', 'assessments'])->get();
-        
+        $caregivers = User::where('role', 'caregiver')
+            ->withCount(['vitalSigns', 'assessments'])
+            ->get();
+
         $performance = [];
         foreach ($caregivers as $caregiver) {
-            $vitalsCount = $caregiver->vitalSigns->count();
-            $assessmentsCount = $caregiver->assessments->count();
-            
             $performance[] = [
                 'name' => $caregiver->name,
-                'vitals_recorded' => $vitalsCount,
-                'assessments_completed' => $assessmentsCount,
-                'total_activities' => $vitalsCount + $assessmentsCount,
+                'vitals_recorded' => $caregiver->vital_signs_count,
+                'assessments_completed' => $caregiver->assessments_count,
+                'total_activities' => $caregiver->vital_signs_count + $caregiver->assessments_count,
             ];
         }
 
@@ -184,10 +184,12 @@ class Reports extends Page
 
     public function exportStaffReport()
     {
-        $staff = User::where('role', 'caregiver')->with(['vitalSigns', 'assessments'])->get();
+        $staff = User::where('role', 'caregiver')
+            ->withCount(['vitalSigns', 'assessments'])
+            ->get();
 
         $filename = 'staff_report_' . now()->format('Y-m-d_H-i-s') . '.csv';
-        
+
         $headers = [
             'Content-Type' => 'text/csv',
             'Content-Disposition' => 'attachment; filename="' . $filename . '"',
@@ -195,13 +197,13 @@ class Reports extends Page
 
         $callback = function() use ($staff) {
             $file = fopen('php://output', 'w');
-            
+
             // CSV Headers
             fputcsv($file, ['Name', 'Email', 'Vitals Recorded', 'Assessments Completed', 'Total Activities', 'Performance Score']);
-            
+
             foreach ($staff as $member) {
-                $vitalsCount = $member->vitalSigns->count();
-                $assessmentsCount = $member->assessments->count();
+                $vitalsCount = $member->vital_signs_count;
+                $assessmentsCount = $member->assessments_count;
                 $totalActivities = $vitalsCount + $assessmentsCount;
                 $performanceScore = $totalActivities > 0 ? round(($totalActivities / 50) * 100, 1) : 0;
                 

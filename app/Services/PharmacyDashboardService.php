@@ -96,8 +96,8 @@ class PharmacyDashboardService
             
             $totalSuppliers = $supplierQuery->count();
             
-            // Recent Orders (last 10)
-            $recentOrders = $orderQuery->orderBy('order_date', 'desc')
+            // Recent Orders (last 10) — clone to avoid mutating $orderQuery
+            $recentOrders = (clone $orderQuery)->orderBy('order_date', 'desc')
                 ->orderBy('created_at', 'desc')
                 ->limit(10)
                 ->get()

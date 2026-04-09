@@ -163,12 +163,14 @@ export default function SleepPatterns() {
                         year: year,
                     }
                 });
-                const raw = response.data;
+                const raw = response.data ?? {};
                 return {
                     ...raw,
+                    pattern: raw?.pattern ?? null,
                     daily_data: ensureArray(raw?.daily_data),
                     hourly_distribution: ensureArray(raw?.hourly_distribution),
                     key_observations: ensureArray(raw?.key_observations),
+                    weekly_summary: ensureArray(raw?.weekly_summary),
                 };
             } catch (err) {
                 logger.error('Sleep Pattern API Error:', err);
