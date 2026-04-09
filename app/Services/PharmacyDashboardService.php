@@ -34,22 +34,22 @@ class PharmacyDashboardService
                 $inventoryQuery->where('branch_id', $branchId);
             }
             
-            $inventory = $inventoryQuery->get();
-            
-            $totalInventoryValue = $inventory->sum(function ($item) {
-                return ($item->quantity ?? 0) * ($item->unit_cost ?? 0);
-            });
-            
-            $lowStockItems = $inventory->filter(function ($item) {
-                return $item->quantity > 0 && $item->quantity <= ($item->minimum_stock_level ?? 0);
-            })->count();
-            
-            $outOfStockItems = $inventory->filter(function ($item) {
-                return ($item->quantity ?? 0) <= 0;
-            })->count();
-            
-            $totalItems = $inventory->count();
+            // Aggregate inventory stats in DB instead of loading all rows
+            $inventoryStats = (clone $inventoryQuery)->selectRaw("
+                count(*) as total_items,
+                coalesce(sum(coalesce(quantity, 0) * coalesce(unit_cost, 0)), 0) as total_value,
+                sum(case when quantity > 0 and quantity <= coalesce(minimum_stock_level, 0) then 1 else 0 end) as low_stock,
+                sum(case when coalesce(quantity, 0) <= 0 then 1 else 0 end) as out_of_stock
+            ")->first();
+
+            $totalItems = (int) $inventoryStats->total_items;
+            $totalInventoryValue = (float) $inventoryStats->total_value;
+            $lowStockItems = (int) $inventoryStats->low_stock;
+            $outOfStockItems = (int) $inventoryStats->out_of_stock;
             $inStockItems = $totalItems - $outOfStockItems;
+
+            // Load collection only for list views (low stock, out of stock, branch grouping)
+            $inventory = $inventoryQuery->get();
             
             // Order Stats
             $orderQuery = PharmacyOrder::withoutGlobalScopes()
@@ -64,13 +64,20 @@ class PharmacyDashboardService
                 $orderQuery->where('branch_id', $branchId);
             }
             
-            $orders = $orderQuery->get();
-            
-            $pendingOrders = $orders->where('status', 'pending')->count();
-            $receivedOrders = $orders->where('status', 'received')->count();
-            $totalOrders = $orders->count();
-            $totalOrderValue = $orders->sum('total');
-            $pendingOrderValue = $orders->where('status', 'pending')->sum('total');
+            // Aggregate order stats in DB
+            $orderStats = (clone $orderQuery)->selectRaw("
+                count(*) as total_orders,
+                coalesce(sum(total), 0) as total_value,
+                sum(case when status = 'pending' then 1 else 0 end) as pending_count,
+                sum(case when status = 'received' then 1 else 0 end) as received_count,
+                sum(case when status = 'pending' then coalesce(total, 0) else 0 end) as pending_value
+            ")->first();
+
+            $totalOrders = (int) $orderStats->total_orders;
+            $totalOrderValue = (float) $orderStats->total_value;
+            $pendingOrders = (int) $orderStats->pending_count;
+            $receivedOrders = (int) $orderStats->received_count;
+            $pendingOrderValue = (float) $orderStats->pending_value;
             
             // Supplier Stats - Filter by facility
             $supplierQuery = PharmacySupplier::query()->where('is_active', true);
@@ -144,16 +151,17 @@ class PharmacyDashboardService
             })
             ->values();
             
-            // Orders by Status (last 30 days)
-            $ordersLast30Days = $orderQuery->where('order_date', '>=', now()->subDays(30))
-                ->get()
+            // Orders by Status (last 30 days) — DB GROUP BY instead of loading all rows
+            $ordersLast30Days = (clone $orderQuery)
+                ->where('order_date', '>=', now()->subDays(30))
+                ->selectRaw('status, count(*) as count, coalesce(sum(total), 0) as total_value')
                 ->groupBy('status')
-                ->map(function ($group) {
-                    return [
-                        'count' => $group->count(),
-                        'total_value' => $group->sum('total'),
-                    ];
-                });
+                ->get()
+                ->keyBy('status')
+                ->map(fn ($row) => [
+                    'count' => (int) $row->count,
+                    'total_value' => (float) $row->total_value,
+                ]);
             
             // Inventory by Branch
             $inventoryByBranch = $inventory->groupBy('branch_id')
