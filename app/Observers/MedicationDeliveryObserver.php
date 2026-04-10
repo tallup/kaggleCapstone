@@ -47,6 +47,8 @@ class MedicationDeliveryObserver
         foreach ($admins as $admin) {
             Notification::create([
                 'user_id' => $admin->id,
+                'facility_id' => $delivery->branch?->facility_id ?? null,
+                'branch_id' => $delivery->branch_id ?? null,
                 'type' => 'medication_delivery_received',
                 'title' => 'Medication Delivery Received',
                 'message' => $message,

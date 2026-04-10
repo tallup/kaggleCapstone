@@ -42,6 +42,8 @@ class ShiftObserver
 
         Notification::create([
             'user_id' => $userId,
+            'facility_id' => $shift->branch?->facility_id ?? null,
+            'branch_id' => $shift->branch_id ?? null,
             'type' => 'shift_' . $action,
             'title' => $title,
             'message' => $msg,

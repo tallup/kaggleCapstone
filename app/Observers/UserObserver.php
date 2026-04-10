@@ -35,6 +35,8 @@ class UserObserver
             
             Notification::create([
                 'user_id' => $admin->id,
+                'facility_id' => $user->facility_id ?? null,
+                'branch_id' => $user->branch_id ?? $user->assigned_branch_id ?? null,
                 'type' => 'user_created',
                 'title' => 'New User Added',
                 'message' => "A new {$role}, {$userName} ({$email}), has been added to the system",

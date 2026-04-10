@@ -84,6 +84,8 @@ class VitalSignObserver
             
             Notification::create([
                 'user_id' => $caregiver->id,
+                'facility_id' => $vitalSign->resident?->branch?->facility_id ?? null,
+                'branch_id' => $vitalSign->branch_id ?? $vitalSign->resident?->branch_id ?? null,
                 'type' => $isCritical ? 'vital_critical' : 'vital_recorded',
                 'title' => $title,
                 'message' => "Vital signs for {$residentName} were recorded by {$takenByName} on {$measurementDate}{$vitalsStr}",
@@ -111,6 +113,8 @@ class VitalSignObserver
                 
                 Notification::create([
                     'user_id' => $admin->id,
+                    'facility_id' => $vitalSign->resident?->branch?->facility_id ?? null,
+                    'branch_id' => $vitalSign->branch_id ?? $vitalSign->resident?->branch_id ?? null,
                     'type' => 'vital_critical',
                     'title' => 'Critical Vital Signs Alert',
                     'message' => "CRITICAL: Vital signs recorded for {$residentName} require immediate attention",

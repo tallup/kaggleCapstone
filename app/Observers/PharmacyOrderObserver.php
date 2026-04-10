@@ -39,6 +39,8 @@ class PharmacyOrderObserver
         foreach ($admins as $admin) {
             Notification::create([
                 'user_id' => $admin->id,
+                'facility_id' => $order->branch?->facility_id ?? null,
+                'branch_id' => $order->branch_id ?? null,
                 'type' => 'pharmacy_order_created',
                 'title' => 'New Pharmacy Order Created',
                 'message' => "New pharmacy order {$order->order_number} for \${$total} from {$supplierName} ({$branchName}) has been created.",
@@ -96,6 +98,8 @@ class PharmacyOrderObserver
         foreach ($admins as $admin) {
             Notification::create([
                 'user_id' => $admin->id,
+                'facility_id' => $order->branch?->facility_id ?? null,
+                'branch_id' => $order->branch_id ?? null,
                 'type' => 'pharmacy_order_status_changed',
                 'title' => 'Pharmacy Order Status Updated',
                 'message' => "Pharmacy order {$order->order_number} from {$supplierName} status changed to {$newStatus}.",

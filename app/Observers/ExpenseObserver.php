@@ -38,6 +38,8 @@ class ExpenseObserver
         foreach ($admins as $admin) {
             Notification::create([
                 'user_id' => $admin->id,
+                'facility_id' => $expense->facility_id ?? null,
+                'branch_id' => $expense->branch_id ?? null,
                 'type' => 'expense_created',
                 'title' => 'New Expense Created',
                 'message' => "New expense of \${$amount} for '{$expense->description}' ({$categoryName}){$location} was created on {$expenseDate}.",
@@ -89,6 +91,8 @@ class ExpenseObserver
             foreach ($admins as $admin) {
                 Notification::create([
                     'user_id' => $admin->id,
+                    'facility_id' => $expense->facility_id ?? null,
+                    'branch_id' => $expense->branch_id ?? null,
                     'type' => 'expense_paid',
                     'title' => 'Expense Marked as Paid',
                     'message' => "Expense of \${$amount} for '{$expense->description}' ({$categoryName}){$location} has been marked as paid.",
@@ -138,6 +142,8 @@ class ExpenseObserver
         foreach ($admins as $admin) {
             Notification::create([
                 'user_id' => $admin->id,
+                'facility_id' => $expense->facility_id ?? null,
+                'branch_id' => $expense->branch_id ?? null,
                 'type' => 'expense_deleted',
                 'title' => 'Expense Deleted',
                 'message' => "Expense of \${$amount} for '{$expense->description}' ({$categoryName}){$location} has been deleted.",

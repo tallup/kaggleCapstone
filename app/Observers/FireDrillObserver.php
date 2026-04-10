@@ -37,6 +37,8 @@ class FireDrillObserver
             
             Notification::create([
                 'user_id' => $user->id,
+                'facility_id' => $fireDrill->branch?->facility_id ?? null,
+                'branch_id' => $fireDrill->branch_id ?? null,
                 'type' => 'fire_drill_scheduled',
                 'title' => 'Fire Drill Scheduled',
                 'message' => "Fire drill scheduled for {$fireDrill->branch->name} on {$drillDate} at {$drillTime}",

@@ -25,6 +25,8 @@ class FacilityObserver
             
             Notification::create([
                 'user_id' => $admin->id,
+                'facility_id' => $facility->facility_id ?? null,
+                'branch_id' => $facility->branch_id ?? $facility->assigned_branch_id ?? null,
                 'type' => 'facility_created',
                 'title' => 'New Facility Added',
                 'message' => "A new facility, {$facilityName}, has been added in {$location}",

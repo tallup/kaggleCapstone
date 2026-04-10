@@ -32,6 +32,8 @@ class ResidentObserver
             
             Notification::create([
                 'user_id' => $admin->id,
+                'facility_id' => $resident->facility_id ?? null,
+                'branch_id' => $resident->branch_id ?? $resident->assigned_branch_id ?? null,
                 'type' => 'resident_created',
                 'title' => 'New Resident Added',
                 'message' => "A new resident, {$residentName}, has been added to {$branchName}. Admission date: {$admissionDate}",

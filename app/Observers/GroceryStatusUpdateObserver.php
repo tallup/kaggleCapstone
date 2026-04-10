@@ -38,6 +38,8 @@ class GroceryStatusUpdateObserver
         foreach ($recipients as $user) {
             Notification::create([
                 'user_id' => $user->id,
+                'facility_id' => $update->branch?->facility_id ?? null,
+                'branch_id' => $update->branch_id ?? null,
                 'type' => 'grocery_status_update',
                 'title' => 'Grocery Status Updated',
                 'message' => "{$branchName} updated grocery status ({$statusLabel}) for week starting {$week}.",

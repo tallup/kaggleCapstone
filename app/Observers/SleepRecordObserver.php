@@ -42,6 +42,8 @@ class SleepRecordObserver
             
             Notification::create([
                 'user_id' => $caregiver->id,
+                'facility_id' => $sleepRecord->resident?->branch?->facility_id ?? null,
+                'branch_id' => $sleepRecord->branch_id ?? $sleepRecord->resident?->branch_id ?? null,
                 'type' => 'sleep_record',
                 'title' => 'Sleep Record Added',
                 'message' => "Sleep record for {$residentName} was recorded by {$createdByName} on {$sleepDate}. Duration: {$sleepHours} hours, Quality: {$quality}",

@@ -35,6 +35,8 @@ class PharmacySupplierObserver
         foreach ($admins as $admin) {
             Notification::create([
                 'user_id' => $admin->id,
+                'facility_id' => $supplier->facility_id ?? null,
+                'branch_id' => $supplier->branch_id ?? $supplier->assigned_branch_id ?? null,
                 'type' => 'pharmacy_supplier_created',
                 'title' => 'New Pharmacy Supplier Added',
                 'message' => "New pharmacy supplier '{$supplier->name}' has been added.",
@@ -73,6 +75,8 @@ class PharmacySupplierObserver
         foreach ($admins as $admin) {
             Notification::create([
                 'user_id' => $admin->id,
+                'facility_id' => $supplier->facility_id ?? null,
+                'branch_id' => $supplier->branch_id ?? $supplier->assigned_branch_id ?? null,
                 'type' => 'pharmacy_supplier_updated',
                 'title' => 'Pharmacy Supplier Updated',
                 'message' => "Pharmacy supplier '{$supplier->name}' has been updated.",

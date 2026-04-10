@@ -31,6 +31,8 @@ class LeaveRequestObserver
             
             Notification::create([
                 'user_id' => $admin->id,
+                'facility_id' => $leaveRequest->facility_id ?? null,
+                'branch_id' => $leaveRequest->branch_id ?? $leaveRequest->assigned_branch_id ?? null,
                 'type' => 'leave_request',
                 'title' => 'New Leave Request',
                 'message' => "{$staffName} has submitted a leave request from {$startDate} to {$endDate} ({$duration} days)",
@@ -77,6 +79,8 @@ class LeaveRequestObserver
                     
                     Notification::create([
                         'user_id' => $staff->id,
+                        'facility_id' => $leaveRequest->facility_id ?? null,
+                        'branch_id' => $leaveRequest->branch_id ?? $leaveRequest->assigned_branch_id ?? null,
                         'type' => $currentStatus === 'approved' ? 'leave_approved' : 'leave_rejected',
                         'title' => $title,
                         'message' => "Your leave request has been {$statusText} by {$approvedByName}",

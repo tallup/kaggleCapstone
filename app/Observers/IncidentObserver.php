@@ -49,6 +49,8 @@ class IncidentObserver
                 try {
                     Notification::create([
                         'user_id' => $admin->id,
+                        'facility_id' => $incident->resident?->branch?->facility_id ?? null,
+                        'branch_id' => $incident->branch_id ?? $incident->resident?->branch_id ?? null,
                         'type' => 'incident_reported',
                         'title' => 'New Incident Reported',
                         'message' => "Incident #{$incidentNumber}: A {$incident->severity} severity, {$incident->priority} priority {$incident->incident_type} incident involving {$residentName}{$location} was reported by {$reportedByName} on {$incidentDate}",
@@ -76,6 +78,8 @@ class IncidentObserver
                 try {
                     Notification::create([
                         'user_id' => $incident->assigned_to,
+                        'facility_id' => $incident->resident?->branch?->facility_id ?? null,
+                        'branch_id' => $incident->branch_id ?? $incident->resident?->branch_id ?? null,
                         'type' => 'incident_assigned',
                         'title' => 'Incident Assigned to You',
                         'message' => "You have been assigned to handle Incident #{$incidentNumber}: {$incident->incident_type} involving {$residentName}{$location}",
@@ -146,6 +150,8 @@ class IncidentObserver
                 foreach ($notifyUsers as $user) {
                     Notification::create([
                         'user_id' => $user->id,
+                        'facility_id' => $incident->resident?->branch?->facility_id ?? null,
+                        'branch_id' => $incident->branch_id ?? $incident->resident?->branch_id ?? null,
                         'type' => 'incident_resolved',
                         'title' => 'Incident Resolved',
                         'message' => "Incident #{$incidentNumber}: {$incident->incident_type} involving {$residentName} has been resolved",
@@ -175,6 +181,8 @@ class IncidentObserver
                 foreach ($notifyUsers as $user) {
                     Notification::create([
                         'user_id' => $user->id,
+                        'facility_id' => $incident->resident?->branch?->facility_id ?? null,
+                        'branch_id' => $incident->branch_id ?? $incident->resident?->branch_id ?? null,
                         'type' => 'incident_closed',
                         'title' => 'Incident Closed',
                         'message' => "Incident #{$incidentNumber}: {$incident->incident_type} involving {$residentName} has been closed",
@@ -208,6 +216,8 @@ class IncidentObserver
                 foreach ($notifyUsers as $user) {
                     Notification::create([
                         'user_id' => $user->id,
+                        'facility_id' => $incident->resident?->branch?->facility_id ?? null,
+                        'branch_id' => $incident->branch_id ?? $incident->resident?->branch_id ?? null,
                         'type' => 'incident_closed',
                         'title' => 'Incident Closed',
                         'message' => "Incident #{$incidentNumber}: {$incident->incident_type} involving {$residentName} has been closed",
@@ -238,6 +248,8 @@ class IncidentObserver
             if ($newAssigned && $incident->assignedTo) {
                 Notification::create([
                     'user_id' => $newAssigned,
+                    'facility_id' => $incident->resident?->branch?->facility_id ?? null,
+                    'branch_id' => $incident->branch_id ?? $incident->resident?->branch_id ?? null,
                     'type' => 'incident_assigned',
                     'title' => 'Incident Assigned to You',
                     'message' => "You have been assigned to handle Incident #{$incidentNumber}: {$incident->incident_type} involving {$residentName}",
@@ -274,6 +286,8 @@ class IncidentObserver
                 foreach ($admins as $admin) {
                     Notification::create([
                         'user_id' => $admin->id,
+                        'facility_id' => $incident->resident?->branch?->facility_id ?? null,
+                        'branch_id' => $incident->branch_id ?? $incident->resident?->branch_id ?? null,
                         'type' => 'incident_escalated',
                         'title' => 'Critical Incident Escalation',
                         'message' => "Incident #{$incidentNumber}: {$incident->incident_type} involving {$residentName} has been escalated to CRITICAL priority/severity",

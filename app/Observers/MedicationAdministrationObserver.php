@@ -79,6 +79,8 @@ class MedicationAdministrationObserver
             
             Notification::create([
                 'user_id' => $caregiver->id,
+                'facility_id' => $administration->resident?->branch?->facility_id ?? null,
+                'branch_id' => $administration->branch_id ?? $administration->resident?->branch_id ?? null,
                 'type' => 'medication_administered',
                 'title' => 'Medication Administered',
                 'message' => $message,

@@ -31,6 +31,8 @@ class ExpenseCategoryObserver
         foreach ($admins as $admin) {
             Notification::create([
                 'user_id' => $admin->id,
+                'facility_id' => $category->facility_id ?? null,
+                'branch_id' => $category->branch_id ?? null,
                 'type' => 'expense_category_created',
                 'title' => 'Expense Category Created',
                 'message' => "New expense category '{$category->name}' ({$category->type}) has been created.",
@@ -72,6 +74,8 @@ class ExpenseCategoryObserver
         foreach ($admins as $admin) {
             Notification::create([
                 'user_id' => $admin->id,
+                'facility_id' => $category->facility_id ?? null,
+                'branch_id' => $category->branch_id ?? null,
                 'type' => 'expense_category_updated',
                 'title' => 'Expense Category Updated',
                 'message' => "Expense category '{$category->name}' has been updated.",
@@ -110,6 +114,8 @@ class ExpenseCategoryObserver
         foreach ($admins as $admin) {
             Notification::create([
                 'user_id' => $admin->id,
+                'facility_id' => $category->facility_id ?? null,
+                'branch_id' => $category->branch_id ?? null,
                 'type' => 'expense_category_deleted',
                 'title' => 'Expense Category Deleted',
                 'message' => "Expense category '{$category->name}' has been deleted.",

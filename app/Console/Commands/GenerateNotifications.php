@@ -120,10 +120,12 @@ class GenerateNotifications extends Command
                     
                     Notification::create([
                         'user_id' => $caregiver->id,
+                        'facility_id' => $appointment->resident?->branch?->facility_id ?? null,
+                        'branch_id' => $appointment->branch_id ?? $appointment->resident?->branch_id ?? null,
                         'type' => 'appointment_upcoming',
                         'title' => $title,
-                        'message' => "{$residentName} has a {$appointmentType} appointment on " . 
-                                   Carbon::parse($appointment->appointment_date)->format('M d, Y') . 
+                        'message' => "{$residentName} has a {$appointmentType} appointment on " .
+                                   Carbon::parse($appointment->appointment_date)->format('M d, Y') .
                                    " at {$time}",
                         'icon' => 'calendar',
                         'icon_color' => 'text-green-600',
@@ -210,6 +212,8 @@ class GenerateNotifications extends Command
                             
                             Notification::create([
                                 'user_id' => $caregiver->id,
+                                'facility_id' => $medication->resident?->branch?->facility_id ?? null,
+                                'branch_id' => $medication->branch_id ?? $medication->resident?->branch_id ?? null,
                                 'type' => 'medication_due',
                                 'title' => 'Medication Due',
                                 'message' => "Give {$drugName} to {$residentName} at {$adminTime}",
@@ -330,6 +334,8 @@ class GenerateNotifications extends Command
                     $branchLabel = $drill->branch?->name ?? 'Unknown branch';
                     \App\Models\Notification::create([
                         'user_id' => $user->id,
+                        'facility_id' => $drill->branch?->facility_id ?? null,
+                        'branch_id' => $drill->branch_id ?? null,
                         'type' => $type,
                         'title' => $title,
                         'message' => "Fire drill scheduled for {$branchLabel} on {$drillDate} at {$drillTime}",
@@ -426,6 +432,8 @@ class GenerateNotifications extends Command
                                 foreach ($caregivers as $caregiver) {
                                     \App\Models\Notification::create([
                                         'user_id' => $caregiver->id,
+                                        'facility_id' => $medication->resident?->branch?->facility_id ?? null,
+                                        'branch_id' => $medication->branch_id ?? $medication->resident?->branch_id ?? null,
                                         'type' => 'late_medication_email',
                                         'title' => 'Late Medication Alert',
                                         'message' => ($medication->drug?->name ?? $medication->name) . " for " . 
@@ -500,6 +508,8 @@ class GenerateNotifications extends Command
                     foreach ($caregivers as $caregiver) {
                         \App\Models\Notification::create([
                             'user_id' => $caregiver->id,
+                            'facility_id' => $resident->branch?->facility_id ?? null,
+                            'branch_id' => $resident->branch_id ?? null,
                             'type' => 'late_vital_sign_email',
                             'title' => 'Late Vital Sign Alert',
                             'message' => "Vital signs for " . 

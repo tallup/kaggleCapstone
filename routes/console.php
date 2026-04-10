@@ -24,6 +24,9 @@ Schedule::command('medications:mark-missed --end-of-day')->dailyAt('23:55');
 // Medications - Pre-window opening emails removed (too noisy). Admins are emailed when a dose is
 // missed after the window closes — see medications:mark-missed + NotificationService::sendMissedMedicationWindowAdminEmail.
 
+// Notifications cleanup: delete read > 30 days, all > 90 days
+Schedule::command('notifications:cleanup')->dailyAt('03:00');
+
 // Database: automatic daily backup to storage/app/backups (backup_auto_*.sql). Requires server cron running `schedule:run`.
 Schedule::command('database:backup --scheduled')
     ->dailyAt(config('backup.scheduled_time', '02:00'))

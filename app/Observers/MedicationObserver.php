@@ -76,6 +76,8 @@ class MedicationObserver
             
             Notification::create([
                 'user_id' => $caregiver->id,
+                'facility_id' => $medication->resident?->branch?->facility_id ?? null,
+                'branch_id' => $medication->branch_id ?? $medication->resident?->branch_id ?? null,
                 'type' => 'medication_created',
                 'title' => 'New Medication Added',
                 'message' => "{$medicationName} has been added for {$residentName}. Start date: {$startDate}{$timesStr}",
