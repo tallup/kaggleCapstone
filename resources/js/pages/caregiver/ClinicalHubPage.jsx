@@ -1,12 +1,58 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ClipboardList, Heart, Moon, ArrowRight } from 'lucide-react';
+import {
+    ClipboardList,
+    Heart,
+    Moon,
+    ArrowRight,
+    LayoutDashboard,
+    Pill,
+    Truck,
+    FileText,
+} from 'lucide-react';
 import ScrollReveal from '../../components/ui/ScrollReveal';
 
+/** All destinations here are reached from Clinical hub / tab bar only — not duplicated in the main sidebar. */
 const TILES = [
     {
+        id: 'medications-dashboard',
+        title: 'Medication dashboard',
+        description: 'Overview of medication tasks, schedules, and facility-wide medication activity.',
+        icon: LayoutDashboard,
+        path: '/medications/dashboard',
+        accent: 'text-sky-600',
+        bg: 'bg-sky-50',
+    },
+    {
+        id: 'medications-mar',
+        title: 'Medications (MAR)',
+        description: 'Manage active medication orders, administration, and resident medication profiles.',
+        icon: Pill,
+        path: '/medications',
+        accent: 'text-teal-600',
+        bg: 'bg-teal-50',
+    },
+    {
+        id: 'medication-deliveries',
+        title: 'Medication deliveries',
+        description: 'Track pharmacy deliveries, receipts, and supply status for the facility.',
+        icon: Truck,
+        path: '/medication-deliveries',
+        accent: 'text-amber-600',
+        bg: 'bg-amber-50',
+    },
+    {
+        id: 'medication-report',
+        title: 'Medication report',
+        description: 'Run medication-related reports for audits and compliance.',
+        icon: FileText,
+        path: '/medications/report',
+        accent: 'text-slate-600',
+        bg: 'bg-slate-50',
+    },
+    {
         id: 'medication-history',
-        title: 'Medication History',
+        title: 'Medication history',
         description: 'Review past medication administrations and reconciliation records for all residents.',
         icon: ClipboardList,
         path: '/medication-history',
@@ -15,7 +61,7 @@ const TILES = [
     },
     {
         id: 'vitals',
-        title: 'Vital Signs',
+        title: 'Vital signs',
         description: 'Log and track resident blood pressure, heart rate, temperature, oxygen saturation and weight.',
         icon: Heart,
         path: '/vitals',
@@ -24,7 +70,7 @@ const TILES = [
     },
     {
         id: 'sleep',
-        title: 'Sleep Tracking',
+        title: 'Sleep tracking',
         description: 'Record nightly sleep quality and duration patterns to support resident wellbeing plans.',
         icon: Moon,
         path: '/sleep',

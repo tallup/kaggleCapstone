@@ -14,7 +14,6 @@ import {
     Maximize2,
     User,
     LogOut,
-    Pill,
     ClipboardList,
     Settings,
     ChevronDown,
@@ -101,9 +100,8 @@ const caregiverNavigation = [
 ];
 
 /**
- * Facility admins and other non-caregiver staff: same hub-based Clinical / Operations
- * entry points as caregivers, plus medication, scheduling, pharmacy, billing, and administration.
- * (Caregivers keep the slimmer sidebar above.)
+ * Facility admins: hub entry points for Clinical / Operations only — no sidebar links that
+ * duplicate destinations already on those hub pages or their tab bars.
  */
 const facilityStaffHubNavigation = [
     { name: 'Dashboard', icon: LayoutDashboard, path: '/dashboard',  children: null, section: 'Home' },
@@ -121,18 +119,6 @@ const facilityStaffHubNavigation = [
     },
     { name: 'Behavior Charts', icon: BarChart3,       path: '/charts',       children: null, section: 'Residents' },
     { name: 'Clinical',        icon: Stethoscope,     path: '/clinical',     children: null, section: 'Clinical' },
-    {
-        name: 'Medication',
-        icon: Pill,
-        path: '/medications/dashboard',
-        section: 'Clinical',
-        children: [
-            { name: 'Dashboard', path: '/medications/dashboard' },
-            { name: 'Medications', path: '/medications' },
-            { name: 'Medication Deliveries', path: '/medication-deliveries' },
-            { name: 'Medication Report', path: '/medications/report' },
-        ],
-    },
     { name: 'Operations',      icon: Wrench,          path: '/operations',   children: null, section: 'Operations' },
     { name: 'Progress notes',  icon: FileText,        path: '/t-logs',       children: null, section: 'Work' },
     {

@@ -14,12 +14,19 @@
 import React from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 
+function pathnameMatchesTab(pathname, tab) {
+    const paths = [tab.path, ...(tab.extraPaths || [])].filter(Boolean);
+    return paths.some(
+        p => pathname === p || pathname.startsWith(p + '/')
+    );
+}
+
 export default function SectionLayout({ title, subtitle, tabs = [] }) {
     const { pathname } = useLocation();
 
-    // Find the best-matching active tab (longest matching path wins)
+    // Find the best-matching active tab (longest matching primary path wins)
     const activeTab = [...tabs]
-        .filter(t => pathname === t.path || pathname.startsWith(t.path + '/'))
+        .filter(t => pathnameMatchesTab(pathname, t))
         .sort((a, b) => b.path.length - a.path.length)[0]
         ?? tabs[0];
 

@@ -322,16 +322,15 @@ function App() {
                     <Route path="sleep"               element={<Suspense fallback={<PageLoader />}><Sleep /></Suspense>} />
                     <Route path="sleep-pattern"       element={<Navigate to="/sleep-patterns" replace />} />
                     <Route path="sleep-patterns"      element={<Suspense fallback={<PageLoader />}><SleepPatterns /></Suspense>} />
+                    <Route path="medications/report" element={<Suspense fallback={<PageLoader />}><MedicationsReport /></Suspense>} />
+                    <Route path="medications/dashboard" element={<Suspense fallback={<PageLoader />}><MedicationDashboard /></Suspense>} />
+                    <Route path="medications/residents/:residentId" element={<MedResidentRedirect />} />
+                    <Route path="medications/residents" element={<Suspense fallback={<PageLoader />}><CaregiverMedicationsResidents /></Suspense>} />
+                    <Route path="medications" element={<Suspense fallback={<PageLoader />}><Medications /></Suspense>} />
+                    <Route path="medication-deliveries" element={<Suspense fallback={<PageLoader />}><MedicationDeliveries /></Suspense>} />
                 </Route>
 
-                <Route path="medications/dashboard" element={<Suspense fallback={<PageLoader />}><MedicationDashboard /></Suspense>} />
-                <Route path="medications" element={<Suspense fallback={<PageLoader />}><Medications /></Suspense>} />
-                <Route path="medications/report" element={<Suspense fallback={<PageLoader />}><MedicationsReport /></Suspense>} />
-                <Route path="medications/residents" element={<Suspense fallback={<PageLoader />}><CaregiverMedicationsResidents /></Suspense>} />
-                {/* Deep-link into the hub's medications tab */}
-                <Route path="medications/residents/:residentId" element={<MedResidentRedirect />} />
                 <Route path="reminders" element={<Suspense fallback={<PageLoader />}><Reminders /></Suspense>} />
-                <Route path="medication-deliveries" element={<Suspense fallback={<PageLoader />}><MedicationDeliveries /></Suspense>} />
 
                 {/* ── Operations section (persistent tab bar) ──────────────── */}
                 <Route element={<Suspense fallback={<PageLoader />}><OperationsSectionLayout /></Suspense>}>
