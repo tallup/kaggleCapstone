@@ -49,9 +49,13 @@ function isClinicalSectionForSwitcher(pathname) {
 
 /**
  * Whether the compact resident avatar strip should appear in the app header.
+ * Hub overview routes (/clinical, /residents) use on-page resident cards instead.
  */
 export function shouldShowHeaderResidentSwitcher(pathname) {
     if (!pathname) return false;
+    if (pathname === '/clinical' || pathname === '/residents') {
+        return false;
+    }
     return isResidentsHubPathForSwitcher(pathname) || isClinicalSectionForSwitcher(pathname);
 }
 
