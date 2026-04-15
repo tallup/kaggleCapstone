@@ -1,6 +1,6 @@
 import React from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Users, Search, MapPin, Calendar, Phone, Activity, Edit, Eye, LayoutGrid, List, DoorOpen } from 'lucide-react';
 import api from '../../services/api';
 import ResidentForm from '../../components/ResidentForm';
@@ -15,6 +15,7 @@ import {
     formatPacificDateTimeShort,
     calculateAgeFromPacificBirthDate,
 } from '../../utils/pacificTime';
+import { RESIDENT_CONTEXT_QUERY_KEY } from '../../utils/headerResidentSwitcher';
 
 const initialStats = [
     { key: 'active', label: 'Active Residents', icon: Users },
@@ -23,6 +24,7 @@ const initialStats = [
 
 export default function MyResidentsPage() {
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
     const queryClient = useQueryClient();
     const [search, setSearch] = React.useState('');
     const [debouncedSearch, setDebouncedSearch] = React.useState('');
@@ -85,6 +87,23 @@ export default function MyResidentsPage() {
         });
     }, [allResidents, statusFilter]);
 
+    const scopeId = searchParams.get(RESIDENT_CONTEXT_QUERY_KEY) || '';
+    const displayedResidents = React.useMemo(() => {
+        if (!scopeId) return residents;
+        return residents.filter((r) => String(r.id) === scopeId);
+    }, [residents, scopeId]);
+
+    const setResidentScope = (id) => {
+        setSearchParams(
+            (prev) => {
+                const p = new URLSearchParams(prev);
+                p.set(RESIDENT_CONTEXT_QUERY_KEY, String(id));
+                return p;
+            },
+            { replace: true },
+        );
+    };
+
     const canEditResidents = !isCaregiverRole(currentUser?.role);
 
     const stats = React.useMemo(() => {
@@ -118,10 +137,10 @@ export default function MyResidentsPage() {
             <EntityCardShell
                 key={resident.id}
                 className="cursor-pointer"
-                aria-label={`Open profile for ${fullName || 'resident'}`}
+                aria-label={`Focus ${fullName || 'resident'} in directory`}
                 onClick={(e) => {
                     if (e.target.closest('button')) return;
-                    navigate(profilePath);
+                    setResidentScope(resident.id);
                 }}
             >
                 <EntityCardHeader
@@ -231,7 +250,7 @@ export default function MyResidentsPage() {
                 className="group cursor-pointer border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors"
                 onClick={(e) => {
                     if (e.target.closest('button')) return;
-                    navigate(profilePath);
+                    setResidentScope(resident.id);
                 }}
             >
                 <td className="py-3 pl-4 pr-3">
@@ -360,6 +379,13 @@ export default function MyResidentsPage() {
                         ? 'Residents assigned to your branch will appear here. Try adjusting your search query.'
                         : `There are no ${statusFilter} residents matching your current filters.`
                 )
+            ) : displayedResidents.length === 0 ? (
+                renderResidentsEmptyState(
+                    'No matching resident',
+                    scopeId
+                        ? 'The selected resident is not in this filtered list. Try another status filter or clear the resident chip in the header.'
+                        : 'Try adjusting your filters.',
+                )
             ) : viewMode === 'list' ? (
                 <section className="rounded-2xl bg-white shadow-sm overflow-hidden">
                     <table className="w-full text-left text-sm" aria-label="Resident list">
@@ -373,13 +399,13 @@ export default function MyResidentsPage() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50">
-                            {residents.map(renderResidentRow)}
+                            {displayedResidents.map(renderResidentRow)}
                         </tbody>
                     </table>
                 </section>
             ) : (
                 <section className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3" aria-label="Resident cards">
-                    {residents.map(renderResidentCard)}
+                    {displayedResidents.map(renderResidentCard)}
                 </section>
             )}
 

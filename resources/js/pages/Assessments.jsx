@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import logger from '../utils/logger';
@@ -10,9 +10,12 @@ import CalendarComponent from '../components/ui/Calendar';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import Tooltip from '../components/ui/Tooltip';
 import { hasModuleAccess } from '../utils/moduleAccess';
+import { RESIDENT_CONTEXT_QUERY_KEY } from '../utils/headerResidentSwitcher';
 
 export default function Assessments() {
     const queryClient = useQueryClient();
+    const [searchParams] = useSearchParams();
+    const headerResidentScope = searchParams.get(RESIDENT_CONTEXT_QUERY_KEY) || searchParams.get('resident_id') || '';
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
     const [typeFilter, setTypeFilter] = useState('');
@@ -124,11 +127,12 @@ export default function Assessments() {
 
     // Fetch all assessments for calendar
     const { data: allAssessmentsForCalendar } = useQuery({
-        queryKey: ['assessments-calendar', statusFilter, typeFilter],
+        queryKey: ['assessments-calendar', statusFilter, typeFilter, headerResidentScope],
         queryFn: async () => {
             const params = { per_page: 1000 };
             if (statusFilter) params.status = statusFilter;
             if (typeFilter) params.assessment_type = typeFilter;
+            if (headerResidentScope) params.resident_id = headerResidentScope;
             const response = await api.get('/assessments', { params });
             return response.data;
         },
@@ -136,12 +140,13 @@ export default function Assessments() {
 
     // Fetch assessments
     const { data, isLoading, error } = useQuery({
-        queryKey: ['assessments', search, statusFilter, typeFilter, dateFilter, selectedCalendarDate],
+        queryKey: ['assessments', search, statusFilter, typeFilter, dateFilter, selectedCalendarDate, headerResidentScope],
         queryFn: async () => {
             const params = { per_page: 20 };
             if (search) params.search = search;
             if (statusFilter) params.status = statusFilter;
             if (typeFilter) params.assessment_type = typeFilter;
+            if (headerResidentScope) params.resident_id = headerResidentScope;
             
             if (selectedCalendarDate) {
                 params.date_from = selectedCalendarDate;

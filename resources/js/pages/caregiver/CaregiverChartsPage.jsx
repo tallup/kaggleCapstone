@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Search, ClipboardList, Plus, Clock, Calendar, Stethoscope, User, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -9,9 +9,11 @@ import CardIconButton from '../../components/ui/CardIconButton';
 import DataPill from '../../components/ui/DataPill';
 import ResidentAvatarInline from '../../components/ui/ResidentAvatarInline';
 import Tooltip from '../../components/ui/Tooltip';
+import { RESIDENT_CONTEXT_QUERY_KEY } from '../../utils/headerResidentSwitcher';
 
 export default function CaregiverChartsPage() {
     const navigate = useNavigate();
+    const location = useLocation();
     const [search, setSearch] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const [pendingLoadingId, setPendingLoadingId] = useState(null);
@@ -38,8 +40,27 @@ export default function CaregiverChartsPage() {
 
     const residents = residentsData?.data ?? [];
 
+    React.useEffect(() => {
+        if (location.pathname !== '/charts') return;
+        const sp = new URLSearchParams(location.search.startsWith('?') ? location.search.slice(1) : location.search);
+        const id = sp.get(RESIDENT_CONTEXT_QUERY_KEY);
+        if (id) {
+            navigate(`/charts/resident/${id}${location.search}`, { replace: true });
+        }
+    }, [location.pathname, location.search, navigate]);
+
+    const headerScopeId = React.useMemo(() => {
+        const sp = new URLSearchParams(location.search.startsWith('?') ? location.search.slice(1) : location.search);
+        return sp.get(RESIDENT_CONTEXT_QUERY_KEY) || '';
+    }, [location.search]);
+
+    const displayedResidents = React.useMemo(() => {
+        if (!headerScopeId || location.pathname !== '/charts') return residents;
+        return residents.filter((r) => String(r.id) === headerScopeId);
+    }, [residents, headerScopeId, location.pathname]);
+
     const handleOpenChart = (residentId) => {
-        navigate(`/charts/resident/${residentId}`);
+        navigate(`/charts/resident/${residentId}${location.search || ''}`);
     };
 
     const handlePendingCharts = async (residentId) => {
@@ -93,7 +114,7 @@ export default function CaregiverChartsPage() {
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {residents.map((resident) => {
+                    {displayedResidents.map((resident) => {
                         const fullName = [resident.first_name, resident.last_name].filter(Boolean).join(' ');
                         const pending = pendingLoadingId === resident.id;
                         return (

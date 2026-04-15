@@ -32,7 +32,8 @@ function pathnameMatchesPrefix(pathname, prefix) {
     return pathname === prefix || pathname.startsWith(`${prefix}/`);
 }
 
-function isResidentsSectionForSwitcher(pathname) {
+/** True when pathname is in the Residents sidebar hub (not Clinical). */
+export function isResidentsHubPathForSwitcher(pathname) {
     if (pathname === '/residents') return true;
     if (RESIDENTS_MANAGEMENT_PATH_PREFIXES.some(p => pathname === p || pathname.startsWith(`${p}/`))) {
         return false;
@@ -51,13 +52,75 @@ function isClinicalSectionForSwitcher(pathname) {
  */
 export function shouldShowHeaderResidentSwitcher(pathname) {
     if (!pathname) return false;
-    return isResidentsSectionForSwitcher(pathname) || isClinicalSectionForSwitcher(pathname);
+    return isResidentsHubPathForSwitcher(pathname) || isClinicalSectionForSwitcher(pathname);
 }
 
 const RE_MY_RESIDENTS = /^\/my-residents\/([^/]+)/;
 const RE_RESIDENTS_DETAIL = /^\/residents\/([^/]+)\/detail/;
 const RE_CHARTS_RESIDENT = /^\/charts\/resident\/([^/]+)/;
 const RE_APPT_CREATE = /^\/appointments\/create\/([^/]+)/;
+
+/** Query key for cross-tab resident scope in the Residents hub (Synkwise-style switcher). */
+export const RESIDENT_CONTEXT_QUERY_KEY = 'residentId';
+
+/**
+ * Active resident: `residentId` or `resident_id` query wins; else id embedded in path.
+ */
+export function parseResidentContextId(search, pathname) {
+    const sp = new URLSearchParams(search?.startsWith('?') ? search.slice(1) : search || '');
+    const q = sp.get(RESIDENT_CONTEXT_QUERY_KEY) || sp.get('resident_id');
+    if (q) return String(q);
+    return parseResidentIdFromPath(pathname);
+}
+
+/**
+ * Carry `residentId` onto another path (section tab links, hub tiles).
+ */
+export function buildPathWithPreservedResident(basePath, currentSearch) {
+    const sp = new URLSearchParams(currentSearch?.startsWith('?') ? currentSearch.slice(1) : currentSearch || '');
+    const rid = sp.get(RESIDENT_CONTEXT_QUERY_KEY);
+    if (!rid) return basePath;
+    const n = new URLSearchParams();
+    n.set(RESIDENT_CONTEXT_QUERY_KEY, rid);
+    return `${basePath}?${n.toString()}`;
+}
+
+/** Search string with residentId removed (leading `?` or empty). */
+export function clearResidentFromSearch(currentSearch) {
+    const sp = new URLSearchParams(currentSearch?.startsWith('?') ? currentSearch.slice(1) : currentSearch || '');
+    sp.delete(RESIDENT_CONTEXT_QUERY_KEY);
+    const s = sp.toString();
+    return s ? `?${s}` : '';
+}
+
+/**
+ * Residents hub: stay on current screen shape; set scope via `residentId` (no jump to /my-residents/:id).
+ * @returns {{ pathname: string, search: string }}
+ */
+export function buildResidentsSectionResidentNavigateTo(pathname, search, newResidentId) {
+    const id = String(newResidentId);
+    const sp = new URLSearchParams(search?.startsWith('?') ? search.slice(1) : search || '');
+    sp.set(RESIDENT_CONTEXT_QUERY_KEY, id);
+    const searchStr = sp.toString() ? `?${sp.toString()}` : '';
+
+    if (pathname.match(RE_MY_RESIDENTS)) {
+        return { pathname: '/my-residents', search: searchStr };
+    }
+    if (pathname.match(RE_CHARTS_RESIDENT)) {
+        return { pathname: `/charts/resident/${id}`, search: searchStr };
+    }
+    if (pathname === '/charts') {
+        return { pathname: `/charts/resident/${id}`, search: searchStr };
+    }
+    if (pathname.match(RE_APPT_CREATE)) {
+        return { pathname: `/appointments/create/${id}`, search: searchStr };
+    }
+    if (pathname.match(RE_RESIDENTS_DETAIL)) {
+        return { pathname: `/residents/${id}/detail`, search: searchStr };
+    }
+
+    return { pathname, search: searchStr };
+}
 
 /**
  * Resident id from URL when the current route is scoped to one resident, else null.

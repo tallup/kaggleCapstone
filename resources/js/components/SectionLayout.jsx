@@ -13,6 +13,7 @@
  */
 import React from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
+import { buildPathWithPreservedResident } from '../utils/headerResidentSwitcher';
 
 function pathnameMatchesTab(pathname, tab) {
     if (tab.exact) {
@@ -25,7 +26,7 @@ function pathnameMatchesTab(pathname, tab) {
 }
 
 export default function SectionLayout({ title, tabs = [] }) {
-    const { pathname } = useLocation();
+    const { pathname, search } = useLocation();
 
     // Find the best-matching active tab (longest matching primary path wins)
     const activeTab = [...tabs]
@@ -53,10 +54,12 @@ export default function SectionLayout({ title, tabs = [] }) {
                         {tabs.map(tab => {
                             const Icon = tab.icon;
                             const isActive = activeTab?.id === tab.id;
+                            const tabPath = tab.linkTo ?? tab.path;
+                            const tabTo = buildPathWithPreservedResident(tabPath, search);
                             return (
                                 <Link
                                     key={tab.id}
-                                    to={tab.linkTo ?? tab.path}
+                                    to={tabTo}
                                     role="tab"
                                     aria-selected={isActive}
                                     className={`

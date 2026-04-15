@@ -7,23 +7,34 @@ import ResidentAvatarInline from './ui/ResidentAvatarInline';
 import Tooltip from './ui/Tooltip';
 import {
     shouldShowHeaderResidentSwitcher,
-    parseResidentIdFromPath,
+    isResidentsHubPathForSwitcher,
+    parseResidentContextId,
     buildSwitchHref,
+    buildResidentsSectionResidentNavigateTo,
+    clearResidentFromSearch,
 } from '../utils/headerResidentSwitcher';
 
 function residentFullName(r) {
     return [r.first_name, r.middle_names, r.last_name].filter(Boolean).join(' ') || 'Resident';
 }
 
+function getSwitcherLinkTo(pathname, search, id) {
+    if (isResidentsHubPathForSwitcher(pathname)) {
+        return buildResidentsSectionResidentNavigateTo(pathname, search, id);
+    }
+    return buildSwitchHref(pathname, search, id);
+}
+
 /**
  * Synkwise-style horizontal resident strip in the app header (Residents + Clinical hubs).
+ * In the Residents hub, selection sets `residentId` and stays on the current tab/module.
  */
 export default function HeaderResidentSwitcher({ currentUser, userLoading }) {
     const location = useLocation();
     const { pathname, search } = location;
 
     const visible = shouldShowHeaderResidentSwitcher(pathname);
-    const activeId = parseResidentIdFromPath(pathname);
+    const activeId = parseResidentContextId(search, pathname);
 
     const { data, isLoading } = useQuery({
         queryKey: ['my-residents', '', currentUser?.assigned_branch_id],
@@ -52,6 +63,10 @@ export default function HeaderResidentSwitcher({ currentUser, userLoading }) {
         return null;
     }
 
+    const allResidentsTo = isResidentsHubPathForSwitcher(pathname)
+        ? { pathname: '/my-residents', search: clearResidentFromSearch(search) }
+        : '/my-residents';
+
     return (
         <div
             className="flex min-w-0 max-w-[min(100%,28rem)] flex-1 items-center justify-center"
@@ -64,14 +79,14 @@ export default function HeaderResidentSwitcher({ currentUser, userLoading }) {
                 {residents.map((resident) => {
                     const id = String(resident.id);
                     const isActive = activeId === id;
-                    const to = buildSwitchHref(pathname, search, id);
+                    const to = getSwitcherLinkTo(pathname, search, id);
                     const name = residentFullName(resident);
                     return (
                         <Tooltip key={id} content={name} position="bottom">
                             <Link
                                 role="listitem"
                                 to={to}
-                                aria-label={`Open profile for ${name}`}
+                                aria-label={`Show ${name} in this view`}
                                 aria-current={isActive ? 'page' : undefined}
                                 className={`shrink-0 rounded-full p-0.5 motion-safe:transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--theme-primary)] focus-visible:ring-offset-2 ${
                                     isActive
@@ -86,8 +101,8 @@ export default function HeaderResidentSwitcher({ currentUser, userLoading }) {
                 })}
                 <Tooltip content="All residents" position="bottom">
                     <Link
-                        to="/my-residents"
-                        aria-label="View all residents"
+                        to={allResidentsTo}
+                        aria-label="Clear resident filter; view all residents"
                         className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-dashed border-gray-300 bg-gray-50 text-gray-500 motion-safe:transition-colors hover:border-[var(--theme-primary)] hover:bg-[var(--theme-primary-bg)] hover:text-[var(--theme-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--theme-primary)] focus-visible:ring-offset-2"
                     >
                         <Users className="h-4 w-4" aria-hidden="true" />

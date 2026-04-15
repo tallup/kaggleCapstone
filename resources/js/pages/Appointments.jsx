@@ -18,7 +18,9 @@ export default function Appointments() {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const selectedBranchId = searchParams.get('branch');
+    const headerResidentId = searchParams.get('residentId') || '';
     const [residentFilter, setResidentFilter] = useState('');
+    const effectiveResidentFilter = headerResidentId || residentFilter;
     const highlightedAppointmentId = useRef(null);
     const appointmentRowRefs = useRef({});
     const urlParamsProcessed = useRef(false);
@@ -158,14 +160,14 @@ export default function Appointments() {
 
     // Define queries FIRST before using them in useEffect
     const { data, isLoading, error: appointmentsError, refetch } = useQuery({
-        queryKey: ['appointments', residentFilter, selectedBranchId],
+        queryKey: ['appointments', effectiveResidentFilter, selectedBranchId],
         queryFn: async () => {
             try {
                 const params = {
                     per_page: 100,
                 };
-                if (residentFilter) {
-                    params.resident_id = residentFilter;
+                if (effectiveResidentFilter) {
+                    params.resident_id = effectiveResidentFilter;
                 }
                 if (selectedBranchId) {
                     params.branch_id = selectedBranchId;
@@ -177,7 +179,7 @@ export default function Appointments() {
                 throw error;
             }
         },
-        enabled: !isCaregiver && !!residentFilter, // Only fetch for non-caregivers when resident is selected
+        enabled: !isCaregiver && !!effectiveResidentFilter, // Only fetch for non-caregivers when resident is selected
         retry: 1,
     });
 
@@ -507,6 +509,12 @@ export default function Appointments() {
         );
     }
 
+    const caregiverResidentsList = React.useMemo(() => {
+        const list = allResidentsData?.data || [];
+        if (!headerResidentId) return list;
+        return list.filter((r) => String(r.id) === headerResidentId);
+    }, [allResidentsData, headerResidentId]);
+
     return (
         <div className="space-y-6">
             <BranchSelector currentUser={currentUser} />
@@ -515,9 +523,9 @@ export default function Appointments() {
                     {/* Resident Cards Section */}
                     <div>
                         <h3 className="text-lg font-semibold text-gray-900 mb-4">Residents</h3>
-                        {allResidentsData?.data && allResidentsData.data.length > 0 ? (
+                        {caregiverResidentsList.length > 0 ? (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-                                {(allResidentsData.data || []).map((resident) => {
+                                {caregiverResidentsList.map((resident) => {
                                     const nextAppt = getNextAppointment(resident.id);
                                     const age = calculateAge(resident.date_of_birth);
 
@@ -704,8 +712,17 @@ export default function Appointments() {
                                 <div className="relative">
                                     <User className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                                     <select
-                                        value={residentFilter}
-                                        onChange={(e) => setResidentFilter(e.target.value)}
+                                        value={effectiveResidentFilter}
+                                        onChange={(e) => {
+                                            const v = e.target.value;
+                                            setResidentFilter(v);
+                                            setSearchParams((prev) => {
+                                                const p = new URLSearchParams(prev);
+                                                if (v) p.set('residentId', v);
+                                                else p.delete('residentId');
+                                                return p;
+                                            });
+                                        }}
                                         className="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent appearance-none bg-white"
                                     >
                                         <option value="">All Residents</option>
@@ -739,7 +756,7 @@ export default function Appointments() {
             {/* Appointment History Display */}
             {!isCaregiver && (
                 // Non-caregiver view - Show table or calendar
-                !residentFilter ? (
+                !effectiveResidentFilter ? (
                     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
                         <div className="w-20 h-20 bg-[var(--theme-primary-bg)] rounded-full flex items-center justify-center mx-auto mb-4">
                             <Calendar className="w-10 h-10 text-[var(--theme-primary)]" />

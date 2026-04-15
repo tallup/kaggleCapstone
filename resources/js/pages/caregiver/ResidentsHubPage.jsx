@@ -1,5 +1,6 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
+import { buildPathWithPreservedResident } from '../../utils/headerResidentSwitcher';
 import {
     Users,
     ClipboardList,
@@ -59,6 +60,8 @@ const TILES = [
 ];
 
 export default function ResidentsHubPage() {
+    const { search } = useLocation();
+
     return (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {TILES.map((tile, i) => {
@@ -66,7 +69,7 @@ export default function ResidentsHubPage() {
                 return (
                     <ScrollReveal key={tile.id} animationType="fade" delay={i * 80}>
                         <Link
-                            to={tile.path}
+                            to={buildPathWithPreservedResident(tile.path, search)}
                             className="group bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col gap-3 hover:shadow-md hover:border-gray-200 motion-safe:transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--theme-primary)]"
                         >
                             <div className="flex items-start justify-between">
