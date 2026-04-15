@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
 import { storeAuthToken } from '../../services/api';
+import { clearCachedCurrentUser } from '../../queries/currentUser';
 import { toast } from 'sonner';
 
 export default function AcceptInvite() {
+  const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const token = searchParams.get('token');
@@ -56,6 +59,7 @@ export default function AcceptInvite() {
         const t = res.data?.token;
         if (t) {
           storeAuthToken(t);
+          clearCachedCurrentUser(queryClient);
           if (res.data.user) {
             localStorage.setItem('user_name', res.data.user.name || res.data.user.email);
             localStorage.setItem('user_role', res.data.user.role || '');

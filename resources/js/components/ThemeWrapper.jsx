@@ -10,10 +10,7 @@ import { currentUserQueryOptions } from '../queries/currentUser';
  * This ensures theme is available at the root level
  */
 export default function ThemeWrapper({ children }) {
-    const { data: userData } = useQuery({
-        ...currentUserQueryOptions,
-        retry: false,
-    });
+    const { data: userData } = useQuery(currentUserQueryOptions);
 
     // Fetch super admin theme if user is super admin
     const isSuperAdmin = userData?.role === 'super_admin';

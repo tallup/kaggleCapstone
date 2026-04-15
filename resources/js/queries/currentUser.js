@@ -7,6 +7,15 @@ export const CURRENT_USER_QUERY_KEY = ['current-user'];
 /** 3 minutes — balances freshness with fewer round-trips than staleTime: 0 */
 export const CURRENT_USER_STALE_MS = 3 * 60 * 1000;
 
+/**
+ * Call after storing a new auth token. While on /login (or other public routes), GET /user
+ * caches `null` with a fresh stale window; without clearing that, React Query will not refetch
+ * after login and the sidebar shows "No navigation items available" until a full refresh.
+ */
+export function clearCachedCurrentUser(queryClient) {
+    queryClient.removeQueries({ queryKey: CURRENT_USER_QUERY_KEY });
+}
+
 function isPublicAppPath(pathname) {
     if (!pathname) return false;
     const publicPrefixes = [

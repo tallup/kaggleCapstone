@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import api, { setupProactiveRefresh, clearStoredAuth } from '../services/api';
+import api, { setupProactiveRefresh, clearStoredAuth, getStoredAuthToken } from '../services/api';
 import { 
     LayoutDashboard, 
     Building2, 
@@ -136,7 +136,31 @@ export default function Layout() {
     const toast = useToastContext();
 
     // Fetch current user — shares cache + staleTime with ThemeWrapper (see queries/currentUser.js)
-    const { data: currentUserData, isLoading: isLoadingUserData } = useQuery(currentUserQueryOptions);
+    const {
+        data: currentUserData,
+        isLoading: isLoadingUserData,
+        isFetching: isFetchingUserData,
+        refetch: refetchCurrentUser,
+    } = useQuery(currentUserQueryOptions);
+
+    const nullUserRecoveryRef = useRef(false);
+
+    // If GET /user cached `null` from an unauthenticated visit, we can have a valid token but no user
+    // until we refetch (login clears this cache; this covers any other token edge cases).
+    useEffect(() => {
+        if (!getStoredAuthToken()) {
+            nullUserRecoveryRef.current = false;
+            return;
+        }
+        if (currentUserData != null) {
+            nullUserRecoveryRef.current = false;
+            return;
+        }
+        if (nullUserRecoveryRef.current) return;
+        if (isLoadingUserData || isFetchingUserData) return;
+        nullUserRecoveryRef.current = true;
+        refetchCurrentUser();
+    }, [currentUserData, isLoadingUserData, isFetchingUserData, refetchCurrentUser]);
 
     // Update local state when query data changes
     useEffect(() => {
@@ -145,6 +169,8 @@ export default function Layout() {
             setPacificServerTime(currentUserData?.app_current_time, currentUserData?.app_timezone_offset);
             // Re-connect Echo once we have the auth token (ensures auth header is fresh)
             reconnectEcho();
+        } else {
+            setCurrentUser(null);
         }
         setIsLoadingUser(isLoadingUserData);
     }, [currentUserData, isLoadingUserData]);

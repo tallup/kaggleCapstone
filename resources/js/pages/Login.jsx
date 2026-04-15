@@ -1,14 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, useSearchParams, Link } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { Lock, Mail, Eye, EyeOff, ShieldCheck, ClipboardList, Clock, Home, Info, Building2 } from 'lucide-react';
 import { toast } from 'sonner';
 import api, { storeAuthToken } from '../services/api';
+import { clearCachedCurrentUser } from '../queries/currentUser';
 import { useAnimateOnMount } from '../hooks/useAnimateOnMount';
 import { slideInLeft, slideInRight, fadeIn, shake, shouldAnimate } from '../utils/animationPresets';
 import { getUserLocation, formatDistance } from '../utils/location';
 import logger from '../utils/logger';
 
 export default function Login() {
+    const queryClient = useQueryClient();
     const navigate = useNavigate();
     const location = useLocation();
     const [email, setEmail] = useState('');
@@ -171,6 +174,7 @@ export default function Login() {
 
             if (token) {
                 storeAuthToken(token);
+                clearCachedCurrentUser(queryClient);
                 if (response.data.user) {
                     localStorage.setItem('user_name', response.data.user.name || response.data.user.email);
                     localStorage.setItem('user_role', response.data.user.role || '');
