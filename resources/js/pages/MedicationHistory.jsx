@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '../services/api';
 import { Calendar, ClipboardList, Pill, User, ChevronLeft, ChevronRight, FileText, Download, AlertTriangle, CheckCircle2, XCircle, Ban } from 'lucide-react';
@@ -62,13 +62,17 @@ export default function MedicationHistory({ embedded = false, embeddedResidentId
     const [exportPdfError, setExportPdfError] = useState('');
     const perPage = 25;
 
+    /** When the URL changes (header switcher, back/forward), we hydrate state in the first effect. The second effect must not run in the same tick with stale state or it overwrites the new URL. */
+    const skipPushSearchFromStateRef = useRef(false);
+
     useEffect(() => {
         if (embedded) return;
-        const nextResident =
+        const nextResident = String(
             searchParams.get('resident') ||
-            searchParams.get(RESIDENT_CONTEXT_QUERY_KEY) ||
-            searchParams.get('resident_id') ||
-            '';
+                searchParams.get(RESIDENT_CONTEXT_QUERY_KEY) ||
+                searchParams.get('resident_id') ||
+                ''
+        );
         const nextMedication = searchParams.get('medication') || '';
         const nextStatus = searchParams.get('status') || '';
         const nextDateFrom = searchParams.get('date_from') || '';
@@ -76,16 +80,44 @@ export default function MedicationHistory({ embedded = false, embeddedResidentId
         const parsedPage = parseInt(searchParams.get('page') || '1', 10);
         const nextPage = Number.isNaN(parsedPage) || parsedPage < 1 ? 1 : parsedPage;
 
-        setResidentId((prev) => (prev === nextResident ? prev : nextResident));
-        setMedicationId((prev) => (prev === nextMedication ? prev : nextMedication));
-        setStatus((prev) => (prev === nextStatus ? prev : nextStatus));
-        setDateFrom((prev) => (prev === nextDateFrom ? prev : nextDateFrom));
-        setDateTo((prev) => (prev === nextDateTo ? prev : nextDateTo));
-        setPage((prev) => (prev === nextPage ? prev : nextPage));
+        setResidentId((prev) => {
+            if (prev === nextResident) return prev;
+            skipPushSearchFromStateRef.current = true;
+            return nextResident;
+        });
+        setMedicationId((prev) => {
+            if (prev === nextMedication) return prev;
+            skipPushSearchFromStateRef.current = true;
+            return nextMedication;
+        });
+        setStatus((prev) => {
+            if (prev === nextStatus) return prev;
+            skipPushSearchFromStateRef.current = true;
+            return nextStatus;
+        });
+        setDateFrom((prev) => {
+            if (prev === nextDateFrom) return prev;
+            skipPushSearchFromStateRef.current = true;
+            return nextDateFrom;
+        });
+        setDateTo((prev) => {
+            if (prev === nextDateTo) return prev;
+            skipPushSearchFromStateRef.current = true;
+            return nextDateTo;
+        });
+        setPage((prev) => {
+            if (prev === nextPage) return prev;
+            skipPushSearchFromStateRef.current = true;
+            return nextPage;
+        });
     }, [searchParams, embedded]);
 
     useEffect(() => {
         if (embedded) return;
+        if (skipPushSearchFromStateRef.current) {
+            skipPushSearchFromStateRef.current = false;
+            return;
+        }
         const nextParams = new URLSearchParams();
         if (residentId) nextParams.set(RESIDENT_CONTEXT_QUERY_KEY, residentId);
         if (medicationId) nextParams.set('medication', medicationId);
@@ -97,7 +129,8 @@ export default function MedicationHistory({ embedded = false, embeddedResidentId
         if (!urlSearchParamsShallowEqual(searchParams, nextParams)) {
             setSearchParams(nextParams, { replace: true });
         }
-    }, [residentId, medicationId, status, dateFrom, dateTo, page, searchParams, setSearchParams, embedded]);
+        // searchParams intentionally omitted: including it re-runs this effect after every URL replace and can fight the URL→state effect in the same flush before state catches up.
+    }, [residentId, medicationId, status, dateFrom, dateTo, page, setSearchParams, embedded]);
 
     useEffect(() => {
         if (embedded && embeddedResidentId) {
