@@ -6,6 +6,9 @@ use Filament\Pages\Page;
 use App\Models\VitalSign;
 use App\Models\Resident;
 use App\Models\User;
+use App\Services\PremiumReportService;
+use App\Support\ReportBranding;
+use App\Models\Facility;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -27,7 +30,7 @@ class VitalsReports extends Page
     public function mount(): void
     {
         if (request()->has('export')) {
-            $this->exportVitalsReport();
+            $this->exportVitalsReport(app(PremiumReportService::class));
         }
     }
 
@@ -161,62 +164,55 @@ class VitalsReports extends Page
         })->toArray();
     }
 
-    public function exportVitalsReport()
+    public function exportVitalsReport(PremiumReportService $premiumReportService)
     {
         $vitals = VitalSign::with(['resident', 'takenBy'])
             ->where('measurement_date', '>=', Carbon::now()->subDays(30))
             ->orderBy('measurement_date', 'desc')
             ->get();
 
-        $filename = 'vitals_report_' . Carbon::now()->format('Y-m-d_H-i-s') . '.csv';
-        
-        $headers = [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        $reportData = [];
+        foreach ($vitals as $vital) {
+            $reportData[] = [
+                'date' => $vital->measurement_date->format('Y-m-d'),
+                'time' => $vital->created_at?->format('H:i') ?? '',
+                'resident_name' => $vital->resident?->name ?? 'N/A',
+                'systolic' => $vital->systolic,
+                'diastolic' => $vital->diastolic,
+                'pulse' => $vital->pulse,
+                'temperature' => $vital->temperature,
+                'oxygen_saturation' => $vital->oxygen_saturation,
+                'bmi' => $vital->bmi,
+                'taken_by' => $vital->takenBy?->name ?? 'N/A',
+            ];
+        }
+
+        $facility = Facility::first();
+        $branding = ReportBranding::palette($facility);
+
+        $data = [
+            'reportTitle' => 'Historical Vitals Report (30 Days)',
+            'facilityName' => $facility?->name ?? 'Evergreen Care',
+            'facilityAddress' => $facility?->address,
+            'facilityLogoDataUri' => ReportBranding::imageToDataUri($facility?->logo),
+            'vitals' => $reportData,
+            'exportedAt' => now()->format('M d, Y g:i A'),
+            ...$branding
         ];
 
-        $callback = function() use ($vitals) {
-            $file = fopen('php://output', 'w');
-            
-            // CSV Headers
-            fputcsv($file, [
-                'Date',
-                'Time',
-                'Resident Name',
-                'Systolic',
-                'Diastolic',
-                'Pulse',
-                'Temperature',
-                'Oxygen Saturation',
-                'Weight',
-                'Height',
-                'BMI',
-                'Taken By',
-                'Notes'
-            ]);
+        $filename = 'Vitals_Report_' . now()->format('Y-m-d_H-i-s') . '.pdf';
 
-            // CSV Data
-            foreach ($vitals as $vital) {
-                fputcsv($file, [
-                    $vital->measurement_date->format('Y-m-d'),
-                    $vital->created_at?->format('H:i:s') ?? '',
-                    $vital->resident?->name ?? '',
-                    $vital->systolic,
-                    $vital->diastolic,
-                    $vital->pulse,
-                    $vital->temperature,
-                    $vital->oxygen_saturation,
-                    $vital->weight,
-                    $vital->height,
-                    $vital->bmi,
-                    $vital->takenBy?->name ?? '',
-                    $vital->notes ?? ''
-                ]);
-            }
+        $pdfBinary = $premiumReportService->generate(
+            'reports.premium-vitals-report',
+            $data,
+            $filename,
+            ['orientation' => 'landscape']
+        );
 
-            fclose($file);
-        };
-
-        return response()->stream($callback, 200, $headers);
+        return response($pdfBinary, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ])->send();
+        exit;
     }
 }

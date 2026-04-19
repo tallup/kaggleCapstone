@@ -9,6 +9,9 @@ use App\Models\Resident;
 use App\Models\User;
 use App\Filament\Widgets\MedicationStatsOverviewWidget;
 use App\Filament\Widgets\MedicationComplianceWidget;
+use App\Services\PremiumReportService;
+use App\Support\ReportBranding;
+use App\Models\Facility;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -31,7 +34,7 @@ class MedicationReports extends Page
     public function mount(): void
     {
         if (request()->has('export')) {
-            $this->exportMedicationReport();
+            $this->exportMedicationReport(app(PremiumReportService::class));
         }
     }
 
@@ -181,68 +184,63 @@ class MedicationReports extends Page
         ];
     }
 
-    public function exportMedicationReport()
+    public function exportMedicationReport(PremiumReportService $premiumReportService)
     {
         $medications = Medication::with(['resident', 'medicationAdministrations.administeredBy'])
             ->where('is_active', true)
             ->orderBy('resident_id')
             ->get();
 
-        $filename = 'medication_report_' . Carbon::now()->format('Y-m-d_H-i-s') . '.csv';
-        
-        $headers = [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        $reportData = [];
+        foreach ($medications as $medication) {
+            $lastAdmin = $medication->medicationAdministrations()
+                ->where('status', 'completed')
+                ->latest('administered_at')
+                ->first();
+
+            $reportData[] = [
+                'resident_name' => $medication->resident?->name ?? '',
+                'medication_name' => $medication->name,
+                'medication_type' => $medication->drug?->dosage_form ?? 'Unknown',
+                'strength' => $medication->drug?->strength ?? '',
+                'dosage' => $medication->quantity ?? '',
+                'frequency' => $medication->instructions ?? '',
+                'start_date' => $medication->start_date?->format('Y-m-d') ?? '',
+                'status' => $medication->is_active ? 'Active' : 'Inactive',
+                'last_administered' => $lastAdmin?->administered_at?->format('Y-m-d H:i') ?? 'Never',
+                'administered_by' => $lastAdmin?->administeredBy?->name ?? 'N/A',
+            ];
+        }
+
+        $facility = Facility::first();
+        $branding = ReportBranding::palette($facility);
+
+        $data = [
+            'reportTitle' => 'Active Medication Summary',
+            'facilityName' => $facility?->name ?? 'Evergreen Care',
+            'facilityAddress' => $facility?->address,
+            'facilityLogoDataUri' => ReportBranding::imageToDataUri($facility?->logo),
+            'medications' => $reportData,
+            'exportedAt' => now()->format('M d, Y g:i A'),
+            ...$branding
         ];
 
-        $callback = function() use ($medications) {
-            $file = fopen('php://output', 'w');
-            
-            // CSV Headers
-            fputcsv($file, [
-                'Resident Name',
-                'Medication Name',
-                'Medication Type',
-                'Dosage',
-                'Frequency',
-                'Route',
-                'Start Date',
-                'End Date',
-                'Prescribed By',
-                'Notes',
-                'Status',
-                'Last Administered',
-                'Administered By'
-            ]);
+        $filename = 'Medication_Summary_Report_' . now()->format('Y-m-d_H-i-s') . '.pdf';
 
-            // CSV Data
-            foreach ($medications as $medication) {
-                $lastAdmin = $medication->medicationAdministrations()
-                    ->where('status', 'completed')
-                    ->latest('administered_at')
-                    ->first();
+        $pdfBinary = $premiumReportService->generate(
+            'reports.premium-medication-report',
+            $data,
+            $filename,
+            ['orientation' => 'landscape']
+        );
 
-                fputcsv($file, [
-                    $medication->resident?->name ?? '',
-                    $medication->name,
-                    $medication->drug?->dosage_form ?? 'Unknown',
-                    $medication->drug?->strength ?? '',
-                    $medication->instructions ?? '',
-                    $medication->quantity ?? '',
-                    $medication->start_date?->format('Y-m-d') ?? '',
-                    $medication->end_date?->format('Y-m-d') ?? '',
-                    $medication->createdBy?->name ?? '',
-                    $medication->notes ?? '',
-                    $medication->is_active ? 'Active' : 'Inactive',
-                    $lastAdmin?->administered_at?->format('Y-m-d H:i:s') ?? 'Never',
-                    $lastAdmin?->administeredBy?->name ?? ''
-                ]);
-            }
-
-            fclose($file);
-        };
-
-        return response()->stream($callback, 200, $headers);
+        // We need to return the response directly, but mount() response might be ignored by Livewire.
+        // However, in Filament, returning a response from mount or a called method usually works for downloads.
+        return response($pdfBinary, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ])->send();
+        exit;
     }
 
     protected function getHeaderWidgets(): array

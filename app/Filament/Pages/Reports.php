@@ -14,6 +14,9 @@ use App\Models\LeaveRequest;
 use App\Models\Assignment;
 use App\Filament\Widgets\ReportsStatsWidget;
 use App\Filament\Widgets\FinancialSummaryWidget;
+use App\Services\PremiumReportService;
+use App\Support\ReportBranding;
+use App\Models\Facility;
 use Carbon\Carbon;
 
 class Reports extends Page
@@ -130,133 +133,148 @@ class Reports extends Page
         ];
     }
 
-    public function exportResidentReport()
+    public function exportResidentReport(PremiumReportService $premiumReportService)
     {
         $residents = Resident::with(['branch', 'vitalSigns' => function($query) {
             $query->latest('measurement_date')->limit(1);
         }])->get();
 
-        $filename = 'resident_report_' . now()->format('Y-m-d_H-i-s') . '.csv';
+        $reportData = [];
+        foreach ($residents as $resident) {
+            $latestVitals = $resident->vitalSigns->first();
+            $healthStatus = 'Unknown';
+            
+            if ($latestVitals) {
+                if ($latestVitals->systolic <= 120 && $latestVitals->diastolic <= 80) {
+                    $healthStatus = 'Excellent';
+                } elseif ($latestVitals->systolic <= 140 && $latestVitals->diastolic <= 90) {
+                    $healthStatus = 'Good';
+                } elseif ($latestVitals->systolic <= 160 && $latestVitals->diastolic <= 100) {
+                    $healthStatus = 'Fair';
+                } else {
+                    $healthStatus = 'Poor';
+                }
+            }
+
+            $reportData[] = [
+                'name' => $resident->name,
+                'room' => $resident->room,
+                'branch' => $resident->branch->name ?? 'N/A',
+                'admission_date' => $resident->admission_date?->format('Y-m-d') ?? 'N/A',
+                'status' => $resident->status,
+                'last_vitals_date' => $latestVitals ? $latestVitals->measurement_date->format('Y-m-d') : 'N/A',
+                'health_status' => $healthStatus,
+            ];
+        }
+
+        $facility = Facility::first();
+        $branding = ReportBranding::palette($facility);
         
-        $headers = [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        $data = [
+            'reportTitle' => 'Resident Directory Report',
+            'facilityName' => $facility?->name ?? 'Evergreen Care',
+            'facilityAddress' => $facility?->address,
+            'facilityLogoDataUri' => ReportBranding::imageToDataUri($facility?->logo),
+            'residents' => $reportData,
+            'exportedAt' => now()->format('M d, Y g:i A'),
+            ...$branding
         ];
 
-        $callback = function() use ($residents) {
-            $file = fopen('php://output', 'w');
-            
-            // CSV Headers
-            fputcsv($file, ['Name', 'Room', 'Branch', 'Admission Date', 'Status', 'Last Vitals Date', 'Health Status']);
-            
-            foreach ($residents as $resident) {
-                $latestVitals = $resident->vitalSigns->first();
-                $healthStatus = 'Unknown';
-                
-                if ($latestVitals) {
-                    if ($latestVitals->systolic <= 120 && $latestVitals->diastolic <= 80) {
-                        $healthStatus = 'Excellent';
-                    } elseif ($latestVitals->systolic <= 140 && $latestVitals->diastolic <= 90) {
-                        $healthStatus = 'Good';
-                    } elseif ($latestVitals->systolic <= 160 && $latestVitals->diastolic <= 100) {
-                        $healthStatus = 'Fair';
-                    } else {
-                        $healthStatus = 'Poor';
-                    }
-                }
-                
-                fputcsv($file, [
-                    $resident->name,
-                    $resident->room,
-                    $resident->branch->name ?? 'N/A',
-                    $resident->admission_date?->format('Y-m-d') ?? 'N/A',
-                    $resident->status,
-                    $latestVitals ? $latestVitals->measurement_date->format('Y-m-d') : 'N/A',
-                    $healthStatus,
-                ]);
-            }
-            
-            fclose($file);
-        };
+        $filename = 'Resident_Report_' . now()->format('Y-m-d_H-i-s') . '.pdf';
+        
+        $pdfBinary = $premiumReportService->generate(
+            'reports.premium-resident-report',
+            $data,
+            $filename,
+            ['orientation' => 'landscape']
+        );
 
-        return response()->stream($callback, 200, $headers);
+        return response($pdfBinary, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ]);
     }
 
-    public function exportStaffReport()
+    public function exportStaffReport(PremiumReportService $premiumReportService)
     {
         $staff = User::where('role', 'caregiver')
             ->withCount(['vitalSigns', 'assessments'])
             ->get();
 
-        $filename = 'staff_report_' . now()->format('Y-m-d_H-i-s') . '.csv';
+        $reportData = [];
+        foreach ($staff as $member) {
+            $vitalsCount = $member->vital_signs_count;
+            $assessmentsCount = $member->assessments_count;
+            $totalActivities = $vitalsCount + $assessmentsCount;
+            $performanceScore = $totalActivities > 0 ? round(($totalActivities / 50) * 100, 1) : 0;
+            
+            $reportData[] = [
+                'name' => $member->name,
+                'email' => $member->email,
+                'vitals_recorded' => $vitalsCount,
+                'assessments_completed' => $assessmentsCount,
+                'total_activities' => $totalActivities,
+                'performance_score' => $performanceScore,
+            ];
+        }
 
-        $headers = [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        $facility = Facility::first();
+        $branding = ReportBranding::palette($facility);
+
+        $data = [
+            'reportTitle' => 'Staff Performance Report',
+            'facilityName' => $facility?->name ?? 'Evergreen Care',
+            'facilityAddress' => $facility?->address,
+            'facilityLogoDataUri' => ReportBranding::imageToDataUri($facility?->logo),
+            'staff' => $reportData,
+            'exportedAt' => now()->format('M d, Y g:i A'),
+            ...$branding
         ];
 
-        $callback = function() use ($staff) {
-            $file = fopen('php://output', 'w');
+        $filename = 'Staff_Performance_Report_' . now()->format('Y-m-d_H-i-s') . '.pdf';
 
-            // CSV Headers
-            fputcsv($file, ['Name', 'Email', 'Vitals Recorded', 'Assessments Completed', 'Total Activities', 'Performance Score']);
+        $pdfBinary = $premiumReportService->generate(
+            'reports.premium-staff-report',
+            $data,
+            $filename,
+            ['orientation' => 'landscape']
+        );
 
-            foreach ($staff as $member) {
-                $vitalsCount = $member->vital_signs_count;
-                $assessmentsCount = $member->assessments_count;
-                $totalActivities = $vitalsCount + $assessmentsCount;
-                $performanceScore = $totalActivities > 0 ? round(($totalActivities / 50) * 100, 1) : 0;
-                
-                fputcsv($file, [
-                    $member->name,
-                    $member->email,
-                    $vitalsCount,
-                    $assessmentsCount,
-                    $totalActivities,
-                    $performanceScore . '%',
-                ]);
-            }
-            
-            fclose($file);
-        };
-
-        return response()->stream($callback, 200, $headers);
+        return response($pdfBinary, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ]);
     }
 
-    public function exportFinancialReport()
+    public function exportFinancialReport(PremiumReportService $premiumReportService)
     {
         $financialData = $this->getFinancialData();
 
-        $filename = 'financial_report_' . now()->format('Y-m-d_H-i-s') . '.csv';
-        
-        $headers = [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        $facility = Facility::first();
+        $branding = ReportBranding::palette($facility);
+
+        $data = [
+            'reportTitle' => 'Financial Summary Report',
+            'facilityName' => $facility?->name ?? 'Evergreen Care',
+            'facilityAddress' => $facility?->address,
+            'facilityLogoDataUri' => ReportBranding::imageToDataUri($facility?->logo),
+            'financialData' => $financialData,
+            'exportedAt' => now()->format('M d, Y g:i A'),
+            ...$branding
         ];
 
-        $callback = function() use ($financialData) {
-            $file = fopen('php://output', 'w');
-            
-            // CSV Headers
-            fputcsv($file, ['Category', 'Amount', 'Percentage']);
-            
-            // Revenue
-            fputcsv($file, ['Monthly Revenue', '$' . number_format($financialData['monthly_revenue']), '100%']);
-            fputcsv($file, ['Resident Fees', '$' . number_format($financialData['resident_fees']), '76%']);
-            
-            // Expenses
-            fputcsv($file, ['Monthly Expenses', '$' . number_format($financialData['monthly_expenses']), '68%']);
-            fputcsv($file, ['Staff Costs', '$' . number_format($financialData['staff_costs']), '36%']);
-            fputcsv($file, ['Facility Costs', '$' . number_format($financialData['facility_costs']), '20%']);
-            fputcsv($file, ['Other Expenses', '$' . number_format($financialData['other_expenses']), '12%']);
-            
-            // Net Profit
-            fputcsv($file, ['Net Profit', '$' . number_format($financialData['net_profit']), '32%']);
-            
-            fclose($file);
-        };
+        $filename = 'Financial_Report_' . now()->format('Y-m-d_H-i-s') . '.pdf';
 
-        return response()->stream($callback, 200, $headers);
+        $pdfBinary = $premiumReportService->generate(
+            'reports.premium-financial-report',
+            $data,
+            $filename
+        );
+
+        return response($pdfBinary, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ]);
     }
 
     protected function getHeaderWidgets(): array
