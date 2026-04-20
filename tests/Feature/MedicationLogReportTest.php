@@ -6,6 +6,7 @@ use App\Models\Medication;
 use App\Models\MedicationAdministration;
 use App\Models\Resident;
 use App\Models\User;
+use App\Services\MedicationLogReportService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -283,6 +284,58 @@ class MedicationLogReportTest extends TestCase
         );
 
         $response->assertStatus(422);
+    }
+
+    public function test_medication_log_includes_scheduled_meds_when_only_instruction_frequency_set(): void
+    {
+        $user = $this->createAndActAs('administrator');
+
+        $resident = Resident::withoutGlobalScopes()->create([
+            'name' => 'Frank Anderson',
+            'first_name' => 'Frank',
+            'last_name' => 'Anderson',
+            'branch_id' => $this->branch->id,
+            'date_of_birth' => '1939-08-25',
+            'gender' => 'male',
+            'admission_date' => '2024-01-01',
+            'is_active' => true,
+            'status' => 'active',
+        ]);
+
+        Medication::create([
+            'resident_id' => $resident->id,
+            'branch_id' => $this->branch->id,
+            'name' => 'ASPIRIN',
+            'instructions' => 'a.m',
+            'created_by' => $user->id,
+            'is_active' => true,
+            'start_date' => '2020-01-01',
+        ]);
+
+        Medication::create([
+            'resident_id' => $resident->id,
+            'branch_id' => $this->branch->id,
+            'name' => 'ATORVASTATIN',
+            'instructions' => 'h.s',
+            'created_by' => $user->id,
+            'is_active' => true,
+            'start_date' => '2020-01-01',
+        ]);
+
+        $response = $this->get(
+            '/api/v1/residents/'.$resident->id.'/reports/medication-log?date_from=2026-04-01&date_to=2026-04-30'
+        );
+
+        $response->assertOk();
+        $this->assertStringStartsWith('%PDF', $response->getContent());
+
+        $from = Carbon::parse('2026-04-01', config('app.timezone'))->startOfDay();
+        $to = Carbon::parse('2026-04-30', config('app.timezone'))->endOfDay();
+        $data = app(MedicationLogReportService::class)->buildViewData($resident->fresh(), $from, $to, []);
+        $this->assertCount(2, $data['scheduledSections']);
+        $this->assertSame('ASPIRIN', $data['scheduledSections'][0]['title']);
+        $this->assertSame('ATORVASTATIN', $data['scheduledSections'][1]['title']);
+        $this->assertNotEmpty($data['scheduledSections'][0]['rows']);
     }
 
     public function test_medication_log_accepts_boolean_flags_as_zero_and_one(): void

@@ -182,17 +182,86 @@ class MedicationLogReportService
     }
 
     /**
+     * Normalize DB time fields to H:i:s for combineDateAndTime().
+     */
+    private function normalizeSlotTimeRaw(mixed $raw): ?string
+    {
+        if ($raw === null) {
+            return null;
+        }
+        if ($raw instanceof \DateTimeInterface) {
+            return Carbon::parse($raw)->format('H:i:s');
+        }
+        $s = trim((string) $raw);
+        if ($s === '') {
+            return null;
+        }
+        if (strlen($s) === 5 && $s[2] === ':') {
+            return $s.':00';
+        }
+
+        return $s;
+    }
+
+    /**
+     * Time slots for the MAR grid: explicit time_1…time_4, else defaults from `instructions`
+     * (same map as Filament MedicationResource / ActiveMedicationsWidget).
+     *
+     * @return list<array{field: string, time_raw: string, label?: string}>
+     */
+    private function resolveScheduledTimeSlots(Medication $medication): array
+    {
+        $slots = [];
+        foreach (['time_1', 'time_2', 'time_3', 'time_4'] as $key) {
+            $norm = $this->normalizeSlotTimeRaw($medication->{$key} ?? null);
+            if ($norm !== null) {
+                $slots[] = ['field' => $key, 'time_raw' => $norm];
+            }
+        }
+
+        if ($slots !== []) {
+            return $slots;
+        }
+
+        $defaults = [
+            'a.m' => ['08:00'],
+            'p.m' => ['20:00'],
+            'h.s' => ['22:00'],
+            'b.i.d' => ['08:00', '20:00'],
+            't.i.d' => ['08:00', '14:00', '20:00'],
+            'q.i.d' => ['08:00', '12:00', '16:00', '20:00'],
+        ];
+        $key = strtolower(trim((string) ($medication->instructions ?? '')));
+        if (isset($defaults[$key])) {
+            foreach ($defaults[$key] as $i => $raw) {
+                $slots[] = [
+                    'field' => 'instruction_default_'.$i,
+                    'time_raw' => $raw.':00',
+                ];
+            }
+
+            return $slots;
+        }
+
+        if ($key !== '') {
+            $label = $medication->instruction_display ?? $medication->instructions;
+
+            return [[
+                'field' => 'instruction_fallback',
+                'time_raw' => '12:00:00',
+                'label' => is_string($label) && $label !== '' ? $label : 'Scheduled',
+            ]];
+        }
+
+        return [];
+    }
+
+    /**
      * @param  Collection<int, MedicationAdministration>  $medAdmins
      */
     private function buildScheduledSection(Medication $medication, Collection $medAdmins, array $days, Carbon $rangeStart, Carbon $rangeEnd): ?array
     {
-        $slots = [];
-        foreach (['time_1', 'time_2', 'time_3', 'time_4'] as $key) {
-            $t = $medication->{$key} ?? null;
-            if ($t) {
-                $slots[] = ['field' => $key, 'time_raw' => $t];
-            }
-        }
+        $slots = $this->resolveScheduledTimeSlots($medication);
 
         if ($slots === []) {
             return null;
@@ -231,7 +300,7 @@ class MedicationLogReportService
             }
 
             $rows[] = [
-                'time_label' => $this->formatTimeLabel($slot['time_raw']),
+                'time_label' => $slot['label'] ?? $this->formatTimeLabel($slot['time_raw']),
                 'cells' => $cells,
             ];
         }
