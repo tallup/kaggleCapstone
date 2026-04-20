@@ -156,6 +156,7 @@ const MedicationHubProfileSliceTab = lazyWithRetry(() => import('./pages/caregiv
 const MedicationHubMedLogTab = lazyWithRetry(() => import('./pages/caregiver/medication-hub/MedicationHubMedLogTab'));
 const MedicationHubMarTab = lazyWithRetry(() => import('./pages/caregiver/medication-hub/MedicationHubMarTab'));
 const MedicationHubPrnTab = lazyWithRetry(() => import('./pages/caregiver/medication-hub/MedicationHubPrnTab'));
+const MedicationHubPharmacyTab = lazyWithRetry(() => import('./pages/caregiver/medication-hub/MedicationHubPharmacyTab'));
 const Reports = lazyWithRetry(() => import('./pages/Reports'));
 const Assessments = lazyWithRetry(() => import('./pages/Assessments'));
 const AssessmentDetail = lazyWithRetry(() => import('./pages/AssessmentDetail'));
@@ -358,10 +359,7 @@ function App() {
                             path="pharmacy"
                             element={
                                 <Suspense fallback={<PageLoader />}>
-                                    <MedicationHubPlaceholderTab
-                                        title="Pharmacy"
-                                        description="Order and pharmacy workflow integration will appear here in a later phase."
-                                    />
+                                    <MedicationHubPharmacyTab />
                                 </Suspense>
                             }
                         />
