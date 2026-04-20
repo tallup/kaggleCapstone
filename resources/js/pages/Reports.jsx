@@ -17,9 +17,27 @@ import {
 import Modal from '../components/ui/Modal';
 import { useToastContext } from '../contexts/ToastContext';
 
+/** Calendar date in the user's local timezone as Y-m-d (avoid UTC drift from toISOString). */
+function formatLocalYmd(date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+}
+
+function getCurrentMonthRangeLocal() {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    return { dateFrom: formatLocalYmd(start), dateTo: formatLocalYmd(end) };
+}
+
 export default function Reports() {
     const [search, setSearch] = useState('');
     const [selectedResident, setSelectedResident] = useState(null);
+    const [marDateFrom, setMarDateFrom] = useState('');
+    const [marDateTo, setMarDateTo] = useState('');
+    const [reportHubStep, setReportHubStep] = useState('grid');
     const [isExporting, setIsExporting] = useState(false);
     const toast = useToastContext();
 
@@ -37,7 +55,31 @@ export default function Reports() {
         }
     });
 
-    const handleDownload = async (type, residentId, residentName) => {
+    const openMarReportStep = () => {
+        const { dateFrom, dateTo } = getCurrentMonthRangeLocal();
+        setMarDateFrom(dateFrom);
+        setMarDateTo(dateTo);
+        setReportHubStep('mar');
+    };
+
+    const resolveDownloadErrorMessage = async (error) => {
+        const res = error.response;
+        if (!res?.data) {
+            return error.message || 'Failed to generate report.';
+        }
+        if (res.data instanceof Blob) {
+            try {
+                const text = await res.data.text();
+                const parsed = JSON.parse(text);
+                return parsed.error || parsed.message || error.message || 'Failed to generate report.';
+            } catch {
+                return error.message || 'Failed to generate report.';
+            }
+        }
+        return res.data?.error || res.data?.message || error.message || 'Failed to generate report.';
+    };
+
+    const handleDownload = async (type, residentId, residentName, marRange = null) => {
         console.log(`Starting ${type} download for resident: ${residentId}`);
         setIsExporting(true);
         try {
@@ -47,10 +89,18 @@ export default function Reports() {
             switch(type) {
                 case 'mar':
                     endpoint = `/residents/${residentId}/reports/medication-log`;
-                    params = {
-                        date_from: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
-                        date_to: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().split('T')[0]
-                    };
+                    {
+                        const range = marRange || getCurrentMonthRangeLocal();
+                        if (range.dateFrom > range.dateTo) {
+                            toast.error('The start date must be on or before the end date.');
+                            setIsExporting(false);
+                            return;
+                        }
+                        params = {
+                            date_from: range.dateFrom,
+                            date_to: range.dateTo,
+                        };
+                    }
                     break;
                 case 'vitals':
                     endpoint = `/residents/${residentId}/reports/vitals-log`;
@@ -80,7 +130,8 @@ export default function Reports() {
             
             const link = document.createElement('a');
             link.href = url;
-            const filename = `${type.toUpperCase()}_Log_${residentName.replace(/\s+/g, '_')}.pdf`;
+            const safeName = String(residentName || 'Resident').replace(/\s+/g, '_');
+            const filename = `${type.toUpperCase()}_Log_${safeName}.pdf`;
             
             link.setAttribute('download', filename);
             document.body.appendChild(link);
@@ -188,7 +239,10 @@ export default function Reports() {
             {/* Resident Report Hub Modal */}
             <Modal
                 isOpen={!!selectedResident}
-                onClose={() => setSelectedResident(null)}
+                onClose={() => {
+                    setSelectedResident(null);
+                    setReportHubStep('grid');
+                }}
                 title={selectedResident ? `${selectedResident.name}'s Report Hub` : 'Report Hub'}
                 size="lg"
             >
@@ -199,14 +253,82 @@ export default function Reports() {
                         </div>
                         <div>
                             <h2 className="text-2xl font-bold text-gray-900">{selectedResident?.name}</h2>
-                            <p className="text-sm text-gray-500">Pick a report module to generate a professional PDF.</p>
+                            <p className="text-sm text-gray-500">
+                                {reportHubStep === 'mar'
+                                    ? 'Choose the date range for the medication MAR, then generate the PDF.'
+                                    : 'Pick a report module to generate a professional PDF.'}
+                            </p>
                         </div>
                     </div>
 
+                    {reportHubStep === 'mar' ? (
+                        <div className="space-y-6">
+                            <button
+                                type="button"
+                                onClick={() => setReportHubStep('grid')}
+                                disabled={isExporting}
+                                className="text-sm font-medium text-teal-700 hover:text-teal-900 disabled:opacity-50"
+                            >
+                                ← Back to reports
+                            </button>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label htmlFor="mar-date-from" className="block text-xs font-semibold text-gray-600 mb-1.5">
+                                        From
+                                    </label>
+                                    <input
+                                        id="mar-date-from"
+                                        type="date"
+                                        value={marDateFrom}
+                                        onChange={(e) => setMarDateFrom(e.target.value)}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                                    />
+                                </div>
+                                <div>
+                                    <label htmlFor="mar-date-to" className="block text-xs font-semibold text-gray-600 mb-1.5">
+                                        To
+                                    </label>
+                                    <input
+                                        id="mar-date-to"
+                                        type="date"
+                                        value={marDateTo}
+                                        onChange={(e) => setMarDateTo(e.target.value)}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                                    />
+                                </div>
+                            </div>
+                            <p className="text-xs text-gray-500">
+                                The MAR is generated in landscape and includes scheduled and PRN medications for this resident.
+                            </p>
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    handleDownload('mar', selectedResident.id, selectedResident.name, {
+                                        dateFrom: marDateFrom,
+                                        dateTo: marDateTo,
+                                    })
+                                }
+                                disabled={isExporting || !marDateFrom || !marDateTo}
+                                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            >
+                                {isExporting ? (
+                                    <>
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                        Generating…
+                                    </>
+                                ) : (
+                                    <>
+                                        <Download className="h-4 w-4" />
+                                        Generate PDF
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <button
                             type="button"
-                            onClick={() => handleDownload('mar', selectedResident.id, selectedResident.name)}
+                            onClick={openMarReportStep}
                             disabled={isExporting}
                             className="flex flex-col items-center justify-center p-8 bg-teal-50 hover:bg-teal-100 rounded-2xl border border-teal-100 transition-all group relative"
                         >
@@ -215,11 +337,6 @@ export default function Reports() {
                             </div>
                             <span className="font-bold text-teal-900">Medication MAR</span>
                             <span className="text-xs text-teal-600 mt-1">Monthly log (landscape)</span>
-                            {isExporting && (
-                                <div className="absolute inset-0 bg-white/60 flex items-center justify-center rounded-2xl">
-                                    <Loader2 className="h-6 w-6 animate-spin text-teal-600" />
-                                </div>
-                            )}
                         </button>
 
                         <button
@@ -288,6 +405,7 @@ export default function Reports() {
                             <span className="text-xs text-purple-600 mt-1">Coming soon</span>
                         </button>
                     </div>
+                    )}
 
                     <div className="mt-8 pt-6 border-t border-gray-100 flex items-center justify-center gap-2 text-gray-400 text-xs italic">
                         <Download className="h-3 w-3" />
