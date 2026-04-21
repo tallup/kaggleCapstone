@@ -162,6 +162,25 @@ class ResidentResource extends Resource
                             ->label('Additional Medical Conditions')
                             ->rows(4)
                             ->placeholder('List any additional medical conditions...'),
+                        Forms\Components\TextInput::make('code_status')
+                            ->label('Code Status')
+                            ->maxLength(100)
+                            ->placeholder('e.g., Full code, DNR'),
+                        Forms\Components\TextInput::make('primary_language')
+                            ->label('Primary Language')
+                            ->maxLength(100),
+                        Forms\Components\Textarea::make('dietary_restrictions')
+                            ->label('Diet / Dietary restrictions')
+                            ->rows(2)
+                            ->placeholder('Diet type and restrictions...'),
+                        Forms\Components\TextInput::make('pharmacy_name')
+                            ->label('Pharmacy')
+                            ->maxLength(255)
+                            ->placeholder('Pharmacy name (optional)'),
+                        Forms\Components\Textarea::make('general_medication_instructions')
+                            ->label('General Medication Instructions')
+                            ->rows(3)
+                            ->placeholder('Resident-level medication notes for staff...'),
                     ])
                     ->columns(2),
 

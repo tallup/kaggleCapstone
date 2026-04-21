@@ -311,12 +311,7 @@ class ResidentController extends BaseApiController
         }
 
         // Handle text fields - convert empty strings to null
-        // Note: special_instructions column doesn't exist in database, so we remove it
-        if (isset($validated['special_instructions'])) {
-            unset($validated['special_instructions']);
-        }
-        
-        foreach (['care_plan', 'notes'] as $field) {
+        foreach (['care_plan', 'notes', 'special_instructions', 'dietary_restrictions', 'code_status', 'primary_language', 'pharmacy_name', 'general_medication_instructions', 'diagnosis'] as $field) {
             if (isset($validated[$field]) && $validated[$field] === '') {
                 $validated[$field] = null;
             }
