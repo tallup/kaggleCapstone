@@ -1,15 +1,20 @@
-import React from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useState, useMemo } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
 import { Truck, AlertCircle, Plus } from 'lucide-react';
+import { toast } from 'sonner';
 import api from '../../../services/api';
 import { formatPacificCalendarMedium, formatPacificDateTimeShort } from '../../../utils/pacificTime';
 import logger from '../../../utils/logger';
 import { isMedicationClinicalAdmin } from '../../../utils/medicationHubPermissions';
-import { RESIDENT_CONTEXT_QUERY_KEY } from '../../../utils/headerResidentSwitcher';
+import Modal from '../../../components/ui/Modal';
+import { MedicationDeliveryForm } from '../../MedicationDeliveries';
 
 export default function MedicationHubDeliveriesTab() {
     const { residentId } = useParams();
+    const queryClient = useQueryClient();
+    const [showAddModal, setShowAddModal] = useState(false);
+    const [formOpenSeq, setFormOpenSeq] = useState(0);
 
     const { data: currentUser } = useQuery({
         queryKey: ['current-user'],
@@ -17,7 +22,72 @@ export default function MedicationHubDeliveriesTab() {
         staleTime: 60_000,
     });
     const isClinicalAdmin = isMedicationClinicalAdmin(currentUser);
-    const addDeliveryHref = `/medication-deliveries?${RESIDENT_CONTEXT_QUERY_KEY}=${encodeURIComponent(residentId ?? '')}`;
+
+    const isCaregiver = useMemo(() => {
+        if (!currentUser) return false;
+        const role = currentUser.role?.toLowerCase().trim() || '';
+        const roleNormalized = role.replace(/[\s_]/g, '');
+        return roleNormalized === 'caregiver' || (role.includes('care') && role.includes('giver'));
+    }, [currentUser]);
+    const isFacilityAdmin = useMemo(() => {
+        if (!currentUser) return false;
+        return currentUser.role?.toLowerCase().trim() === 'administrator';
+    }, [currentUser]);
+    const isBranchAdmin = useMemo(() => {
+        if (!currentUser) return false;
+        return currentUser.role?.toLowerCase().trim() === 'admin';
+    }, [currentUser]);
+
+    const { data: residentRecord } = useQuery({
+        queryKey: ['med-hub-layout-resident', residentId],
+        queryFn: async () => {
+            const res = await api.get(`/residents/${residentId}`);
+            return res.data?.data ?? res.data;
+        },
+        enabled: !!residentId,
+    });
+
+    const formDataEnabled = isClinicalAdmin;
+    const { data: branchesData, isLoading: branchesLoading } = useQuery({
+        queryKey: ['branches-options'],
+        queryFn: async () => (await api.get('/branches', { params: { per_page: 100 } })).data,
+        enabled: formDataEnabled,
+    });
+    const { data: residentsData, isLoading: residentsLoading } = useQuery({
+        queryKey: ['residents-list'],
+        queryFn: async () => (await api.get('/residents', { params: { per_page: 100 } })).data,
+        enabled: formDataEnabled,
+    });
+    const { data: medicationsData, isLoading: medicationsLoading } = useQuery({
+        queryKey: ['medications-list'],
+        queryFn: async () => (await api.get('/medications', { params: { per_page: 1000 } })).data,
+        enabled: formDataEnabled,
+    });
+    const { data: pharmacySuppliersData, error: pharmacySuppliersError } = useQuery({
+        queryKey: ['pharmacy-suppliers'],
+        queryFn: async () => (await api.get('/pharmacy-suppliers', { params: { per_page: 100, is_active: true } })).data,
+        enabled: formDataEnabled,
+    });
+    const { data: pharmacyTemplatesData } = useQuery({
+        queryKey: ['pharmacy-templates', residentRecord?.branch_id],
+        queryFn: async () => {
+            const params = { per_page: 100 };
+            if (residentRecord?.branch_id) params.branch_id = residentRecord.branch_id;
+            return (await api.get('/pharmacy-templates', { params })).data;
+        },
+        enabled: formDataEnabled && !!residentId,
+    });
+
+    const createPharmacyTemplateMutation = useMutation({
+        mutationFn: async (payload) => (await api.post('/pharmacy-templates', payload)).data,
+        onSuccess: () => {
+            toast.success('Pharmacy template saved', '', { isFormSubmission: true });
+            queryClient.invalidateQueries(['pharmacy-templates']);
+        },
+        onError: (e) => {
+            toast.error(e?.response?.data?.message || 'Failed to save template');
+        },
+    });
 
     const { data, isLoading, error } = useQuery({
         queryKey: ['med-hub-deliveries', residentId],
@@ -26,6 +96,19 @@ export default function MedicationHubDeliveriesTab() {
     });
 
     const rows = data?.data ?? [];
+
+    const branches = branchesData?.data || [];
+    const residents = residentsData?.data || [];
+    const medications = medicationsData?.data || [];
+    const pharmacySuppliers = pharmacySuppliersData?.data || [];
+    const pharmacyTemplates = pharmacyTemplatesData?.data || [];
+    const formOptionsLoading =
+        formDataEnabled && (branchesLoading || residentsLoading || medicationsLoading);
+
+    const openAddModal = () => {
+        setFormOpenSeq((n) => n + 1);
+        setShowAddModal(true);
+    };
 
     if (isLoading) {
         return (
@@ -52,7 +135,46 @@ export default function MedicationHubDeliveriesTab() {
     }
 
     return (
-        <div className="space-y-4">
+        <>
+            <Modal
+                isOpen={showAddModal}
+                onClose={() => setShowAddModal(false)}
+                title="Add Medication Delivery"
+                size="xl"
+            >
+                {formOptionsLoading || !currentUser ? (
+                    <div className="flex justify-center py-12" aria-busy="true">
+                        <div className="h-10 w-10 animate-spin rounded-full border-2 border-[var(--theme-primary)]/30 border-t-[var(--theme-primary)]" />
+                    </div>
+                ) : (
+                    <MedicationDeliveryForm
+                        key={`hub-delivery-${formOpenSeq}-${residentId ?? '0'}`}
+                        defaultResidentId={residentId || ''}
+                        record={null}
+                        branches={branches}
+                        residents={residents}
+                        medications={medications}
+                        pharmacySuppliers={pharmacySuppliers}
+                        pharmacySuppliersError={pharmacySuppliersError}
+                        pharmacyTemplates={pharmacyTemplates}
+                        onSaveTemplate={(payload) => createPharmacyTemplateMutation.mutateAsync(payload)}
+                        isCaregiver={isCaregiver}
+                        caregiverBranchId={currentUser?.assigned_branch_id}
+                        currentUser={currentUser}
+                        isFacilityAdmin={isFacilityAdmin}
+                        isBranchAdmin={isBranchAdmin}
+                        formMode="full"
+                        inModal
+                        onClose={() => setShowAddModal(false)}
+                        onSuccess={() => {
+                            queryClient.invalidateQueries(['med-hub-deliveries', residentId]);
+                            queryClient.invalidateQueries(['medication-deliveries']);
+                            setShowAddModal(false);
+                        }}
+                    />
+                )}
+            </Modal>
+            <div className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2 text-gray-900">
                     <Truck className="w-5 h-5 text-[var(--theme-primary)]" aria-hidden="true" />
@@ -60,13 +182,15 @@ export default function MedicationHubDeliveriesTab() {
                 </div>
                 <div className="flex flex-wrap items-center justify-end gap-2">
                     {isClinicalAdmin && (
-                        <Link
-                            to={addDeliveryHref}
-                            className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--theme-primary)] px-3 py-1.5 text-xs font-bold text-[var(--theme-text-on-primary)] shadow-sm hover:opacity-95 transition-opacity"
+                        <button
+                            type="button"
+                            onClick={openAddModal}
+                            disabled={!currentUser}
+                            className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--theme-primary)] px-3 py-1.5 text-xs font-bold text-[var(--theme-text-on-primary)] shadow-sm hover:opacity-95 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <Plus className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
                             Add delivery
-                        </Link>
+                        </button>
                     )}
                     <Link
                         to="/medication-deliveries"
@@ -81,13 +205,15 @@ export default function MedicationHubDeliveriesTab() {
                 <div className="text-sm text-gray-500 rounded-xl border border-gray-100 bg-white p-6 space-y-3">
                     <p>No delivery records for this resident.</p>
                     {isClinicalAdmin && (
-                        <Link
-                            to={addDeliveryHref}
-                            className="inline-flex items-center gap-1.5 text-sm font-bold text-[var(--theme-primary)] hover:underline"
+                        <button
+                            type="button"
+                            onClick={openAddModal}
+                            disabled={!currentUser}
+                            className="inline-flex items-center gap-1.5 text-sm font-bold text-[var(--theme-primary)] hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <Plus className="w-4 h-4 shrink-0" aria-hidden="true" />
                             Add a delivery for this resident
-                        </Link>
+                        </button>
                     )}
                 </div>
             ) : (
@@ -123,6 +249,7 @@ export default function MedicationHubDeliveriesTab() {
                     </table>
                 </div>
             )}
-        </div>
+            </div>
+        </>
     );
 }

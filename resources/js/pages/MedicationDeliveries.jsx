@@ -622,7 +622,7 @@ export default function MedicationDeliveries() {
     );
 }
 
-function MedicationDeliveryForm({
+export function MedicationDeliveryForm({
     record,
     defaultResidentId = '',
     branches,
