@@ -54,6 +54,11 @@ export default function Vitals() {
         const role = currentUser.role?.toLowerCase().trim() || '';
         return role === 'admin';
     }, [currentUser]);
+    const isCaregiver = React.useMemo(() => {
+        if (!currentUser) return false;
+        const role = currentUser.role?.toLowerCase().trim() || '';
+        return ['caregiver', 'care_giver', 'nurse', 'registered_nurse', 'licensed_nurse'].includes(role);
+    }, [currentUser]);
     const permissions = Array.isArray(currentUser?.permissions) ? currentUser.permissions : [];
     const canCreate = isSuperAdmin || isAdmin || permissions.includes('create_vitals');
     const canEdit = isSuperAdmin || isAdmin || permissions.includes('edit_vitals');
