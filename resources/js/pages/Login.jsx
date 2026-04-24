@@ -283,12 +283,12 @@ export default function Login() {
                     <div className="flex items-center justify-center w-full">
                         <div ref={formRef} className="w-full max-w-md space-y-5">
                             {/* Back to home */}
-                            <div className="flex justify-center mb-1">
+                            <div className="auth-back-to-welcome flex justify-center mb-1">
                                 <a
                                     href="/"
-                                    className="inline-flex items-center gap-2 text-sm font-semibold text-slate-800 hover:text-blue-800 underline-offset-2 hover:underline"
+                                    className="auth-back-link inline-flex items-center gap-2 text-sm font-semibold bg-white/0 !text-slate-900 hover:!text-blue-800 underline-offset-2 hover:underline"
                                 >
-                                    <Home className="w-4 h-4 shrink-0 text-slate-700" aria-hidden="true" />
+                                    <Home className="w-4 h-4 shrink-0 !text-slate-800" aria-hidden="true" />
                                     <span>Back to Welcome Page</span>
                                 </a>
                             </div>

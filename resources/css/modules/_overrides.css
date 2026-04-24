@@ -32,6 +32,16 @@ footer[class*="bg-gray-900"] a:hover {
     color: #111827 !important;
 }
 
+/* Top “Back to Welcome Page” on login — same global theme * rules can force light text on pale background */
+.auth-page-login a.auth-back-link,
+.auth-page-login a.auth-back-link span {
+    color: #0f172a !important;
+}
+.auth-page-login a.auth-back-link:hover,
+.auth-page-login a.auth-back-link:hover span {
+    color: #1d4ed8 !important;
+}
+
 /* Login: theme surface rules (_theme-utilities) can set --theme-text-on-primary on <a>
    inside white cards (links lack class*="bg-white"), producing white-on-white. */
 .auth-page-login .auth-login-card a[href] {
