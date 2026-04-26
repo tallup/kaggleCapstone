@@ -22,6 +22,7 @@ class ResidentFactory extends Factory
             'branch_id' => Branch::factory(),
             'admission_date' => fake()->date('Y-m-d', 'now'),
             'status' => 'active',
+            'lifecycle_status' => 'active',
             'is_active' => true,
         ];
     }
@@ -31,6 +32,7 @@ class ResidentFactory extends Factory
         return $this->state(fn () => [
             'is_active' => false,
             'status' => 'discharged',
+            'lifecycle_status' => 'discharged',
         ]);
     }
 }

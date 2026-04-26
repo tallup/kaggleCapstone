@@ -24,9 +24,11 @@ import api from '../../services/api';
 import Breadcrumbs from '../../components/ui/Breadcrumbs';
 import ResidentDocuments from '../../components/ResidentDocuments';
 import ResidentSafetyStrip from '../../components/residents/ResidentSafetyStrip';
+import ResidentStatusBadges from '../../components/residents/ResidentStatusBadges';
 import logger from '../../utils/logger';
 import { isCaregiverRole } from '../../utils/userRoles';
 import { formatPacificCalendarMedium, calculateAgeFromPacificBirthDate } from '../../utils/pacificTime';
+import { getResidentStatusSummary } from '../../utils/residentStatus';
 
 const tabs = [
     { id: 'profile', label: 'Profile Overview', icon: Users },
@@ -215,15 +217,7 @@ export default function ResidentDetailPage() {
         setEditingCarePlan(false);
     };
 
-    const statusBadge = React.useMemo(() => {
-        const isActive = resident?.is_active === true || resident?.is_active === 1 || resident?.is_active === '1';
-        return {
-            label: isActive ? 'Active' : 'Inactive',
-            className: isActive
-                ? 'bg-emerald-50 text-emerald-600 ring-emerald-200'
-                : 'bg-amber-50 text-amber-600 ring-amber-200',
-        };
-    }, [resident?.is_active]);
+    const statusSummary = React.useMemo(() => getResidentStatusSummary(resident), [resident]);
 
     const medications = React.useMemo(() => {
         if (!resident?.medications) return [];
@@ -397,9 +391,7 @@ export default function ResidentDetailPage() {
                                 <span className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
                                     ID: {resident?.id ?? 'N/A'}
                                 </span>
-                                <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ring-1 ${statusBadge.className}`}>
-                                    {statusBadge.label}
-                                </span>
+                                <ResidentStatusBadges resident={resident} size="md" showCensus />
                             </div>
                             <p className="mt-2 text-sm text-gray-500">
                                 Branch: <span className="font-medium text-gray-900">{resident?.branch?.name || 'Unassigned'}</span>
@@ -417,6 +409,14 @@ export default function ResidentDetailPage() {
                         </div>
                     </div>
                     <div className="grid w-full gap-3 rounded-2xl bg-gray-50 p-4 text-sm text-gray-600 sm:grid-cols-2 lg:w-auto">
+                        <div>
+                            <p className="text-xs uppercase tracking-wide text-gray-500">Lifecycle</p>
+                            <p className="text-lg font-semibold text-gray-900">{statusSummary.lifecycleMeta.label}</p>
+                        </div>
+                        <div>
+                            <p className="text-xs uppercase tracking-wide text-gray-500">Temporary</p>
+                            <p className="text-lg font-semibold text-gray-900">{statusSummary.temporaryMeta?.label || 'None'}</p>
+                        </div>
                         <div>
                             <p className="text-xs uppercase tracking-wide text-gray-500">Length of Stay</p>
                             <p className="text-lg font-semibold text-gray-900">{computeLengthOfStay(resident.admission_date)}</p>
@@ -501,7 +501,26 @@ export default function ResidentDetailPage() {
                         <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                             <DefinitionItem label="Preferred Name">{resident.name || fullName}</DefinitionItem>
                             <DefinitionItem label="Gender">{resident.gender || 'N/A'}</DefinitionItem>
-                            <DefinitionItem label="Status">{resident.status || statusBadge.label}</DefinitionItem>
+                            <DefinitionItem label="Lifecycle Status">{statusSummary.lifecycleMeta.label}</DefinitionItem>
+                            <DefinitionItem label="Temporary Status">{statusSummary.temporaryMeta?.label || 'None'}</DefinitionItem>
+                            <DefinitionItem label="Census">{statusSummary.isInCensus ? 'In census' : 'Out of census'}</DefinitionItem>
+                            {resident.temporary_status_started_at && (
+                                <DefinitionItem label="Temporary Status Started">
+                                    {formatDate(resident.temporary_status_started_at, { dateStyle: 'medium', timeStyle: 'short' })}
+                                </DefinitionItem>
+                            )}
+                            {resident.temporary_status_note && (
+                                <DefinitionItem label="Temporary Status Note">{resident.temporary_status_note}</DefinitionItem>
+                            )}
+                            {resident.discharge_date && (
+                                <DefinitionItem label="Discharge Date">{formatDate(resident.discharge_date)}</DefinitionItem>
+                            )}
+                            {resident.discharge_reason && (
+                                <DefinitionItem label="Discharge Reason">{resident.discharge_reason}</DefinitionItem>
+                            )}
+                            {resident.discharge_destination && (
+                                <DefinitionItem label="Discharge Destination">{resident.discharge_destination}</DefinitionItem>
+                            )}
                             <DefinitionItem label="Physician">
                                 {resident.primary_care_doctor || resident.physician_name || 'Not documented'}
                             </DefinitionItem>

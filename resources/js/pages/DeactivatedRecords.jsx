@@ -8,6 +8,7 @@ import EntityCardShell, { EntityCardHeader } from '../components/ui/EntityCardSh
 import CardIconButton from '../components/ui/CardIconButton';
 import DataPill from '../components/ui/DataPill';
 import ResidentAvatarInline from '../components/ui/ResidentAvatarInline';
+import ResidentStatusBadges from '../components/residents/ResidentStatusBadges';
 
 function EmptyState({ title, description }) {
     return (
@@ -49,7 +50,7 @@ export default function DeactivatedRecords() {
     });
 
     const reactivateResidentMutation = useMutation({
-        mutationFn: async (residentId) => api.put(`/residents/${residentId}`, { is_active: true }),
+        mutationFn: async (residentId) => api.post(`/residents/${residentId}/status`, { lifecycle_status: 'active' }),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['deactivated-residents'] });
             queryClient.invalidateQueries({ queryKey: ['residents'] });
@@ -113,8 +114,8 @@ export default function DeactivatedRecords() {
         if (!residents.length) {
             return (
                 <EmptyState
-                    title="No deactivated residents"
-                    description="All residents are currently active. When a resident is deactivated, they will appear here for quick review and reactivation."
+                    title="No non-active residents"
+                    description="All residents are currently active. Discharged, transferred, deceased, or inactive residents will appear here for review."
                 />
             );
         }
@@ -136,9 +137,7 @@ export default function DeactivatedRecords() {
                                     <div className="flex flex-wrap items-start gap-3">
                                         <ResidentAvatarInline resident={resident} className="h-10 w-10 text-xs" />
                                         <div className="space-y-2">
-                                            <span className="inline-flex rounded-full border border-red-200 bg-red-50 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-red-800">
-                                                Inactive
-                                            </span>
+                                            <ResidentStatusBadges resident={resident} showCensus />
                                         </div>
                                     </div>
                                 }
@@ -158,11 +157,6 @@ export default function DeactivatedRecords() {
                                 }
                             />
                             <h3 className="text-lg font-bold leading-snug text-slate-900 sm:text-xl">{displayName}</h3>
-                            {resident.status && (
-                                <p className="mt-1 text-xs uppercase tracking-wide text-slate-500">
-                                    Status: {resident.status}
-                                </p>
-                            )}
                             <div className="mt-4 grid grid-cols-1 gap-2.5">
                                 {resident.branch && (
                                     <DataPill icon={Building}>
@@ -310,9 +304,9 @@ export default function DeactivatedRecords() {
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     <div>
-                        <h1 className="text-2xl font-semibold text-gray-900">Inactive Records</h1>
+                        <h1 className="text-2xl font-semibold text-gray-900">Non-active Records</h1>
                         <p className="text-sm text-gray-600 mt-1">
-                            Review all deactivated residents and staff members in one place and quickly reactivate them when needed.
+                            Review non-active residents and deactivated staff members in one place and reactivate them when needed.
                         </p>
                     </div>
                     <div className="flex items-center space-x-2 text-xs text-gray-500">

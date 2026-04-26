@@ -21,20 +21,26 @@ import {
     Stethoscope,
     AlertTriangle,
 } from 'lucide-react';
-import Select from '../components/ui/radix/Select';
-import ScrollReveal from '../components/ui/ScrollReveal';
 import Tooltip from '../components/ui/Tooltip';
 import EmptyState from '../components/ui/EmptyState';
-import { formatPhoneNumber } from '../utils/phoneFormatter';
 import BranchSelector from '../components/BranchSelector';
 import ResidentForm from '../components/ResidentForm';
-import ConfirmDialog from '../components/ui/ConfirmDialog';
 import Modal from '../components/ui/Modal';
 import EntityCardShell, { EntityCardHeader } from '../components/ui/EntityCardShell';
 import CardIconButton from '../components/ui/CardIconButton';
 import DataPill from '../components/ui/DataPill';
 import ResidentAvatarInline from '../components/ui/ResidentAvatarInline';
+import ResidentStatusBadges from '../components/residents/ResidentStatusBadges';
 import { formatPacificDate, calculateAgeFromPacificBirthDate } from '../utils/pacificTime';
+import {
+    LIFECYCLE_STATUSES,
+    TEMPORARY_STATUSES,
+    getLifecycleStatusMeta,
+    getResidentLifecycleStatus,
+    getResidentTemporaryStatus,
+    getTemporaryStatusMeta,
+    isResidentLifecycleActive,
+} from '../utils/residentStatus';
 
 export default function Residents() {
     const navigate = useNavigate();
@@ -46,7 +52,7 @@ export default function Residents() {
     const [showForm, setShowForm] = useState(false);
     const [editing, setEditing] = useState(null);
     const [currentUser, setCurrentUser] = useState(null);
-    const [residentStatusConfirm, setResidentStatusConfirm] = useState(null);
+    const [statusResident, setStatusResident] = useState(null);
 
     React.useEffect(() => {
         const loadUser = async () => {
@@ -122,30 +128,24 @@ export default function Residents() {
     // Use selected branch from URL, fallback to user's assigned branch
     const branchId = selectedBranchId ? parseInt(selectedBranchId) : (currentUser?.assigned_branch_id ?? null);
 
-    const toggleActiveMutation = useMutation({
-        mutationFn: async ({ id, isActive }) => {
-            return await api.put(`/residents/${id}`, { is_active: !isActive });
-        },
+    const updateStatusMutation = useMutation({
+        mutationFn: async ({ id, payload }) => api.post(`/residents/${id}/status`, payload),
         onSuccess: () => queryClient.invalidateQueries(['residents']),
     });
 
     const residentsList = data?.data || [];
-    const isResidentActive = (resident) => {
-        const value = resident?.is_active;
-        return value === true || value === 1 || value === '1';
-    };
     const filteredResidents = residentsList.filter((resident) => {
-        if (statusFilter === 'active') return isResidentActive(resident);
-        if (statusFilter === 'inactive') return !isResidentActive(resident);
+        if (statusFilter === 'active') return isResidentLifecycleActive(resident);
+        if (statusFilter === 'inactive') return !isResidentLifecycleActive(resident);
         return true;
     });
-    const activeResidents = filteredResidents.filter((resident) => isResidentActive(resident));
-    const inactiveResidents = filteredResidents.filter((resident) => !isResidentActive(resident));
+    const activeResidents = filteredResidents.filter((resident) => isResidentLifecycleActive(resident));
+    const inactiveResidents = filteredResidents.filter((resident) => !isResidentLifecycleActive(resident));
     const showActiveSection = statusFilter !== 'inactive';
     const showInactiveSection = statusFilter !== 'active';
 
     const renderResidentCard = (resident) => {
-        const isInactive = !isResidentActive(resident);
+        const isInactive = !isResidentLifecycleActive(resident);
         const ageYears = calculateAgeFromPacificBirthDate(resident.date_of_birth);
         const fullName = [resident.first_name, resident.middle_names, resident.last_name].filter(Boolean).join(' ');
         return (
@@ -162,17 +162,7 @@ export default function Residents() {
                         <div className="flex flex-wrap items-start gap-3">
                             <ResidentAvatarInline resident={resident} className="h-10 w-10 text-xs" />
                             <div className="space-y-2">
-                                <div className="flex flex-wrap gap-1.5">
-                                    <span
-                                        className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
-                                            isInactive
-                                                ? 'border-red-200 bg-red-100 text-red-800'
-                                                : 'border-emerald-200 bg-emerald-50 text-emerald-800'
-                                        }`}
-                                    >
-                                        {isInactive ? 'Inactive' : 'Active'}
-                                    </span>
-                                </div>
+                                <ResidentStatusBadges resident={resident} showCensus />
                             </div>
                         </div>
                     }
@@ -201,19 +191,17 @@ export default function Residents() {
                             )}
                             {canEdit && (
                                 <Tooltip
-                                    content={resident.is_active ? 'Deactivate' : 'Activate'}
+                                    content="Update resident status"
                                     position="top"
                                 >
                                     <CardIconButton
-                                        variant={resident.is_active ? 'deactivate' : 'activate'}
-                                        icon={resident.is_active ? XCircle : CheckCircle}
-                                        aria-label={resident.is_active ? 'Deactivate' : 'Activate'}
-                                        onClick={() =>
-                                            setResidentStatusConfirm({
-                                                id: resident.id,
-                                                currentActive: isResidentActive(resident),
-                                            })
-                                        }
+                                        variant={isResidentLifecycleActive(resident) ? 'deactivate' : 'activate'}
+                                        icon={isResidentLifecycleActive(resident) ? XCircle : CheckCircle}
+                                        aria-label="Update resident status"
+                                        onClick={() => {
+                                            updateStatusMutation.reset();
+                                            setStatusResident(resident);
+                                        }}
                                     />
                                 </Tooltip>
                             )}
@@ -314,26 +302,24 @@ export default function Residents() {
                     }}
                 />
             </Modal>
-            <ConfirmDialog
-                isOpen={residentStatusConfirm != null}
-                onClose={() => !toggleActiveMutation.isPending && setResidentStatusConfirm(null)}
-                onConfirm={() => {
-                    if (!residentStatusConfirm) return;
-                    toggleActiveMutation.mutate(
-                        { id: residentStatusConfirm.id, isActive: residentStatusConfirm.currentActive },
-                        { onSuccess: () => setResidentStatusConfirm(null) }
+            <ResidentStatusModal
+                resident={statusResident}
+                isOpen={statusResident != null}
+                isPending={updateStatusMutation.isPending}
+                error={updateStatusMutation.error}
+                onClose={() => {
+                    if (updateStatusMutation.isPending) return;
+                    updateStatusMutation.reset();
+                    setStatusResident(null);
+                }}
+                onSubmit={(payload) => {
+                    if (!statusResident) return;
+                    updateStatusMutation.reset();
+                    updateStatusMutation.mutate(
+                        { id: statusResident.id, payload },
+                        { onSuccess: () => setStatusResident(null) }
                     );
                 }}
-                title={residentStatusConfirm?.currentActive ? 'Deactivate this resident?' : 'Activate this resident?'}
-                description={
-                    residentStatusConfirm?.currentActive
-                        ? 'They will be marked inactive in the system.'
-                        : 'They will be marked active in the system.'
-                }
-                confirmLabel={residentStatusConfirm?.currentActive ? 'Deactivate' : 'Activate'}
-                cancelLabel="Cancel"
-                variant={residentStatusConfirm?.currentActive ? 'danger' : 'primary'}
-                isPending={toggleActiveMutation.isPending}
             />
         <div>
             <BranchSelector currentUser={currentUserData} />
@@ -379,7 +365,7 @@ export default function Residents() {
                         >
                             <option value="">All Status</option>
                             <option value="active">Active</option>
-                            <option value="inactive">Inactive</option>
+                            <option value="inactive">Non-active</option>
                         </select>
                     </div>
                 </div>
@@ -425,7 +411,7 @@ export default function Residents() {
                     {showInactiveSection && (
                         <div className={showActiveSection ? 'mt-10' : ''}>
                             <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-lg font-semibold text-gray-900">Deactivated Residents</h3>
+                                <h3 className="text-lg font-semibold text-gray-900">Non-active Residents</h3>
                                 <span className="text-sm text-gray-500">{inactiveResidents.length} total</span>
                             </div>
                             {inactiveResidents.length > 0 ? (
@@ -436,8 +422,8 @@ export default function Residents() {
                                 <div className="bg-white rounded-xl shadow-sm p-6">
                                     <EmptyState
                                         icon={XCircle}
-                                        title="No deactivated residents found"
-                                        description="Deactivated residents will appear here when available."
+                                        title="No non-active residents found"
+                                        description="Discharged, transferred, deceased, or inactive residents will appear here when available."
                                     />
                                 </div>
                             )}
@@ -448,6 +434,333 @@ export default function Residents() {
         </div>
         </>
     );
+}
+
+function ResidentStatusModal({ resident, isOpen, isPending, error, onClose, onSubmit }) {
+    const [form, setForm] = useState(() => createStatusForm(resident));
+    const [errors, setErrors] = useState({});
+
+    React.useEffect(() => {
+        setForm(createStatusForm(resident));
+        setErrors({});
+    }, [resident]);
+
+    if (!resident) {
+        return null;
+    }
+
+    const fullName = [resident.first_name, resident.middle_names, resident.last_name].filter(Boolean).join(' ');
+    const selectedLifecycleMeta = getLifecycleStatusMeta(form.lifecycle_status);
+    const selectedTemporaryMeta = form.temporary_status ? getTemporaryStatusMeta(form.temporary_status) : null;
+    const isLifecycle = form.status_type === 'lifecycle';
+    const requiresDischargeDetails = isLifecycle && form.lifecycle_status !== 'active';
+    const serverErrors = error?.response?.data?.errors || {};
+    const fieldErrors = { ...serverErrors, ...errors };
+    const generalError = error?.response?.data?.message || errors.general;
+
+    const setField = (field, value) => {
+        setForm((prev) => ({ ...prev, [field]: value }));
+        setErrors((prev) => {
+            if (!prev[field]) return prev;
+            const next = { ...prev };
+            delete next[field];
+            return next;
+        });
+    };
+
+    const handleStatusTypeChange = (statusType) => {
+        setForm((prev) => ({
+            ...prev,
+            status_type: statusType,
+            lifecycle_status: prev.lifecycle_status || 'active',
+            temporary_status: prev.temporary_status || '',
+        }));
+        setErrors({});
+    };
+
+    const validate = () => {
+        const nextErrors = {};
+
+        if (requiresDischargeDetails) {
+            if (!form.discharge_date) {
+                nextErrors.discharge_date = ['Discharge date is required.'];
+            }
+            if (!form.discharge_reason.trim()) {
+                nextErrors.discharge_reason = ['Discharge reason is required.'];
+            }
+        }
+
+        setErrors(nextErrors);
+        return Object.keys(nextErrors).length === 0;
+    };
+
+    const handleSubmit = (event) => {
+        event.preventDefault();
+        if (!validate()) return;
+
+        const payload = {
+            status_type: form.status_type,
+            status: isLifecycle ? form.lifecycle_status : (form.temporary_status || null),
+            effective_at: new Date().toISOString(),
+        };
+
+        if (isLifecycle && form.lifecycle_status !== 'active') {
+            payload.discharge_date = form.discharge_date;
+            payload.discharge_reason = form.discharge_reason.trim();
+            payload.discharge_destination = form.discharge_destination.trim() || null;
+            payload.discharge_notes = form.discharge_notes.trim() || null;
+            payload.details = {
+                discharge_notes: form.discharge_notes.trim() || null,
+            };
+        }
+
+        if (!isLifecycle) {
+            const temporaryNote = form.temporary_status_note.trim();
+            payload.temporary_status_note = form.temporary_status ? (temporaryNote || null) : null;
+            if (form.temporary_status && temporaryNote) {
+                payload.details = { note: temporaryNote };
+            }
+        }
+
+        onSubmit(payload);
+    };
+
+    const statusTypeButtonClass = (statusType) => (
+        form.status_type === statusType
+            ? 'border-[var(--theme-primary)] bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] shadow-sm'
+            : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+    );
+
+    return (
+        <Modal
+            isOpen={isOpen}
+            onClose={onClose}
+            title="Update Resident Status"
+            size="lg"
+            closeOnBackdropClick={!isPending}
+        >
+            <form onSubmit={handleSubmit} className="space-y-6">
+                {generalError && (
+                    <div className="rounded-lg border border-red-200 bg-red-50 p-3">
+                        <p className="text-sm text-red-800">{generalError}</p>
+                    </div>
+                )}
+
+                <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+                    <p className="text-sm font-semibold text-slate-900">{fullName || 'Resident'}</p>
+                    <div className="mt-2">
+                        <ResidentStatusBadges resident={resident} showCensus />
+                    </div>
+                </div>
+
+                <div>
+                    <p className="mb-2 text-sm font-semibold text-slate-700">Status type</p>
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        <button
+                            type="button"
+                            disabled={isPending}
+                            onClick={() => handleStatusTypeChange('temporary')}
+                            className={`rounded-xl border px-4 py-3 text-left text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${statusTypeButtonClass('temporary')}`}
+                        >
+                            Temporary
+                            <span className="mt-1 block text-xs font-normal opacity-80">
+                                Out of facility, hospital, hospice, alert, or clear temporary status.
+                            </span>
+                        </button>
+                        <button
+                            type="button"
+                            disabled={isPending}
+                            onClick={() => handleStatusTypeChange('lifecycle')}
+                            className={`rounded-xl border px-4 py-3 text-left text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${statusTypeButtonClass('lifecycle')}`}
+                        >
+                            Lifecycle
+                            <span className="mt-1 block text-xs font-normal opacity-80">
+                                Active, discharged, transferred, or deceased.
+                            </span>
+                        </button>
+                    </div>
+                </div>
+
+                {isLifecycle ? (
+                    <div className="space-y-5">
+                        <div>
+                            <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="resident-lifecycle-status">
+                                Lifecycle status *
+                            </label>
+                            <select
+                                id="resident-lifecycle-status"
+                                value={form.lifecycle_status}
+                                disabled={isPending}
+                                onChange={(event) => setField('lifecycle_status', event.target.value)}
+                                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-transparent focus:ring-2 focus:ring-[var(--theme-primary)] disabled:opacity-60"
+                            >
+                                {LIFECYCLE_STATUSES.map((status) => (
+                                    <option key={status} value={status}>
+                                        {getLifecycleStatusMeta(status).label}
+                                    </option>
+                                ))}
+                            </select>
+                            <p className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${selectedLifecycleMeta.ringClassName}`}>
+                                {selectedLifecycleMeta.label}
+                            </p>
+                            {fieldErrors.status && <p className="mt-1 text-xs text-red-600">{fieldErrors.status[0]}</p>}
+                        </div>
+
+                        {requiresDischargeDetails && (
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                <div>
+                                    <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="resident-discharge-date">
+                                        Discharge date *
+                                    </label>
+                                    <input
+                                        id="resident-discharge-date"
+                                        type="date"
+                                        value={form.discharge_date}
+                                        disabled={isPending}
+                                        onChange={(event) => setField('discharge_date', event.target.value)}
+                                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-transparent focus:ring-2 focus:ring-[var(--theme-primary)] disabled:opacity-60"
+                                    />
+                                    {fieldErrors.discharge_date && <p className="mt-1 text-xs text-red-600">{fieldErrors.discharge_date[0]}</p>}
+                                </div>
+
+                                <div>
+                                    <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="resident-discharge-reason">
+                                        Discharge reason *
+                                    </label>
+                                    <input
+                                        id="resident-discharge-reason"
+                                        type="text"
+                                        value={form.discharge_reason}
+                                        disabled={isPending}
+                                        onChange={(event) => setField('discharge_reason', event.target.value)}
+                                        placeholder="Reason for status change"
+                                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-transparent focus:ring-2 focus:ring-[var(--theme-primary)] disabled:opacity-60"
+                                    />
+                                    {fieldErrors.discharge_reason && <p className="mt-1 text-xs text-red-600">{fieldErrors.discharge_reason[0]}</p>}
+                                </div>
+
+                                <div className="sm:col-span-2">
+                                    <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="resident-discharge-destination">
+                                        Discharge destination
+                                    </label>
+                                    <input
+                                        id="resident-discharge-destination"
+                                        type="text"
+                                        value={form.discharge_destination}
+                                        disabled={isPending}
+                                        onChange={(event) => setField('discharge_destination', event.target.value)}
+                                        placeholder="Hospital, another facility, family home, etc."
+                                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-transparent focus:ring-2 focus:ring-[var(--theme-primary)] disabled:opacity-60"
+                                    />
+                                </div>
+
+                                <div className="sm:col-span-2">
+                                    <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="resident-discharge-notes">
+                                        Notes / details
+                                    </label>
+                                    <textarea
+                                        id="resident-discharge-notes"
+                                        rows={3}
+                                        value={form.discharge_notes}
+                                        disabled={isPending}
+                                        onChange={(event) => setField('discharge_notes', event.target.value)}
+                                        placeholder="Optional details for the resident status event"
+                                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-transparent focus:ring-2 focus:ring-[var(--theme-primary)] disabled:opacity-60"
+                                    />
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                ) : (
+                    <div className="space-y-5">
+                        <div>
+                            <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="resident-temporary-status">
+                                Temporary status
+                            </label>
+                            <select
+                                id="resident-temporary-status"
+                                value={form.temporary_status}
+                                disabled={isPending}
+                                onChange={(event) => setField('temporary_status', event.target.value)}
+                                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-transparent focus:ring-2 focus:ring-[var(--theme-primary)] disabled:opacity-60"
+                            >
+                                <option value="">Clear temporary status</option>
+                                {TEMPORARY_STATUSES.map((status) => (
+                                    <option key={status} value={status}>
+                                        {getTemporaryStatusMeta(status).label}
+                                    </option>
+                                ))}
+                            </select>
+                            {selectedTemporaryMeta ? (
+                                <p className={`mt-2 inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${selectedTemporaryMeta.badgeClassName}`}>
+                                    {selectedTemporaryMeta.label}
+                                </p>
+                            ) : (
+                                <p className="mt-2 text-xs text-slate-500">No temporary status will remain on this resident.</p>
+                            )}
+                            {fieldErrors.status && <p className="mt-1 text-xs text-red-600">{fieldErrors.status[0]}</p>}
+                        </div>
+
+                        <div>
+                            <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="resident-temporary-note">
+                                Temporary status note
+                            </label>
+                            <textarea
+                                id="resident-temporary-note"
+                                rows={3}
+                                value={form.temporary_status_note}
+                                disabled={isPending || !form.temporary_status}
+                                onChange={(event) => setField('temporary_status_note', event.target.value)}
+                                placeholder="Optional details for this temporary status"
+                                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-transparent focus:ring-2 focus:ring-[var(--theme-primary)] disabled:opacity-60"
+                            />
+                        </div>
+                    </div>
+                )}
+
+                <div className="flex flex-wrap justify-end gap-3 border-t border-slate-200 pt-6">
+                    <button
+                        type="button"
+                        disabled={isPending}
+                        onClick={onClose}
+                        className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="submit"
+                        disabled={isPending}
+                        className="inline-flex min-w-[9rem] items-center justify-center gap-2 rounded-xl bg-[var(--theme-primary)] px-5 py-2.5 text-sm font-semibold text-[var(--theme-text-on-primary)] shadow-md transition hover:bg-[var(--theme-primary-hover)] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                        {isPending ? (
+                            <>
+                                <span className="h-4 w-4 animate-spin rounded-full border-2 border-[var(--theme-text-on-primary)]/25 border-t-[var(--theme-text-on-primary)]" />
+                                Saving...
+                            </>
+                        ) : (
+                            'Update Status'
+                        )}
+                    </button>
+                </div>
+            </form>
+        </Modal>
+    );
+}
+
+function createStatusForm(resident) {
+    const lifecycleStatus = getResidentLifecycleStatus(resident);
+    const temporaryStatus = getResidentTemporaryStatus(resident) || '';
+
+    return {
+        status_type: temporaryStatus ? 'temporary' : 'lifecycle',
+        lifecycle_status: lifecycleStatus === 'inactive' ? 'discharged' : lifecycleStatus,
+        temporary_status: temporaryStatus,
+        temporary_status_note: resident?.temporary_status_note || '',
+        discharge_date: resident?.discharge_date || new Date().toISOString().split('T')[0],
+        discharge_reason: resident?.discharge_reason || '',
+        discharge_destination: resident?.discharge_destination || '',
+        discharge_notes: resident?.discharge_notes || '',
+    };
 }
 
 // Resident Form Component

@@ -2,23 +2,54 @@
 
 namespace App\Models;
 
+use App\Models\Scopes\FacilityScope;
+use App\Traits\FormatsPhoneNumbers;
+use App\Traits\Loggable;
 use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use App\Traits\Loggable;
-use App\Traits\FormatsPhoneNumbers;
-use App\Models\Scopes\FacilityScope;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Resident extends Model
 {
     use HasFactory, Loggable;
     use FormatsPhoneNumbers;
 
+    public const LIFECYCLE_ACTIVE = 'active';
+    public const LIFECYCLE_DISCHARGED = 'discharged';
+    public const LIFECYCLE_TRANSFERRED = 'transferred';
+    public const LIFECYCLE_DECEASED = 'deceased';
+
+    public const LIFECYCLE_STATUSES = [
+        self::LIFECYCLE_ACTIVE,
+        self::LIFECYCLE_DISCHARGED,
+        self::LIFECYCLE_TRANSFERRED,
+        self::LIFECYCLE_DECEASED,
+    ];
+
+    public const TEMPORARY_STATUSES = ['out_of_facility', 'hospital', 'hospice', 'alert'];
+
     protected static function booted()
     {
         static::addGlobalScope(new FacilityScope);
+
+        static::saving(function (Resident $resident): void {
+            if ($resident->isDirty('lifecycle_status') && $resident->lifecycle_status !== null) {
+                $resident->is_active = self::isActiveLifecycleStatus($resident->lifecycle_status);
+                $resident->status = $resident->lifecycle_status;
+
+                return;
+            }
+
+            if ($resident->isDirty('is_active') && !$resident->isDirty('lifecycle_status')) {
+                $resident->lifecycle_status = $resident->is_active
+                    ? self::LIFECYCLE_ACTIVE
+                    : self::LIFECYCLE_DISCHARGED;
+                $resident->status = $resident->lifecycle_status;
+            }
+        });
     }
     protected $fillable = [
         'name',
@@ -54,6 +85,14 @@ class Resident extends Model
         'notes',
         'admission_date',
         'discharge_date',
+        'discharge_reason',
+        'discharge_destination',
+        'discharge_notes',
+        'lifecycle_status',
+        'lifecycle_status_changed_at',
+        'temporary_status',
+        'temporary_status_started_at',
+        'temporary_status_note',
         'status',
         'is_active',
         'profile_image',
@@ -63,9 +102,12 @@ class Resident extends Model
         'date_of_birth' => 'date',
         'admission_date' => 'date',
         'discharge_date' => 'date',
+        'lifecycle_status_changed_at' => 'datetime',
+        'temporary_status_started_at' => 'datetime',
         'medical_conditions' => 'array',
         'allergies' => 'array',
         'medications' => 'array',
+        'is_active' => 'boolean',
     ];
 
     protected $appends = ['profile_image_url'];
@@ -93,6 +135,48 @@ class Resident extends Model
     public function appointments(): HasMany
     {
         return $this->hasMany(Appointment::class);
+    }
+
+    public function statusEvents(): HasMany
+    {
+        return $this->hasMany(ResidentStatusEvent::class);
+    }
+
+    public function scopeLifecycleStatus(Builder $query, string $status): Builder
+    {
+        return $query->where('lifecycle_status', $status);
+    }
+
+    public function scopeTemporaryStatus(Builder $query, ?string $status): Builder
+    {
+        return $status === null
+            ? $query->whereNull('temporary_status')
+            : $query->where('temporary_status', $status);
+    }
+
+    public function scopeActive(Builder $query): Builder
+    {
+        return $query->where('is_active', true);
+    }
+
+    public function scopeInactive(Builder $query): Builder
+    {
+        return $query->where('is_active', false);
+    }
+
+    public function isLifecycleActive(): bool
+    {
+        return ($this->lifecycle_status ?? 'active') === 'active';
+    }
+
+    public function hasTemporaryStatus(): bool
+    {
+        return $this->temporary_status !== null;
+    }
+
+    public static function isActiveLifecycleStatus(?string $status): bool
+    {
+        return ($status ?? 'active') === 'active';
     }
 
     public function getProfileImageUrlAttribute(): ?string

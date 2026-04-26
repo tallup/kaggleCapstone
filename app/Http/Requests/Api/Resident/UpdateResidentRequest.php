@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests\Api\Resident;
 
+use App\Models\Resident;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateResidentRequest extends FormRequest
 {
@@ -30,6 +32,14 @@ class UpdateResidentRequest extends FormRequest
             'room_number' => 'nullable|string|max:50',
             'branch_id' => 'sometimes|exists:branches,id',
             'admission_date' => 'sometimes|required|date',
+            'discharge_date' => 'nullable|date',
+            'discharge_reason' => 'nullable|string|max:255',
+            'discharge_destination' => 'nullable|string|max:255',
+            'discharge_notes' => 'nullable|string',
+            'lifecycle_status' => ['nullable', 'string', Rule::in(Resident::LIFECYCLE_STATUSES)],
+            'temporary_status' => ['nullable', 'string', Rule::in(Resident::TEMPORARY_STATUSES)],
+            'temporary_status_started_at' => 'nullable|date',
+            'temporary_status_note' => 'nullable|string',
             'emergency_contact_name' => 'nullable|string|max:255',
             'emergency_contact_phone' => 'nullable|string|max:50',
             'diagnosis' => 'nullable|string',

@@ -9,6 +9,7 @@ import EntityCardShell, { EntityCardHeader } from '../ui/EntityCardShell';
 import CardIconButton from '../ui/CardIconButton';
 import DataPill from '../ui/DataPill';
 import ResidentAvatarInline from '../ui/ResidentAvatarInline';
+import ResidentStatusBadges from '../residents/ResidentStatusBadges';
 import { isCaregiverRole } from '../../utils/userRoles';
 import {
     formatPacificCalendarMedium,
@@ -17,10 +18,11 @@ import {
 } from '../../utils/pacificTime';
 import { RESIDENT_CONTEXT_QUERY_KEY } from '../../utils/headerResidentSwitcher';
 import { currentUserQueryOptions } from '../../queries/currentUser';
+import { isResidentLifecycleActive } from '../../utils/residentStatus';
 
 const initialStats = [
     { key: 'active', label: 'Active Residents', icon: Users },
-    { key: 'inactive', label: 'Inactive Residents', icon: Activity },
+    { key: 'inactive', label: 'Non-active Residents', icon: Activity },
 ];
 
 /**
@@ -74,7 +76,7 @@ export default function HubResidentsOverview({ primaryResidentPath = 'record' })
     const residents = React.useMemo(() => {
         if (statusFilter === 'all') return allResidents;
         return allResidents.filter((r) => {
-            const active = r?.is_active === true || r?.is_active === 1 || r?.is_active === '1';
+            const active = isResidentLifecycleActive(r);
             return statusFilter === 'active' ? active : !active;
         });
     }, [allResidents, statusFilter]);
@@ -90,9 +92,7 @@ export default function HubResidentsOverview({ primaryResidentPath = 'record' })
     const stats = React.useMemo(() => {
         const totals = { active: 0, inactive: 0 };
         allResidents.forEach((resident) => {
-            const activeValue = resident?.is_active;
-            const isActive = activeValue === true || activeValue === 1 || activeValue === '1';
-            if (isActive) totals.active += 1;
+            if (isResidentLifecycleActive(resident)) totals.active += 1;
             else totals.inactive += 1;
         });
         return initialStats.map((item) => ({
@@ -122,7 +122,6 @@ export default function HubResidentsOverview({ primaryResidentPath = 'record' })
     );
 
     const renderResidentCard = (resident) => {
-        const isActive = resident?.is_active === true || resident?.is_active === 1 || resident?.is_active === '1';
         const fullName = [resident.first_name, resident.middle_names, resident.last_name].filter(Boolean).join(' ');
         const branchNameRes = resident?.branch?.name ?? 'Unassigned';
         const ageYears = calculateAgeFromPacificBirthDate(resident.date_of_birth);
@@ -150,16 +149,8 @@ export default function HubResidentsOverview({ primaryResidentPath = 'record' })
                         <div className="flex flex-wrap items-start gap-3">
                             <ResidentAvatarInline resident={resident} className="h-10 w-10 text-xs" />
                             <div className="space-y-1.5">
+                                <ResidentStatusBadges resident={resident} showCensus />
                                 <div className="flex flex-wrap gap-1.5">
-                                    <span
-                                        className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
-                                            isActive
-                                                ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
-                                                : 'border-amber-200 bg-amber-50 text-amber-800'
-                                        }`}
-                                    >
-                                        {isActive ? 'Active' : 'Inactive'}
-                                    </span>
                                     {room && (
                                         <span className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50 px-2.5 py-0.5 text-[10px] font-semibold text-gray-600">
                                             <DoorOpen className="h-3 w-3" aria-hidden="true" />
@@ -252,7 +243,7 @@ export default function HubResidentsOverview({ primaryResidentPath = 'record' })
                     {[
                         { key: 'all', label: `All (${allResidents.length})` },
                         { key: 'active', label: `Active (${stats.find((s) => s.key === 'active')?.value ?? 0})` },
-                        { key: 'inactive', label: `Inactive (${stats.find((s) => s.key === 'inactive')?.value ?? 0})` },
+                        { key: 'inactive', label: `Non-active (${stats.find((s) => s.key === 'inactive')?.value ?? 0})` },
                     ].map(({ key, label }) => (
                         <button
                             key={key}

@@ -114,6 +114,7 @@ Route::prefix('v1')->middleware([\App\Http\Middleware\SetFacilityContext::class]
     Route::get('/residents/{resident}/reports/appointments', AppointmentReportController::class)->middleware('auth:sanctum');
     Route::get('/residents/{resident}/reports/incidents', IncidentHistoryReportController::class)->middleware('auth:sanctum');
     Route::get('/residents/{resident}/reports/assessments', AssessmentSummaryReportController::class)->middleware('auth:sanctum');
+    Route::post('/residents/{resident}/status', [ResidentController::class, 'updateStatus'])->middleware('auth:sanctum');
     Route::apiResource('residents', ResidentController::class)->middleware('auth:sanctum');
     Route::get('/residents/{id}/appointments', [ResidentController::class, 'appointments'])->middleware('auth:sanctum');
     Route::get('/residents/{id}/vitals', [ResidentController::class, 'vitals'])->middleware('auth:sanctum');

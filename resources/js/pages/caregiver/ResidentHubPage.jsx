@@ -40,8 +40,10 @@ import {
     getPacificNow,
 } from '../../utils/pacificTime';
 import ResidentDocuments from '../../components/ResidentDocuments';
+import ResidentStatusBadges from '../../components/residents/ResidentStatusBadges';
 import logger from '../../utils/logger';
 import { isCaregiverRole } from '../../utils/userRoles';
+import { getResidentStatusSummary } from '../../utils/residentStatus';
 
 // ─── Tab definitions (overview + merged hub-style sections) ─────────────────────────────────
 const RESIDENT_TAB_BASE = [
@@ -218,11 +220,7 @@ export default function ResidentHubPage() {
                     <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-baseline gap-2">
                             <h1 className="text-xl font-bold text-gray-900 tracking-tight">{fullName.toUpperCase()}</h1>
-                            {resident.is_active === false || resident.is_active === 0 ? (
-                                <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">Inactive</span>
-                            ) : (
-                                <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Active</span>
-                            )}
+                            <ResidentStatusBadges resident={resident} showCensus />
                         </div>
                         <div className="flex flex-wrap items-center gap-2 mt-1.5">
                             {resident.date_of_birth && (
@@ -421,6 +419,7 @@ function OverviewTab({ resident, residentId, navigate, setTab, medicationHubList
     const upcomingAppts = (apptData?.data ?? apptData ?? []).filter(a => a.appointment_date && new Date(a.appointment_date) >= new Date());
     const vitalSigns = resident?.vital_signs ?? resident?.vitalSigns ?? [];
     const latestVital = Array.isArray(vitalSigns) ? vitalSigns[0] : null;
+    const statusSummary = getResidentStatusSummary(resident);
 
     return (
         <div className="space-y-6">
@@ -498,6 +497,9 @@ function OverviewTab({ resident, residentId, navigate, setTab, medicationHubList
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-0 divide-y sm:divide-y-0 sm:divide-x divide-gray-100">
                     {[
+                        { label: 'Lifecycle Status', value: statusSummary.lifecycleMeta.label },
+                        { label: 'Temporary Status', value: statusSummary.temporaryMeta?.label },
+                        { label: 'Census', value: statusSummary.isInCensus ? 'In census' : 'Out of census' },
                         { label: 'Code Status', value: resident.code_status },
                         { label: 'Primary Language', value: resident.primary_language || resident.language },
                         { label: 'Diet', value: resident.diet || resident.dietary_restrictions },
@@ -845,7 +847,23 @@ function AppointmentsTab({ residentId, resident, navigate }) {
 function ProfileTab({ resident }) {
     if (!resident) return null;
 
+    const statusSummary = getResidentStatusSummary(resident);
+
     const sections = [
+        {
+            title: 'Resident Status',
+            icon: Activity,
+            fields: [
+                { label: 'Lifecycle Status', value: statusSummary.lifecycleMeta.label },
+                { label: 'Temporary Status', value: statusSummary.temporaryMeta?.label || 'None' },
+                { label: 'Census', value: statusSummary.isInCensus ? 'In census' : 'Out of census' },
+                { label: 'Temporary Started', value: resident.temporary_status_started_at ? formatCalDate(resident.temporary_status_started_at) : null },
+                { label: 'Temporary Note', value: resident.temporary_status_note },
+                { label: 'Discharge Date', value: resident.discharge_date ? formatCalDate(resident.discharge_date) : null },
+                { label: 'Discharge Reason', value: resident.discharge_reason },
+                { label: 'Discharge Destination', value: resident.discharge_destination },
+            ],
+        },
         {
             title: 'Personal Information',
             icon: User,

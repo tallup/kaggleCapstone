@@ -5,10 +5,14 @@ namespace App\Http\Controllers\Api;
 use App\Constants\UserRoles;
 use App\Http\Requests\Api\Resident\StoreResidentRequest;
 use App\Http\Requests\Api\Resident\UpdateResidentRequest;
+use App\Http\Requests\Api\Resident\UpdateResidentStatusRequest;
 use App\Http\Resources\Api\ResidentResource;
 use App\Models\Resident;
-use Illuminate\Http\Request;
+use App\Models\ResidentStatusEvent;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 class ResidentController extends BaseApiController
@@ -58,16 +62,25 @@ class ResidentController extends BaseApiController
         // Filter by status
         if ($request->has('status')) {
             if ($request->get('status') === 'active') {
-                $query->where('is_active', true);
+                $query->active();
             } elseif ($request->get('status') === 'inactive') {
-                $query->where('is_active', false);
+                $query->inactive();
             }
+        }
+
+        if ($request->filled('lifecycle_status')) {
+            $query->lifecycleStatus($request->get('lifecycle_status'));
+        }
+
+        if ($request->has('temporary_status')) {
+            $temporaryStatus = $request->get('temporary_status');
+            $query->temporaryStatus($temporaryStatus === '' ? null : $temporaryStatus);
         }
 
         // Only filter by active if explicitly requested and show_all is not set
         if (!$request->has('show_all') && !$request->has('status')) {
             // Default: show active residents, but allow all if show_all is set
-            $query->where('is_active', true);
+            $query->active();
         }
 
         $query->orderBy('created_at', 'desc');
@@ -180,6 +193,8 @@ class ResidentController extends BaseApiController
 
         $validated = $request->validated();
 
+        $this->syncResidentLifecycleFields($validated);
+
         // Generate full name from first_name, middle_names, and last_name
         $nameParts = array_filter([
             $validated['first_name'] ?? '',
@@ -256,6 +271,8 @@ class ResidentController extends BaseApiController
         }
 
         $validated = $request->validated();
+
+        $this->syncResidentLifecycleFields($validated);
 
         // Handle profile image upload
         if ($request->hasFile('profile_image')) {
@@ -336,6 +353,112 @@ class ResidentController extends BaseApiController
         );
     }
 
+    public function updateStatus(UpdateResidentStatusRequest $request, $resident): JsonResponse
+    {
+        $user = $request->user();
+
+        if ($this->isCaregiver($user)) {
+            return $this->error('Caregivers cannot edit resident status.', 403);
+        }
+
+        $isSuperAdmin = $user && ($user->role === 'super_admin' || $user->hasRole('super_admin'));
+        $isAdmin = $user && $user->isAnyAdmin();
+
+        if (!$isSuperAdmin && !$isAdmin) {
+            if ($error = $this->requirePermission('edit_residents', $user)) {
+                return $error;
+            }
+        }
+
+        $resident = Resident::withoutGlobalScope(\App\Models\Scopes\FacilityScope::class)->find($resident);
+        if (!$resident) {
+            return $this->error('Resident not found.', 404);
+        }
+
+        $resident->load('branch');
+        if (!$this->checkFacilityAccess($resident, $user)) {
+            return $this->error('You do not have permission to update this resident.', 403);
+        }
+
+        $validated = $request->validated();
+        $statusType = $validated['status_type'];
+        $toStatus = $validated['status'] ?? null;
+        $effectiveAt = Carbon::parse($validated['effective_at'] ?? now());
+
+        $resident = DB::transaction(function () use ($resident, $validated, $statusType, $toStatus, $effectiveAt, $user) {
+            $fromStatus = $statusType === 'lifecycle'
+                ? ($resident->lifecycle_status ?? ($resident->is_active ? 'active' : 'discharged'))
+                : $resident->temporary_status;
+
+            $details = $validated['details'] ?? [];
+            $updates = [];
+
+            if ($statusType === 'lifecycle') {
+                $updates = [
+                    'lifecycle_status' => $toStatus,
+                    'lifecycle_status_changed_at' => $effectiveAt,
+                    'is_active' => Resident::isActiveLifecycleStatus($toStatus),
+                    'status' => $toStatus,
+                ];
+
+                if ($toStatus === 'active') {
+                    $updates['discharge_date'] = null;
+                    $updates['discharge_reason'] = null;
+                    $updates['discharge_destination'] = null;
+                    $updates['discharge_notes'] = null;
+                } else {
+                    $updates['discharge_date'] = $validated['discharge_date'];
+                    $updates['discharge_reason'] = $validated['discharge_reason'];
+                    $updates['discharge_destination'] = $validated['discharge_destination'] ?? null;
+                    $updates['discharge_notes'] = $validated['discharge_notes'] ?? null;
+                    $updates['temporary_status'] = null;
+                    $updates['temporary_status_started_at'] = null;
+                    $updates['temporary_status_note'] = null;
+                    $details = array_merge($details, [
+                        'discharge_date' => $validated['discharge_date'],
+                        'discharge_reason' => $validated['discharge_reason'],
+                        'discharge_destination' => $validated['discharge_destination'] ?? null,
+                        'discharge_notes' => $validated['discharge_notes'] ?? null,
+                    ]);
+                }
+            } else {
+                $temporaryNote = $validated['temporary_status_note']
+                    ?? ($details['note'] ?? null);
+
+                $updates = [
+                    'temporary_status' => $toStatus,
+                    'temporary_status_started_at' => $toStatus ? $effectiveAt : null,
+                    'temporary_status_note' => $toStatus ? $temporaryNote : null,
+                ];
+
+                if ($temporaryNote !== null) {
+                    $details['temporary_status_note'] = $temporaryNote;
+                }
+            }
+
+            $resident->update($updates);
+
+            ResidentStatusEvent::create([
+                'resident_id' => $resident->id,
+                'branch_id' => $resident->branch_id,
+                'facility_id' => $resident->branch?->facility_id,
+                'status_type' => $statusType,
+                'from_status' => $fromStatus,
+                'to_status' => $toStatus,
+                'effective_at' => $effectiveAt,
+                'details' => $details === [] ? null : $details,
+                'created_by' => $user?->id,
+            ]);
+
+            return $resident->refresh()->load('branch');
+        });
+
+        return $this->success(
+            new ResidentResource($resident),
+            'Resident status updated successfully'
+        );
+    }
+
     public function destroy($id): JsonResponse
     {
         $user = auth()->user();
@@ -359,6 +482,35 @@ class ResidentController extends BaseApiController
         $resident->delete();
 
         return $this->success(null, 'Resident deleted successfully');
+    }
+
+    private function syncResidentLifecycleFields(array &$validated): void
+    {
+        if (array_key_exists('lifecycle_status', $validated)) {
+            $validated['is_active'] = Resident::isActiveLifecycleStatus($validated['lifecycle_status']);
+            $validated['status'] = $validated['lifecycle_status'];
+            $validated['lifecycle_status_changed_at'] = $validated['lifecycle_status_changed_at'] ?? now();
+            if ($validated['lifecycle_status'] === Resident::LIFECYCLE_ACTIVE) {
+                $validated['discharge_date'] = null;
+                $validated['discharge_reason'] = null;
+                $validated['discharge_destination'] = null;
+                $validated['discharge_notes'] = null;
+            }
+
+            return;
+        }
+
+        if (array_key_exists('is_active', $validated)) {
+            $validated['lifecycle_status'] = $validated['is_active'] ? 'active' : 'discharged';
+            $validated['status'] = $validated['lifecycle_status'];
+            $validated['lifecycle_status_changed_at'] = $validated['lifecycle_status_changed_at'] ?? now();
+            if ($validated['lifecycle_status'] === Resident::LIFECYCLE_ACTIVE) {
+                $validated['discharge_date'] = null;
+                $validated['discharge_reason'] = null;
+                $validated['discharge_destination'] = null;
+                $validated['discharge_notes'] = null;
+            }
+        }
     }
 }
 
