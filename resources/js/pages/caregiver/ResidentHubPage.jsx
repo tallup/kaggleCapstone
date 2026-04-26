@@ -41,6 +41,7 @@ import {
 } from '../../utils/pacificTime';
 import ResidentDocuments from '../../components/ResidentDocuments';
 import ResidentStatusBadges from '../../components/residents/ResidentStatusBadges';
+import ResidentStatusModal from '../../components/residents/ResidentStatusModal';
 import logger from '../../utils/logger';
 import { isCaregiverRole } from '../../utils/userRoles';
 import { getResidentStatusSummary } from '../../utils/residentStatus';
@@ -96,7 +97,9 @@ export default function ResidentHubPage() {
     const { residentId } = useParams();
     const [searchParams, setSearchParams] = useSearchParams();
     const navigate = useNavigate();
-       const activeTab = searchParams.get('tab') || 'overview';
+    const queryClient = useQueryClient();
+    const [statusResident, setStatusResident] = React.useState(null);
+    const activeTab = searchParams.get('tab') || 'overview';
 
     const setTab = (id) => setSearchParams({ tab: id }, { replace: true });
 
@@ -107,6 +110,12 @@ export default function ResidentHubPage() {
 
     const enabledModules = Array.isArray(currentUser?.enabled_modules) ? currentUser.enabled_modules : [];
     const isSuperAdmin = currentUser?.role === 'super_admin';
+    const isAdministrator = currentUser?.role === 'administrator' || currentUser?.role === 'admin';
+    const isAdmin = isSuperAdmin || isAdministrator;
+    const isCaregiver = isCaregiverRole(currentUser?.role);
+    const permissions = Array.isArray(currentUser?.permissions) ? currentUser.permissions : [];
+    const canUpdateStatus = isAdmin || isCaregiver || permissions.includes('edit_residents');
+    const canUpdateLifecycleStatus = isAdmin;
     const showAssessmentsTab = isSuperAdmin || hasModuleAccess('/assessments', enabledModules, isSuperAdmin);
 
     const visibleTabs = React.useMemo(() => {
@@ -138,6 +147,14 @@ export default function ResidentHubPage() {
             return res.data?.data ?? res.data;
         },
         enabled: !!residentId,
+    });
+
+    const updateStatusMutation = useMutation({
+        mutationFn: async ({ id, payload }) => api.post(`/residents/${id}/status`, payload),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['resident-hub', residentId] });
+            queryClient.invalidateQueries({ queryKey: ['residents'] });
+        },
     });
 
     const fullName = resident
@@ -184,7 +201,28 @@ export default function ResidentHubPage() {
     }
 
     return (
-        <div className="space-y-0 -mt-1">
+        <>
+            <ResidentStatusModal
+                resident={statusResident}
+                isOpen={statusResident != null}
+                isPending={updateStatusMutation.isPending}
+                error={updateStatusMutation.error}
+                allowLifecycle={canUpdateLifecycleStatus}
+                onClose={() => {
+                    if (updateStatusMutation.isPending) return;
+                    updateStatusMutation.reset();
+                    setStatusResident(null);
+                }}
+                onSubmit={(payload) => {
+                    if (!statusResident) return;
+                    updateStatusMutation.reset();
+                    updateStatusMutation.mutate(
+                        { id: statusResident.id, payload },
+                        { onSuccess: () => setStatusResident(null) }
+                    );
+                }}
+            />
+            <div className="space-y-0 -mt-1">
             {/* ── Resident header card ─────────────────────────────────────── */}
             <div className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden mb-0">
                 {/* Top accent bar */}
@@ -258,6 +296,19 @@ export default function ResidentHubPage() {
 
                     {/* Action buttons */}
                     <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                        {canUpdateStatus && (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    updateStatusMutation.reset();
+                                    setStatusResident(resident);
+                                }}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 transition-colors"
+                            >
+                                <CheckCircle className="w-3.5 h-3.5" aria-hidden="true" />
+                                Update Status
+                            </button>
+                        )}
                         <button
                             type="button"
                             onClick={() => navigate(`/my-residents/${residentId}/medications/list`)}
@@ -364,7 +415,8 @@ export default function ResidentHubPage() {
                     </div>
                 )}
             </div>
-        </div>
+            </div>
+        </>
     );
 }
 

@@ -161,4 +161,146 @@ class ResidentStatusApiTest extends TestCase
             ->assertJsonPath('total', 1)
             ->assertJsonPath('data.0.temporary_status', 'alert');
     }
+
+    public function test_caregiver_can_update_temporary_status_for_assigned_branch_resident(): void
+    {
+        $this->createAndActAs('caregiver');
+
+        $resident = Resident::factory()->create([
+            'branch_id' => $this->branch->id,
+            'lifecycle_status' => 'active',
+            'is_active' => true,
+        ]);
+
+        $response = $this->postJson("/api/v1/residents/{$resident->id}/status", [
+            'status_type' => 'temporary',
+            'status' => 'hospital',
+            'temporary_status_note' => 'Transported by EMS',
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('data.temporary_status', 'hospital')
+            ->assertJsonPath('data.temporary_status_note', 'Transported by EMS');
+
+        $this->assertDatabaseHas('resident_status_events', [
+            'resident_id' => $resident->id,
+            'branch_id' => $this->branch->id,
+            'status_type' => 'temporary',
+            'to_status' => 'hospital',
+        ]);
+    }
+
+    public function test_caregiver_cannot_update_lifecycle_status(): void
+    {
+        $this->createAndActAs('caregiver');
+
+        $resident = Resident::factory()->create([
+            'branch_id' => $this->branch->id,
+            'lifecycle_status' => 'active',
+            'is_active' => true,
+        ]);
+
+        $response = $this->postJson("/api/v1/residents/{$resident->id}/status", [
+            'status_type' => 'lifecycle',
+            'status' => 'discharged',
+            'discharge_date' => '2026-04-26',
+            'discharge_reason' => 'Moved out',
+        ]);
+
+        $response->assertForbidden();
+
+        $resident->refresh();
+        $this->assertTrue($resident->is_active);
+        $this->assertSame('active', $resident->lifecycle_status);
+
+        $this->assertDatabaseMissing('resident_status_events', [
+            'resident_id' => $resident->id,
+            'status_type' => 'lifecycle',
+        ]);
+    }
+
+    public function test_caregiver_cannot_update_temporary_status_for_another_branch(): void
+    {
+        $this->createAndActAs('caregiver');
+
+        $otherBranch = Branch::factory()->create([
+            'facility_id' => $this->facility->id,
+        ]);
+        $resident = Resident::factory()->create([
+            'branch_id' => $otherBranch->id,
+            'lifecycle_status' => 'active',
+            'is_active' => true,
+        ]);
+
+        $response = $this->postJson("/api/v1/residents/{$resident->id}/status", [
+            'status_type' => 'temporary',
+            'status' => 'alert',
+        ]);
+
+        $response->assertForbidden();
+
+        $this->assertDatabaseMissing('resident_status_events', [
+            'resident_id' => $resident->id,
+        ]);
+    }
+
+    public function test_caregiver_cannot_update_temporary_status_outside_their_facility(): void
+    {
+        $caregiver = $this->createAndActAs('caregiver');
+
+        $otherFacility = Facility::factory()->create();
+        $otherBranch = Branch::factory()->create([
+            'facility_id' => $otherFacility->id,
+        ]);
+        $caregiver->forceFill(['assigned_branch_id' => $otherBranch->id])->save();
+
+        $resident = Resident::withoutGlobalScopes()->create([
+            'name' => 'Other Facility Resident',
+            'first_name' => 'Other',
+            'last_name' => 'Resident',
+            'branch_id' => $otherBranch->id,
+            'date_of_birth' => '1950-01-01',
+            'gender' => 'female',
+            'admission_date' => '2024-01-01',
+            'status' => 'active',
+            'lifecycle_status' => 'active',
+            'is_active' => true,
+        ]);
+
+        $response = $this->postJson("/api/v1/residents/{$resident->id}/status", [
+            'status_type' => 'temporary',
+            'status' => 'alert',
+        ]);
+
+        $response->assertForbidden();
+
+        $resident->refresh();
+        $this->assertNull($resident->temporary_status);
+        $this->assertDatabaseMissing('resident_status_events', [
+            'resident_id' => $resident->id,
+        ]);
+    }
+
+    public function test_caregiver_without_assigned_branch_cannot_update_temporary_status(): void
+    {
+        $caregiver = $this->createAndActAs('caregiver');
+        $caregiver->forceFill(['assigned_branch_id' => null])->save();
+
+        $resident = Resident::factory()->create([
+            'branch_id' => $this->branch->id,
+            'lifecycle_status' => 'active',
+            'is_active' => true,
+        ]);
+
+        $response = $this->postJson("/api/v1/residents/{$resident->id}/status", [
+            'status_type' => 'temporary',
+            'status' => 'alert',
+        ]);
+
+        $response->assertForbidden();
+
+        $this->assertDatabaseMissing('resident_status_events', [
+            'resident_id' => $resident->id,
+        ]);
+    }
 }

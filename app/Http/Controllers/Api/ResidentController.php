@@ -357,31 +357,42 @@ class ResidentController extends BaseApiController
     {
         $user = $request->user();
 
-        if ($this->isCaregiver($user)) {
-            return $this->error('Caregivers cannot edit resident status.', 403);
-        }
-
-        $isSuperAdmin = $user && ($user->role === 'super_admin' || $user->hasRole('super_admin'));
-        $isAdmin = $user && $user->isAnyAdmin();
-
-        if (!$isSuperAdmin && !$isAdmin) {
-            if ($error = $this->requirePermission('edit_residents', $user)) {
-                return $error;
-            }
-        }
-
         $resident = Resident::withoutGlobalScope(\App\Models\Scopes\FacilityScope::class)->find($resident);
         if (!$resident) {
             return $this->error('Resident not found.', 404);
         }
 
         $resident->load('branch');
-        if (!$this->checkFacilityAccess($resident, $user)) {
-            return $this->error('You do not have permission to update this resident.', 403);
-        }
-
         $validated = $request->validated();
         $statusType = $validated['status_type'];
+
+        if ($this->isCaregiver($user)) {
+            if (
+                !$user?->assigned_branch_id
+                || !$this->checkBranchAccess($resident, $user)
+                || !$this->checkFacilityAccess($resident, $user)
+            ) {
+                return $this->error('You may only update residents in your assigned branch.', 403);
+            }
+
+            if ($statusType !== 'temporary') {
+                return $this->error('Caregivers can only update temporary resident status.', 403);
+            }
+        } else {
+            $isSuperAdmin = $user && ($user->role === 'super_admin' || $user->hasRole('super_admin'));
+            $isAdmin = $user && $user->isAnyAdmin();
+
+            if (!$isSuperAdmin && !$isAdmin) {
+                if ($error = $this->requirePermission('edit_residents', $user)) {
+                    return $error;
+                }
+            }
+
+            if (!$this->checkFacilityAccess($resident, $user)) {
+                return $this->error('You do not have permission to update this resident.', 403);
+            }
+        }
+
         $toStatus = $validated['status'] ?? null;
         $effectiveAt = Carbon::parse($validated['effective_at'] ?? now());
 
