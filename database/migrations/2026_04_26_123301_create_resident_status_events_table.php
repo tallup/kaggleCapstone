@@ -25,9 +25,9 @@ return new class extends Migration
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
 
-            $table->index(['resident_id', 'status_type', 'effective_at']);
-            $table->index(['facility_id', 'effective_at']);
-            $table->index(['branch_id', 'effective_at']);
+            $table->index(['resident_id', 'status_type', 'effective_at'], 'rse_resident_status_effective_idx');
+            $table->index(['facility_id', 'effective_at'], 'rse_facility_effective_idx');
+            $table->index(['branch_id', 'effective_at'], 'rse_branch_effective_idx');
         });
     }
 
