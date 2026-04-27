@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import {
     Users,
     Building2,
@@ -14,10 +15,12 @@ import {
     ClipboardCheck,
     Clock,
     ArrowRight,
+    CreditCard,
 } from 'lucide-react';
 import ScrollReveal from '../../components/ui/ScrollReveal';
+import { currentUserQueryOptions } from '../../queries/currentUser';
 
-const TILES = [
+const TILES_BASE = [
     {
         id: 'residents',
         title: 'Residents',
@@ -126,12 +129,30 @@ const TILES = [
         accent: 'text-gray-600',
         bg: 'bg-gray-100',
     },
+    {
+        id: 'subscription-billing',
+        title: 'Subscription & billing',
+        description: 'Payment methods, invoices, and plan status (Stripe).',
+        icon: CreditCard,
+        path: '/administration/billing',
+        accent: 'text-violet-600',
+        bg: 'bg-violet-50',
+        requireSaasBilling: true,
+    },
 ];
 
 export default function AdministrationHubPage() {
+    const { data: user } = useQuery(currentUserQueryOptions);
+
+    const tiles = useMemo(() => {
+        const r = String(user?.role || '').toLowerCase();
+        const canSaas = r === 'administrator' || r === 'super_admin';
+        return TILES_BASE.filter((tile) => !tile.requireSaasBilling || canSaas);
+    }, [user]);
+
     return (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {TILES.map((tile, i) => {
+            {tiles.map((tile, i) => {
                 const Icon = tile.icon;
                 return (
                     <ScrollReveal key={tile.id} animationType="fade" delay={i * 40}>

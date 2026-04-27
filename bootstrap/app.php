@@ -17,6 +17,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->validateCsrfTokens(except: [
             'api/*',
+            'stripe/*',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
@@ -69,10 +70,10 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // Return user-friendly error messages for API - never leak internals in production
         $exceptions->render(function (\Throwable $e, $request) {
-            if ($request->is('api/*') && !($e instanceof \Illuminate\Validation\ValidationException) 
-                && !($e instanceof \Illuminate\Database\Eloquent\ModelNotFoundException)
-                && !($e instanceof \Illuminate\Auth\Access\AuthorizationException)
-                && !($e instanceof \Illuminate\Auth\AuthenticationException)) {
+            if ($request->is('api/*') && ! ($e instanceof \Illuminate\Validation\ValidationException)
+                && ! ($e instanceof \Illuminate\Database\Eloquent\ModelNotFoundException)
+                && ! ($e instanceof \Illuminate\Auth\Access\AuthorizationException)
+                && ! ($e instanceof \Illuminate\Auth\AuthenticationException)) {
                 $payload = ['message' => 'An error occurred'];
                 if (config('app.debug')) {
                     $payload['debug'] = [
@@ -81,6 +82,7 @@ return Application::configure(basePath: dirname(__DIR__))
                         'line' => $e->getLine(),
                     ];
                 }
+
                 return response()->json($payload, 500);
             }
         });

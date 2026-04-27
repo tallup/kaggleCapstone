@@ -45,6 +45,7 @@ use App\Http\Controllers\Api\ResidentChartController;
 use App\Http\Controllers\Api\ResidentController;
 use App\Http\Controllers\Api\ResidentSignOutController;
 use App\Http\Controllers\Api\RoleController;
+use App\Http\Controllers\Api\SaasBillingController;
 use App\Http\Controllers\Api\SleepLogReportController;
 use App\Http\Controllers\Api\SleepRecordController;
 use App\Http\Controllers\Api\StaffClockInController;
@@ -106,6 +107,10 @@ Route::prefix('v1')->middleware([\App\Http\Middleware\SetFacilityContext::class]
     Route::get('/dashboard/daily-activities', [DashboardController::class, 'dailyActivities'])->middleware('auth:sanctum');
     Route::get('/dashboard/upcoming-events', [DashboardController::class, 'upcomingEvents'])->middleware('auth:sanctum');
     Route::get('/dashboard/todays-schedule', [DashboardController::class, 'todaysSchedule'])->middleware('auth:sanctum');
+
+    // SaaS subscription (Stripe) — Cashier billable is Facility
+    Route::get('/saas-billing', [SaasBillingController::class, 'show'])->middleware('auth:sanctum');
+    Route::post('/saas-billing/portal', [SaasBillingController::class, 'portal'])->middleware(['auth:sanctum', 'throttle:10,1']);
 
     // Residents
     Route::get('/residents/{resident}/reports/medication-log', MedicationLogReportController::class)->middleware('auth:sanctum');
