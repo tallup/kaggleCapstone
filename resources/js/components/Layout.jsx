@@ -92,7 +92,7 @@ const superAdminNavigation = [
 const HUB_SECTION = 'Hubs';
 
 const OPERATIONS_HUB_PREFIXES = ['/housekeeping', '/grocery-status', '/fire-drills', '/incidents', '/leave-requests'];
-const MANAGEMENT_HUB_PREFIXES = ['/pharmacy', '/billing', '/check-in-dashboard', '/staff', '/visitors', '/residents/sign-out', '/residents/sign-outs'];
+const MANAGEMENT_HUB_PREFIXES = ['/pharmacy', '/billing', '/check-in-dashboard', '/staff', '/visitors', '/residents/sign-out', '/residents/sign-outs', '/document-library'];
 const ADMINISTRATION_HUB_PREFIXES = ['/administration'];
 
 /**

@@ -4,14 +4,14 @@ import {
     LayoutDashboard,
     Building2,
     DollarSign,
-    ClipboardList,
-    Settings,
     UserCheck,
+    Files,
 } from 'lucide-react';
 import SectionLayout from '../../components/SectionLayout';
 
 const TABS = [
     { id: 'overview',       label: 'Overview',       icon: LayoutDashboard, path: '/management', exact: true },
+    { id: 'documents',      label: 'Documents',      icon: Files,            path: '/document-library' },
     // path prefix is for active-tab matching; linkTo is a real route (no /pharmacy or /billing index exists).
     { id: 'pharmacy',       label: 'Pharmacy',       icon: Building2,       path: '/pharmacy',       linkTo: '/pharmacy/dashboard' },
     { id: 'billing',        label: 'Billing',        icon: DollarSign,      path: '/billing',        linkTo: '/billing/expense-categories' },

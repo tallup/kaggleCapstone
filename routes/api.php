@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\CleaningTaskAssignmentController;
 use App\Http\Controllers\Api\CleaningTaskController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\DatabaseManagementController;
+use App\Http\Controllers\Api\DocumentLibraryController;
 use App\Http\Controllers\Api\DrugController;
 use App\Http\Controllers\Api\EmailNotificationConfigController;
 use App\Http\Controllers\Api\EmailTemplateController;
@@ -111,6 +112,17 @@ Route::prefix('v1')->middleware([\App\Http\Middleware\SetFacilityContext::class]
     // SaaS subscription (Stripe) — Cashier billable is Facility
     Route::get('/saas-billing', [SaasBillingController::class, 'show'])->middleware('auth:sanctum');
     Route::post('/saas-billing/portal', [SaasBillingController::class, 'portal'])->middleware(['auth:sanctum', 'throttle:10,1']);
+
+    // Facility + resident document library (nested folders)
+    Route::prefix('document-library')->middleware('auth:sanctum')->group(function () {
+        Route::get('/tree', [DocumentLibraryController::class, 'tree']);
+        Route::post('/folders', [DocumentLibraryController::class, 'storeFolder']);
+        Route::patch('/folders/{id}', [DocumentLibraryController::class, 'updateFolder'])->whereNumber('id');
+        Route::delete('/folders/{id}', [DocumentLibraryController::class, 'destroyFolder'])->whereNumber('id');
+        Route::post('/files', [DocumentLibraryController::class, 'storeFile']);
+        Route::get('/files/{id}/download', [DocumentLibraryController::class, 'download'])->whereNumber('id');
+        Route::delete('/files/{id}', [DocumentLibraryController::class, 'destroyFile'])->whereNumber('id');
+    });
 
     // Residents
     Route::get('/residents/{resident}/reports/medication-log', MedicationLogReportController::class)->middleware('auth:sanctum');

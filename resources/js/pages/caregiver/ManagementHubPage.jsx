@@ -3,14 +3,10 @@ import { Link } from 'react-router-dom';
 import {
     Building2,
     DollarSign,
-    ClipboardList,
-    Settings,
     UserCheck,
     Clock,
     ArrowRight,
-    Users,
-    Pill,
-    History,
+    Files,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import ScrollReveal from '../../components/ui/ScrollReveal';
@@ -39,6 +35,15 @@ const TILES = [
         path: '/billing/expense-categories',
         accent: 'text-emerald-600',
         bg: 'bg-emerald-50',
+    },
+    {
+        id: 'documents',
+        title: 'Documents',
+        description: 'Facility files (admins) and resident files (care staff) in nested folders.',
+        icon: Files,
+        path: '/document-library',
+        accent: 'text-indigo-600',
+        bg: 'bg-indigo-50',
     },
     {
         id: 'check-in',

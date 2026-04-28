@@ -77,4 +77,9 @@ return [
         public_path('storage') => storage_path('app/public'),
     ],
 
+    /*
+    | Disk used by the facility/resident document library API (private storage).
+    */
+    'document_library_disk' => env('DOCUMENT_LIBRARY_DISK', 'local'),
+
 ];
