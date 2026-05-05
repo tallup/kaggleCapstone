@@ -93,16 +93,38 @@ class SetFacilityContext
      */
     private function extractSubdomain(Request $request): ?string
     {
-        $host = $request->getHost();
-        $parts = explode('.', $host);
-        
-        // If we have more than 2 parts, the first is likely the subdomain
-        // e.g., evergreen.yourapp.com -> evergreen
-        if (count($parts) > 2) {
-            return $parts[0];
+        $host = strtolower($request->getHost());
+        $base = config('app.facility_base_domain');
+        $candidate = null;
+
+        if (is_string($base) && $base !== '') {
+            $base = strtolower($base);
+            if ($host !== $base && str_ends_with($host, '.'.$base)) {
+                $candidate = substr($host, 0, -strlen('.'.$base));
+            }
         }
 
-        return null;
+        if ($candidate === null) {
+            $parts = explode('.', $host);
+            if (count($parts) > 2) {
+                $candidate = $parts[0];
+            }
+        }
+
+        if ($candidate === null || $candidate === '') {
+            return null;
+        }
+
+        if (str_contains($candidate, '.')) {
+            return null;
+        }
+
+        $reserved = ['www', 'app', 'api', 'admin', 'mail', 'ftp', 'cdn', 'static'];
+        if (in_array($candidate, $reserved, true)) {
+            return null;
+        }
+
+        return $candidate;
     }
 
     /**

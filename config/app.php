@@ -67,6 +67,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Facility tenant host (subdomain routing)
+    |--------------------------------------------------------------------------
+    |
+    | Set to the apex host you serve the app on (e.g. homelogic360.net). Requests
+    | to {slug}.homelogic360.net then resolve the facility by facilities.subdomain.
+    | For local dev with {slug}.localhost, set this to "localhost".
+    |
+    */
+
+    'facility_base_domain' => env('FACILITY_BASE_DOMAIN'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
     |

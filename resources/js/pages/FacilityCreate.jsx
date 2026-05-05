@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useToastContext } from '../contexts/ToastContext';
 import Tooltip from '../components/ui/Tooltip';
+import { getFacilityPortalUrlPreview } from '../utils/facilitySubdomain';
 
 const AVAILABLE_MODULES = [
     { key: 'pharmacy', name: 'Pharmacy' },
@@ -331,16 +332,22 @@ function BrandingTab() {
 
                     {/* Subdomain */}
                     <div>
-                        <label className="block text-sm font-medium text-gray-900 mb-1">Subdomain</label>
+                        <label className="block text-sm font-medium text-gray-900 mb-1">Facility web address (subdomain)</label>
                         <input
                             type="text"
                             value={formData.subdomain}
                             onChange={(e) => updateForm({ subdomain: e.target.value.replace(/[^a-z0-9-]/g, '').toLowerCase() })}
                             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent font-mono"
-                            placeholder="facility-name"
+                            placeholder="evergreen"
                         />
                         <p className="text-xs text-gray-500 mt-1">
-                            e.g., {formData.subdomain || 'facility-name'}.yourapp.com
+                            {(() => {
+                                const preview = getFacilityPortalUrlPreview(formData.subdomain);
+                                const host = typeof window !== 'undefined' ? window.location.hostname : 'your-domain.com';
+                                return preview
+                                    ? <>Sign-in URL: <span className="font-mono text-gray-800">{preview}</span></>
+                                    : <>e.g. <span className="font-mono">https://evergreen.{host}</span></>;
+                            })()}
                         </p>
                     </div>
                 </div>

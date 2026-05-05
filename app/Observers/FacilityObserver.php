@@ -5,7 +5,7 @@ namespace App\Observers;
 use App\Models\Facility;
 use App\Models\Notification;
 use App\Models\User;
-use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
 
 class FacilityObserver
 {
@@ -25,19 +25,38 @@ class FacilityObserver
             
             Notification::create([
                 'user_id' => $admin->id,
-                'facility_id' => $facility->facility_id ?? null,
-                'branch_id' => $facility->branch_id ?? $facility->assigned_branch_id ?? null,
+                'facility_id' => $facility->id,
+                'branch_id' => null,
                 'type' => 'facility_created',
                 'title' => 'New Facility Added',
                 'message' => "A new facility, {$facilityName}, has been added in {$location}",
                 'icon' => 'calendar',
                 'icon_color' => 'text-[#25603E]',
-                'action_url' => '/administration/facilities',
+                'action_url' => '/super-admin/facilities',
                 'metadata' => [
                     'facility_id' => $facility->id,
                 ],
             ]);
         }
+    }
+
+    /**
+     * Clear cached facility lookups when subdomain or identity changes.
+     */
+    public function updated(Facility $facility): void
+    {
+        $origSub = $facility->getOriginal('subdomain');
+        $sub = $facility->subdomain;
+        if ($origSub !== $sub) {
+            if ($origSub) {
+                Cache::forget("facility.subdomain.{$origSub}");
+            }
+            if ($sub) {
+                Cache::forget("facility.subdomain.{$sub}");
+            }
+        }
+
+        Cache::forget("facility.{$facility->id}");
     }
 }
 

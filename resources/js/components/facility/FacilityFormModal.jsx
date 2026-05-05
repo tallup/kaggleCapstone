@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import api from '../../services/api';
 import { getUserLocation } from '../../utils/location';
+import { slugifyFacilitySubdomain, getFacilityPortalUrlPreview } from '../../utils/facilitySubdomain';
 import Tooltip from '../ui/Tooltip';
 
 /**
@@ -78,6 +79,12 @@ export default function FacilityFormModal({
     const [activeTab, setActiveTab] = useState('basic');
     const [geocoding, setGeocoding] = useState(false);
     const [gettingLocation, setGettingLocation] = useState(false);
+    /** Once the user edits subdomain, stop auto-filling it from the facility name (create flow). */
+    const subdomainLockedRef = useRef(!!facility?.subdomain);
+
+    useEffect(() => {
+        subdomainLockedRef.current = !!facility?.subdomain;
+    }, [facility]);
 
     // Scroll to top when modal opens
     useEffect(() => {
@@ -90,8 +97,18 @@ export default function FacilityFormModal({
     }, [facility]);
 
     const handleChange = (field, value) => {
-        setFormData(prev => ({ ...prev, [field]: value }));
-        // Clear error for this field
+        if (field === 'subdomain') {
+            subdomainLockedRef.current = true;
+        }
+
+        setFormData(prev => {
+            const next = { ...prev, [field]: value };
+            if (field === 'name' && !isEditing && !subdomainLockedRef.current) {
+                next.subdomain = slugifyFacilitySubdomain(value);
+            }
+            return next;
+        });
+
         if (errors[field]) {
             setErrors(prev => {
                 const newErrors = { ...prev };
@@ -359,6 +376,9 @@ export default function FacilityFormModal({
 // Tab Components
 
 function BasicInfoTab({ formData, onChange, errors, isSuperAdmin }) {
+    const facilityUrlPreview = getFacilityPortalUrlPreview(formData.subdomain);
+    const hostDisplay = typeof window !== 'undefined' ? window.location.hostname : 'your-domain.com';
+
     return (
         <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -376,6 +396,49 @@ function BasicInfoTab({ formData, onChange, errors, isSuperAdmin }) {
                     />
                     {errors.name && <p className="text-xs text-red-600 mt-1">{errors.name}</p>}
                 </div>
+
+                {isSuperAdmin && (
+                    <div className="md:col-span-2 rounded-xl border border-emerald-200 bg-emerald-50/70 p-4 space-y-2">
+                        <label className="block text-sm font-medium text-gray-900 flex items-center gap-2">
+                            <Globe className="w-4 h-4 text-emerald-700" />
+                            Facility web address
+                        </label>
+                        <p className="text-xs text-gray-600">
+                            Each facility gets its own URL. Staff open this link to sign in (same app; facility is detected from the hostname).
+                        </p>
+                        <div className="flex flex-wrap items-center gap-x-1 gap-y-2 text-sm font-mono bg-white/80 rounded-lg border border-emerald-100 px-3 py-2">
+                            <span className="text-gray-500 select-none">https://</span>
+                            <input
+                                type="text"
+                                value={formData.subdomain}
+                                onChange={(e) => onChange('subdomain', e.target.value.replace(/[^a-z0-9-]/g, '').toLowerCase())}
+                                className={`min-w-[8rem] flex-1 max-w-xs border-0 bg-transparent p-0 font-semibold text-emerald-900 focus:ring-0 ${errors.subdomain ? 'text-red-700' : ''}`}
+                                placeholder="evergreen"
+                                autoComplete="off"
+                            />
+                            <span className="text-gray-500 select-none">.{hostDisplay}</span>
+                        </div>
+                        {facilityUrlPreview ? (
+                            <p className="text-xs text-emerald-900">
+                                Preview:{' '}
+                                <a
+                                    href={facilityUrlPreview}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="font-mono underline underline-offset-2 hover:text-emerald-950"
+                                >
+                                    {facilityUrlPreview}
+                                </a>
+                            </p>
+                        ) : null}
+                        <p className="text-xs text-gray-500">
+                            Lowercase letters, numbers, and hyphens only. On production, point a DNS wildcard record (e.g. *.homelogic360.net) to this server and set FACILITY_BASE_DOMAIN in <code className="text-[11px] bg-white/80 px-1 rounded">.env</code>.
+                        </p>
+                        {errors.subdomain && (
+                            <p className="text-xs text-red-600">{Array.isArray(errors.subdomain) ? errors.subdomain.join(', ') : errors.subdomain}</p>
+                        )}
+                    </div>
+                )}
 
                 <div>
                     <label className="block text-sm font-medium text-gray-900 mb-1">
@@ -652,24 +715,6 @@ function BrandingTab({ formData, onChange, errors, logoPreview, onLogoChange }) 
                         />
                     </div>
                 )}
-            </div>
-
-            {/* Subdomain */}
-            <div>
-                <label className="block text-sm font-medium text-gray-900 mb-1 flex items-center space-x-2">
-                    <Globe className="w-4 h-4" />
-                    <span>Subdomain</span>
-                </label>
-                <input
-                    type="text"
-                    value={formData.subdomain}
-                    onChange={(e) => onChange('subdomain', e.target.value.replace(/[^a-z0-9-]/g, '').toLowerCase())}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono"
-                    placeholder="facility-name"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                    {formData.subdomain || 'facility-name'}.yourapp.com
-                </p>
             </div>
 
             {/* Brand Colors */}
