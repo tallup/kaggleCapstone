@@ -440,7 +440,14 @@ class User extends Authenticatable implements FilamentUser
      */
     public function isAnyAdmin(): bool
     {
-        return $this->isFacilityAdministrator() || $this->isBranchAdmin();
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+
+        return $this->isFacilityAdministrator()
+            || $this->isBranchAdmin()
+            || $this->role === 'facility_admin'
+            || $this->role === 'manager';
     }
 
     public function getIsAnyAdminAttribute(): bool

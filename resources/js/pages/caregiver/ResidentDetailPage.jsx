@@ -26,7 +26,7 @@ import ResidentDocuments from '../../components/ResidentDocuments';
 import ResidentSafetyStrip from '../../components/residents/ResidentSafetyStrip';
 import ResidentStatusBadges from '../../components/residents/ResidentStatusBadges';
 import logger from '../../utils/logger';
-import { isCaregiverRole } from '../../utils/userRoles';
+import { canEditResidentCarePlan } from '../../utils/userRoles';
 import { formatPacificCalendarMedium, calculateAgeFromPacificBirthDate } from '../../utils/pacificTime';
 import { getResidentStatusSummary } from '../../utils/residentStatus';
 
@@ -149,7 +149,7 @@ export default function ResidentDetailPage() {
         },
     });
 
-    const canEditResident = !isCaregiverRole(currentUser?.role);
+    const canEditResident = canEditResidentCarePlan(currentUser);
 
     const { data, isLoading, error } = useQuery({
         queryKey: ['resident-detail', residentId],

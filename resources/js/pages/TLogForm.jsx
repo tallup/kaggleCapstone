@@ -27,7 +27,7 @@ const NOTIFICATION_LEVELS = [
     { value: 'urgent', label: 'Urgent' },
 ];
 
-export default function TLogForm({ tLog, onClose, onSuccess, inModal = false }) {
+export default function TLogForm({ tLog, onClose, onSuccess, inModal = false, initialResidentId = '' }) {
     const queryClient = useQueryClient();
     const [attachments, setAttachments] = useState([]);
     const [existingAttachments, setExistingAttachments] = useState([]);
@@ -35,7 +35,12 @@ export default function TLogForm({ tLog, onClose, onSuccess, inModal = false }) 
 
     const methods = useForm({
         defaultValues: {
-            resident_id: tLog?.resident_id || '',
+            resident_id:
+                tLog?.resident_id != null && tLog.resident_id !== ''
+                    ? String(tLog.resident_id)
+                    : initialResidentId != null && initialResidentId !== ''
+                      ? String(initialResidentId)
+                      : '',
             types: tLog?.types || [],
             notification_level: tLog?.notification_level || 'low',
             summary: tLog?.summary || '',
@@ -173,7 +178,7 @@ export default function TLogForm({ tLog, onClose, onSuccess, inModal = false }) 
         if (currentUser === undefined) {
             return;
         }
-        if (isCaregiver && tLog) {
+        if (isCaregiver && tLog?.id) {
             toast.error('You can add new progress notes or view existing ones, but not edit them.');
             onClose();
         }
@@ -281,7 +286,7 @@ export default function TLogForm({ tLog, onClose, onSuccess, inModal = false }) 
             }
         });
 
-        if (tLog) {
+        if (tLog?.id) {
             updateMutation.mutate({ id: tLog.id, data: formDataToSend });
         } else {
             createMutation.mutate(formDataToSend);
@@ -319,7 +324,7 @@ export default function TLogForm({ tLog, onClose, onSuccess, inModal = false }) 
                             </button>
                         </Tooltip>
                         <h2 className="text-xl font-semibold text-gray-900">
-                            {tLog ? 'Edit progress note' : 'New progress note'}
+                            {tLog?.id ? 'Edit progress note' : 'New progress note'}
                         </h2>
                     </div>
                     <Tooltip content="Close" position="bottom">
@@ -550,7 +555,7 @@ export default function TLogForm({ tLog, onClose, onSuccess, inModal = false }) 
                         >
                             {createMutation.isPending || updateMutation.isPending
                                 ? 'Saving...'
-                                : tLog
+                                : tLog?.id
                                 ? 'Update progress note'
                                 : 'Create progress note'}
                         </button>

@@ -29,9 +29,11 @@ import {
     TrendingUp,
     BarChart3,
     BookOpen,
+    Plus,
 } from 'lucide-react';
 import api from '../../services/api';
 import Assessments from '../Assessments';
+import TLogForm from '../TLogForm';
 import CaregiverResidentChart from './CaregiverResidentChart';
 import { hasModuleAccess } from '../../utils/moduleAccess';
 import {
@@ -42,8 +44,9 @@ import {
 import ResidentDocuments from '../../components/ResidentDocuments';
 import ResidentStatusBadges from '../../components/residents/ResidentStatusBadges';
 import ResidentStatusModal from '../../components/residents/ResidentStatusModal';
+import Modal from '../../components/ui/Modal';
 import logger from '../../utils/logger';
-import { isCaregiverRole } from '../../utils/userRoles';
+import { canEditResidentCarePlan, isCaregiverRole } from '../../utils/userRoles';
 import { getResidentStatusSummary } from '../../utils/residentStatus';
 
 // ─── Tab definitions (overview + merged hub-style sections) ─────────────────────────────────
@@ -398,7 +401,7 @@ export default function ResidentHubPage() {
                         medicationHubListPath={`/my-residents/${residentId}/medications/list`}
                     />
                 )}
-                {activeTab === 'notes'        && <NotesTab residentId={residentId} />}
+                {activeTab === 'notes'        && <NotesTab residentId={residentId} canAddProgressNotes={!isCaregiver} />}
                 {activeTab === 'care'         && <CarePlanTab resident={resident} residentId={residentId} currentUser={currentUser} />}
                 {activeTab === 'documents'    && <ResidentDocuments residentId={residentId} />}
                 {activeTab === 'vitals'       && <VitalsTab residentId={residentId} resident={resident} navigate={navigate} />}
@@ -572,8 +575,10 @@ function OverviewTab({ resident, residentId, navigate, setTab, medicationHubList
 
 // ─── Notes Tab ────────────────────────────────────────────────────────────────
 
-function NotesTab({ residentId }) {
+function NotesTab({ residentId, canAddProgressNotes = false }) {
     const [page, setPage] = React.useState(1);
+    const [showAddNoteModal, setShowAddNoteModal] = React.useState(false);
+    const queryClient = useQueryClient();
 
     const { data, isLoading } = useQuery({
         queryKey: ['hub-notes', residentId, page],
@@ -591,19 +596,52 @@ function NotesTab({ residentId }) {
     if (isLoading) return <TabSkeleton rows={5} />;
 
     return (
+        <>
+            <Modal
+                isOpen={showAddNoteModal}
+                onClose={() => setShowAddNoteModal(false)}
+                title="New progress note"
+                size="xl"
+            >
+                <TLogForm
+                    key={showAddNoteModal ? `hub-note-${residentId}` : 'closed'}
+                    tLog={null}
+                    initialResidentId={residentId}
+                    inModal
+                    onClose={() => setShowAddNoteModal(false)}
+                    onSuccess={() => {
+                        queryClient.invalidateQueries({ queryKey: ['hub-notes', residentId] });
+                        queryClient.invalidateQueries({ queryKey: ['t-logs'] });
+                        queryClient.invalidateQueries({ queryKey: ['resident-t-logs', residentId] });
+                        setShowAddNoteModal(false);
+                    }}
+                />
+            </Modal>
         <div className="space-y-4">
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-                <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+                <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-b border-gray-100">
                     <div className="flex items-center gap-2">
                         <FileText className="w-4 h-4 text-[var(--theme-primary)]" aria-hidden="true" />
                         <h3 className="text-sm font-bold text-gray-900">Progress Notes / T-Logs</h3>
                     </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                        {canAddProgressNotes && (
+                            <button
+                                type="button"
+                                onClick={() => setShowAddNoteModal(true)}
+                                className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--theme-primary)] px-3 py-1.5 text-xs font-semibold text-[var(--theme-text-on-primary)] shadow-sm hover:bg-[var(--theme-primary-hover)] transition-colors"
+                            >
+                                <Plus className="w-3.5 h-3.5" aria-hidden="true" />
+                                Add progress note
+                            </button>
+                        )}
                     <Link
                         to={`/t-logs?resident_id=${residentId}`}
                         className="text-xs font-semibold text-[var(--theme-primary)] hover:underline"
                     >
                         Open Full View →
                     </Link>
+                    </div>
                 </div>
 
                 {notes.length === 0 ? (
@@ -611,6 +649,16 @@ function NotesTab({ residentId }) {
                         <FileText className="w-10 h-10 text-gray-200 mb-3" aria-hidden="true" />
                         <p className="text-sm font-semibold text-gray-900">No notes recorded</p>
                         <p className="text-xs text-gray-400 mt-1">Progress notes for this resident will appear here.</p>
+                        {canAddProgressNotes && (
+                            <button
+                                type="button"
+                                onClick={() => setShowAddNoteModal(true)}
+                                className="mt-4 inline-flex items-center gap-2 rounded-lg border-2 border-[var(--theme-primary)] bg-[var(--theme-primary)] px-4 py-2 text-sm font-semibold text-[var(--theme-text-on-primary)] hover:bg-[var(--theme-primary-hover)] transition-colors shadow-sm"
+                            >
+                                <Plus className="w-4 h-4" aria-hidden="true" />
+                                Add progress note
+                            </button>
+                        )}
                     </div>
                 ) : (
                     <ul className="divide-y divide-gray-50">
@@ -649,6 +697,7 @@ function NotesTab({ residentId }) {
                 )}
             </div>
         </div>
+        </>
     );
 }
 
@@ -656,7 +705,7 @@ function NotesTab({ residentId }) {
 
 function CarePlanTab({ resident, residentId, currentUser }) {
     const queryClient = useQueryClient();
-    const canEdit = !isCaregiverRole(currentUser?.role);
+    const canEdit = canEditResidentCarePlan(currentUser);
     const [editing, setEditing] = React.useState(false);
     const [form, setForm] = React.useState({
         care_plan: resident?.care_plan || '',
@@ -691,6 +740,11 @@ function CarePlanTab({ resident, residentId, currentUser }) {
         { key: 'notes', label: 'Additional Notes', rows: 3 },
     ];
 
+    const carePlanEmpty =
+        !(resident?.care_plan || '').trim() &&
+        !(resident?.special_instructions || '').trim() &&
+        !(resident?.notes || '').trim();
+
     return (
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
@@ -699,8 +753,13 @@ function CarePlanTab({ resident, residentId, currentUser }) {
                     <h3 className="text-sm font-bold text-gray-900">Care Plan</h3>
                 </div>
                 {canEdit && !editing && (
-                    <button type="button" onClick={() => setEditing(true)} className="inline-flex items-center gap-1.5 text-xs font-bold text-[var(--theme-primary)] hover:underline">
-                        <Edit className="w-3.5 h-3.5" /> Edit
+                    <button
+                        type="button"
+                        onClick={() => setEditing(true)}
+                        className="inline-flex items-center gap-2 rounded-lg border border-[var(--theme-primary)] bg-[var(--theme-primary)] px-3 py-1.5 text-xs font-bold text-[var(--theme-text-on-primary)] hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--theme-primary)] focus-visible:ring-offset-2"
+                    >
+                        <Edit className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                        {carePlanEmpty ? 'Add care plan' : 'Edit care plan'}
                     </button>
                 )}
             </div>
