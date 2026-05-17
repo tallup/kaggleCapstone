@@ -27,6 +27,10 @@ use App\Http\Controllers\Api\ExpenseController;
 use App\Http\Controllers\Api\ExpenseReportController;
 use App\Http\Controllers\Api\FacilityController;
 use App\Http\Controllers\Api\FacilitySettingsController;
+use App\Http\Controllers\Api\FaxContactController;
+use App\Http\Controllers\Api\FaxController;
+use App\Http\Controllers\Api\FaxNumberController;
+use App\Http\Controllers\Api\FaxSettingsController;
 use App\Http\Controllers\Api\GeocodingController;
 use App\Http\Controllers\Api\HousekeepingReportController;
 use App\Http\Controllers\Api\IncidentHistoryReportController;
@@ -57,6 +61,9 @@ use App\Http\Controllers\Api\VisitorController;
 use App\Http\Controllers\Api\VitalRangeController;
 use App\Http\Controllers\Api\VitalSignController;
 use App\Http\Controllers\Api\VitalsLogReportController;
+use App\Http\Controllers\Webhook\DocumoFaxWebhookController;
+use App\Http\Controllers\Webhook\FakeFaxWebhookController;
+use App\Http\Controllers\Webhook\TelnyxFaxWebhookController;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Session\Middleware\StartSession;
@@ -201,6 +208,8 @@ Route::prefix('v1')->middleware([\App\Http\Middleware\SetFacilityContext::class]
     Route::post('/medication-administrations/mark-missed', [MedicationAdministrationController::class, 'markMissed'])->middleware('auth:sanctum');
     Route::post('/medication-administrations/bulk', [MedicationAdministrationController::class, 'bulkStore'])->middleware('auth:sanctum');
     Route::post('/medication-administrations/bulk-delete', [MedicationAdministrationController::class, 'bulkDestroy'])->middleware('auth:sanctum');
+    // Administrator-only: flip a missed dose to administered, preserving the originally scheduled time
+    Route::patch('/medication-administrations/{id}/mark-administered', [MedicationAdministrationController::class, 'markAdministered'])->middleware('auth:sanctum');
     Route::apiResource('medication-administrations', MedicationAdministrationController::class)->middleware('auth:sanctum');
 
     // Medication Deliveries
@@ -481,9 +490,47 @@ Route::prefix('v1')->middleware([\App\Http\Middleware\SetFacilityContext::class]
     Route::get('/resident-charts/{resident}/pending', [ResidentChartController::class, 'pending'])->middleware('auth:sanctum');
     Route::get('/resident-charts/{resident}/history', [ResidentChartController::class, 'history'])->middleware('auth:sanctum');
 
+    // Fax module
+    Route::prefix('fax')->middleware('auth:sanctum')->group(function () {
+        Route::get('/providers', [FaxSettingsController::class, 'providers']);
+        Route::get('/settings', [FaxSettingsController::class, 'show']);
+        Route::put('/settings', [FaxSettingsController::class, 'update']);
+        Route::post('/settings/test-connection', [FaxSettingsController::class, 'testConnection']);
+        Route::get('/settings/webhook-url', [FaxSettingsController::class, 'webhookUrl']);
+        Route::post('/settings/rotate-webhook', [FaxSettingsController::class, 'rotateWebhook']);
+
+        Route::apiResource('contacts', FaxContactController::class);
+
+        Route::get('/numbers', [FaxNumberController::class, 'index']);
+        Route::post('/numbers/search', [FaxNumberController::class, 'search']);
+        Route::post('/numbers', [FaxNumberController::class, 'store']);
+        Route::patch('/numbers/{id}', [FaxNumberController::class, 'update']);
+        Route::delete('/numbers/{id}', [FaxNumberController::class, 'destroy']);
+
+        // Specific routes BEFORE the catch-all "/{id}" so they don't get
+        // swallowed by the wildcard.
+        Route::get('/cost-summary', [FaxController::class, 'costSummary']);
+        Route::post('/send', [FaxController::class, 'send']);
+        Route::get('/', [FaxController::class, 'index']);
+        Route::get('/{id}', [FaxController::class, 'show'])->whereNumber('id');
+        Route::get('/{id}/download', [FaxController::class, 'download'])->whereNumber('id');
+        Route::post('/{id}/retry', [FaxController::class, 'retry'])->whereNumber('id');
+        Route::post('/{id}/attach-resident', [FaxController::class, 'attachResident'])->whereNumber('id');
+        Route::delete('/{id}', [FaxController::class, 'destroy'])->whereNumber('id');
+    });
+
     // Broadcasting authentication (same as /user: no SetFacilityContext — auth runs cleanly for Sanctum)
     Route::post('/broadcasting/auth', function () {
         return \Illuminate\Support\Facades\Broadcast::auth(request());
     })->middleware('auth:sanctum')
         ->withoutMiddleware([\App\Http\Middleware\SetFacilityContext::class]);
 });
+
+// Public per-facility fax webhook endpoints. These MUST stay outside the
+// auth:sanctum group AND outside the SetFacilityContext middleware group
+// (no authenticated user exists on a webhook). Each controller looks up
+// the facility from the URL secret and verifies the provider signature
+// before doing anything else.
+Route::post('/webhooks/fax/telnyx/{secret}', TelnyxFaxWebhookController::class);
+Route::post('/webhooks/fax/documo/{secret}', DocumoFaxWebhookController::class);
+Route::post('/webhooks/fax/fake/{secret}', FakeFaxWebhookController::class);

@@ -4,8 +4,9 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Lock, Mail, Eye, EyeOff, ShieldCheck, ClipboardList, Clock, Home } from 'lucide-react';
 import { toast } from 'sonner';
 import api, { storeAuthToken } from '../services/api';
-import { clearCachedCurrentUser, currentUserQueryOptions } from '../queries/currentUser';
+import { clearCachedCurrentUser, currentUserQueryOptions, persistFacilityBranding } from '../queries/currentUser';
 import { dashboardStatsQueryOptions } from '../queries/dashboardStats';
+import { applyThemeCssVariables } from '../hooks/useThemeVariables';
 import { useAnimateOnMount } from '../hooks/useAnimateOnMount';
 import { slideInLeft, slideInRight, fadeIn, shake, shouldAnimate } from '../utils/animationPresets';
 import { getUserLocation, formatDistance } from '../utils/location';
@@ -176,6 +177,22 @@ export default function Login() {
             if (token) {
                 storeAuthToken(token);
                 clearCachedCurrentUser(queryClient);
+
+                // Use facility_branding from the login response to seed the theme BEFORE the
+                // in-flight GET /user resolves. Without this, ThemeWrapper's stash fallback
+                // returns null during the in-flight window and applies the default HomeLogic360
+                // palette (dark blue #1E3A5F), which then races React's render/commit and can
+                // remain visible on the dashboard's first paint until a manual refresh.
+                const loginUser = response.data?.user;
+                const loginBranding =
+                    loginUser && loginUser.role !== 'super_admin' && loginUser.facility_branding
+                        ? loginUser.facility_branding
+                        : null;
+                if (loginBranding) {
+                    persistFacilityBranding(loginBranding);
+                    applyThemeCssVariables(loginBranding);
+                }
+
                 // Must fetch GET /user here — do not setQueryData from the login payload alone.
                 // Seeding the cache makes prefetchQuery/fetchQuery skip the network request while
                 // data looks "fresh", so facility_branding / theme never updates until a full reload.

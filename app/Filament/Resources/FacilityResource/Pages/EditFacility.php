@@ -4,8 +4,8 @@ namespace App\Filament\Resources\FacilityResource\Pages;
 
 use App\Filament\Resources\FacilityResource;
 use Filament\Actions;
-use Filament\Resources\Pages\EditRecord;
 use Filament\Notifications\Notification;
+use Filament\Resources\Pages\EditRecord;
 
 class EditFacility extends EditRecord
 {
@@ -14,10 +14,10 @@ class EditFacility extends EditRecord
     /**
      * Mount the page with the record
      */
-    public function mount(int | string $record): void
+    public function mount(int|string $record): void
     {
         parent::mount($record);
-        
+
         // Load the owner relationship
         $this->record->load('owner');
     }
@@ -34,7 +34,7 @@ class EditFacility extends EditRecord
                 ->color('gray')
                 ->url(fn () => static::getResource()::getUrl('index'))
                 ->tooltip('Return to facilities list'),
-            
+
             Actions\DeleteAction::make()
                 ->label('Delete Facility')
                 ->icon('heroicon-o-trash')
@@ -55,8 +55,30 @@ class EditFacility extends EditRecord
         unset($data['enabled_modules']);
         // Keep owner fields for afterSave() to process if creating new owner
         // unset($data['owner_name'], $data['owner_email'], $data['owner_role'], $data['owner_password']);
-        
+
+        // Fax tab fields are persisted to the fax_settings table by
+        // afterSave(); strip them out so they don't reach the facilities
+        // table on update.
+        unset(
+            $data['fax_provider'],
+            $data['fax_credentials'],
+            $data['fax_credentials_preconfigured'],
+            $data['fax_cost_per_page_cents'],
+            $data['fax_max_file_mb'],
+            $data['fax_retention_days'],
+            $data['fax_is_active'],
+        );
+
         return $data;
+    }
+
+    /**
+     * Pre-populate the form with the facility's existing FaxSetting (if any)
+     * so the Fax tab reflects what's currently saved.
+     */
+    protected function mutateFormDataBeforeFill(array $data): array
+    {
+        return FacilityResource::hydrateFaxFormData($data, $this->record);
     }
 
     /**
@@ -65,45 +87,50 @@ class EditFacility extends EditRecord
     protected function afterSave(): void
     {
         $formData = $this->form->getState();
-        
+
+        // Fax settings — only super_admin sees the tab, but the persist
+        // helper short-circuits when no fax_* keys are present, so this
+        // is safe for everyone.
+        FacilityResource::persistFaxFormData($this->record, $formData);
+
         // Get current and previous module states
         $enabledModules = $formData['enabled_modules'] ?? [];
         $allModules = array_keys(\App\Constants\Modules::all());
-        
+
         $enabledCount = 0;
         $disabledCount = 0;
         $changedModules = [];
-        
+
         foreach ($allModules as $module) {
             $wasEnabled = $this->record->hasModuleAccess($module);
             $isEnabled = in_array($module, $enabledModules);
-            
+
             if ($isEnabled) {
                 $this->record->enableModule($module);
                 $enabledCount++;
-                
-                if (!$wasEnabled) {
-                    $changedModules[] = \App\Constants\Modules::getDisplayName($module) . ' (enabled)';
+
+                if (! $wasEnabled) {
+                    $changedModules[] = \App\Constants\Modules::getDisplayName($module).' (enabled)';
                 }
             } else {
                 $this->record->disableModule($module);
                 $disabledCount++;
-                
+
                 if ($wasEnabled) {
-                    $changedModules[] = \App\Constants\Modules::getDisplayName($module) . ' (disabled)';
+                    $changedModules[] = \App\Constants\Modules::getDisplayName($module).' (disabled)';
                 }
             }
         }
 
         // Create owner account if provided and facility doesn't have one
-        if (!$this->record->owner && 
-            !empty($formData['owner_email']) && 
-            !empty($formData['owner_name']) && 
-            !empty($formData['owner_password'])) {
-            
+        if (! $this->record->owner &&
+            ! empty($formData['owner_email']) &&
+            ! empty($formData['owner_name']) &&
+            ! empty($formData['owner_password'])) {
+
             // Get or create initial branch
             $branch = $this->record->branches()->first();
-            if (!$branch) {
+            if (! $branch) {
                 $branch = $this->record->branches()->create([
                     'name' => 'Main Branch',
                     'address' => $this->record->address,
@@ -130,9 +157,9 @@ class EditFacility extends EditRecord
 
         // Send detailed success notification
         $body = "**{$this->record->name}** has been updated with {$enabledCount} module(s) enabled.";
-        
-        if (!empty($changedModules)) {
-            $body .= "\n\n**Module Changes:**\n" . implode("\n", array_map(fn($m) => "• {$m}", $changedModules));
+
+        if (! empty($changedModules)) {
+            $body .= "\n\n**Module Changes:**\n".implode("\n", array_map(fn ($m) => "• {$m}", $changedModules));
         }
 
         Notification::make()
@@ -160,7 +187,7 @@ class EditFacility extends EditRecord
                 ->modalSubmitActionLabel('Yes, Save Changes')
                 ->modalIcon('heroicon-o-building-office')
                 ->successNotificationTitle('Changes saved successfully!'),
-            
+
             Actions\Action::make('cancel')
                 ->label('Cancel')
                 ->color('gray')
@@ -187,7 +214,7 @@ class EditFacility extends EditRecord
      */
     public function getHeading(): string
     {
-        return 'Edit Facility: ' . $this->record->name;
+        return 'Edit Facility: '.$this->record->name;
     }
 
     /**
@@ -197,7 +224,7 @@ class EditFacility extends EditRecord
     {
         $branchCount = $this->record->branches()->count();
         $userCount = $this->record->users()->count();
-        
+
         return "Manage facility settings and module access. This facility has {$branchCount} branch(es) and {$userCount} user(s).";
     }
 }

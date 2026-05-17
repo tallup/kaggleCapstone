@@ -5,22 +5,40 @@ namespace App\Constants;
 class Modules
 {
     public const PHARMACY = 'pharmacy';
+
     public const MEDICATIONS = 'medications';
+
     public const VITALS = 'vitals';
+
     public const APPOINTMENTS = 'appointments';
+
     public const ASSESSMENTS = 'assessments';
+
     public const SLEEP = 'sleep';
+
     public const HOUSEKEEPING = 'housekeeping';
+
     public const REPORTS = 'reports';
+
     public const RESIDENTS = 'residents';
+
     public const BEHAVIORS = 'behaviors';
+
     public const INCIDENTS = 'incidents';
+
     public const LEAVE_REQUESTS = 'leave_requests';
+
     public const EMPLOYEE_DOCUMENTS = 'employee_documents';
+
     public const GROCERY_STATUS = 'grocery_status';
+
     public const FIRE_DRILLS = 'fire_drills';
+
     public const BILLING_EXPENSES = 'billing_expenses';
+
     public const STAFF_SCHEDULING = 'staff_scheduling';
+
+    public const FAX = 'fax';
 
     /**
      * Get all available modules
@@ -45,6 +63,7 @@ class Modules
             self::FIRE_DRILLS => 'Fire Drills',
             self::BILLING_EXPENSES => 'Billing & Expenses',
             self::STAFF_SCHEDULING => 'Staff Scheduling',
+            self::FAX => 'Fax',
         ];
     }
 
@@ -64,4 +83,3 @@ class Modules
         return array_key_exists($module, self::all());
     }
 }
-

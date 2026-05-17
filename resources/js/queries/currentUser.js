@@ -21,9 +21,34 @@ export const CURRENT_USER_STALE_MS = 3 * 60 * 1000;
  * After login, use `queryClient.fetchQuery(currentUserQueryOptions)` — not `setQueryData` from
  * the login JSON — so the next request always runs GET /user; otherwise React Query can skip
  * the network (cache looks fresh) and facility branding / theme stay wrong until reload.
+ *
+ * Note: this no longer touches the facility branding sessionStorage stash. Stash lifecycle is
+ * owned by login (writes via `persistFacilityBranding`) and logout (`clearFacilityBrandingStash`)
+ * so the in-flight window between cache clear and the new /user response can still render with
+ * the correct facility theme instead of flashing the default HomeLogic palette.
  */
 export function clearCachedCurrentUser(queryClient) {
     queryClient.removeQueries({ queryKey: CURRENT_USER_QUERY_KEY });
+}
+
+/**
+ * Write a facility branding object into sessionStorage so ThemeWrapper's stash fallback can
+ * render with the correct colors while GET /user is in flight (e.g. immediately after login).
+ */
+export function persistFacilityBranding(branding) {
+    if (!branding || typeof branding !== 'object') return;
+    try {
+        sessionStorage.setItem(FACILITY_BRANDING_SESSION_KEY, JSON.stringify(branding));
+    } catch (e) {
+        /* ignore */
+    }
+}
+
+/**
+ * Remove any stashed facility branding. Called on explicit logout so the next user does not
+ * briefly see the previous facility's theme.
+ */
+export function clearFacilityBrandingStash() {
     try {
         sessionStorage.removeItem(FACILITY_BRANDING_SESSION_KEY);
     } catch (e) {
@@ -34,19 +59,11 @@ export function clearCachedCurrentUser(queryClient) {
 function persistFacilityBrandingFromUserPayload(data) {
     if (!data) return;
     if (data.role === 'super_admin') {
-        try {
-            sessionStorage.removeItem(FACILITY_BRANDING_SESSION_KEY);
-        } catch (e) {
-            /* ignore */
-        }
+        clearFacilityBrandingStash();
         return;
     }
     if (data.facility_branding && typeof data.facility_branding === 'object') {
-        try {
-            sessionStorage.setItem(FACILITY_BRANDING_SESSION_KEY, JSON.stringify(data.facility_branding));
-        } catch (e) {
-            /* ignore */
-        }
+        persistFacilityBranding(data.facility_branding);
     }
 }
 

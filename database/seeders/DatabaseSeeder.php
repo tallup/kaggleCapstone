@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -19,8 +18,9 @@ class DatabaseSeeder extends Seeder
         $this->call([
             CompleteDatabaseSeeder::class,
             FacilitySettingsSeeder::class,
+            FaxModuleSeeder::class,
         ]);
-        
+
         // Alternative: Use ComprehensiveSeeder for development (creates more test data)
         // $this->call([
         //     UnifiedProductionSeeder::class,

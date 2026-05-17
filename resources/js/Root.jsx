@@ -284,6 +284,16 @@ const Documentation = lazyWithRetry(() => import('./pages/public/Documentation')
 const Blog = lazyWithRetry(() => import('./pages/public/Blog'));
 const BlogPost = lazyWithRetry(() => import('./pages/public/BlogPost'));
 
+// Fax module
+const FaxSectionLayout = lazyWithRetry(() => import('./pages/fax/FaxSectionLayout'));
+const FaxHubPage = lazyWithRetry(() => import('./pages/fax/FaxHubPage'));
+const FaxSentPage = lazyWithRetry(() => import('./pages/fax/FaxSentPage'));
+const FaxInboxPage = lazyWithRetry(() => import('./pages/fax/FaxInboxPage'));
+const FaxComposePage = lazyWithRetry(() => import('./pages/fax/FaxComposePage'));
+const FaxContactsPage = lazyWithRetry(() => import('./pages/fax/FaxContactsPage'));
+const FaxNumbersPage = lazyWithRetry(() => import('./pages/fax/FaxNumbersPage'));
+const FaxSettingsPage = lazyWithRetry(() => import('./pages/fax/FaxSettingsPage'));
+
 function App() {
     // Make toast available globally for backward compatibility
     useEffect(() => {
@@ -449,6 +459,17 @@ function App() {
                     <Route path="visitors/view-all" element={<Suspense fallback={<PageLoader />}><VisitorsView /></Suspense>} />
                 </Route>
                 
+                {/* ── Fax section (persistent tab bar) ─────────────────────── */}
+                <Route element={<Suspense fallback={<PageLoader />}><FaxSectionLayout /></Suspense>}>
+                    <Route path="fax"          element={<Suspense fallback={<PageLoader />}><ModuleProtectedRoute module="fax"><FaxHubPage /></ModuleProtectedRoute></Suspense>} />
+                    <Route path="fax/sent"     element={<Suspense fallback={<PageLoader />}><ModuleProtectedRoute module="fax"><FaxSentPage /></ModuleProtectedRoute></Suspense>} />
+                    <Route path="fax/inbox"    element={<Suspense fallback={<PageLoader />}><ModuleProtectedRoute module="fax"><FaxInboxPage /></ModuleProtectedRoute></Suspense>} />
+                    <Route path="fax/compose"  element={<Suspense fallback={<PageLoader />}><ModuleProtectedRoute module="fax"><FaxComposePage /></ModuleProtectedRoute></Suspense>} />
+                    <Route path="fax/contacts" element={<Suspense fallback={<PageLoader />}><ModuleProtectedRoute module="fax"><FaxContactsPage /></ModuleProtectedRoute></Suspense>} />
+                    <Route path="fax/numbers"  element={<Suspense fallback={<PageLoader />}><ModuleProtectedRoute module="fax"><FaxNumbersPage /></ModuleProtectedRoute></Suspense>} />
+                    <Route path="fax/settings" element={<Suspense fallback={<PageLoader />}><ModuleProtectedRoute module="fax"><FaxSettingsPage /></ModuleProtectedRoute></Suspense>} />
+                </Route>
+
                 {/* ── Organization (facility structure & clinical reference data) ── */}
                 <Route element={<Suspense fallback={<PageLoader />}><OrganizationSectionLayout /></Suspense>}>
                     <Route path="organization" element={<Suspense fallback={<PageLoader />}><OrganizationHubPage /></Suspense>} />

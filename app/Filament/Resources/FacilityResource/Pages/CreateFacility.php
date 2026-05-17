@@ -6,8 +6,8 @@ use App\Filament\Resources\FacilityResource;
 use App\Mail\WelcomeToFacilityNotification;
 use App\Services\MailConfigurationService;
 use Filament\Actions;
-use Filament\Resources\Pages\CreateRecord;
 use Filament\Notifications\Notification;
+use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
@@ -37,15 +37,26 @@ class CreateFacility extends CreateRecord
         // Set default values for new facilities
         $data['is_active'] = $data['is_active'] ?? true;
         $data['brochure_color'] = $data['brochure_color'] ?? 'blue';
-        
+
         // Set the registered_by_user_id to current user (will be updated if owner is created)
         $data['registered_by_user_id'] = auth()->id();
-        
+
         // Remove enabled_modules and owner account fields from data as they're not database fields
         unset($data['enabled_modules']);
         // Keep owner fields for afterCreate() to process
         // unset($data['owner_name'], $data['owner_email'], $data['owner_role'], $data['owner_password']);
-        
+
+        // Fax tab fields are persisted to fax_settings in afterCreate().
+        unset(
+            $data['fax_provider'],
+            $data['fax_credentials'],
+            $data['fax_credentials_preconfigured'],
+            $data['fax_cost_per_page_cents'],
+            $data['fax_max_file_mb'],
+            $data['fax_retention_days'],
+            $data['fax_is_active'],
+        );
+
         return $data;
     }
 
@@ -55,11 +66,15 @@ class CreateFacility extends CreateRecord
     protected function afterCreate(): void
     {
         $formData = $this->form->getState();
-        
+
+        // Fax settings tab (super_admin only) — short-circuits when no
+        // fax_* keys are present.
+        FacilityResource::persistFaxFormData($this->record, $formData);
+
         // Sync modules after facility is created
         $enabledModules = $formData['enabled_modules'] ?? [];
         $allModules = array_keys(\App\Constants\Modules::all());
-        
+
         $enabledCount = 0;
         foreach ($allModules as $module) {
             if (in_array($module, $enabledModules)) {
@@ -72,7 +87,7 @@ class CreateFacility extends CreateRecord
 
         // Create owner account if provided
         $owner = null;
-        if (!empty($formData['owner_email']) && !empty($formData['owner_name']) && !empty($formData['owner_password'])) {
+        if (! empty($formData['owner_email']) && ! empty($formData['owner_name']) && ! empty($formData['owner_password'])) {
             // Create initial branch first
             $branch = $this->record->branches()->create([
                 'name' => 'Main Branch',
@@ -100,15 +115,15 @@ class CreateFacility extends CreateRecord
             if ($owner->email) {
                 try {
                     $mailConfigService = app(MailConfigurationService::class);
-                    
+
                     // Configure mail for facility
                     $mailConfigService->configureForFacility($this->record);
-                    
+
                     // Send welcome email with temporary password
                     Mail::to($owner->email)->send(
                         new WelcomeToFacilityNotification($owner, $this->record, $branch, $formData['owner_password'])
                     );
-                    
+
                     Log::info('Welcome email sent to facility owner', [
                         'user_id' => $owner->id,
                         'email' => $owner->email,
@@ -157,12 +172,12 @@ class CreateFacility extends CreateRecord
                 ->modalSubmitActionLabel('Yes, Create Facility')
                 ->modalIcon('heroicon-o-building-office')
                 ->successNotificationTitle('Facility created successfully!'),
-            
+
             $this->getCreateAnotherFormAction()
                 ->label('Create & Create Another')
                 ->icon('heroicon-o-plus')
                 ->color('gray'),
-            
+
             Actions\Action::make('cancel')
                 ->label('Cancel')
                 ->color('gray')

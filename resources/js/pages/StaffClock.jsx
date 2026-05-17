@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api, { clearStoredAuth } from '../services/api';
-import { clearCachedCurrentUser } from '../queries/currentUser';
+import { clearCachedCurrentUser, clearFacilityBrandingStash } from '../queries/currentUser';
 import { Clock, MapPin, CheckCircle, AlertCircle, TrendingUp } from 'lucide-react';
 import { getUserLocation } from '../utils/location';
 import SectionCard from '../components/SectionCard';
@@ -120,6 +120,7 @@ export default function StaffClock() {
             } finally {
                 clearCachedCurrentUser(queryClient);
                 clearStoredAuth();
+                clearFacilityBrandingStash();
                 window.location.href = '/login';
             }
         },

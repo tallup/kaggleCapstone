@@ -60,7 +60,7 @@ import {
 import logger from '../utils/logger';
 import { useUserNotifications, useFacilityUpdates } from '../hooks/useRealtimeUpdates';
 import { reconnectEcho } from '../services/echo';
-import { currentUserQueryOptions } from '../queries/currentUser';
+import { currentUserQueryOptions, clearFacilityBrandingStash } from '../queries/currentUser';
 
 // Isolated clock component — prevents 1-second re-renders from propagating to the entire Layout tree
 function LiveClock({ serverTime, timezoneOffset }) {
@@ -93,7 +93,7 @@ const superAdminNavigation = [
 const HUB_SECTION = 'Hubs';
 
 const OPERATIONS_HUB_PREFIXES = ['/housekeeping', '/grocery-status', '/fire-drills', '/incidents', '/leave-requests'];
-const MANAGEMENT_HUB_PREFIXES = ['/pharmacy', '/billing', '/check-in-dashboard', '/staff', '/visitors', '/residents/sign-out', '/residents/sign-outs', '/document-library'];
+const MANAGEMENT_HUB_PREFIXES = ['/pharmacy', '/billing', '/check-in-dashboard', '/staff', '/visitors', '/residents/sign-out', '/residents/sign-outs', '/document-library', '/fax'];
 const ORGANIZATION_HUB_PREFIXES = ['/organization'];
 const TEAM_HUB_PREFIXES = ['/team'];
 const SYSTEM_HUB_PREFIXES = ['/administration'];
@@ -225,6 +225,7 @@ export default function Layout() {
                 logger.error('Automatic logout error:', err);
             } finally {
                 clearStoredAuth();
+                clearFacilityBrandingStash();
                 sessionStorage.setItem('session_expired', '1');
                 window.location.href = '/login?reason=session-expired';
             }
@@ -711,6 +712,7 @@ export default function Layout() {
                                             logger.error('Logout error:', err);
                                         } finally {
                                             clearStoredAuth();
+                                            clearFacilityBrandingStash();
                                             window.location.href = '/login';
                                         }
                                     }}

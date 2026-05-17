@@ -7,6 +7,7 @@ import {
     Clock,
     ArrowRight,
     Files,
+    Printer,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import ScrollReveal from '../../components/ui/ScrollReveal';
@@ -44,6 +45,15 @@ const TILES = [
         path: '/document-library',
         accent: 'text-indigo-600',
         bg: 'bg-indigo-50',
+    },
+    {
+        id: 'fax',
+        title: 'Fax',
+        description: 'Send and receive faxes to pharmacies, physicians, and agencies.',
+        icon: Printer,
+        path: '/fax',
+        accent: 'text-purple-600',
+        bg: 'bg-purple-50',
     },
     {
         id: 'check-in',

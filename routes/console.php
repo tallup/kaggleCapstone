@@ -32,3 +32,6 @@ Schedule::command('database:backup --scheduled')
     ->dailyAt(config('backup.scheduled_time', '02:00'))
     ->when(fn () => (bool) config('backup.scheduled_enabled', true))
     ->withoutOverlapping(120);
+
+// Fax: delete PDFs + rows past each facility's retention window.
+Schedule::command('fax:purge')->dailyAt('03:30')->withoutOverlapping();

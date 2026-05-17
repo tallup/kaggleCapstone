@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api, { clearStoredAuth } from '../services/api';
 import {
     clearCachedCurrentUser,
+    clearFacilityBrandingStash,
     CURRENT_USER_QUERY_KEY,
     currentUserQueryOptions,
 } from '../queries/currentUser';
@@ -258,6 +259,7 @@ export default function CheckInDashboard() {
                 } finally {
                     clearCachedCurrentUser(queryClient);
                     clearStoredAuth();
+                    clearFacilityBrandingStash();
                     window.location.href = '/login';
                 }
                 return;
