@@ -1542,10 +1542,10 @@ function MedicationTimeBadges({
                                     timeLabel: timeStr,
                                     scheduledAt: admin.administered_at,
                                 })}
-                                className="inline-flex items-center gap-1 px-2 py-1 rounded border border-emerald-300 bg-emerald-50 text-[11px] font-bold text-emerald-700 hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                                className="inline-flex shrink-0 items-center gap-0.5 rounded-md border border-emerald-800/25 bg-white px-1.5 py-0.5 text-[10px] font-semibold leading-none !text-emerald-950 shadow-sm ring-1 ring-emerald-950/[0.06] transition-colors hover:border-emerald-800/40 hover:bg-emerald-50/80 hover:shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-1 active:scale-[0.98] [&_svg]:size-2.5 [&_svg]:shrink-0 [&_svg]:!text-emerald-800"
                                 title="Document this dose as administered (facility administrator only)"
                             >
-                                <CheckCircle className="w-3 h-3" aria-hidden="true" />
+                                <CheckCircle aria-hidden="true" />
                                 Mark administered
                             </button>
                         ) : null}

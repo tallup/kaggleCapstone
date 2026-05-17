@@ -107,8 +107,11 @@ class FaxSettingsController extends BaseApiController
             return $this->error('Credential validation failed.', 422, ['credentials' => $schemaErrors]);
         }
 
+        $choice = $validated['provider'];
+        $canonical = $registry->canonicalKey($choice);
+
         // Hard gate: must pass a live testConnection() before we persist.
-        $result = app(FaxManager::class)->testCredentials($validated['provider'], $mergedCreds);
+        $result = app(FaxManager::class)->testCredentials($choice, $mergedCreds);
         if (! $result->ok) {
             return $this->error(
                 'Provider rejected the credentials. Connection test failed.',
@@ -117,7 +120,8 @@ class FaxSettingsController extends BaseApiController
             );
         }
 
-        $settings->provider = $validated['provider'];
+        $settings->provider = $canonical;
+        $settings->provider_choice = $choice !== $canonical ? $choice : null;
         $settings->credentials = $mergedCreds;
         $settings->last_tested_at = now();
         $settings->last_test_status = 'ok';
@@ -287,7 +291,8 @@ class FaxSettingsController extends BaseApiController
     private function schemaFor(string $providerKey): array
     {
         $registry = app(ProviderRegistry::class);
-        $class = $registry->all()[$providerKey] ?? null;
+        $canonical = $registry->canonicalKey($providerKey);
+        $class = $registry->all()[$canonical] ?? null;
         if (! $class) {
             return [];
         }
@@ -332,8 +337,9 @@ class FaxSettingsController extends BaseApiController
      */
     private function transformSettings(FaxSetting $settings): array
     {
-        $providerKey = $settings->provider;
-        $schema = $providerKey ? $this->schemaFor($providerKey) : [];
+        $canonicalProvider = $settings->provider;
+        $uiProvider = $settings->provider_choice ?: $canonicalProvider;
+        $schema = $canonicalProvider ? $this->schemaFor($uiProvider) : [];
         $creds = is_array($settings->credentials) ? $settings->credentials : [];
 
         $credentialsStatus = [];
@@ -346,14 +352,14 @@ class FaxSettingsController extends BaseApiController
         }
 
         $secret = $settings->getRawOriginal('webhook_secret');
-        $webhookUrl = ($providerKey && $secret)
-            ? url('/api/v1/webhooks/fax/'.$providerKey.'/'.$secret)
+        $webhookUrl = ($canonicalProvider && $secret)
+            ? url('/api/v1/webhooks/fax/'.$canonicalProvider.'/'.$secret)
             : null;
 
         return [
             'id' => $settings->id,
             'facility_id' => $settings->facility_id,
-            'provider' => $providerKey,
+            'provider' => $uiProvider,
             'is_active' => (bool) $settings->is_active,
             'is_configured' => $settings->isConfigured(),
             'is_healthy' => $settings->isHealthy(),

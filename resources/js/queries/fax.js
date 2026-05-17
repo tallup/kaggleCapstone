@@ -59,8 +59,14 @@ export const faxProvidersQueryOptions = queryOptions({
     queryKey: [...FAX_NAMESPACE, 'providers'],
     queryFn: async () => {
         const response = await safeGet('/fax/providers');
-        const list = unwrap(response);
-        return Array.isArray(list) ? list : [];
+        const body = unwrap(response);
+        if (Array.isArray(body)) {
+            return body;
+        }
+        if (body && Array.isArray(body.providers)) {
+            return body.providers;
+        }
+        return [];
     },
     staleTime: 10 * 60 * 1000,
     retry: 1,

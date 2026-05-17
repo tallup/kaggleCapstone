@@ -357,7 +357,7 @@ export default function FaxSettingsPage() {
     const canSave = Boolean(selectedProviderKey) && Boolean(testIsCurrent);
 
     return (
-        <div className="space-y-6 max-w-4xl">
+        <div className="space-y-6 w-full max-w-none">
             <header>
                 <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
                     <Settings className="w-5 h-5 text-slate-700" />

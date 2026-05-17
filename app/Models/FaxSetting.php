@@ -30,6 +30,7 @@ class FaxSetting extends Model
     protected $fillable = [
         'facility_id',
         'provider',
+        'provider_choice',
         'credentials',
         'default_from_number_id',
         'cost_per_page_cents',
