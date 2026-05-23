@@ -132,7 +132,7 @@ const ForgotPassword = lazyWithRetry(() => import('./pages/ForgotPassword'));
 const ResetPassword = lazyWithRetry(() => import('./pages/ResetPassword'));
 
 // Lazy load all page components for code splitting with retry logic
-const Dashboard = lazyWithRetry(() => import('./pages/Dashboard'), 5);
+const DashboardDispatcher = lazyWithRetry(() => import('./pages/DashboardDispatcher'), 5);
 const Residents = lazyWithRetry(() => import('./pages/Residents'));
 const MyResidentsPage = lazyWithRetry(() => import('./pages/caregiver/MyResidentsPage'));
 const ResidentDetailPage = lazyWithRetry(() => import('./pages/caregiver/ResidentDetailPage'));
@@ -349,7 +349,7 @@ function App() {
             >
                 {/* Main Pages */}
                 <Route path="profile" element={<Suspense fallback={<PageLoader />}><Profile /></Suspense>} />
-                <Route path="dashboard" element={<Suspense fallback={<PageLoader />}><Dashboard /></Suspense>} />
+                <Route path="dashboard" element={<Suspense fallback={<PageLoader />}><DashboardDispatcher /></Suspense>} />
 
                 {/* ── Residents section (persistent tab bar) ───────────────── */}
                 <Route element={<Suspense fallback={<PageLoader />}><ResidentsSectionLayout /></Suspense>}>

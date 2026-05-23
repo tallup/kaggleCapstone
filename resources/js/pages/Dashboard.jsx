@@ -398,7 +398,7 @@ export default function Dashboard() {
             iconBg: 'bg-[var(--theme-primary-bg-light)]',
             iconColor: 'text-[var(--theme-primary)]',
             description: 'Assigned to me',
-            link: '/organization/residents',
+            link: '/my-residents',
             trend: 'positive'
         },
         {
@@ -442,7 +442,7 @@ export default function Dashboard() {
             iconBg: 'bg-[var(--theme-primary-bg-light)]',
             iconColor: 'text-[var(--theme-secondary)]',
             description: 'Pending approval',
-            link: '/team/leave-requests',
+            link: '/leave-requests',
             trend: (stats?.pending_leave_requests ?? 0) > 0 ? 'warning' : 'positive'
         },
         {
@@ -779,22 +779,7 @@ export default function Dashboard() {
         return <DashboardLoadingSplash />;
     }
 
-    // Mobile view
-    if (isMobile && !statsLoading) {
-        return (
-            <MobileDashboard
-                greeting={greeting}
-                userName={currentUser?.first_name || currentUser?.name || 'User'}
-                statCards={statCards}
-                actionableItems={actionableItems}
-                isCaregiver={isCaregiver}
-                onStatClick={(card) => card.link && navigate(card.link)}
-                onItemClick={(item) => item.link && navigate(item.link)}
-            />
-        );
-    }
-
-    // Caregiver Dashboard View
+    // Caregiver dashboard (all viewports — mobile uses responsive CaregiverDashboard, not admin MobileDashboard)
     if (isCaregiver && !statsLoading) {
         return (
             <div className="min-h-screen bg-gray-50">
@@ -808,6 +793,21 @@ export default function Dashboard() {
                     />
                 </div>
             </div>
+        );
+    }
+
+    // Mobile admin view
+    if (isMobile && !statsLoading) {
+        return (
+            <MobileDashboard
+                greeting={greeting}
+                userName={currentUser?.first_name || currentUser?.name || 'User'}
+                statCards={statCards}
+                actionableItems={actionableItems}
+                isCaregiver={isCaregiver}
+                onStatClick={(card) => card.link && navigate(card.link)}
+                onItemClick={(item) => item.link && navigate(item.link)}
+            />
         );
     }
 
@@ -830,18 +830,12 @@ export default function Dashboard() {
                         <div className="bg-yellow-50 rounded-xl shadow-sm border-l-4 border-yellow-500 p-4">
                             <div className="flex items-center space-x-3">
                                 <AlertTriangle className="w-5 h-5 text-yellow-600" />
-                                <div>
-                                    <h3 className="text-sm font-medium text-yellow-800">Facility Context Missing</h3>
-                                    <div className="mt-1 text-sm text-yellow-700">
-                                        <p>Dashboard stats may be incomplete. Please ensure your user account has a facility assigned.</p>
-                                        <p className="mt-1 text-xs font-mono">
-                                            Debug: UserID: {stats.debug_user_id || 'N/A'} |
-                                            FacID: {stats.debug_facility_id || 'N/A'} |
-                                            BranchID: {stats.debug_branch_id || 'N/A'}
-                                            {stats.debug_error && <span className="block mt-1 text-red-600">Error: {stats.debug_error}</span>}
+                                    <div>
+                                        <h3 className="text-sm font-medium text-yellow-800">Facility Context Missing</h3>
+                                        <p className="mt-1 text-sm text-yellow-700">
+                                            Dashboard stats may be incomplete. Please ensure your user account has a facility assigned.
                                         </p>
                                     </div>
-                                </div>
                             </div>
                         </div>
                     )}

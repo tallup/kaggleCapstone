@@ -1,13 +1,12 @@
 import React, { Suspense, lazy } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { currentUserQueryOptions } from '../queries/currentUser';
-import ModularGateway from './caregiver/ModularGateway';
 import PageLoader from '../components/PageLoader';
 
-const LegacyDashboard = lazy(() => import('./Dashboard'));
+const Dashboard = lazy(() => import('./Dashboard'));
 
 export default function DashboardDispatcher() {
-    const { data: currentUser, isLoading, isError } = useQuery(currentUserQueryOptions);
+    const { isLoading, isError } = useQuery(currentUserQueryOptions);
 
     if (isLoading) return <PageLoader />;
     
@@ -26,18 +25,9 @@ export default function DashboardDispatcher() {
         );
     }
 
-    const isCaregiver = currentUser?.is_caregiver || 
-                        currentUser?.role === 'caregiver' || 
-                        currentUser?.roles?.some(r => r.name === 'caregiver');
-
-    // For the UI-UX overhaul, we want caregivers to use the new Modular Gateway by default.
-    if (isCaregiver) {
-        return <ModularGateway />;
-    }
-
     return (
         <Suspense fallback={<PageLoader />}>
-            <LegacyDashboard />
+            <Dashboard />
         </Suspense>
     );
 }
