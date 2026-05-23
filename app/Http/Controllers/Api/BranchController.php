@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Models\Branch;
+use App\Models\Resident;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -201,6 +202,7 @@ class BranchController extends BaseApiController
      */
     public function transferResidents(Request $request, $id): JsonResponse
     {
+        $user = $request->user();
         $branch = Branch::findOrFail($id);
 
         $validated = $request->validate([
@@ -211,13 +213,21 @@ class BranchController extends BaseApiController
 
         $targetBranch = Branch::findOrFail($validated['target_branch_id']);
 
+        if ($this->isCaregiver($user)) {
+            return $this->error('Caregivers cannot transfer residents.', 403);
+        }
+
+        if (! $this->canAccessBranch($branch, $user) || ! $this->canAccessBranch($targetBranch, $user)) {
+            return $this->error('Unauthorized to transfer residents for these branches.', 403);
+        }
+
         // Verify both branches belong to the same facility
         if ($branch->facility_id !== $targetBranch->facility_id) {
             return $this->error('Cannot transfer residents between branches of different facilities.', 400);
         }
 
         // Verify all residents belong to the source branch
-        $residents = \App\Models\Resident::whereIn('id', $validated['resident_ids'])
+        $residents = Resident::whereIn('id', $validated['resident_ids'])
             ->where('branch_id', $branch->id)
             ->get();
 
@@ -226,7 +236,7 @@ class BranchController extends BaseApiController
         }
 
         // Transfer residents
-        \App\Models\Resident::whereIn('id', $validated['resident_ids'])
+        Resident::whereIn('id', $validated['resident_ids'])
             ->update(['branch_id' => $targetBranch->id]);
 
         return $this->success([

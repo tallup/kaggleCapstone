@@ -44,6 +44,10 @@ class SendFaxJob implements ShouldQueue
             return;
         }
 
+        if ($this->hasAlreadyBeenSubmitted($fax)) {
+            return;
+        }
+
         $facility = Facility::find($fax->facility_id);
         if (! $facility) {
             $this->markFailed($fax, $manager, 'Facility missing.');
@@ -172,5 +176,11 @@ class SendFaxJob implements ShouldQueue
         ]));
 
         broadcast(new FaxStatusUpdated($fax->refresh()));
+    }
+
+    private function hasAlreadyBeenSubmitted(Fax $fax): bool
+    {
+        return filled($fax->provider_fax_id)
+            || in_array($fax->status, [Fax::STATUS_SENT, Fax::STATUS_DELIVERED], true);
     }
 }

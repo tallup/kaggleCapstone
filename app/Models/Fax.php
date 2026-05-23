@@ -21,6 +21,8 @@ class Fax extends Model
 
     public const STATUS_SENDING = 'sending';
 
+    public const STATUS_SENT = 'sent';
+
     public const STATUS_DELIVERED = 'delivered';
 
     public const STATUS_FAILED = 'failed';
@@ -127,6 +129,7 @@ class Fax extends Model
     public function isTerminal(): bool
     {
         return in_array($this->status, [
+            self::STATUS_SENT,
             self::STATUS_DELIVERED,
             self::STATUS_FAILED,
             self::STATUS_RECEIVED,

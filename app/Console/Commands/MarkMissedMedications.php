@@ -2,16 +2,25 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
 use App\Models\Medication;
 use App\Models\MedicationAdministration;
-use Carbon\Carbon;
-use Illuminate\Support\Facades\Log;
 use App\Models\User;
 use App\Services\NotificationService;
+use Carbon\Carbon;
+use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
 
 class MarkMissedMedications extends Command
 {
+    private const INSTRUCTION_DEFAULT_TIMES = [
+        'a.m' => ['08:00:00'],
+        'p.m' => ['20:00:00'],
+        'h.s' => ['22:00:00'],
+        'b.i.d' => ['08:00:00', '20:00:00'],
+        't.i.d' => ['08:00:00', '14:00:00', '20:00:00'],
+        'q.i.d' => ['08:00:00', '12:00:00', '16:00:00', '20:00:00'],
+    ];
+
     /**
      * When false, missed-window admin emails are not sent (e.g. backfill).
      */
@@ -26,7 +35,7 @@ class MarkMissedMedications extends Command
                             {--date= : Date to check (Y-m-d format, defaults to today for real-time or yesterday for end-of-day)} 
                             {--end-of-day : Run in end-of-day mode (checks yesterday)}
                             {--backfill= : Backfill missed medications for a date range (format: start_date,end_date, e.g., 2025-01-01,2025-01-31)}
-                            {--force : Force re-check even if missed records already exist}';
+                            {--force : Force re-check closed windows without duplicating existing missed records}';
 
     /**
      * The console command description.
@@ -42,14 +51,14 @@ class MarkMissedMedications extends Command
     {
         $now = Carbon::now(config('app.timezone'));
         $windowMinutes = 60; // 60 minutes before and after scheduled time
-        
+
         // Handle backfill mode
         if ($this->option('backfill')) {
             $this->sendMissedWindowAdminEmails = false;
 
             return $this->handleBackfill();
         }
-        
+
         // Determine which date(s) to check
         if ($this->option('end-of-day')) {
             // End-of-day mode: check yesterday
@@ -61,7 +70,8 @@ class MarkMissedMedications extends Command
                 $targetDate = Carbon::createFromFormat('Y-m-d', $this->option('date'), config('app.timezone'));
                 $this->info("Checking missed medications for date: {$targetDate->format('Y-m-d')}");
             } catch (\Exception $e) {
-                $this->error("Invalid date format. Use Y-m-d format (e.g., 2025-12-25)");
+                $this->error('Invalid date format. Use Y-m-d format (e.g., 2025-12-25)');
+
                 return 1;
             }
         } else {
@@ -70,10 +80,10 @@ class MarkMissedMedications extends Command
             $targetDate = $now->copy();
             $this->info("Real-time mode: Checking missed medications for today's past windows and yesterday");
         }
-        
+
         // Get dedicated system user for automation
         $systemUser = User::where('email', 'system@evergreen.care')->first();
-        if (!$systemUser) {
+        if (! $systemUser) {
             $systemUser = User::create([
                 'name' => 'System',
                 'email' => 'system@evergreen.care',
@@ -84,13 +94,12 @@ class MarkMissedMedications extends Command
         }
         $systemUserId = $systemUser->id;
 
-
         $count = 0;
-        
+
         // In real-time mode, check both today and yesterday
         // In other modes, check only the target date
         $datesToCheck = [];
-        if (!$this->option('end-of-day') && !$this->option('date')) {
+        if (! $this->option('end-of-day') && ! $this->option('date')) {
             // Real-time mode: check today and yesterday
             $datesToCheck = [
                 $targetDate->copy(), // Today
@@ -118,45 +127,69 @@ class MarkMissedMedications extends Command
     {
         $backfillOption = $this->option('backfill');
         $parts = explode(',', $backfillOption);
-        
+
         if (count($parts) !== 2) {
-            $this->error("Invalid backfill format. Use: --backfill=start_date,end_date (e.g., --backfill=2025-01-01,2025-01-31)");
+            $this->error('Invalid backfill format. Use: --backfill=start_date,end_date (e.g., --backfill=2025-01-01,2025-01-31)');
+
             return 1;
         }
-        
+
         try {
             $startDate = Carbon::createFromFormat('Y-m-d', trim($parts[0]), config('app.timezone'));
             $endDate = Carbon::createFromFormat('Y-m-d', trim($parts[1]), config('app.timezone'));
         } catch (\Exception $e) {
-            $this->error("Invalid date format in backfill. Use Y-m-d format (e.g., 2025-01-01,2025-01-31)");
+            $this->error('Invalid date format in backfill. Use Y-m-d format (e.g., 2025-01-01,2025-01-31)');
+
             return 1;
         }
-        
+
         if ($startDate->gt($endDate)) {
-            $this->error("Start date must be before or equal to end date.");
+            $this->error('Start date must be before or equal to end date.');
+
             return 1;
         }
-        
+
         $this->info("Starting backfill from {$startDate->format('Y-m-d')} to {$endDate->format('Y-m-d')}");
-        
+
         $totalCount = 0;
         $currentDate = $startDate->copy();
-        
+
         while ($currentDate->lte($endDate)) {
             $this->info("\n--- Processing date: {$currentDate->format('Y-m-d')} ---");
-            
+
             // Temporarily set the date option and process
             $this->input->setOption('date', $currentDate->format('Y-m-d'));
             $count = $this->processDate($currentDate);
             $totalCount += $count;
-            
+
             $currentDate->addDay();
         }
-        
+
         $this->info("\n=== Backfill completed ===");
         $this->info("Total medication doses marked as missed: {$totalCount}");
-        
+
         return 0;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function scheduledTimeStrings(Medication $medication): array
+    {
+        $explicitTimes = array_values(array_filter([
+            $medication->time_1,
+            $medication->time_2,
+            $medication->time_3,
+            $medication->time_4,
+        ]));
+
+        if ($explicitTimes !== []) {
+            return $explicitTimes;
+        }
+
+        $instruction = strtolower(trim((string) $medication->instructions));
+
+        return self::INSTRUCTION_DEFAULT_TIMES[$instruction] ?? [];
     }
 
     /**
@@ -166,12 +199,12 @@ class MarkMissedMedications extends Command
     {
         $now = Carbon::now(config('app.timezone'));
         $windowMinutes = 60;
-            $dateStr = $checkDate->format('Y-m-d');
+        $dateStr = $checkDate->format('Y-m-d');
         $count = 0;
-        
+
         // Get dedicated system user for automation
         $systemUser = User::where('email', 'system@evergreen.care')->first();
-        if (!$systemUser) {
+        if (! $systemUser) {
             $systemUser = User::create([
                 'name' => 'System',
                 'email' => 'system@evergreen.care',
@@ -182,20 +215,19 @@ class MarkMissedMedications extends Command
         }
         $systemUserId = $systemUser->id;
 
-        
         // For historical dates, check medications that were active on that date
         $isHistoricalDate = $this->option('date') && $checkDate->format('Y-m-d') !== $now->format('Y-m-d') && $checkDate->format('Y-m-d') !== $now->copy()->subDay()->format('Y-m-d');
-        
+
         $medicationsQuery = Medication::query();
-        
+
         if ($isHistoricalDate) {
             // For historical dates: check medications that were active on that specific date
             $medicationsQuery->where(function ($q) use ($dateStr) {
                 $q->whereNull('start_date')->orWhere('start_date', '<=', $dateStr);
             })
-            ->where(function ($q) use ($dateStr) {
-                $q->whereNull('end_date')->orWhere('end_date', '>=', $dateStr);
-            });
+                ->where(function ($q) use ($dateStr) {
+                    $q->whereNull('end_date')->orWhere('end_date', '>=', $dateStr);
+                });
         } else {
             // For current dates: check currently active medications
             $medicationsQuery->where('is_active', true)
@@ -206,64 +238,59 @@ class MarkMissedMedications extends Command
                     $q->whereNull('end_date')->orWhere('end_date', '>=', $dateStr);
                 });
         }
-        
+
         $medications = $medicationsQuery->get();
-        
+
         if ($medications->isEmpty()) {
             $this->info("No medications found for date: {$dateStr}");
+
             return 0;
         }
-        
+
         $this->info("Checking date: {$dateStr} - Found {$medications->count()} medication(s) to check");
 
-            foreach ($medications as $medication) {
-                // Check each of the 4 possible time slots
-                for ($i = 1; $i <= 4; $i++) {
-                    $timeField = "time_{$i}";
-                    $scheduledTimeStr = $medication->$timeField;
-
-                    if (!$scheduledTimeStr) {
-                        continue;
-                    }
-
-                    // Parse scheduled time for the check date
+        foreach ($medications as $medication) {
+            foreach ($this->scheduledTimeStrings($medication) as $scheduledTimeStr) {
+                // Parse scheduled time for the check date
                 // Handle both "HH:mm" and "HH:mm:ss" formats
-                    try {
-                        $timeParts = explode(':', $scheduledTimeStr);
+                try {
+                    $timeParts = explode(':', $scheduledTimeStr);
                     if (count($timeParts) < 2 || count($timeParts) > 3) {
-                            Log::error("Invalid time format for medication {$medication->id}: {$scheduledTimeStr}");
-                            continue;
-                        }
+                        Log::error("Invalid time format for medication {$medication->id}: {$scheduledTimeStr}");
 
-                        $scheduledTime = $checkDate->copy();
-                        $scheduledTime->setTime((int)$timeParts[0], (int)$timeParts[1], 0);
-                    } catch (\Exception $e) {
-                        Log::error("Error parsing time for medication {$medication->id}: {$scheduledTimeStr} - " . $e->getMessage());
                         continue;
                     }
+
+                    $scheduledTime = $checkDate->copy();
+                    $scheduledTime->setTime((int) $timeParts[0], (int) $timeParts[1], 0);
+                } catch (\Exception $e) {
+                    Log::error("Error parsing time for medication {$medication->id}: {$scheduledTimeStr} - ".$e->getMessage());
+
+                    continue;
+                }
 
                 // Calculate administration window
-                    $windowStart = $scheduledTime->copy()->subMinutes($windowMinutes);
-                    $windowEnd = $scheduledTime->copy()->addMinutes($windowMinutes);
+                $windowStart = $scheduledTime->copy()->subMinutes($windowMinutes);
+                $windowEnd = $scheduledTime->copy()->addMinutes($windowMinutes);
 
-                    // Do not mark as missed if the medication was created after this window closed.
-                    // (e.g. medication created at 4:57 PM should not have 6 AM, 11 AM, etc. marked missed)
-                    if ($medication->created_at) {
-                        $createdAt = Carbon::parse($medication->created_at)->setTimezone(config('app.timezone'));
-                        if ($createdAt->format('Y-m-d') === $checkDate->format('Y-m-d') && $windowEnd->lt($createdAt)) {
-                            continue;
-                        }
+                // Do not mark as missed if the medication was created after this window closed.
+                // (e.g. medication created at 4:57 PM should not have 6 AM, 11 AM, etc. marked missed)
+                if ($medication->created_at) {
+                    $createdAt = Carbon::parse($medication->created_at)->setTimezone(config('app.timezone'));
+                    if ($createdAt->format('Y-m-d') === $checkDate->format('Y-m-d') && $windowEnd->lt($createdAt)) {
+                        continue;
                     }
+                }
 
                 // For historical dates, always check all windows
                 // For current dates, only check closed windows in real-time mode
-                    $isYesterday = $checkDate->format('Y-m-d') === $now->copy()->subDay()->format('Y-m-d');
-                if (!$this->option('end-of-day') && !$this->option('date') && !$isYesterday && !$isHistoricalDate) {
+                $isYesterday = $checkDate->format('Y-m-d') === $now->copy()->subDay()->format('Y-m-d');
+                if (! $this->option('end-of-day') && ! $this->option('date') && ! $isYesterday && ! $isHistoricalDate) {
                     // Real-time mode for today: only mark if window has closed
-                        if ($windowEnd->isFuture()) {
+                    if ($windowEnd->isFuture()) {
                         continue;
-                        }
                     }
+                }
 
                 // Check if there's already an administration record
                 $hasAdministration = MedicationAdministration::where('medication_id', $medication->id)
@@ -271,28 +298,28 @@ class MarkMissedMedications extends Command
                     ->whereIn('status', ['completed', 'refused', 'hospital_admission', 'pharmacy_administration_confirm'])
                     ->exists();
 
-                if (!$hasAdministration) {
+                if (! $hasAdministration) {
                     // Check if a missed record already exists
                     $hasMissedRecord = MedicationAdministration::where('medication_id', $medication->id)
                         ->whereBetween('administered_at', [
                             $scheduledTime->copy()->subMinutes(5),
-                            $scheduledTime->copy()->addMinutes(5)
+                            $scheduledTime->copy()->addMinutes(5),
                         ])
                         ->where('status', 'missed')
                         ->exists();
 
-                    if ($hasMissedRecord && !$this->option('force')) {
+                    if ($hasMissedRecord) {
                         continue;
                     }
-                    
-                    if (!$hasMissedRecord || $this->option('force')) {
+
+                    if (! $hasMissedRecord) {
                         try {
-                            $notes = $isHistoricalDate 
+                            $notes = $isHistoricalDate
                                 ? "Automatically marked as missed during backfill for date {$dateStr}"
-                                : ($this->option('end-of-day') 
+                                : ($this->option('end-of-day')
                                 ? 'Automatically marked as missed at end of day'
                                     : 'Automatically marked as missed when administration window closed');
-                            
+
                             MedicationAdministration::create([
                                 'medication_id' => $medication->id,
                                 'resident_id' => $medication->resident_id,
@@ -303,7 +330,7 @@ class MarkMissedMedications extends Command
                                 'notes' => $notes,
                             ]);
 
-                            if ($this->sendMissedWindowAdminEmails && !$isHistoricalDate) {
+                            if ($this->sendMissedWindowAdminEmails && ! $isHistoricalDate) {
                                 try {
                                     $medication->loadMissing(['resident.branch.facility', 'drug']);
                                     app(NotificationService::class)->sendMissedMedicationWindowAdminEmail(
@@ -321,10 +348,10 @@ class MarkMissedMedications extends Command
                             $this->info("Marked medication ID {$medication->id} ({$medication->name}) as missed for {$scheduledTime->format('Y-m-d H:i')}");
                             $count++;
                         } catch (\Exception $e) {
-                            Log::error("Error creating missed medication record for medication {$medication->id}: " . $e->getMessage());
-                            $this->warn("Failed to mark medication ID {$medication->id} as missed: " . $e->getMessage());
+                            Log::error("Error creating missed medication record for medication {$medication->id}: ".$e->getMessage());
+                            $this->warn("Failed to mark medication ID {$medication->id} as missed: ".$e->getMessage());
+                        }
                     }
-                }
                 }
             }
         }
