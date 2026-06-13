@@ -88,7 +88,7 @@ class Fax extends Model
 
     public function resident(): BelongsTo
     {
-        return $this->belongsTo(Resident::class)->withTrashed();
+        return $this->belongsTo(Resident::class);
     }
 
     public function fromNumber(): BelongsTo

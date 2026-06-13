@@ -117,6 +117,9 @@ class SendFaxJob implements ShouldQueue
                 $fax->status = $result->status ?: Fax::STATUS_QUEUED;
                 $fax->status_reason = null;
                 $fax->sent_at = now();
+                if (isset($result->raw['page_count'])) {
+                    $fax->page_count = (int) $result->raw['page_count'];
+                }
                 $fax->save();
 
                 $manager->recordEvent($fax, 'sent', [

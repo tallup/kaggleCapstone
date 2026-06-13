@@ -39,6 +39,11 @@ function formatCents(cents) {
     return `$${(Number(cents) / 100).toFixed(2)}`;
 }
 
+function senderName(fax) {
+    const user = fax?.sent_by_user ?? fax?.sent_by;
+    return user?.name || user?.email || '—';
+}
+
 function StatusBadge({ status, label }) {
     const palette = useMemo(() => {
         const s = String(status || '').toLowerCase();
@@ -306,7 +311,7 @@ export default function FaxDetailDrawer({ faxId, open, onClose }) {
                                         <MetaCell label="Sent at">{formatDateTime(fax.sent_at)}</MetaCell>
                                         <MetaCell label="Received at">{formatDateTime(fax.received_at)}</MetaCell>
                                         <MetaCell label="Created at">{formatDateTime(fax.created_at)}</MetaCell>
-                                        <MetaCell label="Sent by">{fax.sent_by?.name || '—'}</MetaCell>
+                                        <MetaCell label="Sent by">{senderName(fax)}</MetaCell>
                                     </div>
                                 </section>
 
@@ -324,7 +329,7 @@ export default function FaxDetailDrawer({ faxId, open, onClose }) {
                                         <button
                                             type="button"
                                             onClick={() => setConfirmRetry(true)}
-                                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-amber-300 bg-amber-50 text-amber-700 text-sm font-semibold hover:bg-amber-100 transition-colors"
+                                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-red-600 bg-red-600 text-white text-sm font-semibold hover:bg-red-700 shadow-sm transition-colors"
                                         >
                                             <RotateCw className="w-4 h-4" />
                                             Retry send

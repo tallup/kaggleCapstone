@@ -85,10 +85,12 @@ class FakeFaxProvider implements FaxProvider
             return SendResult::fail('Simulated provider failure (mode=always_fail).');
         }
 
+        // Dev provider: succeed immediately as delivered (real providers
+        // return queued and update via webhook; fake has no async callback).
         return SendResult::ok(
             providerFaxId: 'fake_'.Str::uuid(),
-            status: 'queued',
-            raw: ['simulated' => true, 'to' => $request->toNumber],
+            status: 'delivered',
+            raw: ['simulated' => true, 'to' => $request->toNumber, 'page_count' => 1],
         );
     }
 

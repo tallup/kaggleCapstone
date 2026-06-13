@@ -68,6 +68,11 @@ function formatDateTime(value) {
     }
 }
 
+function senderName(row) {
+    const user = row?.sent_by_user ?? row?.sent_by;
+    return user?.name || user?.email || '—';
+}
+
 export default function FaxSentPage() {
     const queryClient = useQueryClient();
     const [search, setSearch] = useState('');
@@ -272,18 +277,27 @@ export default function FaxSentPage() {
                                             </span>
                                         </td>
                                         <td className="px-4 py-3 text-gray-700 text-xs">{formatDateTime(row.sent_at)}</td>
-                                        <td className="px-4 py-3 text-gray-700">{row.sent_by?.name || '—'}</td>
+                                        <td className="px-4 py-3 text-gray-700">{senderName(row)}</td>
                                         <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
-                                            {failed && (
+                                            <div className="inline-flex items-center justify-end gap-2">
                                                 <button
                                                     type="button"
-                                                    onClick={() => retryMutation.mutate(row.id)}
-                                                    disabled={retryMutation.isPending}
-                                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md border border-amber-300 bg-amber-50 text-amber-700 text-xs font-semibold hover:bg-amber-100 disabled:opacity-50"
+                                                    onClick={() => setActiveFaxId(row.id)}
+                                                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-300 bg-white text-gray-900 text-xs font-semibold shadow-sm hover:bg-gray-50"
                                                 >
-                                                    <RotateCw className="w-3 h-3" /> Retry
+                                                    View
                                                 </button>
-                                            )}
+                                                {failed && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => retryMutation.mutate(row.id)}
+                                                        disabled={retryMutation.isPending}
+                                                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-red-600 bg-red-600 text-white text-xs font-semibold shadow-sm hover:bg-red-700 disabled:opacity-50"
+                                                    >
+                                                        <RotateCw className="w-3 h-3" /> Retry
+                                                    </button>
+                                                )}
+                                            </div>
                                         </td>
                                     </tr>
                                 );
