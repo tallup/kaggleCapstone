@@ -23,7 +23,8 @@ class AdminHealthOverviewWidget extends Widget
     
     public function getViewData(): array
     {
-        return Cache::remember('admin.health.overview', 120, function () {
+        $facilityId = app()->bound('facility') ? app('facility')?->id : 'global';
+        return Cache::remember("admin.health.overview.{$facilityId}", 120, function () {
             $totalResidents = Resident::where('is_active', true)->count();
             
             // Residents with recent vitals (last 3 days)

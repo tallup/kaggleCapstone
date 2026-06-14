@@ -225,14 +225,8 @@ class PharmacySupplierController extends BaseApiController
                 return response()->json(['message' => 'Supplier not found'], 404);
             }
         }
-        
-        // Check if supplier has orders
-        if ($supplier->orders()->count() > 0) {
-            return response()->json([
-                'message' => 'Cannot delete supplier with existing orders.',
-            ], 422);
-        }
-        
+
+        // Soft delete: supplier row stays for FK integrity (orders/stock lots may still reference it).
         $supplier->delete();
         
         return response()->json(['message' => 'Supplier deleted successfully']);

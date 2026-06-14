@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import logger from '../utils/logger';
 import { Building2, Shield, Search, Settings, CheckCircle, XCircle } from 'lucide-react';
 import FacilityPermissions from './FacilityPermissions';
 
@@ -58,7 +59,7 @@ export default function Permissions() {
         }
         return res;
       } catch (error) {
-        console.error('Error fetching facility:', error);
+        logger.error('Error fetching facility:', error);
         throw error;
       }
     },
@@ -195,7 +196,7 @@ function FacilityCard({ facility, onPermissionsClick }) {
         return res.data.data;
       } catch (err) {
         // Silently fail for summary - we'll load full data when clicked
-        console.warn('Could not load permissions summary for facility:', facility.id);
+        logger.warn('Could not load permissions summary for facility:', facility.id);
         return null;
       }
     },

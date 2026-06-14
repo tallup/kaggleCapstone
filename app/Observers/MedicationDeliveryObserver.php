@@ -5,6 +5,7 @@ namespace App\Observers;
 use App\Models\MedicationDelivery;
 use App\Models\Notification;
 use App\Models\User;
+use App\Services\NotificationService;
 
 class MedicationDeliveryObserver
 {
@@ -46,6 +47,8 @@ class MedicationDeliveryObserver
         foreach ($admins as $admin) {
             Notification::create([
                 'user_id' => $admin->id,
+                'facility_id' => $delivery->branch?->facility_id ?? null,
+                'branch_id' => $delivery->branch_id ?? null,
                 'type' => 'medication_delivery_received',
                 'title' => 'Medication Delivery Received',
                 'message' => $message,
@@ -60,6 +63,10 @@ class MedicationDeliveryObserver
                 ],
             ]);
         }
+
+        // Send email notifications
+        $notificationService = app(NotificationService::class);
+        $notificationService->sendMedicationDeliveryEmail($delivery, $admins);
     }
 }
 

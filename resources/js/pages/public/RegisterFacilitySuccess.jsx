@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle, Mail, Clock, ArrowRight, Home } from 'lucide-react';
 import PublicNavigation from '../../components/PublicNavigation';
+import PublicFooter from '../../components/PublicFooter';
 
 export default function RegisterFacilitySuccess() {
   const navigate = useNavigate();
@@ -28,26 +29,26 @@ export default function RegisterFacilitySuccess() {
             </p>
 
             {/* What Happens Next */}
-            <div className="bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-200 rounded-lg p-6 mb-8 text-left">
+            <div className="bg-gradient-to-br from-brand-primary to-brand-primary border border-brand-sky/30 rounded-lg p-6 mb-8 text-left">
               <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <Clock className="w-5 h-5 text-blue-600" />
+                <Clock className="w-5 h-5 text-brand-primary-dark" />
                 What Happens Next?
               </h2>
               <ol className="space-y-3 text-gray-700">
                 <li className="flex items-start gap-3">
-                  <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm font-bold">1</span>
+                  <span className="flex-shrink-0 w-6 h-6 rounded-full bg-brand-sky text-white flex items-center justify-center text-sm font-bold">1</span>
                   <span>You'll receive an email confirmation at the address you provided</span>
                 </li>
                 <li className="flex items-start gap-3">
-                  <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm font-bold">2</span>
+                  <span className="flex-shrink-0 w-6 h-6 rounded-full bg-brand-sky text-white flex items-center justify-center text-sm font-bold">2</span>
                   <span>Our super admin team will review your registration request</span>
                 </li>
                 <li className="flex items-start gap-3">
-                  <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm font-bold">3</span>
+                  <span className="flex-shrink-0 w-6 h-6 rounded-full bg-brand-sky text-white flex items-center justify-center text-sm font-bold">3</span>
                   <span>Once approved, you'll receive setup instructions and login credentials</span>
                 </li>
                 <li className="flex items-start gap-3">
-                  <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm font-bold">4</span>
+                  <span className="flex-shrink-0 w-6 h-6 rounded-full bg-brand-sky text-white flex items-center justify-center text-sm font-bold">4</span>
                   <span>You can start using HomeLogic360 to manage your facility</span>
                 </li>
               </ol>
@@ -69,7 +70,7 @@ export default function RegisterFacilitySuccess() {
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <button
                 onClick={() => navigate('/')}
-                className="px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-lg font-semibold hover:from-blue-600 hover:to-cyan-600 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
+                className="px-6 py-3 bg-gradient-to-r from-brand-primary-dark to-brand-sky text-white rounded-lg font-semibold hover:opacity-90 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
               >
                 <Home className="w-4 h-4" />
                 Return to Home
@@ -85,6 +86,8 @@ export default function RegisterFacilitySuccess() {
           </div>
         </div>
       </section>
+
+      <PublicFooter />
     </div>
   );
 }

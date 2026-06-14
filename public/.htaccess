@@ -13,13 +13,34 @@
     RewriteCond %{HTTP:x-xsrf-token} .
     RewriteRule .* - [E=HTTP_X_XSRF_TOKEN:%{HTTP:X-XSRF-Token}]
 
+    # CRITICAL: Serve static assets from build directory directly
+    # This prevents JavaScript modules from being served as HTML
+    # If the file exists, serve it directly (Apache will handle 404 if it doesn't)
+    RewriteCond %{REQUEST_URI} ^/build/
+    RewriteRule ^ - [L]
+
     # Redirect Trailing Slashes If Not A Folder...
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_URI} (.+)/$
     RewriteRule ^ %1 [L,R=301]
 
     # Send Requests To Front Controller...
+    # Exclude build directory from routing to index.php
+    RewriteCond %{REQUEST_URI} !^/build/
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteRule ^ index.php [L]
 </IfModule>
+
+# Set proper MIME types for JavaScript modules
+<IfModule mod_mime.c>
+    AddType application/javascript js mjs
+    AddType text/css css
+</IfModule>
+
+# Ensure JavaScript files are served with correct content type
+<FilesMatch "\.(js|mjs)$">
+    <IfModule mod_headers.c>
+        Header set Content-Type "application/javascript; charset=utf-8"
+    </IfModule>
+</FilesMatch>

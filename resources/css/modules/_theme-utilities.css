@@ -1,0 +1,121 @@
+.focus-ring-primary:focus {
+    outline: 2px solid var(--theme-primary);
+    outline-offset: 2px;
+}
+
+.link-primary {
+    color: var(--theme-primary);
+}
+
+.link-primary:hover {
+    color: var(--theme-primary-hover);
+}
+
+.link-secondary {
+    color: var(--theme-secondary);
+}
+
+.link-secondary:hover {
+    color: var(--theme-secondary-hover);
+}
+
+.hover-primary:hover {
+    background-color: var(--theme-primary-hover);
+}
+
+.hover-secondary:hover {
+    background-color: var(--theme-secondary-hover);
+}
+
+.input-focus-primary:focus {
+    border-color: var(--theme-primary);
+    box-shadow: 0 0 0 3px var(--theme-focus-ring, rgba(37, 96, 62, 0.3));
+}
+
+.status-success {
+    background-color: #10b981;
+    color: white;
+}
+
+.status-warning {
+    background-color: #f59e0b;
+    color: white;
+}
+
+.status-error {
+    background-color: #ef4444;
+    color: white;
+}
+
+.status-info {
+    background-color: var(--theme-primary);
+    color: var(--theme-text-on-primary);
+}
+
+[class*="text-\[var\(--theme-primary\)\]"] {
+    color: var(--theme-primary, #1E3A5F) !important;
+}
+
+[class*="text-\[var\(--theme-text-on-white\)\]"] {
+    color: var(--theme-text-on-white, #000000) !important;
+}
+
+.text-\[var\(--theme-text-on-primary\)\] {
+    color: var(--theme-text-on-primary, #FFFFFF) !important;
+}
+
+[class*="bg-\[var\(--theme-primary\)\]"] {
+    color: var(--theme-text-on-primary, #FFFFFF) !important;
+}
+
+[style*="background-color: var(--theme-primary)"],
+[style*="background: var(--theme-primary)"] {
+    color: var(--theme-text-on-primary, #FFFFFF) !important;
+}
+
+[style*="background-color: var(--theme-primary)"] *:not([class*="bg-white"]),
+[style*="background: var(--theme-primary)"] *:not([class*="bg-white"]) {
+    color: var(--theme-text-on-primary, #FFFFFF) !important;
+}
+
+/* White/light cards on those surfaces: links must stay readable (default was white on white) */
+[style*="background-color: var(--theme-primary)"] [class*="bg-white"] a[href],
+[style*="background: var(--theme-primary)"] [class*="bg-white"] a[href] {
+    color: #2563eb !important;
+}
+
+[class~="bg-black"]:not([class*="bg-white"]),
+[style*="background-color: #000"]:not([class*="bg-white"]),
+[style*="background: #000"]:not([class*="bg-white"]) {
+    color: #FFFFFF !important;
+}
+
+[class~="bg-black"] *:not([class*="bg-white"]),
+[style*="background-color: #000"] *:not([class*="bg-white"]),
+[style*="background: #000"] *:not([class*="bg-white"]) {
+    color: #FFFFFF !important;
+}
+/* Premium UI Utilities */
+.glass-card {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(12px) saturate(180%);
+    -webkit-backdrop-filter: blur(12px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.glass-card-dark {
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(12px) saturate(160%);
+    -webkit-backdrop-filter: blur(12px) saturate(160%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.liquid-gradient {
+    background: linear-gradient(135deg, var(--theme-primary) 0%, var(--theme-primary-dark) 100%);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.15);
+}
+
+.soft-glow-emerald { box-shadow: 0 0 20px rgba(16, 185, 129, 0.15); }
+.soft-glow-blue { box-shadow: 0 0 20px rgba(59, 130, 246, 0.15); }
+.soft-glow-amber { box-shadow: 0 0 20px rgba(245, 158, 11, 0.15); }
+.soft-glow-purple { box-shadow: 0 0 20px rgba(168, 85, 247, 0.15); }

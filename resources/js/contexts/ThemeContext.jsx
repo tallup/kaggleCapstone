@@ -13,9 +13,9 @@ export function ThemeProvider({ children, facilityBranding }) {
     const defaultTheme = {
         name: 'HomeLogic360',
         logo: '/images/logonew.png',
-        primary_color: '#E0F2FE', // Light blue/sky
-        secondary_color: '#F0FDF4', // Very light green
-        accent_color: '#FFFFFF', // White from logo
+        primary_color: '#1E3A5F', // Vibrant dark blue from logo
+        secondary_color: '#86EFAC', // Vibrant green from logo
+        accent_color: '#FFFFFF', // White
     };
     
     // Use facility branding or defaults

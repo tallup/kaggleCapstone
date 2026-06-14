@@ -2,10 +2,9 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
-use App\Models\User;
-use App\Models\Branch;
 use App\Mail\WelcomeToFacilityNotification;
+use App\Models\Branch;
+use App\Models\User;
 use App\Services\MailConfigurationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -13,8 +12,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 
 class UserController extends BaseApiController
 {
@@ -25,10 +24,10 @@ class UserController extends BaseApiController
         // Apply facility scope for non-super admins
         $currentUser = Auth::user();
         $requestedFacilityId = $request->get('facility_id');
-        
+
         // Check if facility_id column exists on users table
         $hasFacilityIdColumn = Schema::hasColumn('users', 'facility_id');
-        
+
         if ($currentUser && $currentUser->role !== 'super_admin') {
             // For non-super admins, ensure they can only see users from their facility
             if ($hasFacilityIdColumn) {
@@ -40,7 +39,7 @@ class UserController extends BaseApiController
                         'current_page' => 1,
                         'last_page' => 1,
                         'per_page' => $request->get('per_page', 20),
-                        'total' => 0
+                        'total' => 0,
                     ]);
                 }
                 // Filter by user's facility
@@ -52,6 +51,11 @@ class UserController extends BaseApiController
                 if ($currentUser->assigned_branch_id) {
                     $query->where('assigned_branch_id', $currentUser->assigned_branch_id);
                 }
+            }
+
+            // Branch admins can only see users from their assigned branch
+            if ($currentUser->isBranchAdmin() && $currentUser->assigned_branch_id) {
+                $query->where('assigned_branch_id', $currentUser->assigned_branch_id);
             }
         } else {
             // For super admins, filter by facility_id if provided
@@ -85,12 +89,12 @@ class UserController extends BaseApiController
         // Search
         if ($request->has('search')) {
             $search = $request->get('search');
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%")
-                  ->orWhere('first_name', 'like', "%{$search}%")
-                  ->orWhere('last_name', 'like', "%{$search}%")
-                  ->orWhere('phone_number', 'like', "%{$search}%");
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhere('first_name', 'like', "%{$search}%")
+                    ->orWhere('last_name', 'like', "%{$search}%")
+                    ->orWhere('phone_number', 'like', "%{$search}%");
             });
         }
 
@@ -103,20 +107,57 @@ class UserController extends BaseApiController
     {
         $user = User::with(['assignedBranch', 'roles', 'roles.permissions', 'facility'])
             ->findOrFail($id);
+        if (! $this->canAccessUser($user, Auth::user())) {
+            return response()->json(['message' => 'Not found'], 404);
+        }
 
         return response()->json($user);
+    }
+
+    public function stats($id): JsonResponse
+    {
+        $currentUser = Auth::user();
+        $user = User::findOrFail($id);
+        if (! $this->canAccessUser($user, $currentUser)) {
+            return response()->json(['message' => 'Not found'], 404);
+        }
+
+        // Check if current user has permission to view stats
+        if ($currentUser->role !== 'super_admin' && ! $currentUser->isFacilityAdministrator() && ! $currentUser->isBranchAdmin()) {
+            // Only allow users to view their own stats
+            if ($currentUser->id != $id) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+        }
+
+        // Get user statistics
+        $stats = [
+            'active_assignments' => \App\Models\Assignment::where('caregiver_id', $id)
+                ->where('is_active', true)
+                ->count(),
+            'vitals_recorded' => \App\Models\VitalSign::where('taken_by', $id)
+                ->count(),
+            'assessments' => \App\Models\Assessment::where('assessor_id', $id)
+                ->count(),
+            'leave_requests' => \App\Models\LeaveRequest::where('staff_id', $id)
+                ->count(),
+            'appointments_created' => \App\Models\Appointment::where('created_by', $id)
+                ->count(),
+        ];
+
+        return response()->json($stats);
     }
 
     public function store(Request $request): JsonResponse
     {
         $user = auth()->user();
-        
+
         // Allow administrators and super admins to create users even without specific permission
         $isSuperAdmin = $user && ($user->role === 'super_admin' || $user->hasRole('super_admin'));
-        $isAdmin = $user && ($user->role === 'administrator' || $user->role === 'admin');
-        
+        $isAnyAdmin = $user && $user->isAnyAdmin();
+
         // Check permission only if user is not an admin or super admin
-        if (!$isSuperAdmin && !$isAdmin) {
+        if (! $isSuperAdmin && ! $isAnyAdmin) {
             if ($error = $this->requirePermission('create_users')) {
                 return $error;
             }
@@ -125,35 +166,36 @@ class UserController extends BaseApiController
         // Determine facility_id for email uniqueness validation and user creation
         $currentUser = Auth::user();
         $facilityId = $request->input('facility_id');
-        
-        // For non-super admins, automatically set facility_id from creator's facility
+
+        // For non-super admins, force the target facility to the creator's tenant.
         if ($currentUser && $currentUser->role !== 'super_admin') {
-            // First try creator's facility_id
-            if (!$facilityId && $currentUser->facility_id) {
-                $facilityId = $currentUser->facility_id;
-            }
-            // If still not set, try to derive from creator's assigned_branch_id
-            if (!$facilityId && $currentUser->assigned_branch_id) {
+            $facilityId = $currentUser->facility_id;
+
+            if (! $facilityId && $currentUser->assigned_branch_id) {
                 $branch = Branch::find($currentUser->assigned_branch_id);
                 if ($branch && $branch->facility_id) {
                     $facilityId = $branch->facility_id;
                 }
             }
-            // Set the facility_id in the request so it's included in validation and creation
+
+            if (! $facilityId) {
+                return $this->error('Unable to determine your facility.', 403);
+            }
+
             if ($facilityId) {
                 $request->merge(['facility_id' => $facilityId]);
             }
         }
-        
+
         // Build email validation rule scoped by facility_id
         $emailRule = 'required|string|email|max:255';
         if ($facilityId) {
-            $emailRule .= '|unique:users,email,NULL,id,facility_id,' . $facilityId;
+            $emailRule .= '|unique:users,email,NULL,id,facility_id,'.$facilityId;
         } else {
             // For super admins (NULL facility_id), keep global uniqueness
             $emailRule .= '|unique:users,email,NULL,id,facility_id,NULL';
         }
-        
+
         $validated = $request->validate([
             'name' => 'nullable|string|max:255',
             'email' => $emailRule,
@@ -162,7 +204,7 @@ class UserController extends BaseApiController
             'middle_names' => 'nullable|string|max:255',
             'last_name' => 'required|string|max:255',
             'phone_number' => 'required|string|max:50',
-            'date_of_birth' => 'required|date|before:' . now()->subYears(18)->format('Y-m-d'),
+            'date_of_birth' => 'required|date|before:'.now()->subYears(18)->format('Y-m-d'),
             'marital_status' => 'nullable|string|max:50',
             'sex' => 'required|string|in:male,female,other',
             'position' => 'nullable|string|max:255',
@@ -186,13 +228,20 @@ class UserController extends BaseApiController
         if (array_key_exists('assigned_branch_id', $validated)) {
             $validated['assigned_branch_id'] = $validated['assigned_branch_id'] ?: null;
         }
+        if (
+            $currentUser
+            && $currentUser->role !== 'super_admin'
+            && ! $this->branchBelongsToFacility($validated['assigned_branch_id'] ?? null, $facilityId ? (int) $facilityId : null)
+        ) {
+            return $this->error('Assigned branch does not belong to your facility.', 403);
+        }
         // For super admins, preserve their facility_id selection (or null if not provided)
         if ($currentUser && $currentUser->role === 'super_admin' && array_key_exists('facility_id', $validated)) {
             $validated['facility_id'] = $validated['facility_id'] ?: null;
         }
-        
+
         // Remove position if column doesn't exist in database or if it's empty
-        if (!Schema::hasColumn('users', 'position')) {
+        if (! Schema::hasColumn('users', 'position')) {
             unset($validated['position']);
         } elseif (array_key_exists('position', $validated) && empty($validated['position'])) {
             unset($validated['position']);
@@ -201,7 +250,7 @@ class UserController extends BaseApiController
         // Handle profile image upload
         if ($request->hasFile('profile_image')) {
             $file = $request->file('profile_image');
-            $fileName = time() . '_' . $file->getClientOriginalName();
+            $fileName = time().'_'.$file->getClientOriginalName();
             $filePath = $file->storeAs('profile-images', $fileName, 'public');
             $validated['profile_image'] = $filePath;
         }
@@ -215,11 +264,11 @@ class UserController extends BaseApiController
             // Always set to creator's facility_id - they can only create users for their facility
             $validated['facility_id'] = $facilityId;
         }
-        
+
         // IMPORTANT: If creating an admin/administrator user and no facility_id is set,
         // try to derive it from assigned_branch_id if provided
         $isCreatingAdmin = in_array($validated['role'] ?? '', ['administrator', 'admin']);
-        if ($isCreatingAdmin && empty($validated['facility_id']) && !empty($validated['assigned_branch_id'])) {
+        if ($isCreatingAdmin && empty($validated['facility_id']) && ! empty($validated['assigned_branch_id'])) {
             $branch = Branch::find($validated['assigned_branch_id']);
             if ($branch && $branch->facility_id) {
                 $validated['facility_id'] = $branch->facility_id;
@@ -227,6 +276,13 @@ class UserController extends BaseApiController
                     'branch_id' => $validated['assigned_branch_id'],
                     'facility_id' => $branch->facility_id,
                 ]);
+            }
+        }
+
+        // Branch admins must have an assigned_branch_id
+        if (($validated['role'] ?? '') === 'admin') {
+            if (empty($validated['assigned_branch_id'])) {
+                return $this->error('Branch admins must have an assigned branch.', 422);
             }
         }
 
@@ -249,20 +305,20 @@ class UserController extends BaseApiController
             try {
                 $mailConfigService = app(MailConfigurationService::class);
                 $facility = $user->facility;
-                
+
                 // Configure mail for facility
                 if ($facility) {
                     $mailConfigService->configureForFacility($facility);
                 }
-                
+
                 // Get temporary password if it was just created (we have it in validated before hashing)
                 $temporaryPassword = $request->input('password'); // This is the plain password before hashing
-                
+
                 // Send welcome email
                 Mail::to($user->email)->send(
                     new WelcomeToFacilityNotification($user, $facility, $user->assignedBranch, $temporaryPassword)
                 );
-                
+
                 Log::info('Welcome email sent to new user', [
                     'user_id' => $user->id,
                     'email' => $user->email,
@@ -283,20 +339,23 @@ class UserController extends BaseApiController
 
     public function update(Request $request, $id): JsonResponse
     {
-        $user = auth()->user();
-        
+        $currentUser = Auth::user();
+
         // Allow administrators and super admins to edit users even without specific permission
-        $isSuperAdmin = $user && ($user->role === 'super_admin' || $user->hasRole('super_admin'));
-        $isAdmin = $user && ($user->role === 'administrator' || $user->role === 'admin');
-        
+        $isSuperAdmin = $currentUser && ($currentUser->role === 'super_admin' || $currentUser->hasRole('super_admin'));
+        $isAnyAdmin = $currentUser && $currentUser->isAnyAdmin();
+
         // Check permission only if user is not an admin or super admin
-        if (!$isSuperAdmin && !$isAdmin) {
+        if (! $isSuperAdmin && ! $isAnyAdmin) {
             if ($error = $this->requirePermission('edit_users')) {
                 return $error;
             }
         }
 
         $user = User::findOrFail($id);
+        if (! $this->canAccessUser($user, $currentUser)) {
+            return response()->json(['message' => 'Not found'], 404);
+        }
 
         // Convert is_active from FormData string to boolean if present (like residents do)
         // This handles both FormData ('1'/'0') and JSON (true/false) formats
@@ -314,26 +373,25 @@ class UserController extends BaseApiController
                 $input[$dateField] = null;
             }
         }
-        
+
         // Replace request data with cleaned input for validation
         $request->merge($input);
 
         // Determine facility_id for email uniqueness validation
-        $currentUser = Auth::user();
         $facilityId = $request->input('facility_id', $user->facility_id);
-        
+
         // For non-super admins updating users, use their facility_id if not provided
-        if ($currentUser && $currentUser->role !== 'super_admin' && !$facilityId) {
+        if ($currentUser && $currentUser->role !== 'super_admin' && ! $facilityId) {
             $facilityId = $currentUser->facility_id;
         }
-        
+
         // Build email validation rule scoped by facility_id
         $emailRule = 'sometimes|required|string|email|max:255';
         if ($facilityId) {
-            $emailRule .= '|unique:users,email,' . $user->id . ',id,facility_id,' . $facilityId;
+            $emailRule .= '|unique:users,email,'.$user->id.',id,facility_id,'.$facilityId;
         } else {
             // For super admins (NULL facility_id), keep global uniqueness
-            $emailRule .= '|unique:users,email,' . $user->id . ',id,facility_id,NULL';
+            $emailRule .= '|unique:users,email,'.$user->id.',id,facility_id,NULL';
         }
 
         $validated = $request->validate([
@@ -344,7 +402,7 @@ class UserController extends BaseApiController
             'middle_names' => 'nullable|string|max:255',
             'last_name' => 'sometimes|required|string|max:255',
             'phone_number' => 'sometimes|required|string|max:50',
-            'date_of_birth' => 'nullable|date|before:' . now()->subYears(18)->format('Y-m-d'),
+            'date_of_birth' => 'nullable|date|before:'.now()->subYears(18)->format('Y-m-d'),
             'marital_status' => 'nullable|string|max:50',
             'sex' => 'sometimes|required|string|in:male,female,other',
             'position' => 'nullable|string|max:255',
@@ -369,9 +427,19 @@ class UserController extends BaseApiController
         if (array_key_exists('assigned_branch_id', $validated)) {
             $validated['assigned_branch_id'] = $validated['assigned_branch_id'] ?: null;
         }
-        
+        if ($currentUser && $currentUser->role !== 'super_admin') {
+            unset($validated['facility_id']);
+
+            if (
+                array_key_exists('assigned_branch_id', $validated)
+                && ! $this->branchBelongsToFacility($validated['assigned_branch_id'], (int) $currentUser->facility_id)
+            ) {
+                return $this->error('Assigned branch does not belong to your facility.', 403);
+            }
+        }
+
         // Remove position if column doesn't exist in database or if it's empty
-        if (!Schema::hasColumn('users', 'position')) {
+        if (! Schema::hasColumn('users', 'position')) {
             unset($validated['position']);
         } elseif (array_key_exists('position', $validated) && empty($validated['position'])) {
             unset($validated['position']);
@@ -384,7 +452,7 @@ class UserController extends BaseApiController
             'has_remove_flag' => $request->has('remove_profile_image'),
             'remove_flag_value' => $request->get('remove_profile_image'),
             'all_request_keys' => array_keys($request->all()),
-            'files_keys' => array_keys($request->allFiles())
+            'files_keys' => array_keys($request->allFiles()),
         ]);
 
         // Handle profile image removal if requested
@@ -406,36 +474,36 @@ class UserController extends BaseApiController
                 }
 
                 $file = $request->file('profile_image');
-                
+
                 // Validate file was uploaded successfully
-                if (!$file->isValid()) {
+                if (! $file->isValid()) {
                     \Log::error('Profile image upload failed: Invalid file', [
                         'user_id' => $user->id,
-                        'error' => $file->getError()
+                        'error' => $file->getError(),
                     ]);
                     throw new \Exception('Invalid file upload');
                 }
-                
-                $fileName = time() . '_' . $file->getClientOriginalName();
+
+                $fileName = time().'_'.$file->getClientOriginalName();
                 $filePath = $file->storeAs('profile-images', $fileName, 'public');
-                
-                if (!$filePath) {
+
+                if (! $filePath) {
                     \Log::error('Profile image upload failed: Storage failed', [
                         'user_id' => $user->id,
-                        'file_name' => $fileName
+                        'file_name' => $fileName,
                     ]);
                     throw new \Exception('Failed to store file');
                 }
-                
+
                 $validated['profile_image'] = $filePath;
                 \Log::info('Profile image uploaded successfully', [
                     'user_id' => $user->id,
-                    'file_path' => $filePath
+                    'file_path' => $filePath,
                 ]);
             } catch (\Exception $e) {
-                \Log::error('Profile image upload error: ' . $e->getMessage(), [
+                \Log::error('Profile image upload error: '.$e->getMessage(), [
                     'user_id' => $user->id,
-                    'trace' => $e->getTraceAsString()
+                    'trace' => $e->getTraceAsString(),
                 ]);
                 // Don't fail the entire update if image upload fails, but log it
             }
@@ -455,6 +523,14 @@ class UserController extends BaseApiController
         $roleIds = $validated['role_ids'] ?? null;
         if (isset($validated['role_ids'])) {
             unset($validated['role_ids']);
+        }
+
+        // Branch admins must have an assigned_branch_id
+        if (($validated['role'] ?? $user->role) === 'admin') {
+            $assignedBranchId = $validated['assigned_branch_id'] ?? $user->assigned_branch_id;
+            if (empty($assignedBranchId)) {
+                return $this->error('Branch admins must have an assigned branch.', 422);
+            }
         }
 
         $wasActive = (bool) $user->is_active;
@@ -484,24 +560,27 @@ class UserController extends BaseApiController
     public function destroy($id): JsonResponse
     {
         $user = auth()->user();
-        
+
         // Allow administrators and super admins to delete users even without specific permission
         $isSuperAdmin = $user && ($user->role === 'super_admin' || $user->hasRole('super_admin'));
-        $isAdmin = $user && ($user->role === 'administrator' || $user->role === 'admin');
-        
+        $isAnyAdmin = $user && $user->isAnyAdmin();
+
         // Check permission only if user is not an admin or super admin
-        if (!$isSuperAdmin && !$isAdmin) {
+        if (! $isSuperAdmin && ! $isAnyAdmin) {
             if ($error = $this->requirePermission('delete_users')) {
                 return $error;
             }
         }
 
         $user = User::findOrFail($id);
-        
+        if (! $this->canAccessUser($user, auth()->user())) {
+            return response()->json(['message' => 'Not found'], 404);
+        }
+
         // Prevent deleting yourself
         if ($user->id === auth()->id()) {
             return response()->json([
-                'message' => 'You cannot delete your own account.'
+                'message' => 'You cannot delete your own account.',
             ], 422);
         }
 
@@ -509,5 +588,36 @@ class UserController extends BaseApiController
 
         return response()->json(['message' => 'User deleted successfully']);
     }
-}
 
+    private function canAccessUser(User $targetUser, ?User $currentUser = null): bool
+    {
+        $currentUser = $currentUser ?? Auth::user();
+        if (! $currentUser) {
+            return false;
+        }
+
+        if ($currentUser->isSuperAdmin()) {
+            return true;
+        }
+
+        if (! $currentUser->facility_id || (int) $targetUser->facility_id !== (int) $currentUser->facility_id) {
+            return false;
+        }
+
+        return ! $currentUser->isBranchAdmin()
+            || ! $currentUser->assigned_branch_id
+            || (int) $targetUser->assigned_branch_id === (int) $currentUser->assigned_branch_id;
+    }
+
+    private function branchBelongsToFacility(null|int|string $branchId, ?int $facilityId): bool
+    {
+        if ($branchId === null || $branchId === '' || ! $facilityId) {
+            return true;
+        }
+
+        return Branch::withoutGlobalScopes()
+            ->whereKey((int) $branchId)
+            ->where('facility_id', $facilityId)
+            ->exists();
+    }
+}

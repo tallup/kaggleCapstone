@@ -4,6 +4,7 @@ import api from '../services/api';
 import { UserPlus, Search, CheckCircle, XCircle, User, Clock } from 'lucide-react';
 import SectionCard from '../components/SectionCard';
 import EmptyState from '../components/ui/EmptyState';
+import Modal from '../components/ui/Modal';
 import { formatPhoneNumber } from '../utils/phoneFormatter';
 
 export default function Visitors() {
@@ -80,19 +81,23 @@ export default function Visitors() {
     const visitors = statusFilter === 'active' ? activeVisitors : allVisitors;
     const isLoading = statusFilter === 'active' ? activeLoading : allLoading;
 
-    if (showForm) {
-        return (
-            <VisitorCheckInForm
-                branches={branchesData || []}
-                residents={residentsData || []}
-                onClose={() => setShowForm(false)}
-                onSubmit={(data) => checkInMutation.mutate(data)}
-                isSubmitting={checkInMutation.isPending}
-            />
-        );
-    }
-
     return (
+        <>
+            <Modal
+                isOpen={showForm}
+                onClose={() => setShowForm(false)}
+                title="Check In Visitor"
+                size="lg"
+            >
+                <VisitorCheckInForm
+                    inModal
+                    branches={branchesData || []}
+                    residents={residentsData || []}
+                    onClose={() => setShowForm(false)}
+                    onSubmit={(data) => checkInMutation.mutate(data)}
+                    isSubmitting={checkInMutation.isPending}
+                />
+            </Modal>
         <div className="space-y-6">
             <SectionCard>
                 <div className="flex items-center justify-between mb-6">
@@ -216,10 +221,11 @@ export default function Visitors() {
                 )}
             </SectionCard>
         </div>
+        </>
     );
 }
 
-function VisitorCheckInForm({ branches, residents, onClose, onSubmit, isSubmitting }) {
+function VisitorCheckInForm({ branches, residents, onClose, onSubmit, isSubmitting, inModal = false }) {
     const [form, setForm] = useState({
         branch_id: '',
         first_name: '',
@@ -245,15 +251,7 @@ function VisitorCheckInForm({ branches, residents, onClose, onSubmit, isSubmitti
         onSubmit(submitData);
     };
 
-    return (
-        <SectionCard>
-            <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-gray-900">Check In Visitor</h2>
-                <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
-                    ✕
-                </button>
-            </div>
-
+    const formBody = (
             <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -407,6 +405,21 @@ function VisitorCheckInForm({ branches, residents, onClose, onSubmit, isSubmitti
                     </button>
                 </div>
             </form>
+    );
+
+    if (inModal) {
+        return formBody;
+    }
+
+    return (
+        <SectionCard>
+            <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-semibold text-gray-900">Check In Visitor</h2>
+                <button type="button" onClick={onClose} className="text-gray-500 hover:text-gray-700">
+                    ✕
+                </button>
+            </div>
+            {formBody}
         </SectionCard>
     );
 }

@@ -1,0 +1,205 @@
+/* Filament stat/widget button fixes */
+.fi-stat-action,
+.fi-stat-actions button,
+.fi-stat-actions a,
+.fi-stat-overview-actions button,
+.fi-stat-overview-actions a,
+[class*="fi-stat"] button,
+[class*="fi-stat"] a,
+.fi-widget button,
+.fi-widget a,
+[class*="fi-widget"] button,
+[class*="fi-widget"] a {
+    color: rgb(55 65 81) !important;
+    font-weight: 500;
+}
+
+[class*="fi-stat"] button:hover,
+[class*="fi-stat"] a:hover,
+[class*="fi-widget"] button:hover,
+[class*="fi-widget"] a:hover {
+    color: rgb(31 41 55) !important;
+}
+
+.dark [class*="fi-stat"] button,
+.dark [class*="fi-stat"] a,
+.dark [class*="fi-widget"] button,
+.dark [class*="fi-widget"] a {
+    color: rgb(229 231 235) !important;
+}
+
+.dark [class*="fi-stat"] button:hover,
+.dark [class*="fi-stat"] a:hover,
+.dark [class*="fi-widget"] button:hover,
+.dark [class*="fi-widget"] a:hover {
+    color: rgb(255 255 255) !important;
+}
+
+[class*="fi-stat"] svg,
+[class*="fi-widget"] svg {
+    color: inherit;
+}
+
+/* White/light background buttons - dark text */
+.bg-white button,
+.bg-white a,
+[class*="bg-white"] button,
+[class*="bg-white"] a {
+    color: rgb(55 65 81) !important;
+}
+
+.bg-white button:hover,
+.bg-white a:hover,
+[class*="bg-white"] button:hover,
+[class*="bg-white"] a:hover {
+    color: rgb(31 41 55) !important;
+}
+
+/* Gradient/purple/indigo background buttons - white text */
+.bg-gradient-to-r button,
+.bg-gradient-to-r a,
+[class*="from-purple"] button,
+[class*="from-purple"] a,
+[class*="from-indigo"] button,
+[class*="from-indigo"] a {
+    color: rgb(255 255 255) !important;
+    font-weight: 500;
+}
+
+.bg-gradient-to-r button:hover,
+.bg-gradient-to-r a:hover,
+[class*="from-purple"] button:hover,
+[class*="from-purple"] a:hover,
+[class*="from-indigo"] button:hover,
+[class*="from-indigo"] a:hover {
+    color: rgb(243 244 246) !important;
+}
+
+/* Blue/primary background buttons - white text */
+button[class*="bg-blue-500"],
+button[class*="bg-blue-600"],
+button[class*="bg-blue-700"],
+button[class*="bg-blue-800"],
+button[class*="bg-blue-900"],
+button.bg-blue-500,
+button.bg-blue-600,
+button.bg-blue-700,
+button.bg-primary,
+a.bg-blue-500,
+a.bg-blue-600,
+a.bg-blue-700,
+a.bg-primary {
+    color: #FFFFFF !important;
+}
+
+/* CSS variable primary background buttons */
+.bg-\[var\(--theme-primary\)\] button,
+.bg-\[var\(--theme-primary\)\] a,
+button.bg-\[var\(--theme-primary\)\],
+a.bg-\[var\(--theme-primary\)\] {
+    color: var(--theme-text-on-primary, #FFFFFF) !important;
+}
+
+[style*="--theme-primary"] button,
+[style*="--theme-primary"] a,
+button[style*="var(--theme-primary)"],
+a[style*="var(--theme-primary)"] {
+    color: var(--theme-text-on-primary, #FFFFFF) !important;
+}
+
+a[style*="background-color: var(--theme-primary)"]:not([class*="bg-white"]),
+button[style*="background-color: var(--theme-primary)"]:not([class*="bg-white"]),
+a[style*="background: var(--theme-primary)"]:not([class*="bg-white"]),
+button[style*="background: var(--theme-primary)"]:not([class*="bg-white"]) {
+    color: var(--theme-text-on-primary, #FFFFFF) !important;
+}
+
+/* Inline color preservation */
+button[style*="color: #FFFFFF"],
+button[style*="color: white"],
+button[style*="color: var(--theme-text-on-primary)"] {
+    color: #FFFFFF !important;
+}
+
+button[style*="color: #FFFFFF"]:hover,
+button[style*="color: white"]:hover,
+button[style*="color: var(--theme-text-on-primary)"]:hover {
+    color: #FFFFFF !important;
+}
+
+/* Light background buttons - override to dark text */
+button.bg-gray-100,
+button.bg-gray-50,
+button.bg-white,
+a.bg-gray-100,
+a.bg-gray-50,
+a.bg-white,
+button[class*="bg-gray-100"],
+button[class*="bg-gray-50"],
+a[class*="bg-gray-100"],
+a[class*="bg-gray-50"],
+button[class*="text-gray-700"],
+button[class*="text-gray-600"],
+a[class*="text-gray-700"],
+a[class*="text-gray-600"] {
+    color: rgb(55 65 81) !important;
+}
+
+button.bg-gray-100:hover,
+button.bg-gray-50:hover,
+a.bg-gray-100:hover,
+a.bg-gray-50:hover,
+button[class*="bg-gray-100"]:hover,
+button[class*="bg-gray-50"]:hover,
+a[class*="bg-gray-100"]:hover,
+a[class*="bg-gray-50"]:hover {
+    color: rgb(31 41 55) !important;
+}
+
+/* Primary button hover/active states */
+button[style*="--theme-primary"]:hover,
+a[style*="--theme-primary"]:hover,
+button[style*="background-color: var(--theme-primary)"]:hover,
+a[style*="background-color: var(--theme-primary)"]:hover,
+button[style*="background: var(--theme-primary)"]:hover,
+a[style*="background: var(--theme-primary)"]:hover {
+    color: #FFFFFF !important;
+}
+
+/* Button animations */
+button,
+a[role="button"] {
+    transition: all 0.2s ease-in-out;
+}
+
+button:hover:not(:disabled),
+a[role="button"]:hover {
+    transform: translateY(-1px);
+}
+
+button:active:not(:disabled),
+a[role="button"]:active {
+    transform: translateY(0);
+}
+
+button[style*="--theme-primary"]:hover:not(:disabled),
+a[style*="--theme-primary"]:hover:not(:disabled),
+button[style*="background-color: var(--theme-primary)"]:hover:not(:disabled),
+a[style*="background-color: var(--theme-primary)"]:hover:not(:disabled),
+button[style*="background: var(--theme-primary)"]:hover:not(:disabled),
+a[style*="background: var(--theme-primary)"]:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(30, 58, 95, 0.3);
+    color: #FFFFFF !important;
+}
+
+button[style*="--theme-primary"]:active:not(:disabled),
+a[style*="--theme-primary"]:active:not(:disabled),
+button[style*="background-color: var(--theme-primary)"]:active:not(:disabled),
+a[style*="background-color: var(--theme-primary)"]:active:not(:disabled),
+button[style*="background: var(--theme-primary)"]:active:not(:disabled),
+a[style*="background: var(--theme-primary)"]:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(30, 58, 95, 0.2);
+    color: #FFFFFF !important;
+}

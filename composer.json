@@ -8,10 +8,16 @@
     "require": {
         "php": "^8.2",
         "aws/aws-sdk-php": "^3.368",
+        "barryvdh/laravel-dompdf": "^3.1",
         "filament/filament": "^3.2",
+        "laravel/cashier": "^16.5",
         "laravel/framework": "^12.0",
+        "laravel/reverb": "^1.7",
         "laravel/sanctum": "^4.2",
-        "laravel/tinker": "^2.10.1"
+        "laravel/tinker": "^2.10.1",
+        "minishlink/web-push": "^10.0",
+        "pusher/pusher-php-server": "^7.2",
+        "spatie/browsershot": "^5.2"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
@@ -27,7 +33,10 @@
             "App\\": "app/",
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/"
-        }
+        },
+        "files": [
+            "app/helpers.php"
+        ]
     },
     "autoload-dev": {
         "psr-4": {
@@ -59,7 +68,7 @@
         ],
         "dev": [
             "Composer\\Config::disableProcessTimeout",
-            "npx concurrently -c \"#93c5fd,#c4b5fd,#fb7185,#fdba74\" \"php artisan serve --port=8020\" \"php artisan queue:listen --tries=1\" \"php artisan pail --timeout=0\" \"npm run dev\" --names=server,queue,logs,vite --kill-others"
+            "npx concurrently -c \"#93c5fd,#c4b5fd,#fb7185,#fdba74\" \"php -d upload_max_filesize=30M -d post_max_size=32M artisan serve --port=8020\" \"php artisan queue:listen --tries=1\" \"php artisan pail --timeout=0\" \"npm run dev\" --names=server,queue,logs,vite --kill-others"
         ],
         "test": [
             "@php artisan config:clear --ansi",

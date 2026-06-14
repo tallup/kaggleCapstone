@@ -3,9 +3,12 @@ import { useForm, FormProvider } from 'react-hook-form';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { X, Upload, Trash2, FileText, ArrowLeft } from 'lucide-react';
 import api from '../services/api';
+import logger from '../utils/logger';
 import FormInput from '../components/forms/FormInput';
 import FormTextarea from '../components/forms/FormTextarea';
 import FormSelect from '../components/forms/FormSelect';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
+import Tooltip from '../components/ui/Tooltip';
 import { toast } from 'sonner';
 
 const TLOG_TYPES = [
@@ -24,14 +27,20 @@ const NOTIFICATION_LEVELS = [
     { value: 'urgent', label: 'Urgent' },
 ];
 
-export default function TLogForm({ tLog, onClose, onSuccess }) {
+export default function TLogForm({ tLog, onClose, onSuccess, inModal = false, initialResidentId = '' }) {
     const queryClient = useQueryClient();
     const [attachments, setAttachments] = useState([]);
     const [existingAttachments, setExistingAttachments] = useState([]);
+    const [attachmentDeleteId, setAttachmentDeleteId] = useState(null);
 
     const methods = useForm({
         defaultValues: {
-            resident_id: tLog?.resident_id || '',
+            resident_id:
+                tLog?.resident_id != null && tLog.resident_id !== ''
+                    ? String(tLog.resident_id)
+                    : initialResidentId != null && initialResidentId !== ''
+                      ? String(initialResidentId)
+                      : '',
             types: tLog?.types || [],
             notification_level: tLog?.notification_level || 'low',
             summary: tLog?.summary || '',
@@ -165,6 +174,16 @@ export default function TLogForm({ tLog, onClose, onSuccess }) {
         }
     }, [tLog]);
 
+    useEffect(() => {
+        if (currentUser === undefined) {
+            return;
+        }
+        if (isCaregiver && tLog?.id) {
+            toast.error('You can add new progress notes or view existing ones, but not edit them.');
+            onClose();
+        }
+    }, [currentUser, isCaregiver, tLog, onClose]);
+
     const createMutation = useMutation({
         mutationFn: async (formDataToSend) => {
             return await api.post('/t-logs', formDataToSend, {
@@ -173,12 +192,12 @@ export default function TLogForm({ tLog, onClose, onSuccess }) {
         },
         onSuccess: () => {
             queryClient.invalidateQueries(['t-logs']);
-            toast.success('T-Log created successfully');
+            toast.success('Progress note created successfully', '', { isFormSubmission: true });
             onSuccess?.();
         },
         onError: (error) => {
-            console.error('Error creating T-Log:', error);
-            toast.error(error.response?.data?.message || 'Failed to create T-Log');
+            logger.error('Error creating progress note:', error);
+            toast.error(error.response?.data?.message || 'Failed to create progress note');
         },
     });
 
@@ -190,12 +209,12 @@ export default function TLogForm({ tLog, onClose, onSuccess }) {
         },
         onSuccess: () => {
             queryClient.invalidateQueries(['t-logs']);
-            toast.success('T-Log updated successfully');
+            toast.success('Progress note updated successfully', '', { isFormSubmission: true });
             onSuccess?.();
         },
         onError: (error) => {
-            console.error('Error updating T-Log:', error);
-            toast.error(error.response?.data?.message || 'Failed to update T-Log');
+            logger.error('Error updating progress note:', error);
+            toast.error(error.response?.data?.message || 'Failed to update progress note');
         },
     });
 
@@ -203,14 +222,14 @@ export default function TLogForm({ tLog, onClose, onSuccess }) {
         mutationFn: async ({ tLogId, attachmentId }) => {
             return await api.delete(`/t-logs/${tLogId}/attachments/${attachmentId}`);
         },
-        onSuccess: () => {
+        onSuccess: (_data, variables) => {
             queryClient.invalidateQueries(['t-logs']);
             toast.success('Attachment deleted successfully');
-            // Remove from local state
-            setExistingAttachments(prev => prev.filter(a => a.id !== attachmentId));
+            const removedId = variables.attachmentId;
+            setExistingAttachments((prev) => prev.filter((a) => a.id !== removedId));
         },
         onError: (error) => {
-            console.error('Error deleting attachment:', error);
+            logger.error('Error deleting attachment:', error);
             toast.error(error.response?.data?.message || 'Failed to delete attachment');
         },
     });
@@ -225,10 +244,12 @@ export default function TLogForm({ tLog, onClose, onSuccess }) {
         setAttachments(prev => prev.filter((_, i) => i !== index));
     };
 
-    const removeExistingAttachment = (attachmentId) => {
-        if (window.confirm('Are you sure you want to delete this attachment?')) {
-            deleteAttachmentMutation.mutate({ tLogId: tLog.id, attachmentId });
-        }
+    const handleConfirmAttachmentDelete = () => {
+        if (attachmentDeleteId == null || !tLog?.id) return;
+        deleteAttachmentMutation.mutate(
+            { tLogId: tLog.id, attachmentId: attachmentDeleteId },
+            { onSuccess: () => setAttachmentDeleteId(null) }
+        );
     };
 
     const handleSubmit = (data) => {
@@ -265,7 +286,7 @@ export default function TLogForm({ tLog, onClose, onSuccess }) {
             }
         });
 
-        if (tLog) {
+        if (tLog?.id) {
             updateMutation.mutate({ id: tLog.id, data: formDataToSend });
         } else {
             createMutation.mutate(formDataToSend);
@@ -276,28 +297,48 @@ export default function TLogForm({ tLog, onClose, onSuccess }) {
     const users = usersData?.data || [];
 
     return (
-        <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-4">
-                    <button
-                        onClick={onClose}
-                        className="text-gray-500 hover:text-gray-700"
-                        title="Go back"
-                    >
-                        <ArrowLeft className="w-5 h-5" />
-                    </button>
-                    <h2 className="text-xl font-semibold text-gray-900">
-                        {tLog ? 'Edit T-Log' : 'New T-Log'}
-                    </h2>
+        <>
+            <ConfirmDialog
+                isOpen={attachmentDeleteId != null}
+                onClose={() => !deleteAttachmentMutation.isPending && setAttachmentDeleteId(null)}
+                onConfirm={handleConfirmAttachmentDelete}
+                title="Delete this attachment?"
+                description="The file will be permanently removed from this progress note."
+                confirmLabel="Delete"
+                cancelLabel="Cancel"
+                variant="danger"
+                isPending={deleteAttachmentMutation.isPending}
+            />
+        <div className={inModal ? '' : 'bg-white rounded-lg shadow p-6'}>
+            {!inModal && (
+                <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-4">
+                        <Tooltip content="Go back" position="bottom">
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                className="text-gray-500 hover:text-gray-700"
+                                aria-label="Go back"
+                            >
+                                <ArrowLeft className="w-5 h-5" strokeWidth={2.25} />
+                            </button>
+                        </Tooltip>
+                        <h2 className="text-xl font-semibold text-gray-900">
+                            {tLog?.id ? 'Edit progress note' : 'New progress note'}
+                        </h2>
+                    </div>
+                    <Tooltip content="Close" position="bottom">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="text-gray-400 hover:text-gray-600"
+                            aria-label="Close"
+                        >
+                            <X className="w-6 h-6" strokeWidth={2.25} />
+                        </button>
+                    </Tooltip>
                 </div>
-                <button
-                    onClick={onClose}
-                    className="text-gray-400 hover:text-gray-600"
-                    title="Close"
-                >
-                    <X className="w-6 h-6" />
-                </button>
-            </div>
+            )}
 
             <FormProvider {...methods}>
                 <form onSubmit={methods.handleSubmit(handleSubmit)} className="space-y-6">
@@ -440,7 +481,7 @@ export default function TLogForm({ tLog, onClose, onSuccess }) {
                                         </div>
                                         <button
                                             type="button"
-                                            onClick={() => removeExistingAttachment(attachment.id)}
+                                            onClick={() => setAttachmentDeleteId(attachment.id)}
                                             className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                         >
                                             <Trash2 className="w-4 h-4" />
@@ -514,13 +555,14 @@ export default function TLogForm({ tLog, onClose, onSuccess }) {
                         >
                             {createMutation.isPending || updateMutation.isPending
                                 ? 'Saving...'
-                                : tLog
-                                ? 'Update T-Log'
-                                : 'Create T-Log'}
+                                : tLog?.id
+                                ? 'Update progress note'
+                                : 'Create progress note'}
                         </button>
                     </div>
                 </form>
             </FormProvider>
         </div>
+        </>
     );
 }

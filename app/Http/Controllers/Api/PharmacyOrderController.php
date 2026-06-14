@@ -5,9 +5,12 @@ namespace App\Http\Controllers\Api;
 use App\Constants\Modules;
 use App\Http\Controllers\Controller;
 use App\Models\PharmacyOrder;
+use App\Models\PharmacyInventory;
+use App\Models\PharmacyStockTransaction;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class PharmacyOrderController extends BaseApiController
 {
@@ -298,11 +301,18 @@ class PharmacyOrderController extends BaseApiController
         
         return DB::transaction(function () use ($order, $validated) {
             $allReceived = true;
+            $performedBy = auth()->id();
             
             foreach ($validated['items'] as $itemData) {
                 $item = $order->items()->findOrFail($itemData['id']);
-                $item->quantity_received = $itemData['quantity_received'];
+                $quantityReceived = (int) $itemData['quantity_received'];
+                $item->quantity_received = $quantityReceived;
                 $item->save();
+                
+                // Increase pharmacy inventory for received items
+                if ($quantityReceived > 0 && $item->drug_id) {
+                    $this->increaseInventory($order->branch_id, $item->drug_id, $quantityReceived, $item->unit_cost, $order->id, $performedBy, $item->id);
+                }
                 
                 if ($item->quantity_received < $item->quantity_ordered) {
                     $allReceived = false;
@@ -310,7 +320,7 @@ class PharmacyOrderController extends BaseApiController
             }
             
             if ($allReceived) {
-                $order->markAsReceived(auth()->id());
+                $order->markAsReceived($performedBy);
             } else {
                 $order->status = 'partially_received';
                 $order->save();
@@ -318,5 +328,103 @@ class PharmacyOrderController extends BaseApiController
             
             return response()->json($order->load(['branch', 'supplier', 'items.drug']));
         });
+    }
+
+    /**
+     * Increase pharmacy inventory when order items are received
+     */
+    private function increaseInventory($branchId, $drugId, $quantity, $unitCost, $orderId, $performedBy, $orderItemId): void
+    {
+        try {
+            if (!$branchId || !$drugId || $quantity <= 0) {
+                return;
+            }
+
+            // Find or create pharmacy inventory for this drug and branch
+            $inventory = PharmacyInventory::withoutGlobalScopes()
+                ->where('drug_id', $drugId)
+                ->where('branch_id', $branchId)
+                ->first();
+
+            if (!$inventory) {
+                // Create inventory record if it doesn't exist
+                $inventory = PharmacyInventory::create([
+                    'branch_id' => $branchId,
+                    'drug_id' => $drugId,
+                    'quantity' => 0,
+                    'minimum_stock_level' => 0,
+                    'unit_cost' => $unitCost,
+                    'last_received_date' => now()->toDateString(),
+                ]);
+            }
+
+            // Lock the inventory row to prevent race conditions
+            $inventory = PharmacyInventory::withoutGlobalScopes()
+                ->where('id', $inventory->id)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$inventory) {
+                return;
+            }
+
+            $quantityBefore = $inventory->quantity;
+            $quantityAfter = $quantityBefore + $quantity;
+
+            // Update inventory
+            $inventory->quantity = $quantityAfter;
+            $inventory->last_received_date = now()->toDateString();
+            
+            // Update unit cost if provided (use weighted average or new cost)
+            if ($unitCost && $unitCost > 0) {
+                // Calculate weighted average cost
+                $totalValueBefore = $quantityBefore * ($inventory->unit_cost ?? 0);
+                $totalValueReceived = $quantity * $unitCost;
+                $totalQuantity = $quantityBefore + $quantity;
+                
+                if ($totalQuantity > 0) {
+                    $inventory->unit_cost = ($totalValueBefore + $totalValueReceived) / $totalQuantity;
+                } else {
+                    $inventory->unit_cost = $unitCost;
+                }
+            }
+            
+            $inventory->save();
+
+            // Create stock transaction record
+            PharmacyStockTransaction::create([
+                'pharmacy_inventory_id' => $inventory->id,
+                'branch_id' => $branchId,
+                'drug_id' => $drugId,
+                'transaction_type' => 'received',
+                'quantity_change' => $quantity, // Positive for received
+                'quantity_before' => $quantityBefore,
+                'quantity_after' => $quantityAfter,
+                'unit_cost' => $unitCost,
+                'performed_by' => $performedBy,
+                'pharmacy_order_id' => $orderId,
+                'reference_number' => 'PO-ITEM-' . $orderItemId,
+                'notes' => "Received from pharmacy order",
+                'transaction_date' => now(),
+            ]);
+
+            Log::info('Pharmacy inventory increased from order', [
+                'order_id' => $orderId,
+                'drug_id' => $drugId,
+                'branch_id' => $branchId,
+                'quantity_received' => $quantity,
+                'quantity_before' => $quantityBefore,
+                'quantity_after' => $quantityAfter,
+            ]);
+        } catch (\Exception $e) {
+            // Log error but don't fail the order update
+            Log::error('Failed to increase pharmacy inventory from order', [
+                'order_id' => $orderId,
+                'drug_id' => $drugId,
+                'branch_id' => $branchId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+        }
     }
 }

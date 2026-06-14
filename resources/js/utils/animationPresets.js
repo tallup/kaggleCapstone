@@ -98,6 +98,22 @@ export function slideInUp(targets, options = {}) {
 }
 
 /**
+ * Vertical entrance without opacity change — avoids stuck near-invisible UI if opacity animation fails.
+ */
+export function slideInUpNoFade(targets, options = {}) {
+    if (!shouldAnimate()) return;
+
+    return anime({
+        targets,
+        translateY: [50, 0],
+        duration: options.duration || 500,
+        easing: options.easing || 'easeOutExpo',
+        delay: options.delay || 0,
+        ...options,
+    });
+}
+
+/**
  * Scale and fade in (for modals)
  */
 export function scaleFadeIn(targets, options = {}) {

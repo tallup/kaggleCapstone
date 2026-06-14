@@ -3,6 +3,8 @@ import {
     Building2, MapPin, Phone, Mail, Globe, Key, Palette,
     CheckCircle, XCircle, Calendar, User, Copy, ExternalLink
 } from 'lucide-react';
+import logger from '../../utils/logger';
+import Tooltip from '../ui/Tooltip';
 
 /**
  * FacilityDetailView Component
@@ -17,7 +19,7 @@ export default function FacilityDetailView({ facility, onEdit, onClose }) {
             setCopiedField(fieldName);
             setTimeout(() => setCopiedField(null), 2000);
         } catch (err) {
-            console.error('Failed to copy:', err);
+            logger.error('Failed to copy:', err);
         }
     };
 
@@ -337,17 +339,20 @@ function InfoItem({ icon, label, value, copyable, onCopy, copied, fullWidth }) {
                     </div>
                 </div>
                 {copyable && (
-                    <button
-                        onClick={onCopy}
-                        className="ml-2 p-1 text-gray-400 hover:text-gray-600 transition-colors"
-                        title="Copy to clipboard"
-                    >
-                        {copied ? (
-                            <CheckCircle className="w-4 h-4 text-green-600" />
-                        ) : (
-                            <Copy className="w-4 h-4" />
-                        )}
-                    </button>
+                    <Tooltip content="Copy to clipboard" position="left">
+                        <button
+                            type="button"
+                            onClick={onCopy}
+                            className="ml-2 p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                            aria-label="Copy to clipboard"
+                        >
+                            {copied ? (
+                                <CheckCircle className="w-4 h-4 text-green-600" />
+                            ) : (
+                                <Copy className="w-4 h-4" strokeWidth={2.25} />
+                            )}
+                        </button>
+                    </Tooltip>
                 )}
             </div>
         </div>

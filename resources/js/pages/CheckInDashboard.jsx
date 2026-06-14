@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import api from '../services/api';
+import api, { clearStoredAuth } from '../services/api';
+import {
+    clearCachedCurrentUser,
+    clearFacilityBrandingStash,
+    CURRENT_USER_QUERY_KEY,
+    currentUserQueryOptions,
+} from '../queries/currentUser';
 import { 
     Clock, 
     User, 
@@ -23,7 +29,10 @@ import {
 import { useNavigate } from 'react-router-dom';
 import SectionCard from '../components/SectionCard';
 import EmptyState from '../components/ui/EmptyState';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
 import { getUserLocation } from '../utils/location';
+import logger from '../utils/logger';
+import { useToastContext } from '../contexts/ToastContext';
 
 // Helper function to calculate time difference in minutes
 const getTimeDifference = (startTime) => {
@@ -69,8 +78,10 @@ const ProgressBar = ({ value, max, color = 'var(--theme-primary)', label }) => {
 };
 
 export default function CheckInDashboard() {
+    const toast = useToastContext();
     const queryClient = useQueryClient();
     const navigate = useNavigate();
+    useQuery(currentUserQueryOptions);
     const [refreshInterval, setRefreshInterval] = useState(30000); // 30 seconds
     
     // History filters
@@ -221,7 +232,7 @@ export default function CheckInDashboard() {
                     enableHighAccuracy: true,
                 });
             } catch (err) {
-                console.warn('Could not get location for clock-out:', err);
+                logger.warn('Could not get location for clock-out:', err);
             }
 
             const payload = {};
@@ -233,13 +244,32 @@ export default function CheckInDashboard() {
             // Use admin endpoint to clock out specific staff member
             return api.post(`/staff/clock-ins/${clockInId}/clock-out`, payload);
         },
-        onSuccess: () => {
+        onSuccess: async (_data, variables) => {
             queryClient.invalidateQueries(['staff-clock-ins-active']);
             queryClient.invalidateQueries(['staff-clock-ins']);
-            alert('Successfully clocked out');
+            const me = queryClient.getQueryData(CURRENT_USER_QUERY_KEY);
+            const staffId = variables?.staffId;
+            if (
+                me?.id != null &&
+                staffId != null &&
+                Number(me.id) === Number(staffId)
+            ) {
+                try {
+                    await api.post('/logout');
+                } catch (err) {
+                    logger.error('Logout after clock-out failed:', err);
+                } finally {
+                    clearCachedCurrentUser(queryClient);
+                    clearStoredAuth();
+                    clearFacilityBrandingStash();
+                    window.location.href = '/login';
+                }
+                return;
+            }
+            toast.success('Success', 'Successfully clocked out', { isFormSubmission: true });
         },
         onError: (err) => {
-            alert(err.response?.data?.message || 'Failed to clock out');
+            toast.error('Error', err.response?.data?.message || 'Failed to clock out');
         },
     });
 
@@ -251,10 +281,10 @@ export default function CheckInDashboard() {
         onSuccess: () => {
             queryClient.invalidateQueries(['residents-sign-outs-active']);
             queryClient.invalidateQueries(['residents-sign-outs']);
-            alert('Resident signed in successfully');
+            toast.success('Success', 'Resident signed in successfully', { isFormSubmission: true });
         },
         onError: (err) => {
-            alert(err.response?.data?.message || 'Failed to sign in resident');
+            toast.error('Error', err.response?.data?.message || 'Failed to sign in resident');
         },
     });
 
@@ -266,16 +296,63 @@ export default function CheckInDashboard() {
         onSuccess: () => {
             queryClient.invalidateQueries(['visitors-active']);
             queryClient.invalidateQueries(['visitors']);
-            alert('Visitor checked out successfully');
+            toast.success('Success', 'Visitor checked out successfully', { isFormSubmission: true });
         },
         onError: (err) => {
-            alert(err.response?.data?.message || 'Failed to check out visitor');
+            toast.error('Error', err.response?.data?.message || 'Failed to check out visitor');
         },
     });
 
+    /** staffClockOut | residentSignIn | visitorCheckOut */
+    const [dashboardConfirm, setDashboardConfirm] = useState(null);
+
+    const dashboardConfirmPending =
+        staffClockOutMutation.isPending ||
+        residentSignInMutation.isPending ||
+        visitorCheckOutMutation.isPending;
+
+    const handleDashboardConfirm = () => {
+        if (!dashboardConfirm) return;
+        const done = () => setDashboardConfirm(null);
+        if (dashboardConfirm.type === 'staffClockOut') {
+            staffClockOutMutation.mutate(
+                { clockInId: dashboardConfirm.clockInId, staffId: dashboardConfirm.staffId },
+                { onSuccess: done }
+            );
+        } else if (dashboardConfirm.type === 'residentSignIn') {
+            residentSignInMutation.mutate({ residentId: dashboardConfirm.residentId }, { onSuccess: done });
+        } else if (dashboardConfirm.type === 'visitorCheckOut') {
+            visitorCheckOutMutation.mutate({ visitorId: dashboardConfirm.visitorId }, { onSuccess: done });
+        }
+    };
+
+    const dashboardConfirmCopy =
+        dashboardConfirm == null
+            ? { title: '', description: '', confirmLabel: 'Confirm', variant: 'neutral' }
+            : dashboardConfirm.type === 'staffClockOut'
+              ? {
+                    title: 'Clock out staff member?',
+                    description: `Clock out ${dashboardConfirm.name}?`,
+                    confirmLabel: 'Clock out',
+                    variant: 'primary',
+                }
+              : dashboardConfirm.type === 'residentSignIn'
+                ? {
+                      title: 'Sign resident in?',
+                      description: `Sign in ${dashboardConfirm.name}?`,
+                      confirmLabel: 'Sign in',
+                      variant: 'primary',
+                  }
+                : {
+                      title: 'Check out visitor?',
+                      description: `Check out ${dashboardConfirm.name}?`,
+                      confirmLabel: 'Check out',
+                      variant: 'primary',
+                  };
+
     const handleExportHistory = () => {
         if (!historyData?.data || historyData.data.length === 0) {
-            alert('No data to export');
+            toast.warning('No data', 'No data to export');
             return;
         }
 
@@ -361,6 +438,18 @@ export default function CheckInDashboard() {
     const isLoading = clockInsLoading || signOutsLoading || visitorsLoading;
 
     return (
+        <>
+            <ConfirmDialog
+                isOpen={dashboardConfirm != null}
+                onClose={() => !dashboardConfirmPending && setDashboardConfirm(null)}
+                onConfirm={handleDashboardConfirm}
+                title={dashboardConfirmCopy.title}
+                description={dashboardConfirmCopy.description}
+                confirmLabel={dashboardConfirmCopy.confirmLabel}
+                cancelLabel="Cancel"
+                variant={dashboardConfirmCopy.variant}
+                isPending={dashboardConfirmPending}
+            />
         <div className="space-y-6">
             {/* Header */}
             <header 
@@ -536,9 +625,12 @@ export default function CheckInDashboard() {
                                         </div>
                                         <button
                                             onClick={() => {
-                                                if (window.confirm(`Clock out ${clockIn.staff?.name || 'this staff member'}?`)) {
-                                                    staffClockOutMutation.mutate({ clockInId: clockIn.id });
-                                                }
+                                                setDashboardConfirm({
+                                                    type: 'staffClockOut',
+                                                    clockInId: clockIn.id,
+                                                    staffId: clockIn.staff_id ?? clockIn.staff?.id ?? null,
+                                                    name: clockIn.staff?.name || 'this staff member',
+                                                });
                                             }}
                                             disabled={staffClockOutMutation.isPending}
                                             className="px-4 py-2 rounded-lg text-sm font-semibold text-white transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
@@ -687,9 +779,11 @@ export default function CheckInDashboard() {
                                         </div>
                                         <button
                                             onClick={() => {
-                                                if (window.confirm(`Sign in ${signOut.resident?.name || 'this resident'}?`)) {
-                                                    residentSignInMutation.mutate({ residentId: signOut.resident_id });
-                                                }
+                                                setDashboardConfirm({
+                                                    type: 'residentSignIn',
+                                                    residentId: signOut.resident_id,
+                                                    name: signOut.resident?.name || 'this resident',
+                                                });
                                             }}
                                             disabled={residentSignInMutation.isPending}
                                             className="px-4 py-2 rounded-lg text-sm font-semibold text-white transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
@@ -823,9 +917,11 @@ export default function CheckInDashboard() {
                                         </div>
                                         <button
                                             onClick={() => {
-                                                if (window.confirm(`Check out ${visitor.first_name} ${visitor.last_name}?`)) {
-                                                    visitorCheckOutMutation.mutate({ visitorId: visitor.id });
-                                                }
+                                                setDashboardConfirm({
+                                                    type: 'visitorCheckOut',
+                                                    visitorId: visitor.id,
+                                                    name: `${visitor.first_name} ${visitor.last_name}`,
+                                                });
                                             }}
                                             disabled={visitorCheckOutMutation.isPending}
                                             className="px-4 py-2 rounded-lg text-sm font-semibold text-white transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
@@ -1126,6 +1222,7 @@ export default function CheckInDashboard() {
                 )}
             </SectionCard>
         </div>
+        </>
     );
 }
 

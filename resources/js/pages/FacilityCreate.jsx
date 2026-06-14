@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
+import logger from '../utils/logger';
 import {
     ArrowLeft, Save, Building2, Palette, Settings, Users,
     MapPin, Phone, Mail, Image as ImageIcon, CheckCircle, XCircle,
     AlertCircle, Eye, EyeOff
 } from 'lucide-react';
 import { useToastContext } from '../contexts/ToastContext';
+import Tooltip from '../components/ui/Tooltip';
+import { getFacilityPortalUrlPreview } from '../utils/facilitySubdomain';
 
 const AVAILABLE_MODULES = [
     { key: 'pharmacy', name: 'Pharmacy' },
@@ -329,16 +332,22 @@ function BrandingTab() {
 
                     {/* Subdomain */}
                     <div>
-                        <label className="block text-sm font-medium text-gray-900 mb-1">Subdomain</label>
+                        <label className="block text-sm font-medium text-gray-900 mb-1">Facility web address (subdomain)</label>
                         <input
                             type="text"
                             value={formData.subdomain}
                             onChange={(e) => updateForm({ subdomain: e.target.value.replace(/[^a-z0-9-]/g, '').toLowerCase() })}
                             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent font-mono"
-                            placeholder="facility-name"
+                            placeholder="evergreen"
                         />
                         <p className="text-xs text-gray-500 mt-1">
-                            e.g., {formData.subdomain || 'facility-name'}.yourapp.com
+                            {(() => {
+                                const preview = getFacilityPortalUrlPreview(formData.subdomain);
+                                const host = typeof window !== 'undefined' ? window.location.hostname : 'your-domain.com';
+                                return preview
+                                    ? <>Sign-in URL: <span className="font-mono text-gray-800">{preview}</span></>
+                                    : <>e.g. <span className="font-mono">https://evergreen.{host}</span></>;
+                            })()}
                         </p>
                     </div>
                 </div>
@@ -357,21 +366,30 @@ function BrandingTab() {
                         <div>
                             <div className="font-semibold text-gray-900">{formData.name || 'Facility Name'}</div>
                             <div className="flex gap-2 mt-2">
-                                <div
-                                    className="w-8 h-8 rounded border border-gray-300"
-                                    style={{ backgroundColor: formData.primary_color }}
-                                    title="Primary Color"
-                                />
-                                <div
-                                    className="w-8 h-8 rounded border border-gray-300"
-                                    style={{ backgroundColor: formData.secondary_color }}
-                                    title="Secondary Color"
-                                />
-                                <div
-                                    className="w-8 h-8 rounded border border-gray-300"
-                                    style={{ backgroundColor: formData.accent_color }}
-                                    title="Accent Color"
-                                />
+                                <Tooltip content="Primary color" position="top">
+                                    <div
+                                        className="w-8 h-8 rounded border border-gray-300"
+                                        style={{ backgroundColor: formData.primary_color }}
+                                        role="img"
+                                        aria-label="Primary color"
+                                    />
+                                </Tooltip>
+                                <Tooltip content="Secondary color" position="top">
+                                    <div
+                                        className="w-8 h-8 rounded border border-gray-300"
+                                        style={{ backgroundColor: formData.secondary_color }}
+                                        role="img"
+                                        aria-label="Secondary color"
+                                    />
+                                </Tooltip>
+                                <Tooltip content="Accent color" position="top">
+                                    <div
+                                        className="w-8 h-8 rounded border border-gray-300"
+                                        style={{ backgroundColor: formData.accent_color }}
+                                        role="img"
+                                        aria-label="Accent color"
+                                    />
+                                </Tooltip>
                             </div>
                         </div>
                     </div>
@@ -625,18 +643,27 @@ function OwnerAccountTab() {
     );
 }
 
-// Wrap the main component with FormProvider
-export default function FacilityCreateWrapper() {
+// Wrap the main component with FormProvider (use from Facilities hub modal or legacy redirect target)
+export function FacilityCreateForm({ onRequestClose }) {
     const navigate = useNavigate();
     const { showToast } = useToastContext();
     const queryClient = useQueryClient();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [errors, setErrors] = useState({});
 
+    const exitToFacilitiesHub = () => {
+        if (onRequestClose) {
+            onRequestClose();
+        } else {
+            navigate('/super-admin/facilities');
+        }
+    };
+
     return (
         <FormProvider>
             <FacilityCreateContent
                 navigate={navigate}
+                onExitToList={exitToFacilitiesHub}
                 showToast={showToast}
                 queryClient={queryClient}
                 isSubmitting={isSubmitting}
@@ -648,7 +675,12 @@ export default function FacilityCreateWrapper() {
     );
 }
 
-function FacilityCreateContent({ navigate, showToast, queryClient, isSubmitting, setIsSubmitting, errors, setErrors }) {
+/** Legacy URL → hub opens create in modal */
+export default function FacilityCreate() {
+    return <Navigate to="/super-admin/facilities?createFacility=1" replace />;
+}
+
+function FacilityCreateContent({ navigate, onExitToList, showToast, queryClient, isSubmitting, setIsSubmitting, errors, setErrors }) {
     const { formData } = React.useContext(FormContext);
     const [activeTab, setActiveTab] = useState('overview');
 
@@ -706,12 +738,12 @@ function FacilityCreateContent({ navigate, showToast, queryClient, isSubmitting,
                     'success'
                 );
             } else {
-                showToast('Facility created successfully!', 'success');
+                showToast('Facility created successfully!', 'success', { isFormSubmission: true });
             }
 
-            navigate('/super-admin/facilities');
+            onExitToList();
         } catch (error) {
-            console.error('Error creating facility:', error);
+            logger.error('Error creating facility:', error);
             const errorData = error.response?.data;
             if (errorData?.errors) {
                 setErrors(errorData.errors);
@@ -773,7 +805,8 @@ function FacilityCreateContent({ navigate, showToast, queryClient, isSubmitting,
                 <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-4">
                         <button
-                            onClick={() => navigate('/super-admin/facilities')}
+                            type="button"
+                            onClick={() => onExitToList()}
                             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                         >
                             <ArrowLeft className="w-5 h-5" />

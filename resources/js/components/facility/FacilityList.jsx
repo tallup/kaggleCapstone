@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Building2, Search, Filter, Grid, List, Plus } from 'lucide-react';
 import FacilityCard from './FacilityCard';
 import EmptyState from '../ui/EmptyState';
+import Tooltip from '../ui/Tooltip';
 
 /**
  * FacilityList Component
@@ -126,26 +127,32 @@ export default function FacilityList({
                         <span className="font-semibold">{facilities.length}</span> facilities
                     </div>
                     <div className="flex items-center space-x-2">
-                        <button
-                            onClick={() => setViewMode('grid')}
-                            className={`p-2 rounded-lg transition-colors ${viewMode === 'grid'
-                                ? 'bg-[var(--theme-primary-light)] text-[var(--theme-primary)]'
-                                : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
-                                }`}
-                            title="Grid View"
-                        >
-                            <Grid className="w-5 h-5" />
-                        </button>
-                        <button
-                            onClick={() => setViewMode('list')}
-                            className={`p-2 rounded-lg transition-colors ${viewMode === 'list'
-                                ? 'bg-[var(--theme-primary-light)] text-[var(--theme-primary)]'
-                                : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
-                                }`}
-                            title="List View"
-                        >
-                            <List className="w-5 h-5" />
-                        </button>
+                        <Tooltip content="Grid view" position="bottom">
+                            <button
+                                type="button"
+                                onClick={() => setViewMode('grid')}
+                                className={`p-2 rounded-lg transition-colors ${viewMode === 'grid'
+                                    ? 'bg-[var(--theme-primary-light)] text-[var(--theme-primary)]'
+                                    : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                                    }`}
+                                aria-label="Grid view"
+                            >
+                                <Grid className="w-5 h-5" strokeWidth={2.25} />
+                            </button>
+                        </Tooltip>
+                        <Tooltip content="List view" position="bottom">
+                            <button
+                                type="button"
+                                onClick={() => setViewMode('list')}
+                                className={`p-2 rounded-lg transition-colors ${viewMode === 'list'
+                                    ? 'bg-[var(--theme-primary-light)] text-[var(--theme-primary)]'
+                                    : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                                    }`}
+                                aria-label="List view"
+                            >
+                                <List className="w-5 h-5" strokeWidth={2.25} />
+                            </button>
+                        </Tooltip>
                     </div>
                 </div>
             </div>

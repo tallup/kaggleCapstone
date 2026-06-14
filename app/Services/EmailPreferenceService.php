@@ -23,6 +23,11 @@ class EmailPreferenceService
             return false;
         }
 
+        // Super admins never receive facility notification emails (staff preferences / config recipients)
+        if ($user->isSuperAdmin()) {
+            return false;
+        }
+
         // Get facility from user if not provided
         if (!$facility) {
             $facility = $user->facility;
@@ -61,6 +66,7 @@ class EmailPreferenceService
             'incident_alert' => 'incident_alert_enabled',
             'resident_sign_out' => 'resident_sign_out_enabled',
             'medication_administration' => 'medication_administration_enabled',
+            'missed_medication_window' => 'missed_medication_window_enabled',
             'critical_vital_sign' => 'critical_vital_sign_enabled',
             'daily_summary' => 'daily_summary_enabled',
             'task_assignment' => 'task_assignment_enabled',

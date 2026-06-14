@@ -1,6 +1,5 @@
-/**
- * Location utility functions for geolocation handling
- */
+import logger from './logger';
+
 
 /**
  * Check if browser supports geolocation API
@@ -28,7 +27,7 @@ export function getUserLocation(options = {}) {
     } = options;
 
     if (!isGeolocationSupported()) {
-        console.warn('Geolocation is not supported by this browser');
+        logger.warn('Geolocation is not supported by this browser');
         return Promise.resolve(null);
     }
 
@@ -47,18 +46,18 @@ export function getUserLocation(options = {}) {
                 switch (error.code) {
                     case error.PERMISSION_DENIED:
                         errorMessage = 'Location permission denied. Using IP-based location as fallback.';
-                        console.warn(errorMessage);
+                        logger.warn(errorMessage);
                         break;
                     case error.POSITION_UNAVAILABLE:
                         errorMessage = 'Location information unavailable. Using IP-based location as fallback.';
-                        console.warn(errorMessage);
+                        logger.warn(errorMessage);
                         break;
                     case error.TIMEOUT:
                         errorMessage = 'Location request timed out. Using IP-based location as fallback.';
-                        console.warn(errorMessage);
+                        logger.warn(errorMessage);
                         break;
                     default:
-                        console.warn('Unknown geolocation error:', error);
+                        logger.warn('Unknown geolocation error:', error);
                         break;
                 }
 
@@ -105,7 +104,7 @@ export async function requestLocationPermission() {
             return result.state !== 'denied';
         } catch (error) {
             // Permissions API not fully supported, fallback to trying geolocation
-            console.warn('Permissions API not available, will try geolocation directly');
+            logger.warn('Permissions API not available, will try geolocation directly');
             return true;
         }
     }

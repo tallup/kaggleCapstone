@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\Loggable;
 use App\Traits\FormatsPhoneNumbers;
 use App\Models\Scopes\FacilityScope;
+use Illuminate\Support\Facades\Cache;
 
 class Branch extends Model
 {
@@ -18,6 +19,19 @@ class Branch extends Model
     protected static function booted()
     {
         static::addGlobalScope(new FacilityScope);
+
+        // Clear facility branch cache when branch is created, updated, or deleted
+        static::saved(function ($branch) {
+            if ($branch->facility_id) {
+                Cache::forget("facility.{$branch->facility_id}.branches");
+            }
+        });
+
+        static::deleted(function ($branch) {
+            if ($branch->facility_id) {
+                Cache::forget("facility.{$branch->facility_id}.branches");
+            }
+        });
     }
 
     protected $fillable = [

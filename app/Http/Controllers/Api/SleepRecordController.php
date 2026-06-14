@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Resident;
 use App\Models\SleepRecord;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -105,14 +106,14 @@ class SleepRecordController extends BaseApiController
     {
         $user = auth()->user();
         
-        // Allow administrators and super admins to create sleep records even without specific permission
+        // Allow administrators, super admins, and caregivers to create sleep records without granular permission
         $isSuperAdmin = $user && ($user->role === 'super_admin' || $user->hasRole('super_admin'));
         $isAdmin = $user && ($user->role === 'administrator' || $user->role === 'admin');
-        
-        // Check permission only if user is not an admin or super admin
-        if (!$isSuperAdmin && !$isAdmin) {
-        if ($error = $this->requirePermission('create_sleep_records')) {
-            return $error;
+        $isCaregiver = $this->isCaregiver($user);
+
+        if (!$isSuperAdmin && !$isAdmin && !$isCaregiver) {
+            if ($error = $this->requirePermission('create_sleep_records')) {
+                return $error;
             }
         }
 
@@ -127,6 +128,20 @@ class SleepRecordController extends BaseApiController
             'restlessness_episodes' => 'nullable|integer|min:0',
             'notes' => 'nullable|string',
         ]);
+
+        if ($isCaregiver && $user->assigned_branch_id) {
+            $resident = Resident::find($validated['resident_id']);
+            if (!$resident || (int) $resident->branch_id !== (int) $user->assigned_branch_id) {
+                return response()->json([
+                    'message' => 'You do not have permission to create sleep records for residents outside your assigned branch.',
+                ], 403);
+            }
+            if ((int) $validated['branch_id'] !== (int) $user->assigned_branch_id) {
+                return response()->json([
+                    'message' => 'You do not have permission to create sleep records for residents outside your assigned branch.',
+                ], 403);
+            }
+        }
 
         $validated['created_by'] = auth()->id();
 
@@ -157,18 +172,25 @@ class SleepRecordController extends BaseApiController
     {
         $user = auth()->user();
         
-        // Allow administrators and super admins to edit sleep records even without specific permission
         $isSuperAdmin = $user && ($user->role === 'super_admin' || $user->hasRole('super_admin'));
         $isAdmin = $user && ($user->role === 'administrator' || $user->role === 'admin');
-        
-        // Check permission only if user is not an admin or super admin
-        if (!$isSuperAdmin && !$isAdmin) {
-        if ($error = $this->requirePermission('edit_sleep_records')) {
-            return $error;
+        $isCaregiver = $this->isCaregiver($user);
+
+        if (!$isSuperAdmin && !$isAdmin && !$isCaregiver) {
+            if ($error = $this->requirePermission('edit_sleep_records')) {
+                return $error;
             }
         }
 
         $sleepRecord = SleepRecord::findOrFail($id);
+
+        if ($isCaregiver && $user->assigned_branch_id) {
+            if (!$sleepRecord->branch_id || (int) $sleepRecord->branch_id !== (int) $user->assigned_branch_id) {
+                return response()->json([
+                    'message' => 'You do not have permission to edit sleep records outside your assigned branch.',
+                ], 403);
+            }
+        }
 
         $validated = $request->validate([
             'resident_id' => 'sometimes|exists:residents,id',
@@ -199,6 +221,22 @@ class SleepRecordController extends BaseApiController
         if (Schema::hasColumn('sleep_records', 'date') && isset($validated['sleep_date'])) {
             $validated['date'] = $validated['sleep_date'];
         }
+
+        if ($isCaregiver && $user->assigned_branch_id) {
+            $finalResidentId = $validated['resident_id'] ?? $sleepRecord->resident_id;
+            $finalBranchId = $validated['branch_id'] ?? $sleepRecord->branch_id;
+            $resident = Resident::find($finalResidentId);
+            if (!$resident || (int) $resident->branch_id !== (int) $user->assigned_branch_id) {
+                return response()->json([
+                    'message' => 'You do not have permission to assign sleep records to residents outside your assigned branch.',
+                ], 403);
+            }
+            if ((int) $finalBranchId !== (int) $user->assigned_branch_id) {
+                return response()->json([
+                    'message' => 'You do not have permission to assign sleep records to residents outside your assigned branch.',
+                ], 403);
+            }
+        }
         
         $sleepRecord->update($validated);
 
@@ -209,18 +247,26 @@ class SleepRecordController extends BaseApiController
     {
         $user = auth()->user();
         
-        // Allow administrators and super admins to delete sleep records even without specific permission
         $isSuperAdmin = $user && ($user->role === 'super_admin' || $user->hasRole('super_admin'));
         $isAdmin = $user && ($user->role === 'administrator' || $user->role === 'admin');
-        
-        // Check permission only if user is not an admin or super admin
-        if (!$isSuperAdmin && !$isAdmin) {
-        if ($error = $this->requirePermission('delete_sleep_records')) {
-            return $error;
+        $isCaregiver = $this->isCaregiver($user);
+
+        if (!$isSuperAdmin && !$isAdmin && !$isCaregiver) {
+            if ($error = $this->requirePermission('delete_sleep_records')) {
+                return $error;
             }
         }
 
         $sleepRecord = SleepRecord::findOrFail($id);
+
+        if ($isCaregiver && $user->assigned_branch_id) {
+            if (!$sleepRecord->branch_id || (int) $sleepRecord->branch_id !== (int) $user->assigned_branch_id) {
+                return response()->json([
+                    'message' => 'You do not have permission to delete sleep records outside your assigned branch.',
+                ], 403);
+            }
+        }
+
         $sleepRecord->delete();
 
         return response()->json(['message' => 'Sleep record deleted successfully']);

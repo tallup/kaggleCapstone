@@ -15,7 +15,7 @@ class HousekeepingReportController extends BaseApiController
     {
         $user = $request->user();
 
-        $isAdmin = in_array(strtolower($user->role ?? ''), ['super_admin', 'administrator', 'admin'], true);
+        $isAdmin = $user->role === 'super_admin' || $user->isAnyAdmin();
 
         if (!$user || (!$isAdmin && !$user->hasPermission('view_cleaning_areas'))) {
             abort(403, 'You do not have permission to view housekeeping reports.');
@@ -132,7 +132,7 @@ class HousekeepingReportController extends BaseApiController
     {
         $user = $request->user();
 
-        $isAdmin = in_array(strtolower($user->role ?? ''), ['super_admin', 'administrator', 'admin'], true);
+        $isAdmin = $user->role === 'super_admin' || $user->isAnyAdmin();
 
         if (!$user || (!$isAdmin && !$user->hasPermission('view_cleaning_areas'))) {
             abort(403, 'You do not have permission to view housekeeping reports.');
@@ -163,12 +163,15 @@ class HousekeepingReportController extends BaseApiController
             ->orderBy('completed_at', 'desc')
             ->get();
 
-        $report = $logs->map(function ($log) {
+        $report = $logs->filter(function ($log) {
+            // Filter out logs with missing task or area relationships
+            return $log->task && $log->task->area;
+        })->map(function ($log) {
             return [
                 'id' => $log->id,
                 'date' => $log->scheduled_date->toDateString(),
                 'area' => $log->task->area->name ?? 'Unknown',
-                'shift' => $log->shift_label ?? 'N/A',
+                'shift' => $log->shift_label ?? ($log->task->area->shift_label ?? 'N/A'),
                 'task' => $log->task->title ?? 'Unknown Task',
                 'status' => $log->status,
                 'completed_by' => $log->completedBy ? [

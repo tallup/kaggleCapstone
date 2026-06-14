@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
-import { ShoppingCart, Plus, Search, Edit, Trash2, Calendar, Package, CheckCircle, Clock, XCircle, Truck, X } from 'lucide-react';
+import logger from '../utils/logger';
+import { ShoppingCart, Plus, Search, Edit, Trash2, Calendar, Package, CheckCircle, Clock, XCircle, Truck } from 'lucide-react';
 import SectionCard from '../components/SectionCard';
 import Card from '../components/Card';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
+import Modal from '../components/ui/Modal';
 
 export default function PharmacyOrders() {
     const queryClient = useQueryClient();
@@ -15,6 +18,37 @@ export default function PharmacyOrders() {
     const [editing, setEditing] = useState(null);
     const [selectedOrder, setSelectedOrder] = useState(null);
     const [showItems, setShowItems] = useState(false);
+    const [editingReceived, setEditingReceived] = useState(false);
+    const [receivedQuantities, setReceivedQuantities] = useState({});
+    const [currentUser, setCurrentUser] = useState(null);
+    
+    // Fetch current user
+    React.useEffect(() => {
+        const fetchUser = async () => {
+            try {
+                const response = await api.get('/user');
+                setCurrentUser(response.data);
+            } catch (err) {
+                logger.error('Failed to fetch current user:', err);
+            }
+        };
+        fetchUser();
+    }, []);
+    
+    // Check if user is a facility-level admin
+    const isFacilityAdmin = React.useMemo(() => {
+        if (!currentUser) return false;
+        const role = currentUser.role?.toLowerCase().trim() || '';
+        return role === 'administrator' || role === 'admin' || role === 'facility_admin';
+    }, [currentUser]);
+    
+    // Check if user is a branch-level admin (not super_admin)
+    const isBranchAdmin = React.useMemo(() => {
+        if (!currentUser) return false;
+        const role = currentUser.role?.toLowerCase().trim() || '';
+        return (role === 'administrator' || role === 'admin') && role !== 'super_admin';
+    }, [currentUser]);
+    
     const [formData, setFormData] = useState({
         branch_id: '',
         supplier_id: '',
@@ -25,6 +59,13 @@ export default function PharmacyOrders() {
         internal_notes: '',
         items: [],
     });
+    
+    // Auto-fill branch for admin users on mount
+    React.useEffect(() => {
+        if (isBranchAdmin && currentUser?.assigned_branch_id && !formData.branch_id) {
+            setFormData(prev => ({ ...prev, branch_id: currentUser.assigned_branch_id }));
+        }
+    }, [isBranchAdmin, currentUser]);
 
     // Fetch branches
     const { data: branchesData } = useQuery({
@@ -67,6 +108,8 @@ export default function PharmacyOrders() {
         },
     });
 
+    const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+
     const updateStatusMutation = useMutation({
         mutationFn: async ({ id, status }) => {
             const response = await api.put(`/pharmacy-orders/${id}`, { status });
@@ -76,8 +119,25 @@ export default function PharmacyOrders() {
             queryClient.invalidateQueries(['pharmacy-orders']);
         },
         onError: (error) => {
-            console.error('Failed to update order status:', error);
+            logger.error('Failed to update order status:', error);
             alert(error.response?.data?.message || 'Failed to update order status. Please try again.');
+        },
+    });
+
+    const markAsReceivedMutation = useMutation({
+        mutationFn: async ({ orderId, items }) => {
+            const response = await api.post(`/pharmacy-orders/${orderId}/mark-received`, { items });
+            return response.data;
+        },
+        onSuccess: (data) => {
+            queryClient.invalidateQueries(['pharmacy-orders']);
+            setSelectedOrder(data);
+            setEditingReceived(false);
+            setReceivedQuantities({});
+        },
+        onError: (error) => {
+            logger.error('Failed to update received quantities:', error);
+            alert(error.response?.data?.message || 'Failed to update received quantities. Please try again.');
         },
     });
 
@@ -101,7 +161,7 @@ export default function PharmacyOrders() {
             });
         },
         onError: (error) => {
-            console.error('Failed to create order:', error);
+            logger.error('Failed to create order:', error);
             alert(error.response?.data?.message || 'Failed to create order. Please try again.');
         },
     });
@@ -111,15 +171,39 @@ export default function PharmacyOrders() {
     const suppliers = suppliersData?.data || [];
     const drugs = drugsData?.data || [];
 
-    const handleDelete = (id) => {
-        if (window.confirm('Are you sure you want to delete this order?')) {
-            deleteMutation.mutate(id);
-        }
-    };
-
     const handleViewItems = (order) => {
         setSelectedOrder(order);
         setShowItems(true);
+        setEditingReceived(false);
+        // Initialize received quantities from order items
+        const quantities = {};
+        if (order.items) {
+            order.items.forEach(item => {
+                quantities[item.id] = item.quantity_received || 0;
+            });
+        }
+        setReceivedQuantities(quantities);
+    };
+
+    const handleReceivedQuantityChange = (itemId, value) => {
+        setReceivedQuantities(prev => ({
+            ...prev,
+            [itemId]: parseInt(value) || 0
+        }));
+    };
+
+    const handleSaveReceivedQuantities = () => {
+        if (!selectedOrder) return;
+        
+        const items = Object.entries(receivedQuantities).map(([itemId, quantity]) => ({
+            id: parseInt(itemId),
+            quantity_received: quantity
+        }));
+
+        markAsReceivedMutation.mutate({
+            orderId: selectedOrder.id,
+            items
+        });
     };
 
     const handleAddItem = () => {
@@ -176,6 +260,22 @@ export default function PharmacyOrders() {
         createMutation.mutate(formData);
     };
 
+    const resetOrderFormData = () => ({
+        branch_id: '',
+        supplier_id: '',
+        status: 'draft',
+        order_date: new Date().toISOString().split('T')[0],
+        expected_delivery_date: '',
+        notes: '',
+        internal_notes: '',
+        items: [],
+    });
+    const closeOrderForm = () => {
+        setShowForm(false);
+        setEditing(null);
+        setFormData(resetOrderFormData());
+    };
+
     const getStatusBadge = (status) => {
         const styles = {
             draft: 'bg-gray-100 text-gray-800',
@@ -213,35 +313,7 @@ export default function PharmacyOrders() {
         }
     };
 
-    if (showForm) {
-        return (
-            <div>
-                <SectionCard>
-                    <div className="flex items-center justify-between mb-6">
-                        <h2 className="text-xl font-semibold text-gray-900">
-                            {editing ? 'Edit Order' : 'Create Order'}
-                        </h2>
-                        <button
-                            onClick={() => {
-                                setShowForm(false);
-                                setEditing(null);
-                                setFormData({
-                                    branch_id: '',
-                                    supplier_id: '',
-                                    status: 'draft',
-                                    order_date: new Date().toISOString().split('T')[0],
-                                    expected_delivery_date: '',
-                                    notes: '',
-                                    internal_notes: '',
-                                    items: [],
-                                });
-                            }}
-                            className="text-gray-500 hover:text-gray-700"
-                        >
-                            <X className="w-5 h-5" />
-                        </button>
-                    </div>
-
+    const pharmacyOrderForm = (
                     <form onSubmit={handleSubmit} className="space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
@@ -252,7 +324,8 @@ export default function PharmacyOrders() {
                                     required
                                     value={formData.branch_id}
                                     onChange={(e) => setFormData({ ...formData, branch_id: e.target.value })}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
+                                    disabled={!isFacilityAdmin && isBranchAdmin && currentUser?.assigned_branch_id}
+                                    className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent ${!isFacilityAdmin && isBranchAdmin && currentUser?.assigned_branch_id ? 'bg-gray-100 cursor-not-allowed opacity-75' : ''}`}
                                 >
                                     <option value="">Select Branch</option>
                                     {branches.map(branch => (
@@ -406,7 +479,7 @@ export default function PharmacyOrders() {
                                                     <button
                                                         type="button"
                                                         onClick={() => handleRemoveItem(index)}
-                                                        className="w-full px-3 py-2 inline-flex items-center justify-center gap-2 text-sm font-medium text-red-700 border border-red-200 bg-red-50 hover:bg-red-100 rounded-lg transition-colors shadow-sm"
+                                                        className="w-full px-4 py-2.5 inline-flex items-center justify-center gap-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 active:bg-red-800 rounded-lg transition-colors shadow-md hover:shadow-lg"
                                                     >
                                                         <Trash2 className="w-4 h-4" />
                                                         <span>Delete</span>
@@ -422,20 +495,7 @@ export default function PharmacyOrders() {
                         <div className="flex justify-end space-x-3 border-t pt-6">
                             <button
                                 type="button"
-                                onClick={() => {
-                                    setShowForm(false);
-                                    setEditing(null);
-                                    setFormData({
-                                        branch_id: '',
-                                        supplier_id: '',
-                                        status: 'draft',
-                                        order_date: new Date().toISOString().split('T')[0],
-                                        expected_delivery_date: '',
-                                        notes: '',
-                                        internal_notes: '',
-                                        items: [],
-                                    });
-                                }}
+                                onClick={closeOrderForm}
                                 className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
                             >
                                 Cancel
@@ -449,10 +509,7 @@ export default function PharmacyOrders() {
                             </button>
                         </div>
                     </form>
-                </SectionCard>
-            </div>
-        );
-    }
+    );
 
     if (showItems && selectedOrder) {
         return (
@@ -462,13 +519,54 @@ export default function PharmacyOrders() {
                         <div>
                             <h2 className="text-xl font-semibold text-gray-900">Order Items</h2>
                             <p className="text-sm text-gray-600">Order #: {selectedOrder.order_number}</p>
+                            <p className="text-sm text-gray-500">Status: <span className="font-medium capitalize">{selectedOrder.status?.replace('_', ' ')}</span></p>
                         </div>
-                        <button
-                            onClick={() => { setShowItems(false); setSelectedOrder(null); }}
-                            className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-                        >
-                            Back to Orders
-                        </button>
+                        <div className="flex items-center gap-3">
+                            {!editingReceived && selectedOrder.status !== 'received' && selectedOrder.status !== 'cancelled' && (
+                                <button
+                                    onClick={() => setEditingReceived(true)}
+                                    className="px-4 py-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] rounded-lg hover:bg-[var(--theme-primary-hover)] transition-colors"
+                                >
+                                    Update Received Quantities
+                                </button>
+                            )}
+                            {editingReceived && (
+                                <>
+                                    <button
+                                        onClick={handleSaveReceivedQuantities}
+                                        disabled={markAsReceivedMutation.isPending}
+                                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                                    >
+                                        {markAsReceivedMutation.isPending ? 'Saving...' : 'Save'}
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            setEditingReceived(false);
+                                            // Reset to original values
+                                            const quantities = {};
+                                            selectedOrder.items.forEach(item => {
+                                                quantities[item.id] = item.quantity_received || 0;
+                                            });
+                                            setReceivedQuantities(quantities);
+                                        }}
+                                        className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                                    >
+                                        Cancel
+                                    </button>
+                                </>
+                            )}
+                            <button
+                                onClick={() => { 
+                                    setShowItems(false); 
+                                    setSelectedOrder(null);
+                                    setEditingReceived(false);
+                                    setReceivedQuantities({});
+                                }}
+                                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                            >
+                                Back to Orders
+                            </button>
+                        </div>
                     </div>
 
                     <div className="space-y-4">
@@ -497,7 +595,20 @@ export default function PharmacyOrders() {
                                                     {item.quantity_ordered}
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                    {item.quantity_received || 0}
+                                                    {editingReceived ? (
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            max={item.quantity_ordered}
+                                                            value={receivedQuantities[item.id] ?? item.quantity_received ?? 0}
+                                                            onChange={(e) => handleReceivedQuantityChange(item.id, e.target.value)}
+                                                            className="w-20 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
+                                                        />
+                                                    ) : (
+                                                        <span className={item.quantity_received === item.quantity_ordered ? 'text-green-600 font-medium' : item.quantity_received > 0 ? 'text-yellow-600' : ''}>
+                                                            {item.quantity_received || 0}
+                                                        </span>
+                                                    )}
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                                     ${parseFloat(item.unit_cost || 0).toFixed(2)}
@@ -533,6 +644,29 @@ export default function PharmacyOrders() {
     }
 
     return (
+        <>
+            <ConfirmDialog
+                isOpen={deleteConfirmId != null}
+                onClose={() => !deleteMutation.isPending && setDeleteConfirmId(null)}
+                onConfirm={() => {
+                    if (deleteConfirmId == null) return;
+                    deleteMutation.mutate(deleteConfirmId, { onSuccess: () => setDeleteConfirmId(null) });
+                }}
+                title="Delete this order?"
+                description="This order will be permanently removed."
+                confirmLabel="Delete"
+                cancelLabel="Cancel"
+                variant="danger"
+                isPending={deleteMutation.isPending}
+            />
+            <Modal
+                isOpen={showForm}
+                onClose={closeOrderForm}
+                title={editing ? 'Edit Order' : 'Create Order'}
+                size="xl"
+            >
+                {pharmacyOrderForm}
+            </Modal>
         <div>
             <SectionCard>
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
@@ -688,7 +822,7 @@ export default function PharmacyOrders() {
                                         {order.status === 'draft' && (
                                             <>
                                                 <button
-                                                    onClick={() => handleDelete(order.id)}
+                                                    onClick={() => setDeleteConfirmId(order.id)}
                                                     className="px-4 py-2 text-sm font-medium bg-red-600 text-white hover:bg-red-700 rounded-lg transition-colors flex items-center gap-2"
                                                 >
                                                     <Trash2 className="w-4 h-4" />
@@ -704,6 +838,7 @@ export default function PharmacyOrders() {
                 )}
             </SectionCard>
         </div>
+        </>
     );
 }
 

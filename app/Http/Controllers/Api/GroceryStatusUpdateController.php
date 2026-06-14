@@ -167,6 +167,12 @@ class GroceryStatusUpdateController extends BaseApiController
             'notes' => 'nullable|string',
         ]);
 
+        if (isset($validated['status']) && $validated['status'] === 'pending' && $update->status === 'completed') {
+            return response()->json([
+                'message' => 'A completed grocery status cannot be set back to pending.',
+            ], 422);
+        }
+
         // Ensure week_start_date is Monday if provided
         if (isset($validated['week_start_date'])) {
             $date = Carbon::parse($validated['week_start_date']);
@@ -214,6 +220,12 @@ class GroceryStatusUpdateController extends BaseApiController
             'status' => 'required|in:pending,in_progress,completed,needs_attention',
         ]);
 
+        if ($validated['status'] === 'pending' && $update->status === 'completed') {
+            return response()->json([
+                'message' => 'A completed grocery status cannot be set back to pending.',
+            ], 422);
+        }
+
         $update->status = $validated['status'];
         
         // Set completed_at if status is completed
@@ -243,9 +255,9 @@ class GroceryStatusUpdateController extends BaseApiController
             return response()->json(['message' => 'Grocery status update not found'], 404);
         }
         
-        // Only admins can delete
+        // Only super admins and facility/branch admins can delete (legacy users.role + Spatie)
         $user = request()->user();
-        if (!$user->hasRole('administrator') && !$user->hasRole('super_admin')) {
+        if (! $user->isSuperAdmin() && ! $user->isAnyAdmin()) {
             return response()->json([
                 'message' => 'You do not have permission to delete updates.',
             ], 403);

@@ -28,12 +28,15 @@ class LeaveRequestController extends BaseApiController
                 // Filter by leave requests where the staff member belongs to the user's facility
                 // OR where the branch belongs to the user's facility
                 $facilityId = $currentUser->facility_id;
-                $query->where(function($q) use ($facilityId) {
+                // Use optimized whereIn pattern for branch filtering
+                $branchIds = $this->getFacilityBranchIds($facilityId);
+                $query->where(function($q) use ($facilityId, $branchIds) {
                     $q->whereHas('staff', function($userQuery) use ($facilityId) {
                         $userQuery->where('facility_id', $facilityId);
-                    })->orWhereHas('branch', function($branchQuery) use ($facilityId) {
-                        $branchQuery->where('facility_id', $facilityId);
                     });
+                    if (!empty($branchIds)) {
+                        $q->orWhereIn('branch_id', $branchIds);
+                    }
                 });
             }
         }
@@ -194,6 +197,16 @@ class LeaveRequestController extends BaseApiController
             $staff = \App\Models\User::find($validated['staff_id']);
             if ($staff && $staff->assigned_branch_id) {
                 $validated['branch_id'] = $staff->assigned_branch_id;
+            }
+        }
+        
+        // If status is being changed to approved or declined, set approved_by and approved_at
+        if (isset($validated['status']) && in_array($validated['status'], ['approved', 'declined'])) {
+            if (!isset($validated['approved_by'])) {
+                $validated['approved_by'] = auth()->id();
+            }
+            if (!isset($validated['approved_at'])) {
+                $validated['approved_at'] = now();
             }
         }
         

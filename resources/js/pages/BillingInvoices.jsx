@@ -11,6 +11,10 @@ import EmptyState from '../components/ui/EmptyState';
 import FormInput from '../components/forms/FormInput';
 import FormTextarea from '../components/forms/FormTextarea';
 import FormSelect from '../components/forms/FormSelect';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
+import Modal from '../components/ui/Modal';
+import Tooltip from '../components/ui/Tooltip';
+import CardIconButton from '../components/ui/CardIconButton';
 
 function BillingInvoices() {
   const queryClient = useQueryClient();
@@ -55,6 +59,8 @@ function BillingInvoices() {
     },
   });
 
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
   };
@@ -66,19 +72,22 @@ function BillingInvoices() {
     setEditing(null);
   };
 
-  if (showForm) {
-    return (
-      <div>
-        <InvoiceForm
-          record={editing}
-          onClose={handleCloseForm}
-          onSuccess={() => { handleCloseForm(); queryClient.invalidateQueries(['billing-invoices']); }}
-        />
-      </div>
-    );
-  }
-
   return (
+    <>
+      <ConfirmDialog
+        isOpen={deleteConfirmId != null}
+        onClose={() => !deleteMutation.isPending && setDeleteConfirmId(null)}
+        onConfirm={() => {
+          if (deleteConfirmId == null) return;
+          deleteMutation.mutate(deleteConfirmId, { onSuccess: () => setDeleteConfirmId(null) });
+        }}
+        title="Delete this invoice?"
+        description="This draft invoice will be permanently removed."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        isPending={deleteMutation.isPending}
+      />
     <div>
       <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
@@ -169,42 +178,56 @@ function BillingInvoices() {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="flex items-center justify-end space-x-2">
+                        <div className="flex items-center justify-end gap-2">
                           {invoice.status === 'draft' && (
-                            <button
-                              onClick={() => sendMutation.mutate(invoice.id)}
-                              className="p-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] hover:bg-[var(--theme-primary-hover)] rounded-lg"
-                              title="Send"
-                            >
-                              <Send className="w-4 h-4" />
-                            </button>
+                            <Tooltip content="Send" position="top">
+                              <CardIconButton
+                                variant="primary"
+                                type="button"
+                                onClick={() => sendMutation.mutate(invoice.id)}
+                                aria-label="Send invoice"
+                                disabled={sendMutation.isPending}
+                              >
+                                <Send className="h-4 w-4" strokeWidth={2.5} />
+                              </CardIconButton>
+                            </Tooltip>
                           )}
                           {invoice.status !== 'paid' && invoice.status !== 'cancelled' && (
-                            <button
-                              onClick={() => markPaidMutation.mutate({ id: invoice.id, data: {} })}
-                              className="p-2 bg-green-600 text-white hover:bg-green-700 rounded-lg"
-                              title="Mark as Paid"
-                            >
-                              <CheckCircle className="w-4 h-4" />
-                            </button>
+                            <Tooltip content="Mark as paid" position="top">
+                              <CardIconButton
+                                variant="resolve"
+                                type="button"
+                                onClick={() => markPaidMutation.mutate({ id: invoice.id, data: {} })}
+                                aria-label="Mark as paid"
+                                disabled={markPaidMutation.isPending}
+                              >
+                                <CheckCircle className="h-4 w-4" strokeWidth={2.5} />
+                              </CardIconButton>
+                            </Tooltip>
                           )}
                           {invoice.status === 'draft' && (
-                            <button
-                              onClick={() => { setEditing(invoice); setShowForm(true); }}
-                              className="p-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] hover:bg-[var(--theme-primary-hover)] rounded-lg"
-                              title="Edit"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </button>
+                            <Tooltip content="Edit" position="top">
+                              <CardIconButton
+                                variant="edit"
+                                type="button"
+                                onClick={() => { setEditing(invoice); setShowForm(true); }}
+                                aria-label="Edit"
+                              >
+                                <Edit className="h-4 w-4" strokeWidth={2.5} />
+                              </CardIconButton>
+                            </Tooltip>
                           )}
                           {invoice.status === 'draft' && (
-                            <button
-                              onClick={() => window.confirm('Delete invoice?') && deleteMutation.mutate(invoice.id)}
-                              className="p-2 bg-red-600 text-white hover:bg-red-700 rounded-lg"
-                              title="Delete"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            <Tooltip content="Delete" position="top">
+                              <CardIconButton
+                                variant="delete"
+                                type="button"
+                                onClick={() => setDeleteConfirmId(invoice.id)}
+                                aria-label="Delete"
+                              >
+                                <Trash2 className="h-4 w-4" strokeWidth={2.5} />
+                              </CardIconButton>
+                            </Tooltip>
                           )}
                         </div>
                       </td>
@@ -227,6 +250,22 @@ function BillingInvoices() {
         </div>
       )}
     </div>
+
+      <Modal
+        isOpen={showForm}
+        onClose={handleCloseForm}
+        title={editing ? 'Edit Invoice' : 'Create Invoice'}
+        size="xl"
+      >
+        <InvoiceForm
+          key={editing?.id ?? 'new'}
+          inModal
+          record={editing}
+          onClose={handleCloseForm}
+          onSuccess={() => { handleCloseForm(); queryClient.invalidateQueries(['billing-invoices']); }}
+        />
+      </Modal>
+    </>
   );
 }
 
@@ -252,7 +291,7 @@ const invoiceSchema = z.object({
   path: ['due_date'],
 });
 
-function InvoiceForm({ record, onClose, onSuccess }) {
+function InvoiceForm({ record, onClose, onSuccess, inModal = false }) {
   const toast = useToastContext();
   const [submitting, setSubmitting] = useState(false);
 
@@ -356,10 +395,10 @@ function InvoiceForm({ record, onClose, onSuccess }) {
 
       if (record) {
         await api.put(`/billing/invoices/${record.id}`, payload);
-        toast.success('Invoice updated successfully');
+        toast.success('Invoice updated successfully', '', { isFormSubmission: true });
       } else {
         await api.post('/billing/invoices', payload);
-        toast.success('Invoice created successfully');
+        toast.success('Invoice created successfully', '', { isFormSubmission: true });
       }
       onSuccess();
     } catch (error) {
@@ -373,18 +412,21 @@ function InvoiceForm({ record, onClose, onSuccess }) {
   const categories = categoriesData?.data || [];
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
+    <div className={inModal ? '' : 'bg-white rounded-lg shadow p-6'}>
+      {!inModal && (
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-semibold text-gray-900">
           {record ? 'Edit Invoice' : 'Create Invoice'}
         </h2>
         <button
+          type="button"
           onClick={onClose}
           className="text-gray-400 hover:text-gray-600"
         >
           <X className="w-6 h-6" />
         </button>
       </div>
+      )}
 
       <FormProvider {...methods}>
         <form onSubmit={methods.handleSubmit(onSubmit)} className="space-y-6">
@@ -460,14 +502,16 @@ function InvoiceForm({ record, onClose, onSuccess }) {
                   </div>
                   <div className="col-span-2 md:col-span-1 flex items-end">
                     {fields.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => remove(index)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded"
-                        title="Remove item"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <Tooltip content="Remove item" position="top">
+                        <CardIconButton
+                          variant="delete"
+                          type="button"
+                          onClick={() => remove(index)}
+                          aria-label="Remove item"
+                        >
+                          <Trash2 className="h-4 w-4" strokeWidth={2.5} />
+                        </CardIconButton>
+                      </Tooltip>
                     )}
                   </div>
                 </div>

@@ -1,21 +1,41 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Navigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import {
   ArrowLeft, Save, Building2, Palette, Settings, Users, Shield,
   MapPin, Phone, Mail, Image as ImageIcon, CheckCircle, XCircle,
-  Plus, Edit, Trash2, Search, Eye, AlertCircle, X, Calendar,
+  Plus, Edit, Trash2, Search, Eye, AlertCircle, Calendar,
   Briefcase, Award, Clock, User as UserIcon, Navigation, Cog
 } from 'lucide-react';
 import { useToastContext } from '../contexts/ToastContext';
 import FacilityPermissions from './FacilityPermissions';
 import EmptyState from '../components/ui/EmptyState';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
+import Modal from '../components/ui/Modal';
+import Tooltip from '../components/ui/Tooltip';
 import { getUserLocation } from '../utils/location';
 
-export default function FacilityEdit() {
-  const { id } = useParams();
+const COORDINATE_DECIMALS = 6;
+const normalizeCoordinateInput = (value) => {
+  if (value === null || value === undefined || String(value).trim() === '') return '';
+  const num = Number(value);
+  if (Number.isNaN(num)) return '';
+  return num.toFixed(COORDINATE_DECIMALS);
+};
+
+export function FacilityEditPage({ embeddedFacilityId, onRequestClose } = {}) {
+  const params = useParams();
+  const id = embeddedFacilityId ?? params.id;
   const navigate = useNavigate();
+
+  const leaveToFacilitiesHub = () => {
+    if (onRequestClose) {
+      onRequestClose();
+    } else {
+      navigate('/super-admin/facilities');
+    }
+  };
   const { showToast } = useToastContext();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('overview');
@@ -75,7 +95,8 @@ export default function FacilityEdit() {
           <p>Failed to load facility. Please try again.</p>
         </div>
         <button
-          onClick={() => navigate('/super-admin/facilities')}
+          type="button"
+          onClick={() => leaveToFacilitiesHub()}
           className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
         >
           Go Back
@@ -100,7 +121,8 @@ export default function FacilityEdit() {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-4">
             <button
-              onClick={() => navigate('/super-admin/facilities')}
+              type="button"
+              onClick={() => leaveToFacilitiesHub()}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
             >
               <ArrowLeft className="w-5 h-5" />
@@ -147,6 +169,12 @@ export default function FacilityEdit() {
   );
 }
 
+/** Legacy `/super-admin/facilities/:id/edit` → hub opens edit in modal */
+export default function FacilityEdit() {
+  const { id } = useParams();
+  return <Navigate to={`/super-admin/facilities?editFacilityId=${encodeURIComponent(id)}`} replace />;
+}
+
 // Overview Tab
 function OverviewTab({ facility }) {
   const { showToast } = useToastContext();
@@ -161,8 +189,8 @@ function OverviewTab({ facility }) {
     brochure_url: facility?.brochure_url || '',
     brochure_color: facility?.brochure_color || 'blue',
     is_active: facility?.is_active ?? true,
-    latitude: facility?.latitude || '',
-    longitude: facility?.longitude || '',
+    latitude: normalizeCoordinateInput(facility?.latitude),
+    longitude: normalizeCoordinateInput(facility?.longitude),
   });
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -186,7 +214,7 @@ function OverviewTab({ facility }) {
     onSuccess: () => {
       queryClient.invalidateQueries(['facility', facility.id]);
       queryClient.invalidateQueries(['facilities']);
-      showToast('Facility updated successfully', 'success');
+      showToast('Facility updated successfully', 'success', { isFormSubmission: true });
     },
     onError: (error) => {
       const errorData = error.response?.data;
@@ -287,71 +315,73 @@ function OverviewTab({ facility }) {
                 Location Coordinates
               </label>
               <div className="flex items-center space-x-2">
-                <button
-                  type="button"
-                  onClick={async () => {
-                    setGettingLocation(true);
-                    try {
-                      const location = await getUserLocation({
-                        timeout: 10000,
-                        maximumAge: 0,
-                        enableHighAccuracy: true,
-                      });
-                      if (location) {
-                        setForm({
-                          ...form,
-                          latitude: location.latitude,
-                          longitude: location.longitude,
+                <Tooltip content="Use your current GPS location" position="bottom">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setGettingLocation(true);
+                      try {
+                        const location = await getUserLocation({
+                          timeout: 10000,
+                          maximumAge: 0,
+                          enableHighAccuracy: true,
                         });
-                      } else {
-                        showToast('Unable to get your current location. Please allow location access or enter coordinates manually.', 'warning');
+                        if (location) {
+                          setForm({
+                            ...form,
+                            latitude: normalizeCoordinateInput(location.latitude),
+                            longitude: normalizeCoordinateInput(location.longitude),
+                          });
+                        } else {
+                          showToast('Unable to get your current location. Please allow location access or enter coordinates manually.', 'warning');
+                        }
+                      } catch (err) {
+                        showToast('Failed to get current location. Please enter coordinates manually.', 'error');
+                      } finally {
+                        setGettingLocation(false);
                       }
-                    } catch (err) {
-                      showToast('Failed to get current location. Please enter coordinates manually.', 'error');
-                    } finally {
-                      setGettingLocation(false);
-                    }
-                  }}
-                  disabled={gettingLocation}
-                  className="text-sm px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1"
-                  title="Use your current GPS location"
-                >
-                  <Navigation className="w-4 h-4" />
-                  <span>{gettingLocation ? 'Getting Location...' : 'Use Current Location'}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (!form.address) {
-                      showToast('Please enter an address first', 'warning');
-                      return;
-                    }
-                    setGeocoding(true);
-                    try {
-                      const response = await api.post('/geocode', { address: form.address });
-                      if (response.data.success) {
-                        setForm({
-                          ...form,
-                          latitude: response.data.latitude,
-                          longitude: response.data.longitude,
-                        });
-                        showToast('Coordinates geocoded successfully', 'success');
-                      } else {
-                        showToast('Unable to geocode address. Please enter coordinates manually.', 'warning');
+                    }}
+                    disabled={gettingLocation}
+                    className="text-sm px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1"
+                  >
+                    <Navigation className="w-4 h-4" />
+                    <span>{gettingLocation ? 'Getting Location...' : 'Use Current Location'}</span>
+                  </button>
+                </Tooltip>
+                <Tooltip content="Fill coordinates from the address field" position="bottom">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!form.address) {
+                        showToast('Please enter an address first', 'warning');
+                        return;
                       }
-                    } catch (err) {
-                      showToast('Geocoding failed. Please enter coordinates manually.', 'error');
-                    } finally {
-                      setGeocoding(false);
-                    }
-                  }}
-                  disabled={geocoding || !form.address}
-                  className="text-sm px-3 py-1 bg-[var(--theme-primary)] text-white rounded hover:bg-[var(--theme-primary-hover)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1"
-                  title="Geocode from address field"
-                >
-                  <MapPin className="w-4 h-4" />
-                  <span>{geocoding ? 'Geocoding...' : 'Geocode from Address'}</span>
-                </button>
+                      setGeocoding(true);
+                      try {
+                        const response = await api.post('/geocode', { address: form.address });
+                        if (response.data.success) {
+                          setForm({
+                            ...form,
+                            latitude: normalizeCoordinateInput(response.data.latitude),
+                            longitude: normalizeCoordinateInput(response.data.longitude),
+                          });
+                          showToast('Coordinates geocoded successfully', 'success');
+                        } else {
+                          showToast('Unable to geocode address. Please enter coordinates manually.', 'warning');
+                        }
+                      } catch (err) {
+                        showToast('Geocoding failed. Please enter coordinates manually.', 'error');
+                      } finally {
+                        setGeocoding(false);
+                      }
+                    }}
+                    disabled={geocoding || !form.address}
+                    className="text-sm px-3 py-1 bg-[var(--theme-primary)] text-white rounded hover:bg-[var(--theme-primary-hover)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1"
+                  >
+                    <MapPin className="w-4 h-4" />
+                    <span>{geocoding ? 'Geocoding...' : 'Geocode from Address'}</span>
+                  </button>
+                </Tooltip>
               </div>
             </div>
             <p className="text-xs text-gray-500 mb-3">Coordinates are used for location-based login restrictions (50 meters).</p>
@@ -362,11 +392,12 @@ function OverviewTab({ facility }) {
                 </label>
                 <input
                   type="number"
-                  step="0.00000001"
+                  step="0.000001"
                   min="-90"
                   max="90"
                   value={form.latitude}
                   onChange={(e) => setForm({ ...form, latitude: e.target.value })}
+                  onBlur={() => setForm((prev) => ({ ...prev, latitude: normalizeCoordinateInput(prev.latitude) }))}
                   placeholder="e.g., 47.6062"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-[var(--theme-primary)] text-sm"
                 />
@@ -377,11 +408,12 @@ function OverviewTab({ facility }) {
                 </label>
                 <input
                   type="number"
-                  step="0.00000001"
+                  step="0.000001"
                   min="-180"
                   max="180"
                   value={form.longitude}
                   onChange={(e) => setForm({ ...form, longitude: e.target.value })}
+                  onBlur={() => setForm((prev) => ({ ...prev, longitude: normalizeCoordinateInput(prev.longitude) }))}
                   placeholder="e.g., -122.3321"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-[var(--theme-primary)] text-sm"
                 />
@@ -574,7 +606,7 @@ function BrandingTab({ facility }) {
       queryClient.invalidateQueries(['current-user']);
       queryClient.invalidateQueries(['me']);
       queryClient.invalidateQueries(['user']);
-      showToast('Branding updated successfully. Refreshing to apply changes...', 'success');
+      showToast('Branding updated successfully. Refreshing to apply changes...', 'success', { isFormSubmission: true });
       setForm({ ...form, logo: null }); // Reset logo file
       
       // Reload page after a short delay to apply new branding immediately
@@ -762,21 +794,30 @@ function BrandingTab({ facility }) {
             <div>
               <div className="font-semibold text-gray-900">{facility.name}</div>
               <div className="flex gap-2 mt-2">
-                <div
-                  className="w-8 h-8 rounded border border-gray-300"
-                  style={{ backgroundColor: form.primary_color }}
-                  title="Primary Color"
-                />
-                <div
-                  className="w-8 h-8 rounded border border-gray-300"
-                  style={{ backgroundColor: form.secondary_color }}
-                  title="Secondary Color"
-                />
-                <div
-                  className="w-8 h-8 rounded border border-gray-300"
-                  style={{ backgroundColor: form.accent_color }}
-                  title="Accent Color"
-                />
+                <Tooltip content={`Primary: ${form.primary_color || ''}`} position="top">
+                  <div
+                    className="w-8 h-8 rounded border border-gray-300"
+                    style={{ backgroundColor: form.primary_color }}
+                    role="img"
+                    aria-label={`Primary color ${form.primary_color}`}
+                  />
+                </Tooltip>
+                <Tooltip content={`Secondary: ${form.secondary_color || ''}`} position="top">
+                  <div
+                    className="w-8 h-8 rounded border border-gray-300"
+                    style={{ backgroundColor: form.secondary_color }}
+                    role="img"
+                    aria-label={`Secondary color ${form.secondary_color}`}
+                  />
+                </Tooltip>
+                <Tooltip content={`Accent: ${form.accent_color || ''}`} position="top">
+                  <div
+                    className="w-8 h-8 rounded border border-gray-300"
+                    style={{ backgroundColor: form.accent_color }}
+                    role="img"
+                    aria-label={`Accent color ${form.accent_color}`}
+                  />
+                </Tooltip>
               </div>
             </div>
           </div>
@@ -814,7 +855,7 @@ function ModulesTab({ facilityId }) {
     onSuccess: () => {
       queryClient.invalidateQueries(['facility-permissions', facilityId]);
       queryClient.invalidateQueries(['facilities']);
-      showToast('Modules updated successfully', 'success');
+      showToast('Modules updated successfully', 'success', { isFormSubmission: true });
     },
     onError: (error) => {
       showToast(error.response?.data?.message || 'Failed to update modules', 'error');
@@ -935,6 +976,7 @@ function AccountsTab({ facilityId }) {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
   const [viewingProfile, setViewingProfile] = useState(null);
+  const [deleteConfirmUser, setDeleteConfirmUser] = useState(null);
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['facility-users', facilityId, search],
@@ -942,8 +984,6 @@ function AccountsTab({ facilityId }) {
       const params = { facility_id: facilityId, per_page: 50 };
       if (search) params.search = search;
       const res = await api.get('/users', { params });
-      console.log('Facility Users API Response:', res.data);
-      console.log('Users count:', res.data?.data?.length || 0);
       return res.data;
     },
     refetchOnMount: true,
@@ -989,16 +1029,31 @@ function AccountsTab({ facilityId }) {
     },
   });
 
-  const handleDelete = (user) => {
-    if (window.confirm(`Are you sure you want to delete ${user.name || user.email}?`)) {
-      deleteMutation.mutate(user.id);
-    }
+  const handleConfirmDeleteUser = () => {
+    if (!deleteConfirmUser) return;
+    deleteMutation.mutate(deleteConfirmUser.id, { onSuccess: () => setDeleteConfirmUser(null) });
   };
 
   const users = data?.data || [];
   const navigate = useNavigate();
 
   return (
+    <>
+      <ConfirmDialog
+        isOpen={deleteConfirmUser != null}
+        onClose={() => !deleteMutation.isPending && setDeleteConfirmUser(null)}
+        onConfirm={handleConfirmDeleteUser}
+        title="Delete this user?"
+        description={
+          deleteConfirmUser
+            ? `Delete ${deleteConfirmUser.name || deleteConfirmUser.email}? This cannot be undone.`
+            : ''
+        }
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        isPending={deleteMutation.isPending}
+      />
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -1006,7 +1061,8 @@ function AccountsTab({ facilityId }) {
           <p className="text-sm text-gray-600">Manage users associated with this facility.</p>
         </div>
         <button
-          onClick={() => navigate(`/administration/users/create?facility_id=${facilityId}`)}
+          type="button"
+          onClick={() => navigate(`/team/users?create=1&facility_id=${facilityId}`)}
           className="px-4 py-2 bg-[var(--theme-primary)] text-white rounded-lg hover:bg-[var(--theme-primary-hover)] flex items-center gap-2"
         >
           <Plus className="w-4 h-4" />
@@ -1048,27 +1104,36 @@ function AccountsTab({ facilityId }) {
                   <p className="text-sm text-gray-600">{user.email}</p>
                 </div>
                 <div className="flex gap-1">
-                  <button
-                    onClick={() => navigate(`/administration/users/${user.id}/edit`)}
-                    className="p-1.5 text-[var(--theme-primary)] hover:bg-gray-100 rounded"
-                    title="Edit"
-                  >
-                    <Edit className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => setViewingProfile(user)}
-                    className="p-1.5 text-[var(--theme-primary)] hover:bg-gray-100 rounded"
-                    title="View"
-                  >
-                    <Eye className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(user)}
-                    className="p-1.5 text-red-600 hover:bg-red-50 rounded"
-                    title="Delete"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <Tooltip content="Edit user" position="top">
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/team/users?editUserId=${user.id}`)}
+                      className="p-1.5 text-[var(--theme-primary)] hover:bg-gray-100 rounded"
+                      aria-label="Edit user"
+                    >
+                      <Edit className="w-4 h-4" strokeWidth={2.25} />
+                    </button>
+                  </Tooltip>
+                  <Tooltip content="View profile" position="top">
+                    <button
+                      type="button"
+                      onClick={() => setViewingProfile(user)}
+                      className="p-1.5 text-[var(--theme-primary)] hover:bg-gray-100 rounded"
+                      aria-label="View profile"
+                    >
+                      <Eye className="w-4 h-4" strokeWidth={2.25} />
+                    </button>
+                  </Tooltip>
+                  <Tooltip content="Remove from facility" position="top">
+                    <button
+                      type="button"
+                      onClick={() => setDeleteConfirmUser(user)}
+                      className="p-1.5 text-red-600 hover:bg-red-50 rounded"
+                      aria-label="Remove user from facility"
+                    >
+                      <Trash2 className="w-4 h-4" strokeWidth={2.25} />
+                    </button>
+                  </Tooltip>
                 </div>
               </div>
               <div className="space-y-1 text-sm">
@@ -1099,11 +1164,12 @@ function AccountsTab({ facilityId }) {
           onClose={() => setViewingProfile(null)}
           onEdit={() => {
             setViewingProfile(null);
-            navigate(`/administration/users/${viewingProfile.id}/edit`);
+            navigate(`/team/users?editUserId=${viewingProfile.id}`);
           }}
         />
       )}
     </div>
+    </>
   );
 }
 
@@ -1116,287 +1182,6 @@ function PermissionsTab({ facilityId, facilityName }) {
         facilityName={facilityName}
         onBack={null}
       />
-    </div>
-  );
-}
-
-// User Form Modal Component (simplified version)
-function UserFormModal({ record, facilityId, branches, roles, onClose, onSuccess }) {
-  const { showToast } = useToastContext();
-  const queryClient = useQueryClient();
-
-  const formatDateForInput = (dateString) => {
-    if (!dateString) return '';
-    if (dateString instanceof Date) {
-      return dateString.toISOString().split('T')[0];
-    }
-    if (typeof dateString !== 'string') return '';
-    if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) return dateString;
-    const date = new Date(dateString);
-    return date.toISOString().split('T')[0];
-  };
-
-  const [form, setForm] = useState({
-    first_name: record?.first_name || '',
-    last_name: record?.last_name || '',
-    email: record?.email || '',
-    password: '',
-    phone_number: record?.phone_number || '',
-    date_of_birth: formatDateForInput(record?.date_of_birth),
-    sex: record?.sex || '',
-    date_employed: formatDateForInput(record?.date_employed) || formatDateForInput(new Date()),
-    role: record?.role || '',
-    assigned_branch_id: record?.assigned_branch_id || '',
-    facility_id: facilityId,
-    is_active: record?.is_active ?? true,
-  });
-  const [errors, setErrors] = useState({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const createMutation = useMutation({
-    mutationFn: async (data) => {
-      const name = `${data.first_name} ${data.last_name}`.trim() || data.email;
-      return api.post('/users', { ...data, name });
-    },
-    onSuccess: () => {
-      // Invalidate general users query
-      queryClient.invalidateQueries(['users']);
-      // Invalidate facility-users query for this facility
-      if (facilityId) {
-        queryClient.invalidateQueries(['facility-users', facilityId]);
-      }
-      showToast('User created successfully', 'success');
-      onSuccess();
-    },
-    onError: (error) => {
-      const errorData = error.response?.data;
-      if (errorData?.errors) {
-        setErrors(errorData.errors);
-      } else {
-        showToast(errorData?.message || 'Failed to create user', 'error');
-      }
-    },
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: async (data) => {
-      const name = `${data.first_name} ${data.last_name}`.trim() || data.email;
-      return api.put(`/users/${record.id}`, { ...data, name });
-    },
-    onSuccess: () => {
-      // Invalidate general users query
-      queryClient.invalidateQueries(['users']);
-      // Invalidate facility-users query for this facility
-      if (facilityId) {
-        queryClient.invalidateQueries(['facility-users', facilityId]);
-      }
-      showToast('User updated successfully', 'success');
-      onSuccess();
-    },
-    onError: (error) => {
-      const errorData = error.response?.data;
-      if (errorData?.errors) {
-        setErrors(errorData.errors);
-      } else {
-        showToast(errorData?.message || 'Failed to update user', 'error');
-      }
-    },
-  });
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setErrors({});
-    setIsSubmitting(true);
-
-    const mutation = record ? updateMutation : createMutation;
-    mutation.mutate(form, {
-      onSettled: () => setIsSubmitting(false),
-    });
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
-        <div className="flex-shrink-0 p-6 border-b">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold text-black">
-              {record ? 'Edit User' : 'Add User'}
-            </h2>
-            <button onClick={onClose} className="text-gray-500 hover:text-black text-2xl">
-              ×
-            </button>
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-6">
-          {Object.keys(errors).length > 0 && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-              <ul className="list-disc list-inside space-y-1">
-                {Object.entries(errors).map(([field, messages]) => (
-                  <li key={field} className="text-sm text-red-700">
-                    <strong>{field}:</strong> {Array.isArray(messages) ? messages.join(', ') : messages}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-bold text-gray-900 mb-1">First Name *</label>
-                <input
-                  type="text"
-                  value={form.first_name}
-                  onChange={(e) => setForm({ ...form, first_name: e.target.value })}
-                  required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] bg-white text-gray-900"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-gray-900 mb-1">Last Name *</label>
-                <input
-                  type="text"
-                  value={form.last_name}
-                  onChange={(e) => setForm({ ...form, last_name: e.target.value })}
-                  required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] bg-white text-gray-900"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-gray-900 mb-1">Email *</label>
-                <input
-                  type="email"
-                  value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] bg-white text-gray-900"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-gray-900 mb-1">
-                  Password {record ? '(leave blank to keep current)' : '*'}
-                </label>
-                <input
-                  type="password"
-                  value={form.password}
-                  onChange={(e) => setForm({ ...form, password: e.target.value })}
-                  required={!record}
-                  minLength={8}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] bg-white text-gray-900"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-gray-900 mb-1">Phone *</label>
-                <input
-                  type="tel"
-                  value={form.phone_number}
-                  onChange={(e) => setForm({ ...form, phone_number: e.target.value })}
-                  required={!record}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] bg-white text-gray-900"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-gray-900 mb-1">Date of Birth *</label>
-                <input
-                  type="date"
-                  value={form.date_of_birth}
-                  onChange={(e) => setForm({ ...form, date_of_birth: e.target.value })}
-                  required={!record}
-                  max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] bg-white text-gray-900"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-gray-900 mb-1">Sex *</label>
-                <select
-                  value={form.sex}
-                  onChange={(e) => setForm({ ...form, sex: e.target.value })}
-                  required={!record}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] bg-white text-gray-900"
-                >
-                  <option value="">Select</option>
-                  <option value="male">Male</option>
-                  <option value="female">Female</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-gray-900 mb-1">Date Employed *</label>
-                <input
-                  type="date"
-                  value={form.date_employed}
-                  onChange={(e) => setForm({ ...form, date_employed: e.target.value })}
-                  required={!record}
-                  max={new Date().toISOString().split('T')[0]}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] bg-white text-gray-900"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-gray-900 mb-1">Role *</label>
-                <select
-                  value={form.role}
-                  onChange={(e) => setForm({ ...form, role: e.target.value })}
-                  required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] bg-white text-gray-900"
-                >
-                  <option value="">Select Role</option>
-                  {roles.map((role) => (
-                    <option key={role.id} value={role.name}>
-                      {role.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-gray-900 mb-1">Branch</label>
-                <select
-                  value={form.assigned_branch_id}
-                  onChange={(e) => setForm({ ...form, assigned_branch_id: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] bg-white text-gray-900"
-                >
-                  <option value="">Select Branch</option>
-                  {branches.map((branch) => (
-                    <option key={branch.id} value={branch.id}>
-                      {branch.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="md:col-span-2">
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="is_active"
-                    checked={form.is_active}
-                    onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
-                    className="w-4 h-4 text-[var(--theme-primary)] border-gray-300 rounded"
-                  />
-                  <label htmlFor="is_active" className="ml-2 text-sm font-bold text-gray-900">
-                    Active User
-                  </label>
-                </div>
-              </div>
-            </div>
-          </form>
-        </div>
-
-        <div className="flex-shrink-0 p-6 border-t bg-gray-50 flex justify-end gap-3">
-          <button
-            onClick={onClose}
-            className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-white text-gray-700"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={isSubmitting}
-            className="px-6 py-2 bg-[var(--theme-primary)] text-white rounded-lg hover:bg-[var(--theme-primary-hover)] disabled:opacity-50"
-          >
-            {isSubmitting ? 'Saving...' : record ? 'Update' : 'Create'}
-          </button>
-        </div>
-      </div>
     </div>
   );
 }
@@ -1415,31 +1200,27 @@ function UserProfileModal({ user, onClose, onEdit }) {
   });
 
   const displayUser = fullUser || user;
-
-  if (isLoading) {
-    return (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-lg shadow-xl p-8">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--theme-primary)]"></div>
-          <p className="mt-4 text-gray-600">Loading user details...</p>
-        </div>
-      </div>
-    );
-  }
+  const modalTitle =
+    isLoading && !displayUser
+      ? 'Loading profile'
+      : displayUser?.name || displayUser?.email || 'User profile';
 
   return (
-    <div className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50 p-4" style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }} onClick={onClose}>
-      <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[95vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
-        {/* Header with Profile Picture */}
-        <div className="bg-gradient-to-r from-[var(--theme-primary)] to-[#4a7a2a] p-4 md:p-8 text-white rounded-t-xl">
-          <div className="flex flex-col md:flex-row md:items-start md:justify-between space-y-4 md:space-y-0">
-            <div className="flex flex-col md:flex-row md:items-center md:space-x-6 space-y-4 md:space-y-0">
-              {/* Profile Picture */}
+    <Modal isOpen={!!user} onClose={onClose} title={modalTitle} size="full" className="max-w-4xl">
+      {isLoading && !displayUser ? (
+        <div className="flex flex-col items-center justify-center py-16">
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-b-2 border-[var(--theme-primary)]" />
+          <p className="mt-4 text-gray-600">Loading user details...</p>
+        </div>
+      ) : (
+        <>
+          <div className="-mx-6 -mt-2 border-b border-white/20 bg-gradient-to-r from-[var(--theme-primary)] to-[#4a7a2a] px-6 py-5 text-white">
+            <div className="flex flex-col items-center gap-4 md:flex-row md:items-center md:gap-6">
               {displayUser.profile_image_url ? (
                 <img
                   src={displayUser.profile_image_url}
-                  alt={displayUser.name}
-                  className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-white shadow-lg mx-auto md:mx-0"
+                  alt={displayUser.name || displayUser.email || 'Profile'}
+                  className="mx-auto h-24 w-24 rounded-full border-4 border-white object-cover shadow-lg md:mx-0 md:h-32 md:w-32"
                   onError={(e) => {
                     e.target.style.display = 'none';
                     if (e.target.nextElementSibling) {
@@ -1448,40 +1229,34 @@ function UserProfileModal({ user, onClose, onEdit }) {
                   }}
                 />
               ) : null}
-              <div className={`w-24 h-24 md:w-32 md:h-32 rounded-full bg-white flex items-center justify-center border-4 border-white shadow-lg ${displayUser.profile_image_url ? 'hidden' : ''} mx-auto md:mx-0`}>
-                <span className="text-[var(--theme-primary)] font-bold text-4xl md:text-5xl">
+              <div
+                className={`mx-auto flex h-24 w-24 items-center justify-center rounded-full border-4 border-white bg-white shadow-lg md:mx-0 md:h-32 md:w-32 ${displayUser.profile_image_url ? 'hidden' : ''}`}
+              >
+                <span className="text-4xl font-bold text-[var(--theme-primary)] md:text-5xl">
                   {displayUser.name?.charAt(0)?.toUpperCase() || displayUser.email?.charAt(0)?.toUpperCase() || 'U'}
                 </span>
               </div>
-              <div className="text-center md:text-left">
-                <h2 className="text-2xl md:text-3xl font-bold mb-2">{displayUser.name || displayUser.email}</h2>
+              <div className="flex-1 text-center md:text-left">
                 {displayUser.email && (
-                  <div className="flex items-center justify-center md:justify-start space-x-2 mt-2 text-sm md:text-base text-green-50">
-                    <Mail className="w-4 h-4" />
+                  <div className="flex items-center justify-center gap-2 text-sm text-green-50 md:justify-start md:text-base">
+                    <Mail className="h-4 w-4 shrink-0" />
                     <span className="break-all">{displayUser.email}</span>
                   </div>
                 )}
                 <div className="mt-2">
-                  <span className={`inline-block px-3 py-1 rounded-full text-sm font-semibold ${displayUser.is_active
-                    ? 'bg-green-600 text-white'
-                    : 'bg-red-600 text-white'
-                    }`}>
+                  <span
+                    className={`inline-block rounded-full px-3 py-1 text-sm font-semibold ${
+                      displayUser.is_active ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
+                    }`}
+                  >
                     {displayUser.is_active ? 'Active' : 'Inactive'}
                   </span>
                 </div>
               </div>
             </div>
-            <button
-              onClick={onClose}
-              className="text-white hover:text-green-200 transition-colors absolute top-4 right-4 md:relative md:top-0 md:right-0"
-            >
-              <X className="w-6 h-6" />
-            </button>
           </div>
-        </div>
 
-        {/* Body */}
-        <div className="p-4 md:p-8 overflow-y-auto flex-1">
+        <div className="pt-6">
           {/* Personal Information */}
           <div className="mb-6 md:mb-8">
             <h3 className="text-lg md:text-xl font-bold text-gray-900 mb-4 flex items-center">
@@ -1674,24 +1449,26 @@ function UserProfileModal({ user, onClose, onEdit }) {
           )}
         </div>
 
-        {/* Footer */}
-        <div className="flex-shrink-0 p-6 border-t bg-gray-50 flex justify-end gap-3">
+        <div className="-mx-6 mt-8 flex flex-wrap justify-end gap-3 border-t border-gray-200 bg-gray-50 px-6 py-4">
           <button
+            type="button"
             onClick={onClose}
-            className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-white transition-colors"
+            className="rounded-lg border border-gray-300 px-6 py-2 transition-colors hover:bg-white"
           >
             Close
           </button>
           <button
+            type="button"
             onClick={onEdit}
-            className="px-6 py-2 bg-[var(--theme-primary)] text-white rounded-lg hover:bg-[var(--theme-primary-hover)] transition-colors flex items-center gap-2"
+            className="flex items-center gap-2 rounded-lg bg-[var(--theme-primary)] px-6 py-2 text-white transition-colors hover:bg-[var(--theme-primary-hover)]"
           >
-            <Edit className="w-4 h-4" />
+            <Edit className="h-4 w-4" />
             Edit User
           </button>
         </div>
-      </div>
-    </div>
+        </>
+      )}
+    </Modal>
   );
 }
 

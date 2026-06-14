@@ -1,4 +1,5 @@
-// Simple helpers for browser Notification API (no service worker)
+import logger from './logger';
+
 
 const canUseNotification = () =>
     typeof window !== 'undefined' &&
@@ -15,7 +16,7 @@ export const requestNotificationPermission = async () => {
         const result = await Notification.requestPermission();
         return result;
     } catch (err) {
-        console.error('Notification permission request failed:', err);
+        logger.error('Notification permission request failed:', err);
         return 'denied';
     }
 };
@@ -46,7 +47,7 @@ export const showDesktopNotification = ({
 
         return notification;
     } catch (err) {
-        console.error('Failed to show notification:', err);
+        logger.error('Failed to show notification:', err);
         return null;
     }
 };

@@ -56,6 +56,30 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Frontend URL
+    |--------------------------------------------------------------------------
+    |
+    | URL used for links sent to users that should open the SPA frontend
+    | (for example password reset links).
+    |
+    */
+    'frontend_url' => env('APP_FRONTEND_URL', env('FRONTEND_URL', env('APP_URL', 'http://localhost'))),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Facility tenant host (subdomain routing)
+    |--------------------------------------------------------------------------
+    |
+    | Set to the apex host you serve the app on (e.g. homelogic360.net). Requests
+    | to {slug}.homelogic360.net then resolve the facility by facilities.subdomain.
+    | For local dev with {slug}.localhost, set this to "localhost".
+    |
+    */
+
+    'facility_base_domain' => env('FACILITY_BASE_DOMAIN'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
     |

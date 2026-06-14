@@ -15,6 +15,9 @@
     --theme-border-light: rgba(14, 165, 233, 0.1);
     --theme-primary-bg: rgba(14, 165, 233, 0.1);
     --theme-primary-bg-light: rgba(14, 165, 233, 0.05);
+    /* Brand aliases for public pages (match Tailwind brand-* in app.css @theme) */
+    --theme-brand-strong: #0C4A6E;
+    --theme-brand-sky: #0EA5E9;
 }
 
 /* Apply accent background to the main app */

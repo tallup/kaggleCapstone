@@ -1,6 +1,7 @@
 import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm, FormProvider } from 'react-hook-form';
+import { useSearchParams } from 'react-router-dom';
 import {
     Sparkles,
     Plus,
@@ -14,7 +15,6 @@ import {
     Edit3,
     Trash2,
     Building2,
-    ArrowLeft,
 } from 'lucide-react';
 import api from '../services/api';
 import { getLocalDateString } from '../utils/pacificTime';
@@ -22,6 +22,9 @@ import FormInput from '../components/forms/FormInput';
 import FormTextarea from '../components/forms/FormTextarea';
 import FormCheckbox from '../components/forms/FormCheckbox';
 import FormSelect from '../components/forms/FormSelect';
+import BranchSelector from '../components/BranchSelector';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
+import Modal from '../components/ui/Modal';
 
 const frequencyOptions = [
     { value: 'daily', label: 'Daily' },
@@ -41,6 +44,9 @@ const dayOptions = [
 ];
 
 export default function HousekeepingSchedule() {
+    const [searchParams] = useSearchParams();
+    const selectedBranchId = searchParams.get('branch');
+
     const formatTime = (value) => {
         if (!value) return '';
         try {
@@ -75,21 +81,8 @@ export default function HousekeepingSchedule() {
     const [assignmentDate, setAssignmentDate] = React.useState(() => getLocalDateString());
     const [assignmentTask, setAssignmentTask] = React.useState(null);
     const [isAssignmentModalOpen, setIsAssignmentModalOpen] = React.useState(false);
-
-    const { data: areasData, isLoading: areasLoading, error: areasError } = useQuery({
-        queryKey: ['cleaning-areas'],
-        queryFn: async () => {
-            const response = await api.get('/cleaning/areas');
-            return response.data.data || [];
-        },
-        staleTime: 5 * 60 * 1000, // Cache for 5 minutes
-    });
-
-    React.useEffect(() => {
-        if (!selectedAreaId && Array.isArray(areasData) && areasData.length > 0) {
-            setSelectedAreaId(areasData[0].id);
-        }
-    }, [areasData, selectedAreaId]);
+    const [deleteAreaConfirm, setDeleteAreaConfirm] = React.useState(null);
+    const [deleteTaskConfirmId, setDeleteTaskConfirmId] = React.useState(null);
 
     const { data: currentUser } = useQuery({
         queryKey: ['current-user'],
@@ -100,14 +93,40 @@ export default function HousekeepingSchedule() {
         staleTime: 5 * 60 * 1000, // Cache for 5 minutes - reuse global user query
     });
 
+    const { data: areasData, isLoading: areasLoading, error: areasError } = useQuery({
+        queryKey: ['cleaning-areas', selectedBranchId],
+        queryFn: async () => {
+            // Always include branch_id when selectedBranchId is available
+            const params = { branch_id: selectedBranchId };
+            const response = await api.get('/cleaning/areas', { params });
+            return response.data.data || [];
+        },
+        enabled: !!selectedBranchId, // Only fetch if branch is selected
+        staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    });
+
+    React.useEffect(() => {
+        if (!selectedAreaId && Array.isArray(areasData) && areasData.length > 0) {
+            setSelectedAreaId(areasData[0].id);
+        }
+    }, [areasData, selectedAreaId]);
+
+    // Reset selected area when branch changes
+    React.useEffect(() => {
+        setSelectedAreaId(null);
+    }, [selectedBranchId]);
+
 const { data: caregiversData } = useQuery({
-    queryKey: ['caregiver-users'],
+    queryKey: ['caregiver-users', selectedBranchId],
     queryFn: async () => {
-        const response = await api.get('/users', {
-            params: { per_page: 100, status: 'active', role: 'caregiver' },
-        });
+        const params = { per_page: 100, status: 'active', role: 'caregiver' };
+        if (selectedBranchId) {
+            params.branch_id = selectedBranchId;
+        }
+        const response = await api.get('/users', { params });
         return response.data;
     },
+    enabled: !!selectedBranchId,
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
 });
 const caregivers = caregiversData?.data ?? [];
@@ -117,20 +136,28 @@ const caregivers = caregiversData?.data ?? [];
         isLoading: tasksLoading,
         error: tasksError,
     } = useQuery({
-        queryKey: ['cleaning-tasks', selectedAreaId, assignmentDate],
+        queryKey: ['cleaning-tasks', selectedAreaId, assignmentDate, selectedBranchId],
         queryFn: async () => {
-            const response = await api.get('/cleaning/tasks', {
-                params: {
-                    area_id: selectedAreaId,
-                    per_page: 200,
-                    date: assignmentDate,
-                },
-            });
+            const params = {
+                area_id: selectedAreaId,
+                per_page: 200,
+                date: assignmentDate,
+            };
+            if (selectedBranchId) {
+                params.branch_id = selectedBranchId;
+            }
+            const response = await api.get('/cleaning/tasks', { params });
             return response.data?.data ?? [];
         },
-        enabled: Boolean(selectedAreaId),
+        enabled: Boolean(selectedAreaId) && Boolean(selectedBranchId),
         staleTime: 30 * 1000, // Cache for 30 seconds
     });
+
+    const latestAssignmentTask = React.useMemo(() => {
+        if (!assignmentTask) return null;
+        const list = tasksData ?? [];
+        return list.find((t) => t.id === assignmentTask.id) || assignmentTask;
+    }, [assignmentTask, tasksData]);
 
     const createTask = useMutation({
         mutationFn: (payload) => api.post('/cleaning/tasks', payload),
@@ -150,6 +177,18 @@ const caregivers = caregiversData?.data ?? [];
         mutationFn: (id) => api.delete(`/cleaning/tasks/${id}`),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['cleaning-tasks'] });
+        },
+    });
+
+    const deleteArea = useMutation({
+        mutationFn: (id) => api.delete(`/cleaning/areas/${id}`).then(() => id),
+        onSuccess: (deletedId) => {
+            queryClient.invalidateQueries({ queryKey: ['cleaning-areas'] });
+            setSelectedAreaId((prev) => (prev === deletedId ? null : prev));
+            setDeleteAreaConfirm(null);
+        },
+        onError: (err) => {
+            window.alert(err?.response?.data?.message || err.message);
         },
     });
 
@@ -196,11 +235,22 @@ const closeAssignmentModal = () => {
     setIsAssignmentModalOpen(false);
 };
 
+    const selectedArea = areasData?.find((area) => area.id === selectedAreaId);
+    // Use selected branch from URL, fallback to user's assigned branch
+    const branchId = selectedBranchId ? parseInt(selectedBranchId) : (currentUser?.assigned_branch_id ?? currentUser?.assigned_branch?.id ?? null);
+
     const handleSubmit = async (formData) => {
         const payload = {
             ...formData,
-            cleaning_area_id: selectedAreaId,
+            // cleaning_area_id comes from formData if provided, otherwise use selectedAreaId (for backward compatibility)
+            cleaning_area_id: formData.cleaning_area_id || selectedAreaId,
         };
+        
+        // Ensure branch_id is included if branch is selected from URL
+        if (branchId && !payload.branch_id) {
+            // Branch will be determined from the cleaning_area_id's branch, but we can also set it explicitly
+            // The backend will validate this
+        }
 
         if (editingTask) {
             await updateTask.mutateAsync({ id: editingTask.id, ...payload });
@@ -211,59 +261,84 @@ const closeAssignmentModal = () => {
         closeModal();
     };
 
-    const selectedArea = areasData?.find((area) => area.id === selectedAreaId);
-    const branchId = currentUser?.assigned_branch_id ?? currentUser?.assigned_branch?.id ?? null;
+    // Fetch branches for task form
+    const { data: branchesData } = useQuery({
+        queryKey: ['branches-list'],
+        queryFn: async () => {
+            const response = await api.get('/branches', { params: { per_page: 100 } });
+            return response.data;
+        },
+    });
 
-    // If task form is open, show the form instead of the main content
-    if (isModalOpen) {
+    // Show branch selector and wait for branch selection
+    if (!selectedBranchId) {
         return (
-            <TaskForm
-                onClose={closeModal}
-                onSubmit={handleSubmit}
-                initialValues={editingTask}
-                isSaving={createTask.isLoading || updateTask.isLoading}
-            />
-        );
-    }
-
-    // If assignment form is open, show the form instead of the main content
-    if (isAssignmentModalOpen && assignmentTask) {
-        // Find the latest task data from the query to ensure we have up-to-date assignments
-        const latestTask = tasksData?.find(t => t.id === assignmentTask.id) || assignmentTask;
-        
-        return (
-            <AssignmentForm
-                task={latestTask}
-                date={assignmentDate}
-                caregivers={caregivers}
-                onAssign={async (userId) => {
-                    try {
-                        await assignCaregiver.mutateAsync({ taskId: assignmentTask.id, userId });
-                        await queryClient.invalidateQueries({ queryKey: ['cleaning-tasks'] });
-                    } catch (err) {
-                        const errorMessage = err?.response?.data?.message 
-                            || err?.response?.data?.error 
-                            || err?.message 
-                            || 'Failed to assign caregiver. Please try again.';
-                        window.alert(errorMessage);
-                    }
-                }}
-                onRemove={async (assignmentId) => {
-                    try {
-                        await removeAssignment.mutateAsync(assignmentId);
-                        await queryClient.invalidateQueries({ queryKey: ['cleaning-tasks'] });
-                    } catch (err) {
-                        window.alert(err?.response?.data?.message || err.message);
-                    }
-                }}
-                isSaving={assignCaregiver.isLoading || removeAssignment.isLoading}
-                onClose={closeAssignmentModal}
-            />
+            <div className="space-y-6">
+                <BranchSelector currentUser={currentUser} />
+                <div className="rounded-xl bg-white p-8 text-center shadow-sm ring-1 ring-gray-100">
+                    <Building2 className="mx-auto h-12 w-12 text-gray-400" />
+                    <p className="mt-4 text-sm font-semibold text-gray-700">Please select a branch to continue</p>
+                    <p className="mt-2 text-xs text-gray-500">Select a branch from the dropdown above to view and manage housekeeping schedules.</p>
+                </div>
+            </div>
         );
     }
 
     return (
         <div className="space-y-6">
+            <Modal
+                isOpen={isModalOpen}
+                onClose={closeModal}
+                title={editingTask ? 'Edit Task' : 'New Task'}
+                size="xl"
+            >
+                <TaskForm
+                    onClose={closeModal}
+                    onSubmit={handleSubmit}
+                    initialValues={editingTask}
+                    isSaving={createTask.isLoading || updateTask.isLoading}
+                    currentUser={currentUser}
+                    branches={branchesData?.data || []}
+                    selectedBranchId={branchId}
+                    selectedAreaId={selectedAreaId}
+                />
+            </Modal>
+            <Modal
+                isOpen={isAssignmentModalOpen && Boolean(assignmentTask) && Boolean(latestAssignmentTask)}
+                onClose={closeAssignmentModal}
+                title="Assign caregiver"
+                size="lg"
+            >
+                {latestAssignmentTask ? (
+                    <AssignmentForm
+                        task={latestAssignmentTask}
+                        date={assignmentDate}
+                        caregivers={caregivers}
+                        onAssign={async (userId) => {
+                            try {
+                                await assignCaregiver.mutateAsync({ taskId: assignmentTask.id, userId });
+                                await queryClient.invalidateQueries({ queryKey: ['cleaning-tasks'] });
+                            } catch (err) {
+                                const errorMessage = err?.response?.data?.message
+                                    || err?.response?.data?.error
+                                    || err?.message
+                                    || 'Failed to assign caregiver. Please try again.';
+                                window.alert(errorMessage);
+                            }
+                        }}
+                        onRemove={async (assignmentId) => {
+                            try {
+                                await removeAssignment.mutateAsync(assignmentId);
+                                await queryClient.invalidateQueries({ queryKey: ['cleaning-tasks'] });
+                            } catch (err) {
+                                window.alert(err?.response?.data?.message || err.message);
+                            }
+                        }}
+                        isSaving={assignCaregiver.isLoading || removeAssignment.isLoading}
+                    />
+                ) : null}
+            </Modal>
+            <BranchSelector currentUser={currentUser} />
             <header 
                 className="rounded-3xl p-6 text-white shadow-lg" 
                 style={{ 
@@ -323,10 +398,14 @@ const closeAssignmentModal = () => {
                                 setIsAreaModalOpen(true);
                             }}
                             disabled={!branchId && !currentUser?.facility_id}
-                            className="inline-flex items-center gap-1 rounded-xl border-2 bg-white px-3 py-1.5 text-xs font-bold transition-colors hover:bg-[var(--theme-primary-bg-light)] disabled:cursor-not-allowed disabled:opacity-60 shadow-sm"
-                            style={{ borderColor: 'var(--theme-primary-bg)', color: 'var(--theme-primary)' }}
+                            className="inline-flex items-center gap-2 rounded-xl border-2 px-4 py-2 text-sm font-bold transition-all hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60 shadow-sm"
+                            style={{ 
+                                borderColor: 'var(--theme-primary)', 
+                                backgroundColor: 'var(--theme-primary)', 
+                                color: 'var(--theme-text-on-primary)' 
+                            }}
                         >
-                            <Plus className="h-3 w-3" />
+                            <Plus className="h-4 w-4" />
                             Area
                         </button>
                     </div>
@@ -350,14 +429,17 @@ const closeAssignmentModal = () => {
                                 return (
                                     <div 
                                         key={area.id} 
-                                        className={`w-full rounded-2xl border px-4 py-3 transition-all cursor-pointer ${isActive ? '' : 'border-gray-100 bg-white text-gray-700 hover:border-[var(--theme-primary-bg)]'}`}
-                                        style={isActive ? { borderColor: 'var(--theme-primary-bg)', backgroundColor: 'var(--theme-primary-bg)' } : {}}
+                                        className={`w-full rounded-2xl border-2 px-4 py-3 transition-all cursor-pointer shadow-sm ${
+                                            isActive 
+                                                ? 'border-[var(--theme-primary)] bg-[var(--theme-primary)] shadow-lg' 
+                                                : 'border-gray-200 bg-white text-gray-700 hover:border-[var(--theme-primary-bg)] hover:shadow-md'
+                                        }`}
                                         onClick={() => setSelectedAreaId(area.id)}
                                     >
                                         <div className="flex items-center justify-between">
                                             <div className="flex-1 min-w-0">
-                                                <div className={`font-semibold ${isActive ? 'text-white' : 'text-gray-900'}`}>{area.name}</div>
-                                                <p className={`text-xs ${isActive ? 'text-white/90' : 'text-gray-500'}`}>
+                                                <div className={`font-bold text-base ${isActive ? 'text-white' : 'text-gray-900'}`}>{area.name}</div>
+                                                <p className={`text-xs mt-1 ${isActive ? 'text-white/95' : 'text-gray-500'}`}>
                                                     {[area.shift_label, area.location].filter(Boolean).join(' • ') || 'On-site'}
                                                 </p>
                                             </div>
@@ -368,10 +450,10 @@ const closeAssignmentModal = () => {
                                                         setEditingArea(area);
                                                         setIsAreaModalOpen(true);
                                                     }}
-                                                    className={`inline-flex items-center rounded-lg border p-2 transition-colors ${
+                                                    className={`inline-flex items-center rounded-lg border-2 p-2 transition-colors ${
                                                         isActive 
-                                                            ? 'border-white/30 bg-white/20 text-white hover:bg-white/30' 
-                                                            : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+                                                            ? 'border-white/40 bg-white/25 text-white hover:bg-white/40 hover:border-white/60' 
+                                                            : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-300'
                                                     }`}
                                                     aria-label="Edit area"
                                                 >
@@ -379,24 +461,13 @@ const closeAssignmentModal = () => {
                                                 </button>
                                                 <button
                                                     type="button"
-                                                    onClick={async () => {
-                                                        if (!window.confirm(`Delete area "${area.name}"? This cannot be undone.`)) {
-                                                            return;
-                                                        }
-                                                        try {
-                                                            await api.delete(`/cleaning/areas/${area.id}`);
-                                                            if (selectedAreaId === area.id) {
-                                                                setSelectedAreaId(null);
-                                                            }
-                                                            await queryClient.invalidateQueries({ queryKey: ['cleaning-areas'] });
-                                                        } catch (err) {
-                                                            window.alert(err?.response?.data?.message || err.message);
-                                                        }
-                                                    }}
-                                                    className={`inline-flex items-center rounded-lg border p-2 transition-colors ${
+                                                    onClick={() =>
+                                                        setDeleteAreaConfirm({ id: area.id, name: area.name })
+                                                    }
+                                                    className={`inline-flex items-center rounded-lg border-2 p-2 transition-colors ${
                                                         isActive 
-                                                            ? 'border-white/30 bg-white/20 text-white hover:bg-white/30' 
-                                                            : 'border-red-200 bg-white text-red-600 hover:bg-red-50'
+                                                            ? 'border-white/40 bg-white/25 text-white hover:bg-white/40 hover:border-white/60' 
+                                                            : 'border-red-200 bg-white text-red-600 hover:bg-red-50 hover:border-red-300'
                                                     }`}
                                                     aria-label="Delete area"
                                                 >
@@ -524,15 +595,7 @@ const closeAssignmentModal = () => {
                                             </button>
                                             <button
                                                 type="button"
-                                                onClick={async () => {
-                                                    if (window.confirm('Delete this task? This cannot be undone.')) {
-                                                        try {
-                                                            await deleteTask.mutateAsync(task.id);
-                                                        } catch (err) {
-                                                            window.alert(err?.response?.data?.message || err.message);
-                                                        }
-                                                    }
-                                                }}
+                                                onClick={() => setDeleteTaskConfirmId(task.id)}
                                                 className="inline-flex items-center gap-1.5 rounded-lg border-2 border-red-400 px-4 py-2.5 text-sm font-bold text-red-700 transition-colors hover:bg-red-50 bg-white shadow-md"
                                             >
                                                 <Trash2 className="h-4 w-4" />
@@ -547,7 +610,15 @@ const closeAssignmentModal = () => {
                 </section>
             </section>
 
-            {isAreaModalOpen ? (
+            <Modal
+                isOpen={isAreaModalOpen}
+                onClose={() => {
+                    setIsAreaModalOpen(false);
+                    setEditingArea(null);
+                }}
+                title={editingArea ? 'Edit Area' : 'New Area'}
+                size="xl"
+            >
                 <AreaForm
                     onClose={() => {
                         setIsAreaModalOpen(false);
@@ -562,15 +633,102 @@ const closeAssignmentModal = () => {
                         setEditingArea(null);
                     }}
                 />
-            ) : null}
+            </Modal>
 
+            <ConfirmDialog
+                isOpen={deleteAreaConfirm != null}
+                onClose={() => !deleteArea.isPending && setDeleteAreaConfirm(null)}
+                onConfirm={() => {
+                    if (deleteAreaConfirm == null) return;
+                    deleteArea.mutate(deleteAreaConfirm.id);
+                }}
+                title="Delete this area?"
+                description={
+                    deleteAreaConfirm
+                        ? `Delete "${deleteAreaConfirm.name}"? This cannot be undone.`
+                        : ''
+                }
+                confirmLabel="Delete"
+                cancelLabel="Cancel"
+                variant="danger"
+                isPending={deleteArea.isPending}
+            />
+            <ConfirmDialog
+                isOpen={deleteTaskConfirmId != null}
+                onClose={() => !deleteTask.isPending && setDeleteTaskConfirmId(null)}
+                onConfirm={() => {
+                    if (deleteTaskConfirmId == null) return;
+                    deleteTask.mutate(deleteTaskConfirmId, {
+                        onSuccess: () => setDeleteTaskConfirmId(null),
+                        onError: (err) =>
+                            window.alert(err?.response?.data?.message || err.message),
+                    });
+                }}
+                title="Delete this task?"
+                description="This task will be permanently removed. This cannot be undone."
+                confirmLabel="Delete"
+                cancelLabel="Cancel"
+                variant="danger"
+                isPending={deleteTask.isPending}
+            />
         </div>
     );
 }
 
-function TaskForm({ onClose, onSubmit, initialValues, isSaving }) {
+function TaskForm({ onClose, onSubmit, initialValues, isSaving, currentUser, branches, selectedBranchId: propSelectedBranchId, selectedAreaId }) {
+    // Determine initial branch_id - use area's branch if editing, or selected branch from parent, or current user's branch
+    const getInitialBranchId = React.useCallback(() => {
+        if (initialValues?.area?.branch_id) {
+            return initialValues.area.branch_id.toString();
+        }
+        if (propSelectedBranchId) {
+            return propSelectedBranchId.toString();
+        }
+        if (initialValues?.cleaning_area_id) {
+            // We'll fetch the area to get branch_id
+            return null;
+        }
+        if (currentUser?.assigned_branch_id) {
+            return currentUser.assigned_branch_id.toString();
+        }
+        return '';
+    }, [initialValues?.area?.branch_id, propSelectedBranchId, initialValues?.cleaning_area_id, currentUser?.assigned_branch_id]);
+
+    const initialBranchId = React.useMemo(() => getInitialBranchId(), [getInitialBranchId]);
+    const [selectedBranchId, setSelectedBranchId] = React.useState(initialBranchId);
+
+    // Determine if user is facility admin or branch admin
+    const isFacilityAdmin = React.useMemo(() => {
+        if (!currentUser) return false;
+        const role = currentUser.role?.toLowerCase().trim() || '';
+        return role === 'administrator';
+    }, [currentUser]);
+
+    const isBranchAdmin = React.useMemo(() => {
+        if (!currentUser) return false;
+        const role = currentUser.role?.toLowerCase().trim() || '';
+        return role === 'admin';
+    }, [currentUser]);
+
+    // Fetch areas for selected branch
+    const { data: areasForBranch } = useQuery({
+        queryKey: ['cleaning-areas', selectedBranchId],
+        queryFn: async () => {
+            if (!selectedBranchId) return [];
+            const response = await api.get('/cleaning/areas', {
+                params: { branch_id: selectedBranchId }
+            });
+            return response.data.data || [];
+        },
+        enabled: Boolean(selectedBranchId),
+    });
+
     const methods = useForm({
         defaultValues: {
+            branch_id: initialBranchId,
+            cleaning_area_id: initialValues?.cleaning_area_id
+                ? initialValues.cleaning_area_id.toString()
+                : (selectedAreaId ? selectedAreaId.toString() : ''),
             title: initialValues?.title ?? '',
             instructions: initialValues?.instructions ?? '',
             frequency: initialValues?.frequency ?? 'daily',
@@ -585,21 +743,92 @@ function TaskForm({ onClose, onSubmit, initialValues, isSaving }) {
     });
 
     const { watch, setValue } = methods;
+
+    // Update branch_id in form when propSelectedBranchId changes
+    React.useEffect(() => {
+        if (propSelectedBranchId && !initialValues?.area?.branch_id) {
+            setSelectedBranchId(propSelectedBranchId.toString());
+            setValue('branch_id', propSelectedBranchId.toString());
+        }
+    }, [propSelectedBranchId, setValue, initialValues]);
+
+    // When creating from a selected area in the builder, preselect that area in the form.
+    React.useEffect(() => {
+        if (!initialValues?.cleaning_area_id && selectedAreaId) {
+            setValue('cleaning_area_id', selectedAreaId.toString());
+        }
+    }, [initialValues?.cleaning_area_id, selectedAreaId, setValue]);
+
+    // Fetch all areas to find branch_id when editing (if area doesn't have branch_id in relationship)
+    const shouldFetchAllAreas = Boolean(
+        initialValues?.cleaning_area_id && 
+        !selectedBranchId && 
+        !initialValues?.area?.branch_id
+    );
+    const { data: allAreasData } = useQuery({
+        queryKey: ['cleaning-areas-all'],
+        queryFn: async () => {
+            // Use current user's assigned branch as fallback to ensure we only fetch areas for their branch
+            const params = {};
+            if (currentUser?.assigned_branch_id) {
+                params.branch_id = currentUser.assigned_branch_id;
+            }
+            const response = await api.get('/cleaning/areas', { params });
+            return response.data.data || [];
+        },
+        enabled: shouldFetchAllAreas,
+    });
+
+    // If editing and we don't have branch_id yet, fetch the area to get it
+    React.useEffect(() => {
+        if (initialValues?.cleaning_area_id && !selectedBranchId) {
+            // Try to get branch_id from area relationship first
+            if (initialValues?.area?.branch_id) {
+                setSelectedBranchId(initialValues.area.branch_id.toString());
+                setValue('branch_id', initialValues.area.branch_id.toString());
+            } else if (propSelectedBranchId) {
+                // Use prop selected branch if available
+                setSelectedBranchId(propSelectedBranchId.toString());
+                setValue('branch_id', propSelectedBranchId.toString());
+            } else if (allAreasData) {
+                // Fallback: find area in all areas data
+                const area = allAreasData.find(a => a.id === initialValues.cleaning_area_id);
+                if (area?.branch_id) {
+                    setSelectedBranchId(area.branch_id.toString());
+                    setValue('branch_id', area.branch_id.toString());
+                }
+            }
+        }
+    }, [initialValues, selectedBranchId, allAreasData, setValue, propSelectedBranchId]);
     const daysOfWeek = watch('days_of_week') || [];
     const isRequired = watch('is_required');
+    const formBranchId = watch('branch_id');
+
+    // Update selectedBranchId when form branch_id changes
+    React.useEffect(() => {
+        if (formBranchId !== selectedBranchId) {
+            setSelectedBranchId(formBranchId || '');
+            // Reset area when branch changes (unless editing existing task)
+            if (formBranchId && !initialValues?.cleaning_area_id) {
+                setValue('cleaning_area_id', '');
+            }
+        }
+    }, [formBranchId, selectedBranchId, setValue, initialValues]);
 
     const toggleDay = (day) => {
-        const current = Array.isArray(daysOfWeek) ? daysOfWeek : [];
-        if (current.includes(day)) {
-            setValue('days_of_week', current.filter((value) => value !== day), { shouldValidate: true });
+        const current = watch('days_of_week');
+        const currentArray = Array.isArray(current) ? current : [];
+        if (currentArray.includes(day)) {
+            setValue('days_of_week', currentArray.filter((value) => value !== day), { shouldValidate: true });
         } else {
-            setValue('days_of_week', [...current, day], { shouldValidate: true });
+            setValue('days_of_week', [...currentArray, day], { shouldValidate: true });
         }
     };
 
     const handleSubmit = async (data) => {
         try {
             await onSubmit({
+                cleaning_area_id: parseInt(data.cleaning_area_id),
                 title: data.title.trim(),
                 instructions: data.instructions?.trim() || null,
                 frequency: data.frequency,
@@ -617,22 +846,7 @@ function TaskForm({ onClose, onSubmit, initialValues, isSaving }) {
     };
 
     return (
-        <div className="space-y-6">
-            <div className="flex items-center gap-3">
-                <button
-                    type="button"
-                    onClick={onClose}
-                    className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-100"
-                >
-                    <ArrowLeft className="h-4 w-4" />
-                    Back to schedule
-                </button>
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    {initialValues ? 'Edit Task' : 'New Task'}
-                </p>
-            </div>
-
-            <div className="rounded-3xl bg-white shadow-lg ring-1 ring-gray-100">
+        <div className="rounded-3xl bg-white shadow-lg ring-1 ring-gray-100">
                 <div className="border-b border-gray-100 px-6 py-4 sm:px-8 sm:py-5">
                     <h2 className="text-xl font-semibold text-gray-900">
                         {initialValues ? initialValues.title : 'Create New Task'}
@@ -645,6 +859,71 @@ function TaskForm({ onClose, onSubmit, initialValues, isSaving }) {
                 <div className="px-6 py-6 sm:px-8 sm:py-8">
                     <FormProvider {...methods}>
                         <form onSubmit={methods.handleSubmit(handleSubmit)} className="space-y-6">
+                            {/* Branch Selection - Only show if branch not already selected from URL */}
+                            {!propSelectedBranchId && (
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-900 mb-2">
+                                        Branch *
+                                    </label>
+                                    <select
+                                        {...methods.register('branch_id', { required: true })}
+                                        disabled={!isFacilityAdmin && isBranchAdmin && currentUser?.assigned_branch_id}
+                                        className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent ${
+                                            !isFacilityAdmin && isBranchAdmin && currentUser?.assigned_branch_id 
+                                                ? 'bg-gray-100 cursor-not-allowed opacity-75' 
+                                                : ''
+                                        }`}
+                                    >
+                                        <option value="">Select Branch</option>
+                                        {(branches || []).map(branch => (
+                                            <option key={branch.id} value={branch.id.toString()}>
+                                                {branch.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    {methods.formState.errors.branch_id && (
+                                        <p className="text-xs text-red-600 mt-1">Branch selection is required</p>
+                                    )}
+                                </div>
+                            )}
+                            {/* Hidden input to set branch_id when branch is selected from URL */}
+                            {propSelectedBranchId && (
+                                <input type="hidden" {...methods.register('branch_id')} value={propSelectedBranchId.toString()} />
+                            )}
+
+                            {/* Area Selection */}
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-900 mb-2">
+                                    Cleaning Area *
+                                </label>
+                                <select
+                                    {...methods.register('cleaning_area_id', { required: true })}
+                                    disabled={!selectedBranchId || (areasForBranch?.length === 0)}
+                                    className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent ${
+                                        !selectedBranchId || (areasForBranch?.length === 0)
+                                            ? 'bg-gray-100 cursor-not-allowed opacity-75'
+                                            : ''
+                                    }`}
+                                >
+                                    <option value="">
+                                        {!selectedBranchId 
+                                            ? 'Select a branch first' 
+                                            : areasForBranch?.length === 0 
+                                                ? 'No areas found for this branch'
+                                                : 'Select Area'
+                                        }
+                                    </option>
+                                    {(areasForBranch || []).map(area => (
+                                        <option key={area.id} value={area.id.toString()}>
+                                            {area.name}
+                                        </option>
+                                    ))}
+                                </select>
+                                {methods.formState.errors.cleaning_area_id && (
+                                    <p className="text-xs text-red-600 mt-1">Cleaning area selection is required</p>
+                                )}
+                            </div>
+
                             <FormInput
                                 name="title"
                                 label="Task Title"
@@ -774,7 +1053,6 @@ function TaskForm({ onClose, onSubmit, initialValues, isSaving }) {
                     </FormProvider>
                 </div>
             </div>
-        </div>
     );
 }
 
@@ -782,9 +1060,9 @@ function AreaForm({ onClose, branchId, currentUser, initialValues, onSuccess }) 
     const queryClient = useQueryClient();
     const [isSubmitting, setIsSubmitting] = React.useState(false);
 
-    const isAdmin = currentUser && ['super_admin', 'administrator', 'admin', 'facility_admin'].includes(currentUser.role?.toLowerCase());
+    const isAdmin = Boolean(currentUser && ['super_admin', 'administrator', 'admin', 'facility_admin'].includes(currentUser.role?.toLowerCase()));
     const isFacilityAdmin = currentUser?.role === 'facility_admin' || currentUser?.role === 'administrator';
-    const canSelectBranch = isAdmin;
+    const canSelectBranch = Boolean(isAdmin);
 
     const { data: branchesData } = useQuery({
         queryKey: ['branches-for-area', currentUser?.facility_id],
@@ -852,42 +1130,12 @@ function AreaForm({ onClose, branchId, currentUser, initialValues, onSuccess }) 
     };
 
     return (
-        <div className="fixed inset-0 z-[70] overflow-y-auto bg-gray-50">
-            <div className="mx-auto flex min-h-screen max-w-4xl flex-col px-4 py-8 sm:px-6 lg:px-8">
-                <div className="flex items-center gap-3">
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-100"
-                    >
-                        <ArrowLeft className="h-4 w-4" />
-                        Back to schedule
-                    </button>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                        {initialValues ? 'Edit Area' : 'New Area'}
-                    </p>
-                </div>
-
-                <div className="mt-4 rounded-3xl bg-white shadow-lg ring-1 ring-gray-100">
-                    <div
-                        className="rounded-t-3xl px-6 py-5 text-white"
-                        style={{
-                            background: 'linear-gradient(90deg, var(--theme-primary), var(--theme-primary-light))',
-                            color: 'var(--theme-text-on-primary)',
-                        }}
-                    >
-                        <div>
-                            <h2 className="text-2xl font-semibold leading-6">Cleaning Area</h2>
-                            <p className="mt-1 text-sm opacity-90">
-                                Define the space and shift label used across the housekeeping schedule.
-                            </p>
-                        </div>
-                    </div>
-
+        <div className="rounded-3xl bg-white shadow-lg ring-1 ring-gray-100">
                     <div className="space-y-6 px-6 py-6 sm:px-8 sm:py-8">
                         <FormProvider {...methods}>
                             <form onSubmit={methods.handleSubmit(onSubmit)} className="space-y-6">
-                                {canSelectBranch && branches.length > 0 ? (
+                                {/* Only show branch selector if branch not already selected from URL and user can select */}
+                                {!branchId && canSelectBranch && branches.length > 0 ? (
                                     <FormSelect
                                         name="branch_id"
                                         label="Branch"
@@ -898,10 +1146,13 @@ function AreaForm({ onClose, branchId, currentUser, initialValues, onSuccess }) 
                                             label: branch.name,
                                         }))}
                                     />
+                                ) : branchId ? (
+                                    // Branch is selected from URL, use it as hidden field
+                                    <input type="hidden" {...methods.register('branch_id')} value={branchId.toString()} />
                                 ) : !branchId ? (
                                     <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
                                         <p className="font-semibold">Branch Required</p>
-                                        <p className="mt-1 text-xs">Please assign a branch to your profile or select one above to create a cleaning area.</p>
+                                        <p className="mt-1 text-xs">Please select a branch from the dropdown above to create a cleaning area.</p>
                                     </div>
                                 ) : null}
 
@@ -983,14 +1234,13 @@ function AreaForm({ onClose, branchId, currentUser, initialValues, onSuccess }) 
                             </form>
                         </FormProvider>
                     </div>
-                </div>
-            </div>
         </div>
     );
 }
 
-function AssignmentForm({ task, date, caregivers, onAssign, onRemove, isSaving, onClose }) {
+function AssignmentForm({ task, date, caregivers, onAssign, onRemove, isSaving }) {
     const [selectedCaregiver, setSelectedCaregiver] = React.useState('');
+    const [removeConfirmId, setRemoveConfirmId] = React.useState(null);
     const assignments = task.assignments ?? [];
 
     const handleAssign = async (event) => {
@@ -1006,19 +1256,22 @@ function AssignmentForm({ task, date, caregivers, onAssign, onRemove, isSaving, 
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center gap-3">
-                <button
-                    type="button"
-                    onClick={onClose}
-                    className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-100"
-                >
-                    <ArrowLeft className="h-4 w-4" />
-                    Back to schedule
-                </button>
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Assign Caregiver
-                </p>
-            </div>
+            <ConfirmDialog
+                isOpen={removeConfirmId != null}
+                onClose={() => !isSaving && setRemoveConfirmId(null)}
+                onConfirm={async () => {
+                    if (removeConfirmId == null) return;
+                    const id = removeConfirmId;
+                    setRemoveConfirmId(null);
+                    await onRemove(id);
+                }}
+                title="Remove caregiver?"
+                description="Remove this caregiver from the task for this date?"
+                confirmLabel="Remove"
+                cancelLabel="Cancel"
+                variant="danger"
+                isPending={isSaving}
+            />
 
             <div className="rounded-3xl bg-white shadow-lg ring-1 ring-gray-100">
                 <div className="border-b border-gray-100 px-6 py-4 sm:px-8 sm:py-5">
@@ -1087,15 +1340,9 @@ function AssignmentForm({ task, date, caregivers, onAssign, onRemove, isSaving, 
                                             </div>
                                             <button
                                                 type="button"
-                                                onClick={async () => {
-                                                    if (!window.confirm('Remove this caregiver from the task for this date?')) {
-                                                        return;
-                                                    }
-                                                    await onRemove(assignment.id);
-                                                }}
+                                                onClick={() => setRemoveConfirmId(assignment.id)}
                                                 disabled={isSaving}
-                                                className="rounded-lg border-2 px-4 py-1.5 text-xs font-semibold transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
-                                                style={{ borderColor: 'var(--theme-primary-bg)', color: 'var(--theme-primary)' }}
+                                                className="rounded-lg px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 active:bg-red-800 transition-colors shadow-md hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-red-600"
                                             >
                                                 {isSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Remove'}
                                             </button>

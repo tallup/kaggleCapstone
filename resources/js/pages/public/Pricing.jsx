@@ -46,7 +46,7 @@ export default function Pricing() {
         '14-day free trial',
       ],
       popular: true,
-      color: 'from-blue-500 to-cyan-500'
+      color: 'from-brand-primary-dark to-brand-sky'
     },
     {
       name: 'Enterprise',
@@ -105,7 +105,7 @@ export default function Pricing() {
       <PublicNavigation />
 
       {/* Hero Section */}
-      <section className="pt-20 pb-12 bg-gradient-to-br from-blue-50 to-cyan-50">
+      <section className="pt-20 pb-12 bg-gradient-to-br from-brand-primary to-brand-primary">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">Simple, Transparent Pricing</h1>
           <p className="text-base sm:text-lg lg:text-xl text-gray-600 max-w-3xl mx-auto">
@@ -123,13 +123,13 @@ export default function Pricing() {
                 key={index}
                 className={`bg-white rounded-2xl p-8 border-2 ${
                   plan.popular
-                    ? 'border-blue-500 shadow-2xl scale-105'
+                    ? 'border-brand-sky shadow-2xl scale-105'
                     : 'border-gray-200 hover:border-gray-300'
                 } transition-all relative`}
               >
                 {plan.popular && (
                   <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                    <span className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white px-4 py-1 rounded-full text-sm font-semibold">
+                    <span className="bg-gradient-to-r from-brand-primary-dark to-brand-sky text-white px-4 py-1 rounded-full text-sm font-semibold">
                       Most Popular
                     </span>
                   </div>
@@ -155,7 +155,7 @@ export default function Pricing() {
                   onClick={() => navigate('/register-facility')}
                   className={`w-full py-3 rounded-lg font-semibold transition-all ${
                     plan.popular
-                      ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white hover:from-blue-600 hover:to-cyan-600 shadow-lg'
+                      ? 'bg-gradient-to-r from-brand-primary-dark to-brand-sky text-white hover:opacity-90 shadow-lg'
                       : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
                   }`}
                 >
@@ -183,15 +183,15 @@ export default function Pricing() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 bg-gradient-to-r from-blue-500 to-cyan-500">
+      <section className="py-20 bg-gradient-to-r from-brand-primary-dark to-brand-sky">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-4xl font-bold text-white mb-4">Ready to Get Started?</h2>
-          <p className="text-xl text-blue-100 mb-8">
+          <p className="text-xl text-brand-primary mb-8">
             Start your free 14-day trial today. No credit card required.
           </p>
           <button
             onClick={() => navigate('/register-facility')}
-            className="bg-white text-blue-600 px-8 py-4 rounded-lg font-semibold text-lg hover:bg-gray-100 transition-all shadow-lg"
+            className="bg-white text-brand-primary-dark px-8 py-4 rounded-lg font-semibold text-lg hover:bg-gray-100 transition-all shadow-lg"
           >
             Start Free Trial
           </button>

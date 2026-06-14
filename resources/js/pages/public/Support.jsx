@@ -69,7 +69,7 @@ export default function Support() {
       <PublicNavigation />
 
       {/* Hero Section */}
-      <section className="pt-20 pb-12 bg-gradient-to-br from-blue-50 to-cyan-50">
+      <section className="pt-20 pb-12 bg-gradient-to-br from-brand-primary to-brand-primary">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">Support Center</h1>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
@@ -89,7 +89,7 @@ export default function Support() {
                 className="bg-white p-6 rounded-xl border border-gray-200 hover:shadow-lg transition-all cursor-pointer"
                 onClick={() => resource.onClick ? resource.onClick() : window.open(resource.link, '_blank')}
               >
-                <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center mb-4">
+                <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-brand-primary-dark to-brand-sky flex items-center justify-center mb-4">
                   <resource.icon className="w-6 h-6 text-white" />
                 </div>
                 <h3 className="text-xl font-bold text-gray-900 mb-2">{resource.title}</h3>
@@ -133,16 +133,16 @@ export default function Support() {
       </section>
 
       {/* Contact Support */}
-      <section className="py-20 bg-gradient-to-r from-blue-500 to-cyan-500">
+      <section className="py-20 bg-gradient-to-r from-brand-primary-dark to-brand-sky">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-4xl font-bold text-white mb-4">Still Need Help?</h2>
-          <p className="text-xl text-blue-100 mb-8">
+          <p className="text-xl text-brand-primary mb-8">
             Our support team is available 24/7 to assist you.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button
               onClick={() => navigate('/contact')}
-              className="bg-white text-blue-600 px-8 py-4 rounded-lg font-semibold text-lg hover:bg-gray-100 transition-all shadow-lg"
+              className="bg-white text-brand-primary-dark px-8 py-4 rounded-lg font-semibold text-lg hover:bg-gray-100 transition-all shadow-lg"
             >
               Contact Support
             </button>

@@ -5,6 +5,7 @@ namespace App\Observers;
 use App\Models\Assessment;
 use App\Models\Notification;
 use App\Models\User;
+use App\Services\NotificationService;
 use Carbon\Carbon;
 
 class AssessmentObserver
@@ -33,6 +34,8 @@ class AssessmentObserver
             
             Notification::create([
                 'user_id' => $admin->id,
+                'facility_id' => $assessment->resident?->branch?->facility_id ?? null,
+                'branch_id' => $assessment->branch_id ?? $assessment->resident?->branch_id ?? null,
                 'type' => 'assessment_created',
                 'title' => 'New Assessment Created',
                 'message' => "A new {$assessment->assessment_type} assessment has been created for {$residentName}" . 
@@ -48,6 +51,10 @@ class AssessmentObserver
                 ],
             ]);
         }
+
+        // Send email notifications
+        $notificationService = app(NotificationService::class);
+        $notificationService->sendAssessmentEmail($assessment, $admins, 'created');
     }
 
     /**
@@ -96,6 +103,8 @@ class AssessmentObserver
                 
                 Notification::create([
                     'user_id' => $admin->id,
+                    'facility_id' => $assessment->resident?->branch?->facility_id ?? null,
+                    'branch_id' => $assessment->branch_id ?? $assessment->resident?->branch_id ?? null,
                     'type' => 'assessment_completed',
                     'title' => 'Assessment ' . ucfirst($statusText),
                     'message' => "The {$assessment->assessment_type} assessment for {$residentName}" . 
@@ -112,6 +121,10 @@ class AssessmentObserver
                     ],
                 ]);
             }
+
+            // Send email notifications
+            $notificationService = app(NotificationService::class);
+            $notificationService->sendAssessmentEmail($assessment, $admins, 'completed');
         }
     }
 }

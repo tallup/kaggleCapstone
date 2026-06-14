@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import api from '../../services/api';
 import { BarChart3, TrendingUp, DollarSign, Calendar, CheckCircle, AlertCircle } from 'lucide-react';
 import ModuleProtectedRoute from '../../components/ModuleProtectedRoute';
+import PrintableReportLayout, { ReportPrintButton } from '../../components/reports/PrintableReportLayout';
 
 function ExpenseReports() {
   const [startDate, setStartDate] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]);
@@ -37,14 +38,19 @@ function ExpenseReports() {
   };
 
   return (
-    <div>
-      <div className="bg-white rounded-lg shadow p-6 mb-6">
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
-          <div>
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">Expense Reports</h2>
-            <p className="text-gray-600">View expense analytics and reports.</p>
+    <PrintableReportLayout
+      title="Expense Reports"
+      subtitle={`${startDate} to ${endDate}`}
+    >
+      <div>
+        <div className="bg-white rounded-lg shadow p-6 mb-6 no-print">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">Expense Reports</h2>
+              <p className="text-gray-600">View expense analytics and reports.</p>
+            </div>
+            <ReportPrintButton />
           </div>
-        </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
@@ -180,7 +186,8 @@ function ExpenseReports() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </PrintableReportLayout>
   );
 }
 

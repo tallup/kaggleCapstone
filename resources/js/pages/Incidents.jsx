@@ -3,17 +3,25 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useForm, FormProvider } from 'react-hook-form';
 import api from '../services/api';
+import { useFacilityUpdates } from '../hooks/useRealtimeUpdates';
+import { offlinePost } from '../services/offlineApi';
 import { 
     AlertTriangle, Plus, Edit, Trash2, Eye, X, 
-    CheckCircle, Lock, Clock, User, MapPin, Calendar,
-    FileText, Image as ImageIcon
+    CheckCircle, Clock, User, MapPin, Calendar,
+    FileText, Image as ImageIcon, ChevronLeft, ChevronRight, ShieldAlert
 } from 'lucide-react';
 import Card from '../components/Card';
-import SectionCard from '../components/SectionCard';
+import Modal from '../components/ui/Modal';
+import Tooltip from '../components/ui/Tooltip';
+import EntityCardShell, { EntityCardHeader } from '../components/ui/EntityCardShell';
+import CardIconButton from '../components/ui/CardIconButton';
+import DataPill, { DataPillSection } from '../components/ui/DataPill';
+import ResidentAvatarInline from '../components/ui/ResidentAvatarInline';
 import FormInput from '../components/forms/FormInput';
 import FormTextarea from '../components/forms/FormTextarea';
 import FormSelect from '../components/forms/FormSelect';
 import { toast } from 'sonner';
+import logger from '../utils/logger';
 
 const SEVERITY_COLORS = {
     critical: 'bg-red-100 text-red-800 border-red-300',
@@ -63,7 +71,11 @@ export default function Incidents() {
     const [showForm, setShowForm] = useState(false);
     const [showViewModal, setShowViewModal] = useState(false);
     const [selectedIncident, setSelectedIncident] = useState(null);
-    const [viewMode, setViewMode] = useState('list');
+    const [resolveConfirmIncident, setResolveConfirmIncident] = useState(null);
+    /** When set, confirm modal will PUT update (e.g. status resolved from edit form). */
+    const [resolveFormPayload, setResolveFormPayload] = useState(null);
+    const [deleteConfirmIncident, setDeleteConfirmIncident] = useState(null);
+    const [currentUser, setCurrentUser] = useState(null);
     const [filters, setFilters] = useState({
         status: searchParams.get('status') || 'all',
         priority: searchParams.get('priority') || 'all',
@@ -76,6 +88,8 @@ export default function Incidents() {
         date_from: searchParams.get('date_from') || '',
         date_to: searchParams.get('date_to') || '',
     });
+    const [currentPage, setCurrentPage] = useState(1);
+    const PER_PAGE = 10;
     const [attachments, setAttachments] = useState([]);
     
     // Initialize react-hook-form
@@ -97,11 +111,11 @@ export default function Incidents() {
         },
     });
 
-    // Fetch incidents
+    // Fetch incidents (paginated)
     const { data, isLoading, error, refetch } = useQuery({
-        queryKey: ['incidents', filters],
+        queryKey: ['incidents', filters, currentPage],
         queryFn: async () => {
-            const params = { per_page: 50 };
+            const params = { per_page: PER_PAGE, page: currentPage };
             Object.keys(filters).forEach(key => {
                 if (filters[key] && filters[key] !== 'all') {
                     params[key] = filters[key];
@@ -146,6 +160,118 @@ export default function Incidents() {
         },
     });
 
+    // Fetch current user
+    React.useEffect(() => {
+        const fetchUser = async () => {
+            try {
+                const response = await api.get('/user');
+                setCurrentUser(response.data);
+            } catch (err) {
+                logger.error('Failed to fetch current user:', err);
+            }
+        };
+        fetchUser();
+    }, []);
+
+    // Real-time: refresh incident list when a new incident is created
+    useFacilityUpdates(
+        currentUser?.facility_id,
+        ['incident.created'],
+        {
+            queryKeys: [['incidents']],
+            showToast: true,
+            getToastMessage: (_event, data) => {
+                const severity = data.severity ? ` (${data.severity})` : '';
+                return `New incident reported for ${data.resident?.name || 'resident'}${severity}`;
+            },
+        }
+    );
+
+    // Check if user is a caregiver
+    const isCaregiver = React.useMemo(() => {
+        if (!currentUser) return false;
+
+        const truthyValues = [
+            currentUser.is_caregiver,
+            currentUser.isCaregiver,
+            currentUser.caregiver,
+            currentUser.is_care_giver,
+        ];
+
+        const normalizeToBoolean = (value) => {
+            if (typeof value === 'boolean') return value;
+            if (typeof value === 'number') return value === 1;
+            if (typeof value === 'string') {
+                const normalized = value.trim().toLowerCase();
+                return ['1', 'true', 'yes', 'y', 'caregiver', 'care_giver'].includes(normalized);
+            }
+            return false;
+        };
+
+        if (truthyValues.some(normalizeToBoolean)) {
+            return true;
+        }
+
+        const candidateValues = [];
+        const collectCandidate = (value) => {
+            if (value !== null && value !== undefined && value !== '') {
+                candidateValues.push(String(value));
+            }
+        };
+
+        collectCandidate(currentUser.role);
+        collectCandidate(currentUser.position);
+        collectCandidate(currentUser.primary_role);
+        collectCandidate(currentUser.job_title);
+        collectCandidate(currentUser.primaryRole);
+        collectCandidate(currentUser.title);
+
+        const roles = currentUser.roles;
+        if (Array.isArray(roles)) {
+            roles.forEach((roleItem) => {
+                if (!roleItem) return;
+                if (typeof roleItem === 'string') {
+                    collectCandidate(roleItem);
+                } else {
+                    collectCandidate(roleItem.name);
+                    collectCandidate(roleItem.title);
+                    if (roleItem?.pivot?.role_name) {
+                        collectCandidate(roleItem.pivot.role_name);
+                    }
+                }
+            });
+        } else if (roles?.data && Array.isArray(roles.data)) {
+            roles.data.forEach((roleItem) => {
+                if (!roleItem) return;
+                if (typeof roleItem === 'string') {
+                    collectCandidate(roleItem);
+                } else {
+                    collectCandidate(roleItem.name);
+                    collectCandidate(roleItem.title);
+                    if (roleItem?.pivot?.role_name) {
+                        collectCandidate(roleItem.pivot.role_name);
+                    }
+                }
+            });
+        }
+
+        return candidateValues.some((value) => {
+            const lower = value.toLowerCase().trim();
+            if (!lower) return false;
+            const normalized = lower.replace(/[\s_-]/g, '');
+            return normalized === 'caregiver' || (lower.includes('care') && lower.includes('giver'));
+        });
+    }, [currentUser]);
+
+    // Filter branches for caregivers - only show their assigned branch
+    const availableBranches = React.useMemo(() => {
+        const branches = branchesData?.data || [];
+        if (isCaregiver && currentUser?.assigned_branch_id) {
+            return branches.filter(b => b.id === currentUser.assigned_branch_id);
+        }
+        return branches;
+    }, [branchesData, isCaregiver, currentUser]);
+
     // Fetch users for assignment
     const { data: usersData } = useQuery({
         queryKey: ['users-list'],
@@ -156,18 +282,60 @@ export default function Incidents() {
 
     const createMutation = useMutation({
         mutationFn: async (formDataToSend) => {
+            // Check if FormData has files (requires online)
+            const hasFiles = formDataToSend instanceof FormData && Array.from(formDataToSend.values()).some(v => v instanceof File);
+            
+            if (hasFiles) {
+                // File uploads require online connection
+                if (!navigator.onLine) {
+                    throw new Error('File uploads require an internet connection. Please connect to the internet and try again.');
+                }
             return await api.post('/incidents', formDataToSend, {
                 headers: { 'Content-Type': 'multipart/form-data' },
             });
+            } else {
+                // Convert FormData to object for offline storage
+                const data = formDataToSend instanceof FormData 
+                    ? Object.fromEntries(formDataToSend.entries())
+                    : formDataToSend;
+                
+                const result = await offlinePost('/incidents', data);
+                if (!result.online) {
+                    // Return offline response
+                    return { data: result.data };
+                }
+                return result;
+            }
         },
-        onSuccess: () => {
+        onSuccess: (response) => {
             queryClient.invalidateQueries(['incidents']);
             handleCloseForm();
-            toast.success('Incident created successfully');
+            if (response.data?.offline) {
+                toast.success('Incident saved offline - will sync when online', '', { isFormSubmission: true });
+            } else {
+            toast.success('Incident created successfully', '', { isFormSubmission: true });
+            }
         },
         onError: (error) => {
-            console.error('Error creating incident:', error);
-            toast.error(error.response?.data?.message || 'Failed to create incident');
+            logger.error('Error creating incident:', error);
+            if (error.message && error.message.includes('internet connection')) {
+                toast.error(error.message);
+            } else if (error.response?.status === 413) {
+                toast.error('File size too large. Maximum file size is 2MB per file, and total request size is 8MB. Please reduce file sizes and try again.');
+            } else if (error.response?.status === 422) {
+                // Validation errors
+                const errors = error.response?.data?.errors;
+                if (errors) {
+                    const firstError = Object.values(errors)[0];
+                    toast.error(Array.isArray(firstError) ? firstError[0] : firstError);
+                } else {
+                    toast.error(error.response?.data?.message || 'Validation failed');
+                }
+            } else if (error.response?.status === 500) {
+                toast.error(error.response?.data?.message || 'Server error occurred. Please try again or contact support.');
+            } else {
+                toast.error(error.response?.data?.message || 'Failed to create incident');
+            }
         },
     });
 
@@ -178,10 +346,10 @@ export default function Incidents() {
         onSuccess: () => {
             queryClient.invalidateQueries(['incidents']);
             handleCloseForm();
-            toast.success('Incident updated successfully');
+            toast.success('Incident updated successfully', '', { isFormSubmission: true });
         },
         onError: (error) => {
-            console.error('Error updating incident:', error);
+            logger.error('Error updating incident:', error);
             toast.error(error.response?.data?.message || 'Failed to update incident');
         },
     });
@@ -195,7 +363,7 @@ export default function Incidents() {
             toast.success('Incident deleted successfully');
         },
         onError: (error) => {
-            console.error('Error deleting incident:', error);
+            logger.error('Error deleting incident:', error);
             toast.error(error.response?.data?.message || 'Failed to delete incident');
         },
     });
@@ -207,16 +375,6 @@ export default function Incidents() {
         onSuccess: () => {
             queryClient.invalidateQueries(['incidents']);
             toast.success('Incident marked as resolved');
-        },
-    });
-
-    const markClosedMutation = useMutation({
-        mutationFn: async ({ id, notes }) => {
-            return await api.post(`/incidents/${id}/mark-closed`, { notes });
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries(['incidents']);
-            toast.success('Incident marked as closed');
         },
     });
 
@@ -240,9 +398,11 @@ export default function Incidents() {
             });
         } else {
             setSelectedIncident(null);
+            // Prefill branch for caregivers
+            const caregiverBranchId = isCaregiver && currentUser?.assigned_branch_id ? currentUser.assigned_branch_id : '';
             methods.reset({
                 resident_id: '',
-                branch_id: '',
+                branch_id: caregiverBranchId,
                 incident_type: '',
                 description: '',
                 incident_date: new Date().toISOString().slice(0, 16),
@@ -263,6 +423,7 @@ export default function Incidents() {
     const handleCloseForm = () => {
         setShowForm(false);
         setSelectedIncident(null);
+        setResolveFormPayload(null);
         methods.reset();
         setAttachments([]);
     };
@@ -271,6 +432,31 @@ export default function Incidents() {
         if (selectedIncident) {
             updateMutation.mutate({ id: selectedIncident.id, data });
         } else {
+            // Validate file sizes before submission
+            const maxFileSize = 2 * 1024 * 1024; // 2MB in bytes
+            const maxTotalSize = 8 * 1024 * 1024; // 8MB in bytes
+            let totalSize = 0;
+            const oversizedFiles = [];
+
+            attachments.forEach((file, index) => {
+                if (file instanceof File) {
+                    if (file.size > maxFileSize) {
+                        oversizedFiles.push(`${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB)`);
+                    }
+                    totalSize += file.size;
+                }
+            });
+
+            if (oversizedFiles.length > 0) {
+                toast.error(`File size too large. Maximum file size is 2MB per file. Please reduce the size of: ${oversizedFiles.join(', ')}`);
+                return;
+            }
+
+            if (totalSize > maxTotalSize) {
+                toast.error(`Total file size too large. Maximum total size is 8MB. Current total: ${(totalSize / 1024 / 1024).toFixed(2)}MB. Please reduce file sizes and try again.`);
+                return;
+            }
+
             // For create, we need to handle file uploads
             const formDataToSend = new FormData();
             
@@ -295,7 +481,8 @@ export default function Incidents() {
     const handleFilterChange = (key, value) => {
         const newFilters = { ...filters, [key]: value };
         setFilters(newFilters);
-        
+        setCurrentPage(1);
+
         // Update URL params
         const newParams = new URLSearchParams();
         Object.keys(newFilters).forEach(k => {
@@ -307,234 +494,494 @@ export default function Incidents() {
     };
 
     const incidents = data?.data || [];
+    const totalIncidents = data?.total ?? incidents.length;
+    const lastPage = Math.max(1, data?.last_page ?? 1);
     const residents = residentsData?.data || [];
     const branches = branchesData?.data || [];
     const users = usersData?.data || [];
 
-    // If view modal is open, show view as full page
-    if (showViewModal && selectedIncident) {
-        return (
-            <ViewIncident
-                incident={selectedIncident}
-                onClose={() => {
-                    setShowViewModal(false);
-                    setSelectedIncident(null);
-                }}
-                onEdit={() => {
-                    setShowViewModal(false);
-                    handleOpenForm(selectedIncident);
-                }}
-            />
-        );
-    }
-
-    // If form is open, show form as full page (like Expenses form)
-    if (showForm) {
-        return (
-            <IncidentForm
-                record={selectedIncident}
-                branches={branches}
-                residents={residents}
-                users={users}
-                attachments={attachments}
-                setAttachments={setAttachments}
-                onClose={handleCloseForm}
-                onSuccess={() => {
-                    handleCloseForm();
-                    queryClient.invalidateQueries(['incidents']);
-                }}
-                createMutation={createMutation}
-                updateMutation={updateMutation}
-                methods={methods}
-                branchId={branchId}
-            />
-        );
-    }
-
     return (
-        <div className="p-6 space-y-6">
-            {/* Header */}
-            <SectionCard>
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-                            <AlertTriangle className="w-8 h-8 text-red-600" />
-                            Incidents
-                        </h1>
-                        <p className="text-gray-600 mt-1">Manage and track facility incidents</p>
+        <>
+            <Modal
+                isOpen={!!resolveConfirmIncident || !!resolveFormPayload}
+                onClose={() => {
+                    if (markResolvedMutation.isPending || updateMutation.isPending) return;
+                    setResolveConfirmIncident(null);
+                    setResolveFormPayload(null);
+                }}
+                title="Mark incident as resolved?"
+                size="sm"
+                className="border-t-4 border-emerald-500"
+                closeOnBackdropClick={!markResolvedMutation.isPending && !updateMutation.isPending}
+            >
+                <div className="space-y-4">
+                    <div className="flex gap-4">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 shadow-inner">
+                            <CheckCircle className="h-7 w-7 text-emerald-600" strokeWidth={2} />
+                        </div>
+                        <p className="text-sm leading-relaxed text-slate-600">
+                            This will update the incident status to <span className="font-semibold text-slate-800">resolved</span>.
+                            It will remain in the list for your records and compliance review.
+                        </p>
                     </div>
+                    {(resolveConfirmIncident || resolveFormPayload) && (
+                        <div className="rounded-xl border border-slate-200/90 bg-slate-50/90 px-4 py-3">
+                            <p className="font-mono text-xs font-bold tracking-wide text-emerald-800">
+                                {(resolveConfirmIncident || resolveFormPayload).incident_number}
+                            </p>
+                            <p className="mt-1 text-sm font-semibold text-slate-900">
+                                {(resolveConfirmIncident || resolveFormPayload).incident_type}
+                            </p>
+                        </div>
+                    )}
+                </div>
+                <div className="mt-8 flex flex-wrap justify-end gap-3 border-t border-slate-200 pt-6">
                     <button
-                        onClick={() => handleOpenForm()}
-                        className="flex items-center gap-2 px-4 py-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] rounded-lg hover:bg-[var(--theme-primary-hover)] transition"
+                        type="button"
+                        disabled={markResolvedMutation.isPending || updateMutation.isPending}
+                        onClick={() => {
+                            setResolveConfirmIncident(null);
+                            setResolveFormPayload(null);
+                        }}
+                        className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
                     >
-                        <Plus className="w-5 h-5" />
-                        New Incident
+                        Cancel
+                    </button>
+                    <button
+                        type="button"
+                        disabled={markResolvedMutation.isPending || updateMutation.isPending}
+                        onClick={() => {
+                            if (resolveFormPayload) {
+                                updateMutation.mutate(
+                                    { id: resolveFormPayload.id, data: resolveFormPayload.data },
+                                    {
+                                        onSuccess: () => setResolveFormPayload(null),
+                                    }
+                                );
+                                return;
+                            }
+                            if (!resolveConfirmIncident) return;
+                            markResolvedMutation.mutate(
+                                { id: resolveConfirmIncident.id, notes: '' },
+                                {
+                                    onSuccess: () => setResolveConfirmIncident(null),
+                                }
+                            );
+                        }}
+                        className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-600/20 transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                        {markResolvedMutation.isPending || updateMutation.isPending ? (
+                            <>
+                                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                                Saving…
+                            </>
+                        ) : (
+                            <>
+                                <CheckCircle className="h-4 w-4" strokeWidth={2.5} />
+                                Mark as resolved
+                            </>
+                        )}
                     </button>
                 </div>
-            </SectionCard>
+            </Modal>
 
+            <Modal
+                isOpen={!!deleteConfirmIncident}
+                onClose={() => !deleteMutation.isPending && setDeleteConfirmIncident(null)}
+                title="Delete this incident?"
+                size="sm"
+                className="border-t-4 border-red-500"
+                closeOnBackdropClick={!deleteMutation.isPending}
+            >
+                <div className="space-y-4">
+                    <div className="flex gap-4">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-red-100 shadow-inner">
+                            <Trash2 className="h-6 w-6 text-red-600" strokeWidth={2} />
+                        </div>
+                        <p className="text-sm leading-relaxed text-slate-600">
+                            This action cannot be undone. Attachments and history for this incident will be permanently removed.
+                        </p>
+                    </div>
+                    {deleteConfirmIncident && (
+                        <div className="rounded-xl border border-red-100 bg-red-50/80 px-4 py-3">
+                            <p className="font-mono text-xs font-bold tracking-wide text-red-800">
+                                {deleteConfirmIncident.incident_number}
+                            </p>
+                            <p className="mt-1 text-sm font-semibold text-slate-900">
+                                {deleteConfirmIncident.incident_type}
+                            </p>
+                        </div>
+                    )}
+                </div>
+                <div className="mt-8 flex flex-wrap justify-end gap-3 border-t border-slate-200 pt-6">
+                    <button
+                        type="button"
+                        disabled={deleteMutation.isPending}
+                        onClick={() => setDeleteConfirmIncident(null)}
+                        className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="button"
+                        disabled={deleteMutation.isPending}
+                        onClick={() => {
+                            if (!deleteConfirmIncident) return;
+                            deleteMutation.mutate(deleteConfirmIncident.id, {
+                                onSuccess: () => setDeleteConfirmIncident(null),
+                            });
+                        }}
+                        className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-red-600/20 transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                        {deleteMutation.isPending ? (
+                            <>
+                                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                                Deleting…
+                            </>
+                        ) : (
+                            <>
+                                <Trash2 className="h-4 w-4" strokeWidth={2.5} />
+                                Delete incident
+                            </>
+                        )}
+                    </button>
+                </div>
+            </Modal>
 
-            {/* Incidents List */}
+            {showViewModal && selectedIncident ? (
+                <ViewIncident
+                    incident={selectedIncident}
+                    onClose={() => {
+                        setShowViewModal(false);
+                        setSelectedIncident(null);
+                    }}
+                    onEdit={() => {
+                        setShowViewModal(false);
+                        handleOpenForm(selectedIncident);
+                    }}
+                />
+            ) : (
+        <div className="space-y-6">
+            <EntityCardShell>
+                <EntityCardHeader
+                    left={
+                        <div className="flex items-start gap-3">
+                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-red-50">
+                                <ShieldAlert className="h-5 w-5 text-red-600" strokeWidth={2} aria-hidden="true" />
+                            </div>
+                            <div className="min-w-0">
+                                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                                    {'Safety & compliance'}
+                                </p>
+                                <h1 className="mt-1 text-xl font-bold leading-snug text-slate-900 sm:text-2xl">Incidents</h1>
+                            </div>
+                        </div>
+                    }
+                    right={
+                        <button
+                            type="button"
+                            onClick={() => handleOpenForm()}
+                            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-[var(--theme-primary)] px-4 py-2 text-sm font-bold text-[var(--theme-text-on-primary)] transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--theme-primary)] focus-visible:ring-offset-2"
+                        >
+                            <Plus className="h-4 w-4 shrink-0" aria-hidden="true" />
+                            New Incident
+                        </button>
+                    }
+                />
+                <p className="text-sm leading-snug text-slate-600">
+                    Manage and track facility incidents with a clear, auditable record.
+                </p>
+                {totalIncidents > 0 && (
+                    <p className="mt-2 text-xs font-medium text-slate-500">
+                        {totalIncidents} record{totalIncidents !== 1 ? 's' : ''}
+                        {data?.last_page > 1 ? ` · Page ${currentPage} of ${lastPage}` : ''}
+                    </p>
+                )}
+            </EntityCardShell>
+
+            {/* Incidents grid */}
             {isLoading ? (
-                <div className="text-center py-12">
-                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                    <p className="mt-2 text-gray-600">Loading incidents...</p>
+                <div className="flex flex-col items-center justify-center rounded-2xl border border-slate-200/80 bg-white/80 py-20 shadow-sm">
+                    <div className="h-10 w-10 animate-spin rounded-full border-2 border-slate-200 border-t-[var(--theme-primary)]" />
+                    <p className="mt-4 text-sm font-medium text-slate-600">Loading incidents…</p>
                 </div>
             ) : error ? (
-                <Card>
-                    <div className="text-center py-12">
-                        <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+                <Card className="border-slate-200/80 shadow-lg">
+                    <div className="py-16 text-center">
+                        <AlertTriangle className="mx-auto mb-4 h-12 w-12 text-red-500" />
                         <p className="text-red-600">Failed to load incidents</p>
                         <button
+                            type="button"
                             onClick={() => refetch()}
-                            className="mt-4 px-4 py-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] rounded-lg hover:bg-[var(--theme-primary-hover)]"
+                            className="mt-4 rounded-xl bg-[var(--theme-primary)] px-5 py-2.5 text-sm font-semibold text-[var(--theme-text-on-primary)] hover:bg-[var(--theme-primary-hover)]"
                         >
                             Retry
                         </button>
                     </div>
                 </Card>
             ) : incidents.length === 0 ? (
-                <Card>
-                    <div className="text-center py-12">
-                        <AlertTriangle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                        <p className="text-gray-600">No incidents found</p>
+                <Card className="border-slate-200/80 shadow-lg">
+                    <div className="py-16 text-center">
+                        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100">
+                            <AlertTriangle className="h-8 w-8 text-slate-400" />
+                        </div>
+                        <p className="text-slate-600">No incidents found</p>
                         <button
+                            type="button"
                             onClick={() => handleOpenForm()}
-                            className="mt-4 px-4 py-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] rounded-lg hover:bg-[var(--theme-primary-hover)]"
+                            className="mt-6 rounded-xl bg-[var(--theme-primary)] px-5 py-2.5 text-sm font-semibold text-[var(--theme-text-on-primary)] hover:bg-[var(--theme-primary-hover)]"
                         >
-                            Create First Incident
+                            Create first incident
                         </button>
                     </div>
                 </Card>
             ) : (
-                <div className="space-y-4">
-                    {incidents.map((incident) => (
-                        <Card key={incident.id} className="hover:shadow-lg transition">
-                            <div className="flex items-start justify-between">
-                                <div className="flex-1">
-                                    <div className="flex items-center gap-3 mb-2">
-                                        <span className="font-mono text-sm font-semibold text-[var(--theme-primary)]">
-                                            {incident.incident_number}
-                                        </span>
-                                        <span className={`px-2 py-1 rounded text-xs font-medium border ${SEVERITY_COLORS[incident.severity] || SEVERITY_COLORS.low}`}>
-                                            {incident.severity?.toUpperCase()}
-                                        </span>
-                                        <span className={`px-2 py-1 rounded text-xs font-medium border ${PRIORITY_COLORS[incident.priority] || PRIORITY_COLORS.medium}`}>
-                                            {incident.priority?.toUpperCase()}
-                                        </span>
-                                        <span className={`px-2 py-1 rounded text-xs font-medium border ${STATUS_COLORS[incident.status] || STATUS_COLORS.open}`}>
-                                            {incident.status?.replace('_', ' ').toUpperCase()}
-                                        </span>
-                                    </div>
-
-                                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                                        {incident.incident_type}
-                                    </h3>
-
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-gray-600 mb-3">
-                                        <div className="flex items-center gap-2">
-                                            <User className="w-4 h-4" />
-                                            <span>
-                                                {incident.resident?.first_name} {incident.resident?.last_name}
+                <>
+                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                        {incidents.map((incident) => (
+                            <EntityCardShell key={incident.id}>
+                                <EntityCardHeader
+                                    left={
+                                        <>
+                                            <span className="font-mono text-xs font-bold tracking-wide text-[var(--theme-primary)]">
+                                                {incident.incident_number}
                                             </span>
-                                        </div>
-                                        {incident.location && (
-                                            <div className="flex items-center gap-2">
-                                                <MapPin className="w-4 h-4" />
-                                                <span>{incident.location}</span>
+                                            <div className="flex flex-wrap gap-1.5">
+                                                <span
+                                                    className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${SEVERITY_COLORS[incident.severity] || SEVERITY_COLORS.low}`}
+                                                >
+                                                    {incident.severity}
+                                                </span>
+                                                <span
+                                                    className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${PRIORITY_COLORS[incident.priority] || PRIORITY_COLORS.medium}`}
+                                                >
+                                                    {incident.priority}
+                                                </span>
+                                                <span
+                                                    className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${STATUS_COLORS[incident.status] || STATUS_COLORS.open}`}
+                                                >
+                                                    {incident.status?.replace('_', ' ')}
+                                                </span>
                                             </div>
-                                        )}
-                                        <div className="flex items-center gap-2">
-                                            <Calendar className="w-4 h-4" />
-                                            <span>
-                                                {new Date(incident.incident_date).toLocaleString()}
-                                            </span>
-                                        </div>
-                                        {incident.assigned_to && incident.assigned_to_user && (
-                                            <div className="flex items-center gap-2">
-                                                <User className="w-4 h-4" />
-                                                <span>Assigned to: {incident.assigned_to_user.name}</span>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    <p className="text-gray-700 text-sm line-clamp-2 mb-3">
-                                        {incident.description}
-                                    </p>
-
-                                    {incident.attachments && incident.attachments.length > 0 && (
-                                        <div className="flex items-center gap-2 text-sm text-gray-600 mb-3">
-                                            <FileText className="w-4 h-4" />
-                                            <span>{incident.attachments.length} attachment(s)</span>
-                                        </div>
-                                    )}
-                                </div>
-
-                                <div className="flex items-center gap-2 ml-4">
-                                    <button
-                                        onClick={() => {
-                                            setSelectedIncident(incident);
-                                            setShowViewModal(true);
-                                        }}
-                                        className="p-2.5 border-2 border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400 rounded-lg transition-all shadow-sm"
-                                        title="View"
-                                    >
-                                        <Eye className="w-5 h-5" />
-                                    </button>
-                                    <button
-                                        onClick={() => handleOpenForm(incident)}
-                                        className="p-2.5 border-2 border-[var(--theme-primary)] bg-white text-[var(--theme-primary)] hover:bg-[var(--theme-primary-bg)] hover:border-[var(--theme-primary-dark)] rounded-lg transition-all shadow-sm"
-                                        title="Edit"
-                                    >
-                                        <Edit className="w-5 h-5" />
-                                    </button>
-                                    {incident.status !== 'resolved' && incident.status !== 'closed' && (
-                                        <button
-                                            onClick={() => {
-                                                if (incident.status === 'resolved') {
-                                                    markClosedMutation.mutate({ id: incident.id, notes: '' });
-                                                } else {
-                                                    markResolvedMutation.mutate({ id: incident.id, notes: '' });
-                                                }
-                                            }}
-                                            className="p-2.5 border-2 border-green-400 bg-white text-green-700 hover:bg-green-50 hover:border-green-500 rounded-lg transition-all shadow-sm"
-                                            title={incident.status === 'resolved' ? 'Mark Closed' : 'Mark Resolved'}
-                                        >
-                                            {incident.status === 'resolved' ? (
-                                                <Lock className="w-5 h-5" />
-                                            ) : (
-                                                <CheckCircle className="w-5 h-5" />
+                                        </>
+                                    }
+                                    right={
+                                        <>
+                                            <Tooltip content="View details" position="top">
+                                                <CardIconButton
+                                                    variant="view"
+                                                    icon={Eye}
+                                                    aria-label="View details"
+                                                    onClick={() => {
+                                                        setSelectedIncident(incident);
+                                                        setShowViewModal(true);
+                                                    }}
+                                                />
+                                            </Tooltip>
+                                            <Tooltip content="Edit incident" position="top">
+                                                <CardIconButton
+                                                    variant="edit"
+                                                    icon={Edit}
+                                                    aria-label="Edit incident"
+                                                    onClick={() => handleOpenForm(incident)}
+                                                />
+                                            </Tooltip>
+                                            {incident.status !== 'resolved' && incident.status !== 'closed' && (
+                                                <Tooltip content="Mark as resolved" position="top">
+                                                    <CardIconButton
+                                                        variant="resolve"
+                                                        icon={CheckCircle}
+                                                        aria-label="Mark as resolved"
+                                                        onClick={() => setResolveConfirmIncident(incident)}
+                                                    />
+                                                </Tooltip>
                                             )}
-                                        </button>
-                                    )}
-                                    <button
-                                        onClick={() => {
-                                            if (window.confirm('Are you sure you want to delete this incident?')) {
-                                                deleteMutation.mutate(incident.id);
-                                            }
-                                        }}
-                                        className="p-2.5 border-2 border-red-400 bg-white text-red-700 hover:bg-red-50 hover:border-red-500 rounded-lg transition-all shadow-sm"
-                                        title="Delete"
+                                            {!isCaregiver && (
+                                                <Tooltip content="Delete incident" position="top">
+                                                    <CardIconButton
+                                                        variant="delete"
+                                                        icon={Trash2}
+                                                        aria-label="Delete incident"
+                                                        onClick={() => setDeleteConfirmIncident(incident)}
+                                                    />
+                                                </Tooltip>
+                                            )}
+                                        </>
+                                    }
+                                />
+
+                                <h3 className="text-lg font-bold leading-snug text-slate-900 sm:text-xl">
+                                    {incident.incident_type}
+                                </h3>
+
+                                <div className="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                                    <DataPill
+                                        leading={
+                                            incident.resident ? (
+                                                <ResidentAvatarInline resident={incident.resident} />
+                                            ) : null
+                                        }
+                                        icon={!incident.resident ? User : undefined}
+                                        contentClassName="font-medium"
                                     >
-                                        <Trash2 className="w-5 h-5" />
-                                    </button>
+                                        {incident.resident
+                                            ? `${incident.resident.first_name ?? ''} ${incident.resident.last_name ?? ''}`.trim() ||
+                                              '—'
+                                            : '—'}
+                                    </DataPill>
+                                    {incident.location && (
+                                        <DataPill icon={MapPin}>
+                                            <span className="font-normal text-slate-600">{incident.location}</span>
+                                        </DataPill>
+                                    )}
+                                    <DataPill icon={Calendar} className="sm:col-span-2">
+                                        <span className="font-normal text-slate-600">
+                                            {new Date(incident.incident_date).toLocaleString()}
+                                        </span>
+                                    </DataPill>
+                                    {incident.assigned_to && incident.assigned_to_user && (
+                                        <DataPill icon={User} className="sm:col-span-2">
+                                            <span className="font-normal text-slate-600">
+                                                Assigned: {incident.assigned_to_user.name}
+                                            </span>
+                                        </DataPill>
+                                    )}
                                 </div>
+
+                                <DataPillSection label="Description">
+                                    <p className="line-clamp-3">{incident.description || '—'}</p>
+                                </DataPillSection>
+
+                                {incident.attachments && incident.attachments.length > 0 && (
+                                    <div className="mt-3 flex items-center gap-2 text-xs font-medium text-slate-500">
+                                        <FileText className="h-3.5 w-3.5" />
+                                        {incident.attachments.length} attachment(s)
+                                    </div>
+                                )}
+                            </EntityCardShell>
+                        ))}
+                    </div>
+
+                    {lastPage > 1 && (
+                        <div className="flex flex-col items-center justify-between gap-4 rounded-2xl border border-slate-200/80 bg-white px-4 py-4 shadow-sm sm:flex-row sm:px-6">
+                            <p className="text-sm text-slate-600">
+                                Showing{' '}
+                                <span className="font-semibold text-slate-900">
+                                    {data?.from ?? (incidents.length ? (currentPage - 1) * PER_PAGE + 1 : 0)}
+                                </span>
+                                –
+                                <span className="font-semibold text-slate-900">
+                                    {data?.to ?? (currentPage - 1) * PER_PAGE + incidents.length}
+                                </span>{' '}
+                                of <span className="font-semibold text-slate-900">{totalIncidents}</span>
+                            </p>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    disabled={currentPage <= 1}
+                                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                                >
+                                    <ChevronLeft className="h-4 w-4" />
+                                    Previous
+                                </button>
+                                <span className="min-w-[5rem] text-center text-sm font-medium tabular-nums text-slate-600">
+                                    {currentPage} / {lastPage}
+                                </span>
+                                <button
+                                    type="button"
+                                    disabled={currentPage >= lastPage}
+                                    onClick={() => setCurrentPage((p) => Math.min(lastPage, p + 1))}
+                                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                                >
+                                    Next
+                                    <ChevronRight className="h-4 w-4" />
+                                </button>
                             </div>
-                        </Card>
-                    ))}
-                </div>
+                        </div>
+                    )}
+                </>
+            )}
+        </div>
             )}
 
-        </div>
+            <Modal
+                isOpen={showForm}
+                onClose={handleCloseForm}
+                title={selectedIncident ? 'Edit Incident' : 'Add Incident'}
+                size="xl"
+            >
+                <IncidentForm
+                    key={selectedIncident?.id ?? 'new'}
+                    inModal
+                    record={selectedIncident}
+                    branches={availableBranches}
+                    residents={residents}
+                    users={users}
+                    attachments={attachments}
+                    setAttachments={setAttachments}
+                    currentUser={currentUser}
+                    isCaregiver={isCaregiver}
+                    onClose={handleCloseForm}
+                    onSuccess={() => {
+                        handleCloseForm();
+                        queryClient.invalidateQueries(['incidents']);
+                    }}
+                    onRequestResolveConfirm={(payload) => setResolveFormPayload(payload)}
+                    createMutation={createMutation}
+                    updateMutation={updateMutation}
+                    methods={methods}
+                    branchId={branchId}
+                />
+            </Modal>
+        </>
     );
 }
 
 // Incident Form Component (Full Page Form like Expenses)
-function IncidentForm({ record, branches, residents, users, attachments, setAttachments, onClose, onSuccess, createMutation, updateMutation, methods, branchId }) {
+function IncidentForm({ record, branches, residents, users, attachments, setAttachments, currentUser, isCaregiver, onClose, onSuccess, onRequestResolveConfirm, createMutation, updateMutation, methods, branchId, inModal = false }) {
     const handleSubmit = (data) => {
         if (record) {
+            if (
+                data.status === 'resolved' &&
+                record.status !== 'resolved' &&
+                onRequestResolveConfirm
+            ) {
+                onRequestResolveConfirm({
+                    id: record.id,
+                    data,
+                    incident_number: record.incident_number,
+                    incident_type: record.incident_type,
+                });
+                return;
+            }
             updateMutation.mutate({ id: record.id, data });
         } else {
+            // Validate file sizes before submission
+            const maxFileSize = 2 * 1024 * 1024; // 2MB in bytes
+            const maxTotalSize = 8 * 1024 * 1024; // 8MB in bytes
+            let totalSize = 0;
+            const oversizedFiles = [];
+
+            attachments.forEach((file, index) => {
+                if (file instanceof File) {
+                    if (file.size > maxFileSize) {
+                        oversizedFiles.push(`${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB)`);
+                    }
+                    totalSize += file.size;
+                }
+            });
+
+            if (oversizedFiles.length > 0) {
+                toast.error(`File size too large. Maximum file size is 2MB per file. Please reduce the size of: ${oversizedFiles.join(', ')}`);
+                return;
+            }
+
+            if (totalSize > maxTotalSize) {
+                toast.error(`Total file size too large. Maximum total size is 8MB. Current total: ${(totalSize / 1024 / 1024).toFixed(2)}MB. Please reduce file sizes and try again.`);
+                return;
+            }
+
             // For create, we need to handle file uploads
             const formDataToSend = new FormData();
             
@@ -557,18 +1004,21 @@ function IncidentForm({ record, branches, residents, users, attachments, setAtta
     };
 
     return (
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className={inModal ? '' : 'bg-white rounded-lg shadow p-6'}>
+            {!inModal && (
             <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-semibold text-gray-900">
                     {record ? 'Edit Incident' : 'Add Incident'}
                 </h2>
                 <button
+                    type="button"
                     onClick={onClose}
                     className="text-gray-400 hover:text-gray-600"
                 >
                     <X className="w-6 h-6" />
                 </button>
             </div>
+            )}
 
             <FormProvider {...methods}>
                 <form onSubmit={methods.handleSubmit(handleSubmit)} className="space-y-4">
@@ -579,6 +1029,7 @@ function IncidentForm({ record, branches, residents, users, attachments, setAtta
                                     required
                                     placeholder="Select Branch"
                                     options={branches.map(branch => ({ value: branch.id, label: branch.name }))}
+                                    disabled={isCaregiver && currentUser?.assigned_branch_id}
                                 />
 
                                 <FormSelect
@@ -927,7 +1378,7 @@ function ViewIncident({ incident, onClose, onEdit }) {
                         <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden border-l-4 border-l-indigo-500">
                             <div className="p-6">
                                 <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                                    <ImageIcon className="w-6 h-6 text-indigo-500" />
+                                    <ImageIcon className="w-6 h-6 text-[var(--theme-primary)]" />
                                     Attachments ({incident.attachments.length})
                                 </h2>
                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">

@@ -46,7 +46,7 @@ export default function Reminders() {
         onSuccess: () => {
             queryClient.invalidateQueries(['reminders']);
             queryClient.invalidateQueries(['reminders', 'upcoming']);
-            toast.success('Reminder created');
+            toast.success('Reminder created', '', { isFormSubmission: true });
             resetForm();
         },
         onError: (error) => {

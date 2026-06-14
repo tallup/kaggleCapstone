@@ -1,15 +1,27 @@
 import React, { useState, useMemo } from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
+import logger from '../utils/logger';
 import { ClipboardList, Plus, Search, Filter, Edit, Trash2, Calendar, User, CheckCircle, XCircle, Clock, FileText, AlertCircle, X } from 'lucide-react';
 import SectionCard from '../components/SectionCard';
 import Card from '../components/Card';
 import CalendarComponent from '../components/ui/Calendar';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
+import Modal from '../components/ui/Modal';
+import Tooltip from '../components/ui/Tooltip';
 import { hasModuleAccess } from '../utils/moduleAccess';
+import { RESIDENT_CONTEXT_QUERY_KEY } from '../utils/headerResidentSwitcher';
+import { isCaregiverRole } from '../utils/userRoles';
 
-export default function Assessments() {
+export default function Assessments({ embedded = false, embeddedResidentId = null } = {}) {
     const queryClient = useQueryClient();
+    const [searchParams] = useSearchParams();
+    const fromUrl = searchParams.get(RESIDENT_CONTEXT_QUERY_KEY) || searchParams.get('resident_id') || '';
+    const headerResidentScope =
+        embeddedResidentId != null && embeddedResidentId !== ''
+            ? String(embeddedResidentId)
+            : fromUrl;
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
     const [typeFilter, setTypeFilter] = useState('');
@@ -26,7 +38,7 @@ export default function Assessments() {
                 const response = await api.get('/user');
                 return response.data;
             } catch (err) {
-                console.error('Failed to fetch current user:', err);
+                logger.error('Failed to fetch current user:', err);
                 return null;
             }
         },
@@ -46,16 +58,32 @@ export default function Assessments() {
         return role === 'administrator' || role === 'admin' || role === 'super_admin';
     }, [currentUser]);
     
+    // Check if user is a facility administrator (can access all branches in facility)
+    const isFacilityAdmin = useMemo(() => {
+        if (!currentUser) return false;
+        const role = currentUser.role?.toLowerCase().trim() || '';
+        return role === 'administrator';
+    }, [currentUser]);
+    
+    // Check if user is a branch-level admin (restricted to assigned branch)
+    const isBranchAdmin = useMemo(() => {
+        if (!currentUser) return false;
+        const role = currentUser.role?.toLowerCase().trim() || '';
+        return role === 'admin';
+    }, [currentUser]);
+
+    const isCaregiver = useMemo(() => isCaregiverRole(currentUser?.role), [currentUser?.role]);
+    
     // Permission checks
     const permissions = Array.isArray(currentUser?.permissions) ? currentUser.permissions : [];
-    const canCreate = isSuperAdmin || isAdmin || permissions.includes('create_assessments');
-    const canEdit = isSuperAdmin || isAdmin || permissions.includes('edit_assessments');
-    const canDelete = isSuperAdmin || isAdmin || permissions.includes('delete_assessments');
+    const canCreate = !isCaregiver && (isSuperAdmin || isAdmin || permissions.includes('create_assessments'));
+    const canEdit = !isCaregiver && (isSuperAdmin || isAdmin || permissions.includes('edit_assessments'));
+    const canDelete = !isCaregiver && (isSuperAdmin || isAdmin || permissions.includes('delete_assessments'));
 
     // Show loading state
     if (isLoadingUser) {
         return (
-            <div className="flex items-center justify-center min-h-screen">
+            <div className={`flex items-center justify-center ${embedded ? 'min-h-[200px]' : 'min-h-screen'}`}>
                 <div className="text-center">
                     <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--theme-primary)]"></div>
                     <p className="mt-4 text-gray-600">Loading...</p>
@@ -67,7 +95,7 @@ export default function Assessments() {
     // Redirect if module access is denied
     if (!hasModuleAccessCheck) {
         return (
-            <div className="flex items-center justify-center min-h-screen">
+            <div className={`flex items-center justify-center ${embedded ? 'min-h-[200px] py-6' : 'min-h-screen'}`}>
                 <div className="bg-white rounded-lg shadow p-8 max-w-md text-center">
                     <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
                     <h2 className="text-xl font-semibold text-gray-900 mb-2">Module Not Available</h2>
@@ -85,14 +113,6 @@ export default function Assessments() {
         );
     }
 
-    // Check if user is a caregiver
-    const isCaregiver = React.useMemo(() => {
-        if (!currentUser) return false;
-        const role = currentUser.role?.toLowerCase().trim() || '';
-        const roleNormalized = role.replace(/[\s_]/g, '');
-        return roleNormalized === 'caregiver' || (role.includes('care') && role.includes('giver'));
-    }, [currentUser]);
-
     // Fetch residents for form
     const { data: residentsData } = useQuery({
         queryKey: ['residents-list'],
@@ -107,11 +127,12 @@ export default function Assessments() {
 
     // Fetch all assessments for calendar
     const { data: allAssessmentsForCalendar } = useQuery({
-        queryKey: ['assessments-calendar', statusFilter, typeFilter],
+        queryKey: ['assessments-calendar', statusFilter, typeFilter, headerResidentScope],
         queryFn: async () => {
             const params = { per_page: 1000 };
             if (statusFilter) params.status = statusFilter;
             if (typeFilter) params.assessment_type = typeFilter;
+            if (headerResidentScope) params.resident_id = headerResidentScope;
             const response = await api.get('/assessments', { params });
             return response.data;
         },
@@ -119,12 +140,13 @@ export default function Assessments() {
 
     // Fetch assessments
     const { data, isLoading, error } = useQuery({
-        queryKey: ['assessments', search, statusFilter, typeFilter, dateFilter, selectedCalendarDate],
+        queryKey: ['assessments', search, statusFilter, typeFilter, dateFilter, selectedCalendarDate, headerResidentScope],
         queryFn: async () => {
             const params = { per_page: 20 };
             if (search) params.search = search;
             if (statusFilter) params.status = statusFilter;
             if (typeFilter) params.assessment_type = typeFilter;
+            if (headerResidentScope) params.resident_id = headerResidentScope;
             
             if (selectedCalendarDate) {
                 params.date_from = selectedCalendarDate;
@@ -151,6 +173,13 @@ export default function Assessments() {
             queryClient.invalidateQueries(['assessments-calendar']);
         },
     });
+
+    const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+
+    const handleConfirmDeleteAssessment = () => {
+        if (deleteConfirmId == null) return;
+        deleteMutation.mutate(deleteConfirmId, { onSuccess: () => setDeleteConfirmId(null) });
+    };
 
     // Process assessments for calendar
     const calendarData = useMemo(() => {
@@ -255,28 +284,53 @@ export default function Assessments() {
         }
     };
 
-    // If user is not an admin, show access denied message
-    if (currentUser && !isAdmin) {
+    // Full-page route: allow caregivers with module access (read-only). Block other non-admin roles.
+    if (currentUser && !isAdmin && !isCaregiver && !embedded) {
         return (
             <div>
                 <SectionCard>
                     <div className="text-center py-12">
                         <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                         <h2 className="text-xl font-semibold text-gray-900 mb-2">Access Restricted</h2>
-                        <p className="text-gray-600">Assessments can only be created and viewed by administrators.</p>
+                        <p className="text-gray-600">This page is not available for your role. Please contact an administrator.</p>
                     </div>
                 </SectionCard>
             </div>
         );
     }
 
-    if (showForm) {
-        return (
-            <div>
+    return (
+        <>
+            <ConfirmDialog
+                isOpen={deleteConfirmId != null}
+                onClose={() => !deleteMutation.isPending && setDeleteConfirmId(null)}
+                onConfirm={handleConfirmDeleteAssessment}
+                title="Delete this assessment?"
+                description="This assessment will be permanently removed."
+                confirmLabel="Delete"
+                cancelLabel="Cancel"
+                variant="danger"
+                isPending={deleteMutation.isPending}
+            />
+            <Modal
+                isOpen={showForm}
+                onClose={() => {
+                    setShowForm(false);
+                    setEditing(null);
+                }}
+                title={editing ? 'Edit Assessment' : 'Add Assessment'}
+                size="xl"
+            >
                 <AssessmentForm
+                    key={editing?.id ?? 'new'}
                     record={editing}
                     residents={residentsData?.data || []}
                     branches={branchesData?.data || []}
+                    currentUser={currentUser}
+                    isFacilityAdmin={isFacilityAdmin}
+                    isBranchAdmin={isBranchAdmin}
+                    inModal
+                    defaultResidentId={editing ? '' : headerResidentScope}
                     onClose={() => {
                         setShowForm(false);
                         setEditing(null);
@@ -288,17 +342,17 @@ export default function Assessments() {
                         queryClient.invalidateQueries(['assessments-calendar']);
                     }}
                 />
-            </div>
-        );
-    }
-
-    return (
+            </Modal>
         <div>
             <SectionCard>
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
                     <div>
                         <h2 className="text-xl font-semibold text-gray-900 mb-2">Assessment Management</h2>
-                        <p className="text-gray-600">View and manage resident assessments.</p>
+                        <p className="text-gray-600">
+                            {isCaregiver
+                                ? 'View resident assessments. Only administrators can add or change assessments.'
+                                : 'View and manage resident assessments.'}
+                        </p>
                     </div>
                     {canCreate && (
                         <button
@@ -410,28 +464,44 @@ export default function Assessments() {
                                             {assessment.status?.replace('_', ' ')}
                                         </span>
                                         <div className="flex flex-col items-end space-y-1">
-                                            {assessment.status === 'completed' || assessment.status === 'approved' ? (
-                                                <button
-                                                    disabled
-                                                    className="px-3 py-1 text-sm text-gray-400 bg-gray-200 cursor-not-allowed rounded-lg transition-colors"
-                                                    title="Assessment is already completed or approved"
-                                                >
-                                                    Start Assessment
-                                                </button>
-                                            ) : (
+                                            {isCaregiver ? (
                                                 <Link
-                                                    to={`/assessments/${assessment.id}`}
+                                                    to={`/assessments/${assessment.id}/review`}
                                                     className="px-3 py-1 text-sm text-[var(--theme-text-on-primary)] bg-[var(--theme-primary)] hover:bg-[var(--theme-primary-hover)] rounded-lg transition-colors"
                                                 >
-                                                    Start Assessment
+                                                    View
                                                 </Link>
+                                            ) : (
+                                                <>
+                                                    {assessment.status === 'completed' || assessment.status === 'approved' ? (
+                                                        <Tooltip content="Assessment is already completed or approved" position="top">
+                                                            <span className="inline-flex">
+                                                                <button
+                                                                    type="button"
+                                                                    disabled
+                                                                    className="px-3 py-1 text-sm text-gray-400 bg-gray-200 cursor-not-allowed rounded-lg transition-colors"
+                                                                    aria-label="Start assessment unavailable: assessment is already completed or approved"
+                                                                >
+                                                                    Start Assessment
+                                                                </button>
+                                                            </span>
+                                                        </Tooltip>
+                                                    ) : (
+                                                        <Link
+                                                            to={`/assessments/${assessment.id}`}
+                                                            className="px-3 py-1 text-sm text-[var(--theme-text-on-primary)] bg-[var(--theme-primary)] hover:bg-[var(--theme-primary-hover)] rounded-lg transition-colors"
+                                                        >
+                                                            Start Assessment
+                                                        </Link>
+                                                    )}
+                                                    <Link
+                                                        to={`/assessments/${assessment.id}/review`}
+                                                        className="px-3 py-1 text-sm text-[var(--theme-text-on-primary)] bg-[var(--theme-primary)] hover:bg-[var(--theme-primary-hover)] rounded-lg transition-colors"
+                                                    >
+                                                        Review
+                                                    </Link>
+                                                </>
                                             )}
-                                            <Link
-                                                to={`/assessments/${assessment.id}/review`}
-                                                className="px-3 py-1 text-sm text-[var(--theme-text-on-primary)] bg-[var(--theme-primary)] hover:bg-[var(--theme-primary-hover)] rounded-lg transition-colors"
-                                            >
-                                                Review
-                                            </Link>
                                         </div>
                                     </div>
                                 </div>
@@ -482,31 +552,33 @@ export default function Assessments() {
                                 )}
 
                                 {!isCaregiver && (canEdit || canDelete) && (
-                                    <div className="flex space-x-2 mt-4">
+                                    <div className="mt-4 flex space-x-2">
                                         {canEdit && (
-                                            <button
-                                                onClick={() => {
-                                                    setEditing(assessment);
-                                                    setShowForm(true);
-                                                }}
-                                                className="p-2 text-[var(--theme-secondary)] hover:bg-amber-50 rounded-lg transition-colors"
-                                                title="Edit"
-                                            >
-                                                <Edit className="w-4 h-4" />
-                                            </button>
+                                            <Tooltip content="Edit" position="top">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setEditing(assessment);
+                                                        setShowForm(true);
+                                                    }}
+                                                    className="rounded-lg border border-amber-200 bg-amber-50/80 p-2 transition-colors hover:bg-amber-100"
+                                                    aria-label="Edit assessment"
+                                                >
+                                                    <Edit className="h-4 w-4 !text-amber-800" strokeWidth={2.5} />
+                                                </button>
+                                            </Tooltip>
                                         )}
                                         {canDelete && (
-                                            <button
-                                                onClick={() => {
-                                                    if (window.confirm('Are you sure you want to delete this assessment?')) {
-                                                        deleteMutation.mutate(assessment.id);
-                                                    }
-                                                }}
-                                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                                title="Delete"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
+                                            <Tooltip content="Delete" position="top">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setDeleteConfirmId(assessment.id)}
+                                                    className="rounded-lg border border-red-200 bg-red-50/80 p-2 transition-colors hover:bg-red-100"
+                                                    aria-label="Delete assessment"
+                                                >
+                                                    <Trash2 className="h-4 w-4 !text-red-700" strokeWidth={2.5} />
+                                                </button>
+                                            </Tooltip>
                                         )}
                                     </div>
                                 )}
@@ -526,19 +598,54 @@ export default function Assessments() {
                 </div>
             )}
         </div>
+        </>
     );
 }
 
 // Assessment Form Component
-function AssessmentForm({ record, residents, branches, onClose, onSuccess }) {
+function AssessmentForm({
+    record,
+    residents,
+    branches,
+    onClose,
+    onSuccess,
+    currentUser,
+    isFacilityAdmin,
+    isBranchAdmin,
+    inModal = false,
+    defaultResidentId = '',
+}) {
+    const initialResidentId = record?.resident_id
+        ? String(record.resident_id)
+        : (defaultResidentId ? String(defaultResidentId) : '');
     const [formData, setFormData] = useState({
-        resident_id: record?.resident_id || '',
-        branch_id: record?.branch_id || '',
+        resident_id: initialResidentId,
+        branch_id: record?.branch_id || (isBranchAdmin && currentUser?.assigned_branch_id ? String(currentUser.assigned_branch_id) : ''),
         assessment_type: record?.assessment_type || '',
         assessment_date: record?.assessment_date || new Date().toISOString().split('T')[0],
         status: record?.status || 'draft',
         notes: record?.notes || '',
     });
+
+    // When URL/default resident loads after residents fetch, set resident + branch
+    React.useEffect(() => {
+        if (record || !defaultResidentId || residents.length === 0) return;
+        const rid = String(defaultResidentId);
+        const resident = residents.find((r) => String(r.id) === rid);
+        if (!resident) return;
+        setFormData((prev) => ({
+            ...prev,
+            resident_id: rid,
+            branch_id: prev.branch_id || String(resident.branch_id || ''),
+        }));
+    }, [record, defaultResidentId, residents]);
+    
+    // Auto-fill branch for admin users on mount
+    React.useEffect(() => {
+        if (isBranchAdmin && currentUser?.assigned_branch_id && !record && !formData.branch_id) {
+            setFormData(prev => ({ ...prev, branch_id: String(currentUser.assigned_branch_id) }));
+        }
+    }, [isBranchAdmin, currentUser, record, formData.branch_id]);
 
     const [errors, setErrors] = useState({});
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -559,9 +666,9 @@ function AssessmentForm({ record, residents, branches, onClose, onSuccess }) {
     // Auto-select branch when resident is selected
     React.useEffect(() => {
         if (formData.resident_id && !formData.branch_id) {
-            const resident = residents.find(r => r.id == formData.resident_id);
+            const resident = residents.find(r => String(r.id) === String(formData.resident_id));
             if (resident?.branch_id) {
-                setFormData(prev => ({...prev, branch_id: resident.branch_id}));
+                setFormData(prev => ({...prev, branch_id: String(resident.branch_id)}));
             }
         }
     }, [formData.resident_id, residents, formData.branch_id]);
@@ -596,18 +703,21 @@ function AssessmentForm({ record, residents, branches, onClose, onSuccess }) {
     };
 
     return (
-        <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-gray-900">
-                    {record ? 'Edit Assessment' : 'Add Assessment'}
-                </h2>
-                <button
-                    onClick={onClose}
-                    className="text-gray-400 hover:text-gray-600"
-                >
-                    <X className="w-6 h-6" />
-                </button>
-            </div>
+        <div className={inModal ? '' : 'bg-white rounded-lg shadow p-6'}>
+            {!inModal && (
+                <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-xl font-semibold text-gray-900">
+                        {record ? 'Edit Assessment' : 'Add Assessment'}
+                    </h2>
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="text-gray-400 hover:text-gray-600"
+                    >
+                        <X className="w-6 h-6" />
+                    </button>
+                </div>
+            )}
 
             {errors.general && (
                 <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
@@ -623,9 +733,10 @@ function AssessmentForm({ record, residents, branches, onClose, onSuccess }) {
                                 </label>
                                 <select
                                     value={formData.branch_id}
-                                    onChange={(e) => setFormData({...formData, branch_id: e.target.value, resident_id: ''})}
+                                    onChange={(e) => setFormData({ ...formData, branch_id: e.target.value, resident_id: '' })}
                                     required
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
+                                    disabled={!isFacilityAdmin && isBranchAdmin && currentUser?.assigned_branch_id}
+                                    className={`w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent ${!isFacilityAdmin && isBranchAdmin && currentUser?.assigned_branch_id ? 'bg-gray-100 cursor-not-allowed opacity-75' : ''}`}
                                 >
                                     <option value="">Select Branch</option>
                                     {branches.map(branch => (
@@ -641,7 +752,7 @@ function AssessmentForm({ record, residents, branches, onClose, onSuccess }) {
                                 </label>
                                 <select
                                     value={formData.resident_id}
-                                    onChange={(e) => setFormData({...formData, resident_id: e.target.value})}
+                                    onChange={(e) => setFormData({ ...formData, resident_id: e.target.value })}
                                     required
                                     disabled={!formData.branch_id}
                                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent disabled:bg-gray-100"

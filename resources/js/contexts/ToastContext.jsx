@@ -12,9 +12,21 @@ export function ToastProvider({ children }) {
         };
     }, []);
 
+    // Helper to check if success toasts are disabled
+    const isSuccessToastDisabled = () => {
+        if (typeof window === 'undefined') return false;
+        const setting = localStorage.getItem('disable_success_toasts');
+        return setting === 'true';
+    };
+
     // Create toast methods that use Sonner with backward compatibility
     const toast = {
         success: (title, message, options = {}) => {
+            // Check if user has disabled success toasts
+            // Allow form submissions and forced toasts to bypass the preference
+            if (isSuccessToastDisabled() && !options.force && !options.isFormSubmission) {
+                return null; // Don't show the toast
+            }
             return sonnerToast.success(message || title, {
                 description: message ? title : undefined,
                 ...options,
@@ -39,6 +51,11 @@ export function ToastProvider({ children }) {
             });
         },
         showToast: (message, type = 'success', options = {}) => {
+            // Check if success toasts are disabled (only for success type)
+            // Allow form submissions and forced toasts to bypass the preference
+            if (type === 'success' && isSuccessToastDisabled() && !options.force && !options.isFormSubmission) {
+                return null;
+            }
             if (typeof type === 'string') {
                 const toastFn = sonnerToast[type] || sonnerToast.success;
                 return toastFn(message, options);

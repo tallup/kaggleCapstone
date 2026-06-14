@@ -5,8 +5,13 @@ import { Building2, Plus, Search, Edit, Trash2, Phone, Mail, MapPin, CheckCircle
 import SectionCard from '../components/SectionCard';
 import Card from '../components/Card';
 import { formatPhoneNumber } from '../utils/phoneFormatter';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
+import Modal from '../components/ui/Modal';
+import Tooltip from '../components/ui/Tooltip';
+import { useToastContext } from '../contexts/ToastContext';
 
 export default function PharmacySuppliers() {
+    const toast = useToastContext();
     const queryClient = useQueryClient();
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
@@ -71,8 +76,20 @@ export default function PharmacySuppliers() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries(['pharmacy-suppliers']);
+            toast.showToast('Supplier removed.', 'success');
+        },
+        onError: (error) => {
+            const msg =
+                error.response?.data?.message ||
+                error.response?.data?.error ||
+                (typeof error.response?.data === 'string' ? error.response.data : null) ||
+                error.message ||
+                'Could not delete supplier.';
+            toast.showToast(msg, 'error');
         },
     });
+
+    const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
     const suppliers = data?.data || [];
 
@@ -89,6 +106,10 @@ export default function PharmacySuppliers() {
             is_active: true,
         });
         setErrors({});
+    };
+
+    const handleDelete = (id) => {
+        setDeleteConfirmId(id);
     };
 
     const handleEdit = (supplier) => {
@@ -120,28 +141,28 @@ export default function PharmacySuppliers() {
         }
     };
 
-    const handleDelete = (id) => {
-        if (window.confirm('Are you sure you want to delete this supplier?')) {
-            deleteMutation.mutate(id);
-        }
-    };
-
-    if (showForm) {
-        return (
-            <div>
-                <SectionCard>
-                    <div className="flex items-center justify-between mb-6">
-                        <h2 className="text-xl font-semibold text-gray-900">
-                            {editing ? 'Edit Supplier' : 'Add Supplier'}
-                        </h2>
-                        <button
-                            onClick={handleCloseForm}
-                            className="text-gray-500 hover:text-gray-700"
-                        >
-                            ✕
-                        </button>
-                    </div>
-
+    return (
+        <>
+            <ConfirmDialog
+                isOpen={deleteConfirmId != null}
+                onClose={() => !deleteMutation.isPending && setDeleteConfirmId(null)}
+                onConfirm={() => {
+                    if (deleteConfirmId == null) return;
+                    deleteMutation.mutate(deleteConfirmId, { onSuccess: () => setDeleteConfirmId(null) });
+                }}
+                title="Delete this supplier?"
+                description="The supplier will be removed from your list. Existing pharmacy orders keep this supplier on file for history."
+                confirmLabel="Delete"
+                cancelLabel="Cancel"
+                variant="danger"
+                isPending={deleteMutation.isPending}
+            />
+            <Modal
+                isOpen={showForm}
+                onClose={handleCloseForm}
+                title={editing ? 'Edit Supplier' : 'Add Supplier'}
+                size="xl"
+            >
                     <form onSubmit={handleSubmit} className="space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
@@ -253,12 +274,7 @@ export default function PharmacySuppliers() {
                             </button>
                         </div>
                     </form>
-                </SectionCard>
-            </div>
-        );
-    }
-
-    return (
+            </Modal>
         <div>
             <SectionCard>
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
@@ -352,20 +368,26 @@ export default function PharmacySuppliers() {
                                         {supplier.orders_count || 0} orders
                                     </div>
                                     <div className="flex gap-2">
-                                        <button
-                                            onClick={() => handleEdit(supplier)}
-                                            className="p-2.5 border-2 border-[var(--theme-primary)] bg-white text-[var(--theme-primary)] hover:bg-[var(--theme-primary-bg)] hover:border-[var(--theme-primary-dark)] rounded-lg transition-all shadow-sm"
-                                            title="Edit"
-                                        >
-                                            <Edit className="w-4 h-4" />
-                                        </button>
-                                        <button
-                                            onClick={() => handleDelete(supplier.id)}
-                                            className="p-2.5 border-2 border-red-400 bg-white text-red-700 hover:bg-red-50 hover:border-red-500 rounded-lg transition-all shadow-sm"
-                                            title="Delete"
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
+                                        <Tooltip content="Edit" position="top">
+                                            <button
+                                                type="button"
+                                                onClick={() => handleEdit(supplier)}
+                                                className="p-2.5 border-2 border-[var(--theme-primary)] bg-white text-[var(--theme-primary)] hover:bg-[var(--theme-primary-bg)] hover:border-[var(--theme-primary-dark)] rounded-lg transition-all shadow-sm"
+                                                aria-label="Edit supplier"
+                                            >
+                                                <Edit className="w-4 h-4" strokeWidth={2.25} />
+                                            </button>
+                                        </Tooltip>
+                                        <Tooltip content="Delete" position="top">
+                                            <button
+                                                type="button"
+                                                onClick={() => handleDelete(supplier.id)}
+                                                className="p-2.5 border-2 border-red-400 bg-white text-red-700 hover:bg-red-50 hover:border-red-500 rounded-lg transition-all shadow-sm"
+                                                aria-label="Delete supplier"
+                                            >
+                                                <Trash2 className="w-4 h-4" strokeWidth={2.25} />
+                                            </button>
+                                        </Tooltip>
                                     </div>
                                 </div>
                             </Card>
@@ -374,6 +396,7 @@ export default function PharmacySuppliers() {
                 )}
             </SectionCard>
         </div>
+        </>
     );
 }
 

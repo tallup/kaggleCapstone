@@ -1,0 +1,104 @@
+/* Hide report header line on screen; show only when printing */
+.print-only {
+    display: none;
+}
+
+@page {
+    margin: 12mm;
+}
+
+/* Printable reports: hide app chrome so only report content + header print */
+@media print {
+    /* Show elements that are print-only (e.g. report header line) */
+    .print-only {
+        display: block !important;
+    }
+
+    /* Hide sidebar (first child of main app flex container) */
+    .flex.h-screen > aside {
+        display: none !important;
+    }
+
+    /* Hide top bar (header inside content area) */
+    .flex.h-screen > div > header {
+        display: none !important;
+    }
+
+    /* Hide filters, Export/Refresh/Print buttons (no-print class) */
+    .no-print {
+        display: none !important;
+    }
+
+    /* Allow full page to print: no overflow clipping so content flows across pages */
+    .flex.h-screen > div,
+    .flex.h-screen > div > main,
+    .print-report,
+    .print-report-content {
+        overflow: visible !important;
+        height: auto !important;
+        min-height: 0 !important;
+    }
+
+    /* Ensure report content takes full width and prints cleanly */
+    .print-report {
+        min-height: auto;
+        background: white !important;
+    }
+
+    /* Screen layouts use max-w-* and min-h-screen; for print use full paper width and no fake min-height */
+    .print-report .max-w-7xl,
+    .print-report .max-w-\[1600px\] {
+        max-width: 100% !important;
+        width: 100%;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .print-report .min-h-screen {
+        min-height: 0 !important;
+    }
+
+    .report-brand-card,
+    .print-report-content {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .print-report-header {
+        box-shadow: none;
+        border: none;
+        border-bottom: 1px solid #e5e7eb;
+        margin-bottom: 0.75rem;
+        padding-bottom: 0.75rem;
+    }
+
+    .print-only.report-brand-card {
+        display: block !important;
+    }
+
+    /* Allow content to break across pages; avoid breaking inside cards/charts where possible */
+    .print-report-content {
+        break-inside: auto;
+    }
+
+    /*
+     * Only keep break-inside: avoid on compact metric/stat cards (.group), not on every rounded panel.
+     * Applying avoid to all rounded-xl chart cards caused huge blank areas and odd page breaks.
+     */
+    .print-report-content .group.relative {
+        break-inside: avoid;
+    }
+
+    /* Large chart panels: allow natural breaks if needed (avoid huge blank regions) */
+    .print-report-content .report-chart-card {
+        break-inside: auto;
+        page-break-inside: auto;
+    }
+
+    /* Optional: ensure charts/cards have background when "Background graphics" is off */
+    .print-report canvas,
+    .print-report [class*="bg-"] {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+}

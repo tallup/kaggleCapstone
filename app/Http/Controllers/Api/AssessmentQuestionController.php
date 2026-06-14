@@ -2,16 +2,27 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
 use App\Models\Assessment;
 use App\Models\AssessmentQuestion;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class AssessmentQuestionController extends BaseApiController
 {
     public function update(Request $request, Assessment $assessment, AssessmentQuestion $question): JsonResponse
     {
+        if ($response = $this->forbidCaregiverMutation()) {
+            return $response;
+        }
+
+        if ($moduleAccessError = $this->requireModuleAccess(\App\Constants\Modules::ASSESSMENTS)) {
+            return $moduleAccessError;
+        }
+
+        if (! $this->checkBranchAccess($assessment)) {
+            return response()->json(['message' => 'Assessment not found'], 404);
+        }
+
         // Soft-check that the question belongs to this assessment (avoid hard failures)
         $section = $question->section()->first();
         if ($section && (int) $section->assessment_id !== (int) $assessment->id) {

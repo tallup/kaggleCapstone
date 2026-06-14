@@ -1,19 +1,33 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import api from '../services/api';
-import { Activity, User, Heart, Plus, Thermometer, Droplet, Edit, Trash2, ChevronDown, X } from 'lucide-react';
+import { offlinePost, offlinePut } from '../services/offlineApi';
+import { useBranchUpdates, useFacilityUpdates } from '../hooks/useRealtimeUpdates';
+import { Activity, Heart, Plus, Thermometer, Droplet, Edit, Trash2, ChevronDown, X, Calendar } from 'lucide-react';
 import { getLocalDateString } from '../utils/pacificTime';
 import { TableSkeleton, ListSkeleton } from '../components/ui/SkeletonLoader';
 import EmptyState from '../components/ui/EmptyState';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
+import Modal from '../components/ui/Modal';
+import Tooltip from '../components/ui/Tooltip';
+import EntityCardShell, { EntityCardHeader } from '../components/ui/EntityCardShell';
+import CardIconButton from '../components/ui/CardIconButton';
+import ResidentAvatarInline from '../components/ui/ResidentAvatarInline';
+import { DataPillSection } from '../components/ui/DataPill';
 import { useToastContext } from '../contexts/ToastContext';
+import { RESIDENT_CONTEXT_QUERY_KEY } from '../utils/headerResidentSwitcher';
 
 export default function Vitals() {
     const queryClient = useQueryClient();
     const toast = useToastContext();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const selectedBranchId = searchParams.get('branch');
     const [dateFilter, setDateFilter] = useState('all');
     const [residentFilter, setResidentFilter] = useState('');
     const [showForm, setShowForm] = useState(false);
     const [editing, setEditing] = useState(null);
+    const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
     // Get current user to check permissions
     const { data: currentUser } = useQuery({
@@ -30,13 +44,34 @@ export default function Vitals() {
 
     const isSuperAdmin = currentUser?.role === 'super_admin';
     const isAdmin = currentUser?.role === 'administrator' || currentUser?.role === 'admin';
+    const isFacilityAdmin = React.useMemo(() => {
+        if (!currentUser) return false;
+        const role = currentUser.role?.toLowerCase().trim() || '';
+        return role === 'administrator';
+    }, [currentUser]);
+    const isBranchAdmin = React.useMemo(() => {
+        if (!currentUser) return false;
+        const role = currentUser.role?.toLowerCase().trim() || '';
+        return role === 'admin';
+    }, [currentUser]);
+    const isCaregiver = React.useMemo(() => {
+        if (!currentUser) return false;
+        const role = currentUser.role?.toLowerCase().trim() || '';
+        return ['caregiver', 'care_giver', 'nurse', 'registered_nurse', 'licensed_nurse'].includes(role);
+    }, [currentUser]);
     const permissions = Array.isArray(currentUser?.permissions) ? currentUser.permissions : [];
     const canCreate = isSuperAdmin || isAdmin || permissions.includes('create_vitals');
     const canEdit = isSuperAdmin || isAdmin || permissions.includes('edit_vitals');
     const canDelete = isSuperAdmin || isAdmin || permissions.includes('delete_vitals');
 
+    React.useEffect(() => {
+        const rid =
+            searchParams.get(RESIDENT_CONTEXT_QUERY_KEY) || searchParams.get('resident_id') || '';
+        setResidentFilter(rid);
+    }, [searchParams]);
+
     const { data, isLoading } = useQuery({
-        queryKey: ['vitals', dateFilter, residentFilter],
+        queryKey: ['vitals', dateFilter, residentFilter, selectedBranchId],
         queryFn: async () => {
             const params = { per_page: 20 };
             
@@ -50,15 +85,76 @@ export default function Vitals() {
                 params.resident_id = residentFilter;
             }
 
+            if (selectedBranchId) {
+                params.branch_id = selectedBranchId.toString();
+            }
+
             const response = await api.get('/vitals', { params });
+            return response.data;
+        },
+        enabled: !!selectedBranchId, // Only fetch when branch is selected
+        staleTime: 0, // Always consider data stale to ensure fresh fetches when queryKey changes
+        refetchOnMount: true,
+    });
+
+
+    // Fetch branches for administrators (always fetch for form)
+    const { data: branchesData, isLoading: branchesLoading } = useQuery({
+        queryKey: ['branches-list'],
+        queryFn: async () => {
+            const response = await api.get('/branches', { params: { per_page: 100 } });
             return response.data;
         },
     });
 
-    // Fetch residents for form
+    const branches = useMemo(() => {
+        const raw = branchesData?.data ?? branchesData;
+        if (!Array.isArray(raw)) return [];
+        return raw.filter((b) => b.is_active !== false);
+    }, [branchesData]);
+
+    // Apply a default ?branch= when none is in the URL (replaces the removed branch picker UI)
+    useEffect(() => {
+        if (selectedBranchId || branches.length === 0) return;
+        const userBranchId = currentUser?.assigned_branch_id;
+        let branchToSelect = null;
+        if (isCaregiver && userBranchId) {
+            if (branches.find((b) => String(b.id) === String(userBranchId))) {
+                branchToSelect = userBranchId;
+            }
+        }
+        if (branchToSelect == null && isFacilityAdmin && userBranchId) {
+            if (branches.find((b) => String(b.id) === String(userBranchId))) {
+                branchToSelect = userBranchId;
+            }
+        }
+        if (branchToSelect == null) {
+            branchToSelect = branches[0].id;
+        }
+        const newParams = new URLSearchParams(searchParams);
+        newParams.set('branch', String(branchToSelect));
+        setSearchParams(newParams, { replace: true });
+    }, [
+        selectedBranchId,
+        branches,
+        isCaregiver,
+        isFacilityAdmin,
+        currentUser?.assigned_branch_id,
+        searchParams,
+        setSearchParams,
+    ]);
+
+    // Fetch residents for form - filtered by branch
     const { data: residentsData } = useQuery({
-        queryKey: ['residents-list'],
-        queryFn: async () => (await api.get('/residents', { params: { per_page: 100 } })).data,
+        queryKey: ['residents-list', selectedBranchId],
+        queryFn: async () => {
+            const params = { per_page: 100 };
+            if (selectedBranchId) {
+                params.branch_id = selectedBranchId.toString();
+            }
+            return (await api.get('/residents', { params })).data;
+        },
+        enabled: !!selectedBranchId, // Only fetch when branch is selected
     });
 
     const deleteMutation = useMutation({
@@ -72,12 +168,85 @@ export default function Vitals() {
         },
     });
 
-    if (showForm) {
+    const handleConfirmDelete = () => {
+        if (deleteConfirmId == null) return;
+        deleteMutation.mutate(deleteConfirmId, { onSuccess: () => setDeleteConfirmId(null) });
+    };
+
+    // Real-time updates for vitals
+    useBranchUpdates(
+        selectedBranchId ? parseInt(selectedBranchId) : null,
+        ['vital.sign.created'],
+        {
+            queryKeys: [['vitals', dateFilter, residentFilter, selectedBranchId]],
+            showToast: true,
+            getToastMessage: (eventName, data) => {
+                const isCritical = data.status === 'critical';
+                return isCritical
+                    ? `⚠️ Critical vitals recorded for ${data.resident?.name || 'resident'}`
+                    : `Vitals recorded for ${data.resident?.name || 'resident'}`;
+            },
+        }
+    );
+
+    // Branch comes from ?branch= or is applied automatically (no branch picker on this page)
+    if (!selectedBranchId) {
+        if (branchesLoading) {
+            return (
+                <div className="space-y-4 p-1">
+                    <ListSkeleton items={3} />
+                </div>
+            );
+        }
+        if (branches.length === 0) {
+            return (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
+                    <p className="text-sm font-semibold text-amber-800">No branches available</p>
+                    <p className="mt-1 text-xs text-amber-700">Assign a branch to your profile or contact an administrator.</p>
+                </div>
+            );
+        }
         return (
-            <div>
+            <div className="flex items-center justify-center py-16 text-gray-500 text-sm" aria-live="polite">
+                <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-200 border-t-[var(--theme-primary)]" aria-hidden="true" />
+                <span className="ml-2">Loading vitals…</span>
+            </div>
+        );
+    }
+
+    return (
+        <>
+            <ConfirmDialog
+                isOpen={deleteConfirmId != null}
+                onClose={() => !deleteMutation.isPending && setDeleteConfirmId(null)}
+                onConfirm={handleConfirmDelete}
+                title="Delete vital sign record?"
+                description="This record will be permanently removed."
+                confirmLabel="Delete"
+                cancelLabel="Cancel"
+                variant="danger"
+                isPending={deleteMutation.isPending}
+            />
+            <Modal
+                isOpen={showForm}
+                onClose={() => {
+                    setShowForm(false);
+                    setEditing(null);
+                }}
+                title={editing ? 'Edit Vital Sign' : 'Add Vital Sign'}
+                size="xl"
+            >
                 <VitalSignForm
+                    key={editing?.id ?? 'new'}
                     record={editing}
                     residents={residentsData?.data || []}
+                    branches={branchesData?.data || []}
+                    isFacilityAdmin={isFacilityAdmin}
+                    isBranchAdmin={isBranchAdmin}
+                    currentUser={currentUser}
+                    selectedBranchId={selectedBranchId}
+                    inModal
+                    initialResidentId={editing ? '' : residentFilter}
                     onClose={() => {
                         setShowForm(false);
                         setEditing(null);
@@ -88,60 +257,60 @@ export default function Vitals() {
                         queryClient.invalidateQueries(['vitals']);
                     }}
                 />
-            </div>
-        );
-    }
-
-    return (
-        <div>
-            <div className="bg-white rounded-lg shadow p-6 mb-6">
-                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
-                        <div>
-                            <h2 className="text-xl font-semibold text-gray-900 mb-2">Vital Signs Management</h2>
-                            <p className="text-gray-600">View and track resident vital signs.</p>
+            </Modal>
+        <div className="space-y-6">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-100 px-4 py-3 mb-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+                        <div className="min-w-0">
+                            <h2 className="text-base font-semibold text-gray-900 leading-snug">Vital Signs Management</h2>
+                            <p className="text-xs text-gray-500 mt-0.5">View and track resident vital signs.</p>
                         </div>
                         <button
+                            type="button"
                             onClick={() => {
                                 setEditing(null);
                                 setShowForm(true);
                             }}
-                            className="w-full sm:w-auto px-4 py-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] rounded-lg hover:bg-[var(--theme-primary-hover)] transition-colors flex items-center justify-center space-x-2 text-sm md:text-base"
+                            className="w-full sm:w-auto shrink-0 px-3 py-1.5 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] rounded-lg hover:bg-[var(--theme-primary-hover)] transition-colors flex items-center justify-center gap-1.5 text-sm font-medium"
                         >
-                            <Plus className="w-4 h-4" />
+                            <Plus className="w-4 h-4 shrink-0" aria-hidden="true" />
                             <span>Add Vitals</span>
                         </button>
                     </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Date Range:</label>
-                        <div className="flex flex-wrap gap-2">
+
+                    <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:gap-4">
+                    <div className="min-w-0 sm:flex-1">
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Date range</label>
+                        <div className="flex flex-wrap gap-1.5">
                             <button
+                                type="button"
                                 onClick={() => setDateFilter('today')}
-                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                className={`px-2.5 py-1.5 rounded-md text-xs font-semibold transition-colors ${
                                     dateFilter === 'today'
                                         ? 'bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)]'
-                                        : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                                        : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
                                 }`}
                             >
                                 Today
                             </button>
                             <button
+                                type="button"
                                 onClick={() => setDateFilter('week')}
-                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                className={`px-2.5 py-1.5 rounded-md text-xs font-semibold transition-colors ${
                                     dateFilter === 'week'
                                         ? 'bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)]'
-                                        : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                                        : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
                                 }`}
                             >
                                 This Week
                             </button>
                             <button
+                                type="button"
                                 onClick={() => setDateFilter('all')}
-                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                className={`px-2.5 py-1.5 rounded-md text-xs font-semibold transition-colors ${
                                     dateFilter === 'all'
                                         ? 'bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)]'
-                                        : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                                        : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
                                 }`}
                             >
                                 All
@@ -149,12 +318,12 @@ export default function Vitals() {
                         </div>
                     </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Resident:</label>
+                    <div className="w-full sm:w-auto sm:min-w-[220px] sm:max-w-md">
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Resident</label>
                         <select
                             value={residentFilter}
                             onChange={(e) => setResidentFilter(e.target.value)}
-                            className="w-full px-4 py-2 rounded-lg text-sm border border-gray-300 focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
+                            className="w-full px-3 py-1.5 rounded-lg text-sm border border-gray-200 focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
                         >
                             <option value="">All Residents</option>
                             {residentsData?.data?.map(r => (
@@ -174,51 +343,69 @@ export default function Vitals() {
                     {data?.data?.length > 0 ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {data.data.map((vital) => (
-                                <div key={vital.id} className="bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow">
-                                    <div className="flex items-start justify-between mb-4">
-                                        <div className="flex items-center space-x-3">
-                                            <div>
-                                                <h3 className="text-lg font-semibold text-gray-900">
-                                                    {vital.resident?.first_name} {vital.resident?.last_name}
-                                                </h3>
-                                                <p className="text-xs text-gray-500">
-                                                    {new Date(vital.measurement_date).toLocaleDateString()} at{' '}
-                                                    {vital.measurement_date && typeof vital.measurement_date === 'string' 
-                                                        ? new Date(vital.measurement_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                                                        : 'N/A'}
-                                                </p>
+                                <EntityCardShell key={vital.id}>
+                                    <EntityCardHeader
+                                        left={
+                                            <div className="flex flex-wrap items-start gap-3">
+                                                {vital.resident ? (
+                                                    <ResidentAvatarInline
+                                                        resident={vital.resident}
+                                                        className="h-10 w-10 text-xs"
+                                                    />
+                                                ) : null}
                                             </div>
-                                        </div>
-                                        <div className="flex space-x-2">
-                                            {canEdit && (
-                                                <button
-                                                    onClick={() => {
-                                                        setEditing(vital);
-                                                        setShowForm(true);
-                                                    }}
-                                                    className="p-2 text-[var(--theme-primary)] hover:bg-green-50 rounded-lg transition-colors"
-                                                    title="Edit"
-                                                >
-                                                    <Edit className="w-4 h-4" />
-                                                </button>
-                                            )}
-                                            {canDelete && (
-                                                <button
-                                                    onClick={() => {
-                                                        if (window.confirm('Are you sure you want to delete this vital sign record?')) {
-                                                            deleteMutation.mutate(vital.id);
-                                                        }
-                                                    }}
-                                                    className="p-2 text-[var(--theme-secondary)] hover:bg-amber-50 rounded-lg transition-colors"
-                                                    title="Delete"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                            )}
+                                        }
+                                        right={
+                                            <>
+                                                {canEdit && (
+                                                    <Tooltip content="Edit" position="top">
+                                                        <CardIconButton
+                                                            variant="edit"
+                                                            icon={Edit}
+                                                            aria-label="Edit vital sign"
+                                                            onClick={() => {
+                                                                setEditing(vital);
+                                                                setShowForm(true);
+                                                            }}
+                                                        />
+                                                    </Tooltip>
+                                                )}
+                                                {canDelete && (
+                                                    <Tooltip content="Delete" position="top">
+                                                        <CardIconButton
+                                                            variant="delete"
+                                                            icon={Trash2}
+                                                            aria-label="Delete vital sign"
+                                                            onClick={() => setDeleteConfirmId(vital.id)}
+                                                        />
+                                                    </Tooltip>
+                                                )}
+                                            </>
+                                        }
+                                    />
+
+                                    <h3 className="text-lg font-bold leading-snug text-slate-900 sm:text-xl">
+                                        {[vital.resident?.first_name, vital.resident?.last_name]
+                                            .filter(Boolean)
+                                            .join(' ') || 'Vital record'}
+                                    </h3>
+                                    <div className="mt-2">
+                                        <div className="flex items-center gap-2 rounded-lg bg-slate-50/80 px-3 py-2 text-sm text-slate-600">
+                                            <Calendar className="h-4 w-4 shrink-0 text-slate-400" />
+                                            <span>
+                                                {new Date(vital.measurement_date).toLocaleDateString()} at{' '}
+                                                {vital.measurement_date &&
+                                                typeof vital.measurement_date === 'string'
+                                                    ? new Date(vital.measurement_date).toLocaleTimeString([], {
+                                                          hour: '2-digit',
+                                                          minute: '2-digit',
+                                                      })
+                                                    : 'N/A'}
+                                            </span>
                                         </div>
                                     </div>
-                                    
-                                    <div className="grid grid-cols-2 gap-4">
+
+                                    <div className="mt-4 grid grid-cols-2 gap-4">
                                         {vital.systolic && vital.diastolic && (
                                             <div className="flex items-center space-x-2 p-2 bg-amber-50 rounded-lg">
                                                 <Heart className="w-5 h-5 text-red-600 flex-shrink-0" />
@@ -265,21 +452,18 @@ export default function Vitals() {
                                         )}
                                     </div>
                                     
-                                    {vital.notes && (
-                                        <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-                                            <p className="text-xs text-gray-700">
-                                                <span className="font-medium">Notes: </span>
-                                                {vital.notes}
-                                            </p>
-                                        </div>
-                                    )}
-                                    
+                                    {vital.notes ? (
+                                        <DataPillSection label="Notes" className="mt-4">
+                                            <p className="text-sm">{vital.notes}</p>
+                                        </DataPillSection>
+                                    ) : null}
+
                                     {vital.taken_by && (
-                                        <p className="text-xs text-gray-500 mt-2">
+                                        <p className="mt-3 text-xs text-slate-500">
                                             Taken by: {vital.taken_by?.name || 'Unknown'}
                                         </p>
                                     )}
-                                </div>
+                                </EntityCardShell>
                             ))}
                         </div>
                     ) : (
@@ -308,13 +492,33 @@ export default function Vitals() {
                 </div>
             )}
         </div>
+        </>
     );
 }
 
-function VitalSignForm({ record, residents, onClose, onSuccess }) {
+function VitalSignForm({
+    record,
+    residents,
+    branches = [],
+    isFacilityAdmin = false,
+    isBranchAdmin = false,
+    currentUser = null,
+    selectedBranchId: propSelectedBranchId,
+    onClose,
+    onSuccess,
+    inModal = false,
+    initialResidentId = '',
+}) {
     const toast = useToastContext();
+    // Always use branch from URL/props - no branch selection in form
+    const selectedBranchId = propSelectedBranchId || '';
+    const seededResidentId = record?.resident_id
+        ? String(record.resident_id)
+        : initialResidentId
+          ? String(initialResidentId)
+          : '';
     const [formData, setFormData] = useState({
-        resident_id: record?.resident_id || '',
+        resident_id: seededResidentId,
         measurement_date: record?.measurement_date 
             ? (typeof record.measurement_date === 'string' 
                 ? record.measurement_date.split('T')[0]
@@ -344,6 +548,19 @@ function VitalSignForm({ record, residents, onClose, onSuccess }) {
     const [errors, setErrors] = useState({});
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // Filter residents by selected branch (from URL)
+    const filteredResidents = React.useMemo(() => {
+        if (!selectedBranchId) return residents;
+        return residents.filter(r => r.branch_id == selectedBranchId);
+    }, [residents, selectedBranchId]);
+
+    React.useEffect(() => {
+        if (record || !initialResidentId || filteredResidents.length === 0) return;
+        const rid = String(initialResidentId);
+        if (!filteredResidents.some((r) => String(r.id) === rid)) return;
+        setFormData((prev) => (String(prev.resident_id) === rid ? prev : { ...prev, resident_id: rid }));
+    }, [record, initialResidentId, filteredResidents]);
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setErrors({});
@@ -366,11 +583,19 @@ function VitalSignForm({ record, residents, onClose, onSuccess }) {
             };
 
             if (record) {
-                await api.put(`/vitals/${record.id}`, payload);
-                toast.success('Success', 'Vital sign updated successfully');
+                const result = await offlinePut(`/vitals/${record.id}`, payload);
+                if (result.online) {
+                toast.success('Success', 'Vital sign updated successfully', { isFormSubmission: true });
+                } else {
+                    toast.success('Success', 'Vital sign saved offline - will sync when online', { isFormSubmission: true });
+                }
             } else {
-                await api.post('/vitals', payload);
-                toast.success('Success', 'Vital sign recorded successfully');
+                const result = await offlinePost('/vitals', payload);
+                if (result.online) {
+                toast.success('Success', 'Vital sign recorded successfully', { isFormSubmission: true });
+                } else {
+                    toast.success('Success', 'Vital sign saved offline - will sync when online', { isFormSubmission: true });
+                }
             }
             onSuccess();
         } catch (error) {
@@ -387,18 +612,21 @@ function VitalSignForm({ record, residents, onClose, onSuccess }) {
     };
 
     return (
-        <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-gray-900">
-                    {record ? 'Edit Vital Sign' : 'Add Vital Sign'}
-                </h2>
-                <button
-                    onClick={onClose}
-                    className="text-gray-400 hover:text-gray-600"
-                >
-                    <X className="w-6 h-6" />
-                </button>
-            </div>
+        <div className={inModal ? '' : 'bg-white rounded-lg shadow p-6'}>
+            {!inModal && (
+                <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-xl font-semibold text-gray-900">
+                        {record ? 'Edit Vital Sign' : 'Add Vital Sign'}
+                    </h2>
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="text-gray-400 hover:text-gray-600"
+                    >
+                        <X className="w-6 h-6" />
+                    </button>
+                </div>
+            )}
 
                     {errors.general && (
                 <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
@@ -407,7 +635,10 @@ function VitalSignForm({ record, residents, onClose, onSuccess }) {
             )}
 
             <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-4 grid-cols-1">
+                            {propSelectedBranchId && (
+                                <input type="hidden" value={propSelectedBranchId} />
+                            )}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Resident *
@@ -419,7 +650,7 @@ function VitalSignForm({ record, residents, onClose, onSuccess }) {
                                     className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
                                 >
                                     <option value="">Select Resident</option>
-                                    {residents.map(r => (
+                                    {filteredResidents.map(r => (
                                         <option key={r.id} value={r.id}>
                                             {r.first_name} {r.last_name}
                                         </option>

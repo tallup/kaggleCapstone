@@ -74,6 +74,8 @@ class AdminPermissionsSeeder extends Seeder
             ['name' => 'edit_leave_requests', 'group' => 'Staff', 'description' => 'Edit leave requests'],
             ['name' => 'approve_leave_requests', 'group' => 'Staff', 'description' => 'Approve leave requests'],
             ['name' => 'reject_leave_requests', 'group' => 'Staff', 'description' => 'Reject leave requests'],
+            ['name' => 'view_schedules', 'group' => 'Staff', 'description' => 'View staff schedules'],
+            ['name' => 'manage_schedules', 'group' => 'Staff', 'description' => 'Create, edit and delete shifts and availability'],
             
             // Role & Permission permissions
             ['name' => 'view_roles', 'group' => 'Roles', 'description' => 'View roles list'],
@@ -100,6 +102,7 @@ class AdminPermissionsSeeder extends Seeder
             ['name' => 'create_cleaning_areas', 'group' => 'Housekeeping', 'description' => 'Create cleaning areas and assignments'],
             ['name' => 'edit_cleaning_areas', 'group' => 'Housekeeping', 'description' => 'Edit cleaning areas and assignments'],
             ['name' => 'delete_cleaning_areas', 'group' => 'Housekeeping', 'description' => 'Archive cleaning areas'],
+            ['name' => 'assign_cleaning_tasks', 'group' => 'Housekeeping', 'description' => 'Assign caregivers to cleaning tasks'],
             
             // Vital Ranges permissions
             ['name' => 'view_vital_ranges', 'group' => 'Vital Ranges', 'description' => 'View vital ranges'],

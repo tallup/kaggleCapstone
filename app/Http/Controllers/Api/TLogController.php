@@ -2,20 +2,36 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Models\Resident;
 use App\Models\TLog;
 use App\Models\TLogAttachment;
-use App\Models\Resident;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Validator;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class TLogController extends BaseApiController
 {
+    /**
+     * Caregivers may create and view progress notes but not edit, delete, or change attachments.
+     */
+    private function rejectIfCaregiverModification(): ?JsonResponse
+    {
+        $user = auth()->user();
+        if ($user && ($user->isCaregiver() || $this->isCaregiver($user))) {
+            return $this->error(
+                'You do not have permission to change or delete progress notes. You can add new notes or view existing ones.',
+                403
+            );
+        }
+
+        return null;
+    }
+
     public function index(Request $request): JsonResponse
     {
         $query = TLog::with(['resident', 'branch', 'reporter', 'enteredBy', 'attachments']);
-        
+
         // Apply branch filter for caregivers
         $this->applyBranchFilter($query, $request);
 
@@ -52,12 +68,12 @@ class TLogController extends BaseApiController
             $search = $request->get('search');
             $query->where(function ($q) use ($search) {
                 $q->where('summary', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%")
-                  ->orWhereHas('resident', function ($q) use ($search) {
-                      $q->where('first_name', 'like', "%{$search}%")
-                        ->orWhere('last_name', 'like', "%{$search}%")
-                        ->orWhere('name', 'like', "%{$search}%");
-                  });
+                    ->orWhere('description', 'like', "%{$search}%")
+                    ->orWhereHas('resident', function ($q) use ($search) {
+                        $q->where('first_name', 'like', "%{$search}%")
+                            ->orWhere('last_name', 'like', "%{$search}%")
+                            ->orWhere('name', 'like', "%{$search}%");
+                    });
             });
         }
 
@@ -84,12 +100,12 @@ class TLogController extends BaseApiController
 
         // Get resident to auto-fill branch_id
         $resident = Resident::findOrFail($validated['resident_id']);
-        
-        if (!$resident->branch_id) {
+
+        if (! $resident->branch_id) {
             return $this->error('Resident must be assigned to a branch.', 422);
         }
 
-        // Create T-Log with auto-filled branch_id
+        // Create progress note with auto-filled branch_id
         $tLog = TLog::create([
             'resident_id' => $validated['resident_id'],
             'branch_id' => $resident->branch_id, // Auto-filled from resident
@@ -106,8 +122,8 @@ class TLogController extends BaseApiController
         if ($request->hasFile('attachments')) {
             foreach ($request->file('attachments') as $index => $file) {
                 if ($file && $file->isValid()) {
-                    $storedPath = $file->store('t-log-attachments', 'public');
-                    
+                    $storedPath = $file->store('t-log-attachments', $this->attachmentDisk());
+
                     TLogAttachment::create([
                         't_log_id' => $tLog->id,
                         'file_path' => $storedPath,
@@ -130,8 +146,8 @@ class TLogController extends BaseApiController
             ->findOrFail($id);
 
         // Check branch access for caregivers
-        if (!$this->checkBranchAccess($tLog)) {
-            return $this->error('You do not have access to this T-Log.', 403);
+        if (! $this->checkBranchAccess($tLog)) {
+            return $this->error('You do not have access to this progress note.', 403);
         }
 
         return response()->json($tLog);
@@ -139,11 +155,15 @@ class TLogController extends BaseApiController
 
     public function update(Request $request, $id): JsonResponse
     {
+        if ($response = $this->rejectIfCaregiverModification()) {
+            return $response;
+        }
+
         $tLog = TLog::findOrFail($id);
 
         // Check branch access for caregivers
-        if (!$this->checkBranchAccess($tLog)) {
-            return $this->error('You do not have access to this T-Log.', 403);
+        if (! $this->checkBranchAccess($tLog)) {
+            return $this->error('You do not have access to this progress note.', 403);
         }
 
         $validated = $request->validate([
@@ -160,7 +180,7 @@ class TLogController extends BaseApiController
         // If resident changed, update branch_id
         if (isset($validated['resident_id']) && $validated['resident_id'] != $tLog->resident_id) {
             $resident = Resident::findOrFail($validated['resident_id']);
-            if (!$resident->branch_id) {
+            if (! $resident->branch_id) {
                 return $this->error('Resident must be assigned to a branch.', 422);
             }
             $validated['branch_id'] = $resident->branch_id;
@@ -172,8 +192,8 @@ class TLogController extends BaseApiController
         if ($request->hasFile('attachments')) {
             foreach ($request->file('attachments') as $index => $file) {
                 if ($file && $file->isValid()) {
-                    $storedPath = $file->store('t-log-attachments', 'public');
-                    
+                    $storedPath = $file->store('t-log-attachments', $this->attachmentDisk());
+
                     TLogAttachment::create([
                         't_log_id' => $tLog->id,
                         'file_path' => $storedPath,
@@ -192,33 +212,41 @@ class TLogController extends BaseApiController
 
     public function destroy($id): JsonResponse
     {
+        if ($response = $this->rejectIfCaregiverModification()) {
+            return $response;
+        }
+
         $tLog = TLog::findOrFail($id);
 
         // Check branch access for caregivers
-        if (!$this->checkBranchAccess($tLog)) {
-            return $this->error('You do not have access to this T-Log.', 403);
+        if (! $this->checkBranchAccess($tLog)) {
+            return $this->error('You do not have access to this progress note.', 403);
         }
 
         // Delete attachments
         foreach ($tLog->attachments as $attachment) {
-            if (Storage::disk('public')->exists($attachment->file_path)) {
-                Storage::disk('public')->delete($attachment->file_path);
+            if (Storage::disk($this->attachmentDisk())->exists($attachment->file_path)) {
+                Storage::disk($this->attachmentDisk())->delete($attachment->file_path);
             }
             $attachment->delete();
         }
 
         $tLog->delete();
 
-        return response()->json(['message' => 'T-Log deleted successfully']);
+        return response()->json(['message' => 'Progress note deleted successfully']);
     }
 
     public function uploadAttachment(Request $request, $id): JsonResponse
     {
+        if ($response = $this->rejectIfCaregiverModification()) {
+            return $response;
+        }
+
         $tLog = TLog::findOrFail($id);
 
         // Check branch access for caregivers
-        if (!$this->checkBranchAccess($tLog)) {
-            return $this->error('You do not have access to this T-Log.', 403);
+        if (! $this->checkBranchAccess($tLog)) {
+            return $this->error('You do not have access to this progress note.', 403);
         }
 
         $validated = $request->validate([
@@ -227,7 +255,7 @@ class TLogController extends BaseApiController
         ]);
 
         $file = $request->file('file');
-        $storedPath = $file->store('t-log-attachments', 'public');
+        $storedPath = $file->store('t-log-attachments', $this->attachmentDisk());
 
         $attachment = TLogAttachment::create([
             't_log_id' => $tLog->id,
@@ -244,22 +272,26 @@ class TLogController extends BaseApiController
 
     public function deleteAttachment($id, $attachmentId): JsonResponse
     {
+        if ($response = $this->rejectIfCaregiverModification()) {
+            return $response;
+        }
+
         $tLog = TLog::findOrFail($id);
         $attachment = TLogAttachment::findOrFail($attachmentId);
 
         // Check branch access for caregivers
-        if (!$this->checkBranchAccess($tLog)) {
-            return $this->error('You do not have access to this T-Log.', 403);
+        if (! $this->checkBranchAccess($tLog)) {
+            return $this->error('You do not have access to this progress note.', 403);
         }
 
-        // Verify attachment belongs to this T-Log
+        // Verify attachment belongs to this progress note
         if ($attachment->t_log_id != $tLog->id) {
-            return $this->error('Attachment does not belong to this T-Log.', 422);
+            return $this->error('Attachment does not belong to this progress note.', 422);
         }
 
         // Delete file from storage
-        if (Storage::disk('public')->exists($attachment->file_path)) {
-            Storage::disk('public')->delete($attachment->file_path);
+        if (Storage::disk($this->attachmentDisk())->exists($attachment->file_path)) {
+            Storage::disk($this->attachmentDisk())->delete($attachment->file_path);
         }
 
         $attachment->delete();
@@ -273,22 +305,90 @@ class TLogController extends BaseApiController
         $attachment = TLogAttachment::findOrFail($attachmentId);
 
         // Check branch access for caregivers
-        if (!$this->checkBranchAccess($tLog)) {
-            return $this->error('You do not have access to this T-Log.', 403);
+        if (! $this->checkBranchAccess($tLog)) {
+            return $this->error('You do not have access to this progress note.', 403);
         }
 
-        // Verify attachment belongs to this T-Log
+        // Verify attachment belongs to this progress note
         if ($attachment->t_log_id != $tLog->id) {
-            return $this->error('Attachment does not belong to this T-Log.', 422);
+            return $this->error('Attachment does not belong to this progress note.', 422);
         }
 
-        if (!$attachment->file_path || !Storage::disk('public')->exists($attachment->file_path)) {
+        if (! $attachment->file_path || ! Storage::disk($this->attachmentDisk())->exists($attachment->file_path)) {
             return response()->json(['message' => 'File not found'], 404);
         }
 
-        $filePath = Storage::disk('public')->path($attachment->file_path);
+        $filePath = Storage::disk($this->attachmentDisk())->path($attachment->file_path);
         $fileName = $attachment->file_name ?? basename($attachment->file_path);
 
         return response()->download($filePath, $fileName);
+    }
+
+    /**
+     * Export resident care logs (progress notes) as CSV for compliance/reporting.
+     * Query params: date_from, date_to, branch_id, resident_id
+     */
+    public function exportCareLogs(Request $request): StreamedResponse|JsonResponse
+    {
+        $query = TLog::with(['resident', 'branch', 'reporter', 'enteredBy']);
+
+        $this->applyBranchFilter($query, $request);
+
+        if ($request->filled('resident_id')) {
+            $query->where('resident_id', $request->get('resident_id'));
+        }
+        if ($request->filled('branch_id')) {
+            $query->where('branch_id', $request->get('branch_id'));
+        }
+        if ($request->filled('date_from')) {
+            $query->whereDate('reported_on', '>=', $request->get('date_from'));
+        }
+        if ($request->filled('date_to')) {
+            $query->whereDate('reported_on', '<=', $request->get('date_to'));
+        }
+
+        $tLogs = $query->orderBy('reported_on', 'desc')->orderBy('created_at', 'desc')->get();
+
+        $filename = 'resident_care_logs_'.now()->format('Y-m-d_H-i-s').'.csv';
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+        ];
+
+        return response()->streamDownload(function () use ($tLogs) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, [
+                'Resident Name',
+                'Branch',
+                'Date',
+                'Types',
+                'Notification Level',
+                'Summary',
+                'Description',
+                'Reporter',
+                'Entered By',
+                'Reported On',
+            ]);
+            foreach ($tLogs as $log) {
+                fputcsv($file, [
+                    $log->resident?->name ?? '',
+                    $log->branch?->name ?? '',
+                    $log->reported_on?->format('Y-m-d') ?? '',
+                    is_array($log->types) ? implode(', ', $log->types) : (string) $log->types,
+                    $log->notification_level ?? '',
+                    $log->summary ?? '',
+                    $log->description ?? '',
+                    $log->reporter?->name ?? '',
+                    $log->enteredBy?->name ?? '',
+                    $log->reported_on?->format('Y-m-d H:i') ?? '',
+                ]);
+            }
+            fclose($file);
+        }, $filename, $headers);
+    }
+
+    private function attachmentDisk(): string
+    {
+        return config('filesystems.t_log_attachments_disk', 'local');
     }
 }

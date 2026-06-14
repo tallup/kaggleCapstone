@@ -44,47 +44,42 @@ class AssessmentsCharts extends Page
 
     public function getCompletionData(): array
     {
-        $assessments = Assessment::all();
-        
-        $completionRanges = [
-            '0-25%' => 0,
-            '26-50%' => 0,
-            '51-75%' => 0,
-            '76-99%' => 0,
-            '100%' => 0,
-        ];
-
-        foreach ($assessments as $assessment) {
-            $completion = $assessment->completion_percentage;
-            if ($completion <= 25) {
-                $completionRanges['0-25%']++;
-            } elseif ($completion <= 50) {
-                $completionRanges['26-50%']++;
-            } elseif ($completion <= 75) {
-                $completionRanges['51-75%']++;
-            } elseif ($completion < 100) {
-                $completionRanges['76-99%']++;
-            } else {
-                $completionRanges['100%']++;
-            }
-        }
+        $counts = Assessment::selectRaw("
+            sum(case when completion_percentage <= 25 then 1 else 0 end) as range_0_25,
+            sum(case when completion_percentage > 25 and completion_percentage <= 50 then 1 else 0 end) as range_26_50,
+            sum(case when completion_percentage > 50 and completion_percentage <= 75 then 1 else 0 end) as range_51_75,
+            sum(case when completion_percentage > 75 and completion_percentage < 100 then 1 else 0 end) as range_76_99,
+            sum(case when completion_percentage = 100 then 1 else 0 end) as range_100
+        ")->first();
 
         return [
-            'labels' => array_keys($completionRanges),
-            'data' => array_values($completionRanges),
+            'labels' => ['0-25%', '26-50%', '51-75%', '76-99%', '100%'],
+            'data' => [
+                (int) $counts->range_0_25,
+                (int) $counts->range_26_50,
+                (int) $counts->range_51_75,
+                (int) $counts->range_76_99,
+                (int) $counts->range_100,
+            ],
             'colors' => ['#EF4444', '#F59E0B', '#3B82F6', '#8B5CF6', '#10B981'],
         ];
     }
 
     public function getAssessmentTrends(): array
     {
+        // Single query instead of 30 separate count queries
+        $startDate = Carbon::now()->subDays(29)->startOfDay();
+        $dailyCounts = Assessment::where('created_at', '>=', $startDate)
+            ->selectRaw('DATE(created_at) as date, count(*) as count')
+            ->groupBy('date')
+            ->pluck('count', 'date');
+
         $last30Days = [];
         for ($i = 29; $i >= 0; $i--) {
             $date = Carbon::now()->subDays($i);
-            $count = Assessment::whereDate('created_at', $date)->count();
             $last30Days[] = [
                 'date' => $date->format('M j'),
-                'count' => $count
+                'count' => (int) ($dailyCounts[$date->toDateString()] ?? 0),
             ];
         }
 

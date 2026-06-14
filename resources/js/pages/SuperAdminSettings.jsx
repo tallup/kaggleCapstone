@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Settings,
   Mail,
+  KeyRound,
   ShieldCheck,
   SlidersHorizontal,
   Bell,
@@ -19,6 +20,14 @@ const cards = [
     icon: Mail,
     to: '/super-admin/settings/email',
     accent: 'from-sky-500/10 to-sky-500/0',
+  },
+  {
+    key: 'credentials',
+    title: 'Credential Settings',
+    description: 'Update Super Admin login email and password',
+    icon: KeyRound,
+    to: '/super-admin/settings/credentials',
+    accent: 'from-teal-500/10 to-teal-500/0',
   },
   {
     key: 'security',
@@ -80,7 +89,7 @@ export default function SuperAdminSettings() {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <div className="p-3 bg-white/20 rounded-lg">
-              <Settings className="w-6 h-6" />
+              <Settings className="w-6 h-6" strokeWidth={2.5} />
             </div>
             <div>
               <h1 className="text-3xl font-bold mb-1">Super Admin Settings</h1>
@@ -111,14 +120,14 @@ export default function SuperAdminSettings() {
                 key={card.key}
                 type="button"
                 onClick={() => navigate(card.to)}
-                className="group relative text-left bg-white rounded-xl shadow-sm border border-gray-100 hover:border-[var(--theme-primary)] hover:shadow-md transition-all p-5 focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)]"
+                className="group relative text-left bg-white rounded-xl shadow-sm border border-gray-100 hover:border-[var(--theme-primary)] hover:shadow-md transition-all p-4 sm:p-5 focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)] cursor-pointer"
               >
                 <div
                   className={`absolute inset-0 rounded-xl bg-gradient-to-br ${card.accent} opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity`}
                 />
                 <div className="relative flex items-start space-x-4">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--theme-primary)]/10 text-[var(--theme-primary)]">
-                    <Icon className="w-5 h-5" />
+                  <div className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-lg bg-[var(--theme-primary)]/10 text-[var(--theme-primary)]">
+                    <Icon className="w-5 h-5" strokeWidth={2.5} />
                   </div>
                   <div className="flex-1">
                     <h3 className="text-base font-semibold text-gray-900 mb-1">

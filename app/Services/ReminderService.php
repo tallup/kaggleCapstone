@@ -25,11 +25,13 @@ class ReminderService
 
         $occurrences = $this->generateOccurrences($reminder, $now, $windowEnd);
 
+        $channel = $reminder->channel ?? 'in_app';
+
         foreach ($occurrences as $dateTime) {
             $reminder->events()->create([
                 'scheduled_for' => $dateTime,
                 'status' => 'pending',
-                'channel' => $reminder->channel,
+                'channel' => $channel,
                 'metadata' => [
                     'category' => $reminder->category,
                     'action_url' => $reminder->action_url,

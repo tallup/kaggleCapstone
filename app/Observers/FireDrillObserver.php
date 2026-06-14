@@ -5,6 +5,7 @@ namespace App\Observers;
 use App\Models\FireDrill;
 use App\Models\Notification;
 use App\Models\User;
+use App\Services\NotificationService;
 use Carbon\Carbon;
 
 class FireDrillObserver
@@ -36,6 +37,8 @@ class FireDrillObserver
             
             Notification::create([
                 'user_id' => $user->id,
+                'facility_id' => $fireDrill->branch?->facility_id ?? null,
+                'branch_id' => $fireDrill->branch_id ?? null,
                 'type' => 'fire_drill_scheduled',
                 'title' => 'Fire Drill Scheduled',
                 'message' => "Fire drill scheduled for {$fireDrill->branch->name} on {$drillDate} at {$drillTime}",
@@ -49,6 +52,10 @@ class FireDrillObserver
                 ],
             ]);
         }
+
+        // Send email notifications
+        $notificationService = app(NotificationService::class);
+        $notificationService->sendFireDrillEmail($fireDrill, $users);
     }
 
     /**

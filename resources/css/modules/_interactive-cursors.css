@@ -1,0 +1,54 @@
+/*
+ * App-wide interactive cursor defaults.
+ * Tailwind v4 preflight inherits link color but does not set pointer cursors on <a> or <button>,
+ * so clickable controls often show the default arrow until each element gets cursor-pointer manually.
+ */
+@layer base {
+    a[href]:not([href='']) {
+        cursor: pointer;
+    }
+
+    button:not(:disabled) {
+        cursor: pointer;
+    }
+
+    button:disabled,
+    input:disabled,
+    select:disabled,
+    textarea:disabled {
+        cursor: not-allowed;
+    }
+
+    [role='button']:not([aria-disabled='true']) {
+        cursor: pointer;
+    }
+
+    [role='button'][aria-disabled='true'] {
+        cursor: not-allowed;
+    }
+
+    input[type='submit']:not(:disabled),
+    input[type='button']:not(:disabled),
+    input[type='reset']:not(:disabled),
+    input[type='file'] {
+        cursor: pointer;
+    }
+
+    input[type='checkbox']:not(:disabled),
+    input[type='radio']:not(:disabled) {
+        cursor: pointer;
+    }
+
+    select:not(:disabled) {
+        cursor: pointer;
+    }
+
+    summary {
+        cursor: pointer;
+    }
+
+    label:has(input[type='checkbox']),
+    label:has(input[type='radio']) {
+        cursor: pointer;
+    }
+}

@@ -211,16 +211,6 @@ function PharmacyDashboard() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                     {statCards.map((card, index) => {
                         const Icon = card.icon;
-                        const colorClasses = {
-                            blue: 'bg-blue-100 text-blue-600',
-                            green: 'bg-green-100 text-green-600',
-                            orange: 'bg-orange-100 text-orange-600',
-                            red: 'bg-red-100 text-red-600',
-                            purple: 'bg-purple-100 text-purple-600',
-                            indigo: 'bg-indigo-100 text-indigo-600',
-                            teal: 'bg-teal-100 text-teal-600',
-                        };
-                        
                         return (
                             <div
                                 key={index}
@@ -232,7 +222,7 @@ function PharmacyDashboard() {
                                         <p className="text-sm font-medium text-gray-600 mb-1">{card.title}</p>
                                         <p className="text-2xl font-bold text-gray-900">{card.value}</p>
                                     </div>
-                                    <div className={`p-3 rounded-lg ${colorClasses[card.color]}`}>
+                                    <div className="p-3 rounded-lg bg-[var(--theme-primary-bg)] text-[var(--theme-primary)]">
                                         <Icon className="w-6 h-6" />
                                     </div>
                                 </div>

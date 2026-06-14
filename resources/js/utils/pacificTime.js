@@ -1,3 +1,5 @@
+import logger from './logger';
+
 const PACIFIC_TIMEZONE = 'America/Los_Angeles';
 
 const pacificDateTimeFormatter = new Intl.DateTimeFormat('en-US', {
@@ -15,13 +17,6 @@ const pacificDateFormatter = new Intl.DateTimeFormat('en-US', {
     year: 'numeric',
     month: 'numeric',
     day: 'numeric',
-});
-
-const pacificTimeFormatter = new Intl.DateTimeFormat('en-US', {
-    timeZone: PACIFIC_TIMEZONE,
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true,
 });
 
 let pacificServerReference = null;
@@ -168,7 +163,6 @@ export const getPacificISODate = (date) => {
             const month = referenceDate.getUTCMonth() + 1;
             const day = referenceDate.getUTCDate();
             const result = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-            console.log('getPacificISODate (server ref):', result, 'UTC components:', { year, month, day });
             return result;
         }
         
@@ -185,7 +179,6 @@ export const getPacificISODate = (date) => {
         const month = lookup.month;
         const day = lookup.day;
         const result = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-        console.log('getPacificISODate (formatter):', result, 'local now:', now, 'Pacific parts:', { year, month, day });
         return result;
     }
     
@@ -264,6 +257,54 @@ const formatFromPacificComponents = (parts, formatter) => {
     return utcFormatter.format(utcDate);
 };
 
+/** Always "h:mm AM/PM" — never rely on Intl full-string time (Safari/mobile may say "in the morning" / "at night"). */
+const formatHourMinute24ToAmPm = (hour24, minute) => {
+    const h = ((Math.floor(hour24) % 24) + 24) % 24;
+    const m = ((Math.floor(minute) % 60) + 60) % 60;
+    const ampm = h < 12 ? 'AM' : 'PM';
+    const h12 = h % 12 || 12;
+    return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
+};
+
+/** Pacific wall-clock hour (0–23) and minute from a real Date, via explicit 24h parts (no dayPeriod strings). */
+const getPacificHourMinute24 = (date) => {
+    const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: PACIFIC_TIMEZONE,
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+    }).formatToParts(date);
+    const lookup = {};
+    parts.forEach(({ type, value }) => {
+        if (type !== 'literal') {
+            lookup[type] = Number(value);
+        }
+    });
+    return {
+        hour: Number.isFinite(lookup.hour) ? lookup.hour : 0,
+        minute: Number.isFinite(lookup.minute) ? lookup.minute : 0,
+    };
+};
+
+/** Pacific wall-clock hour (0–23) and minute from a real absolute instant (e.g. API ISO datetime). */
+export const getPacificHourMinute24FromInstant = (value) => {
+    const inst = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(inst.getTime())) {
+        return { hour: 0, minute: 0 };
+    }
+    return getPacificHourMinute24(inst);
+};
+
+/** "h:mm AM/PM" for a real UTC/ISO instant, in America/Los_Angeles (use for API timestamps, not fake-UTC dates). */
+export const formatPacificTimeFromInstant = (value) => {
+    if (!value) return '';
+    const { hour, minute } = getPacificHourMinute24FromInstant(value);
+    return formatHourMinute24ToAmPm(hour, minute);
+};
+
+/** Pacific wall-clock hour 0–23 from an API ISO instant (for sorting / AM–PM buckets). */
+export const getPacificHourFromInstant = (value) => getPacificHourMinute24FromInstant(value).hour;
+
 export const formatPacificDate = (date) => {
     // If no date provided and we have a server reference, format directly from components
     if (!date && pacificServerReference && pacificReferencePerformance !== null) {
@@ -300,30 +341,73 @@ export const formatPacificDate = (date) => {
     return pacificDateFormatter.format(resolveDateInput(date));
 };
 
+/**
+ * "Apr 6, 1989" style for calendar-only API values (YYYY-MM-DD or Laravel `...T00:00:00.000000Z`).
+ * Do not use `new Date(str)` + local `Intl` for these — the day can shift vs stored calendar date.
+ */
+export const formatPacificCalendarMedium = (value) => {
+    if (!value) return 'N/A';
+    const parsed = parsePacificDateString(value);
+    if (!parsed || Number.isNaN(parsed.getTime())) return 'N/A';
+    return new Intl.DateTimeFormat('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        timeZone: 'UTC',
+    }).format(parsed);
+};
+
+/** Full years from birth date string; "today" uses Pacific wall clock via getPacificParts. */
+export const calculateAgeFromPacificBirthDate = (dateOfBirth) => {
+    if (!dateOfBirth) return null;
+    const birth = parsePacificDateString(dateOfBirth);
+    if (!birth || Number.isNaN(birth.getTime())) return null;
+    const birthYear = birth.getUTCFullYear();
+    const birthMonth = birth.getUTCMonth() + 1;
+    const birthDay = birth.getUTCDate();
+    const { year: y, month: m, day: d } = getPacificParts(new Date());
+    let age = y - birthYear;
+    if (m < birthMonth || (m === birthMonth && d < birthDay)) {
+        age -= 1;
+    }
+    return age;
+};
+
+/** Instant (e.g. updated_at) formatted in Pacific for display. */
+export const formatPacificDateTimeShort = (value) => {
+    if (!value) return 'N/A';
+    const inst = new Date(value);
+    if (Number.isNaN(inst.getTime())) return 'N/A';
+    return new Intl.DateTimeFormat('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: 'numeric',
+        timeZone: PACIFIC_TIMEZONE,
+    }).format(inst);
+};
+
 export const formatPacificTime = (date) => {
-    // If no date provided and we have a server reference, format directly from components
+    // Server-synced clock: Pacific components live in UTC fields of our reference Date
     if (!date && pacificServerReference && pacificReferencePerformance !== null) {
         const parts = getPacificParts();
-        return formatFromPacificComponents(parts, pacificTimeFormatter);
+        return formatHourMinute24ToAmPm(parts.hour, parts.minute);
     }
-    
-    // If date is provided and we have a server reference, extract components directly
-    // (Dates from our system have UTC components = Pacific components)
+
     if (date && pacificServerReference && pacificReferencePerformance !== null) {
         const dateObj = date instanceof Date ? date : new Date(date);
         if (!Number.isNaN(dateObj.getTime())) {
-            // Extract UTC components directly (they represent Pacific time)
             const hours = dateObj.getUTCHours();
             const minutes = dateObj.getUTCMinutes();
-            const hour12 = hours % 12 || 12;
-            const ampm = hours < 12 ? 'AM' : 'PM';
-            const minutesPadded = String(minutes).padStart(2, '0');
-            return `${hour12}:${minutesPadded} ${ampm}`;
+            return formatHourMinute24ToAmPm(hours, minutes);
         }
     }
-    
-    // Fallback to formatter
-    return pacificTimeFormatter.format(resolveDateInput(date));
+
+    // Real-world Date in local storage → derive Pacific hour/minute with 24h numeric parts only
+    const d = resolveDateInput(date);
+    const { hour, minute } = getPacificHourMinute24(d);
+    return formatHourMinute24ToAmPm(hour, minute);
 };
 
 export const getPacificNow = () => getPacificDate();
@@ -363,23 +447,6 @@ export const toPacificDateFromTime = (timeValue, { referenceDate, dayOffset = 0 
     // Always use getPacificParts to ensure consistent extraction
     // It will handle server reference dates correctly
     const referenceParts = getPacificParts(refDate);
-    
-    // Debug logging
-    if (timeValue && typeof timeValue === 'string' && timeValue.match(/^\d{2}:\d{2}/)) {
-        console.log('toPacificDateFromTime:', {
-            timeValue,
-            refDateISO: refDate.toISOString(),
-            refDateFormatted: formatPacificTime(refDate),
-            referenceParts,
-            willCreate: {
-                year: referenceParts.year,
-                month: referenceParts.month,
-                day: referenceParts.day + dayOffset,
-                hour: timeValue.match(/^(\d{2}):(\d{2})/)?.[1],
-                minute: timeValue.match(/^(\d{2}):(\d{2})/)?.[2],
-            }
-        });
-    }
     
     const resolveDayOffset = (date) => {
         if (dayOffset) {
@@ -506,7 +573,7 @@ export const getTimezoneDisplayParts = (timeZone = PACIFIC_TIMEZONE) => {
         const normalizedOffset = offsetName.replace(/^GMT/, 'UTC');
         return { shortName, offset: normalizedOffset };
     } catch (error) {
-        console.error('Failed to compute timezone display parts', error);
+        logger.error('Failed to compute timezone display parts', error);
         return { shortName: '', offset: '' };
     }
 };

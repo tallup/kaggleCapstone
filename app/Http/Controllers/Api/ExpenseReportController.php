@@ -20,44 +20,45 @@ class ExpenseReportController extends BaseApiController
         $startDate = $request->get('start_date', now()->startOfMonth()->toDateString());
         $endDate = $request->get('end_date', now()->endOfMonth()->toDateString());
 
-        // Get expenses
+        // Single aggregate query for expenses instead of loading all rows
         $expenseQuery = Expense::whereBetween('expense_date', [$startDate, $endDate]);
         $this->applyBranchFilter($expenseQuery, $request);
-        $expenses = $expenseQuery->get();
+        $expenseAgg = (clone $expenseQuery)->selectRaw("
+            count(*) as total_count,
+            coalesce(sum(amount), 0) as total_amount,
+            sum(case when payment_status = 'paid' then amount else 0 end) as paid_amount,
+            sum(case when payment_status = 'pending' then amount else 0 end) as pending_amount,
+            sum(case when payment_status = 'overdue' then amount else 0 end) as overdue_amount,
+            sum(case when payment_status = 'paid' then 1 else 0 end) as paid_count,
+            sum(case when payment_status = 'pending' then 1 else 0 end) as pending_count,
+            sum(case when payment_status = 'overdue' then 1 else 0 end) as overdue_count
+        ")->first();
 
-        // Get invoices
+        // Single aggregate query for invoices
         $invoiceQuery = BillingInvoice::whereBetween('invoice_date', [$startDate, $endDate]);
         $this->applyBranchFilter($invoiceQuery, $request);
-        $invoices = $invoiceQuery->get();
+        $invoiceAgg = (clone $invoiceQuery)->selectRaw("
+            count(*) as total_count,
+            coalesce(sum(total_amount), 0) as total_amount,
+            sum(case when status = 'paid' then total_amount else 0 end) as paid_amount,
+            sum(case when status in ('draft', 'sent') then total_amount else 0 end) as pending_amount,
+            sum(case when status = 'overdue' then total_amount else 0 end) as overdue_amount
+        ")->first();
 
-        // Calculate totals from expenses
-        $expenseTotal = $expenses->sum('amount');
-        $expensePaid = $expenses->where('payment_status', 'paid')->sum('amount');
-        $expensePending = $expenses->where('payment_status', 'pending')->sum('amount');
-        $expenseOverdue = $expenses->where('payment_status', 'overdue')->sum('amount');
-
-        // Calculate totals from invoices (for separate reporting, not combined with expenses)
-        $invoiceTotal = $invoices->sum('total_amount');
-        $invoicePaid = $invoices->where('status', 'paid')->sum('total_amount');
-        $invoicePending = $invoices->whereIn('status', ['draft', 'sent'])->sum('total_amount');
-        $invoiceOverdue = $invoices->where('status', 'overdue')->sum('total_amount');
-
-        // Expenses and invoices are separate - expenses are money going out, invoices are money coming in
         $summary = [
-            'total_expenses' => $expenseTotal, // Only actual expenses, not invoices
-            'total_paid' => $expensePaid, // Only paid expenses
-            'total_pending' => $expensePending, // Only pending expenses
-            'total_overdue' => $expenseOverdue, // Only overdue expenses
-            'expense_count' => $expenses->count(),
-            'paid_count' => $expenses->where('payment_status', 'paid')->count(),
-            'pending_count' => $expenses->where('payment_status', 'pending')->count(),
-            'overdue_count' => $expenses->where('payment_status', 'overdue')->count(),
-            // Include invoice totals separately for reference
-            'total_invoices' => $invoiceTotal,
-            'invoice_paid' => $invoicePaid,
-            'invoice_pending' => $invoicePending,
-            'invoice_overdue' => $invoiceOverdue,
-            'invoice_count' => $invoices->count(),
+            'total_expenses' => (float) $expenseAgg->total_amount,
+            'total_paid' => (float) $expenseAgg->paid_amount,
+            'total_pending' => (float) $expenseAgg->pending_amount,
+            'total_overdue' => (float) $expenseAgg->overdue_amount,
+            'expense_count' => (int) $expenseAgg->total_count,
+            'paid_count' => (int) $expenseAgg->paid_count,
+            'pending_count' => (int) $expenseAgg->pending_count,
+            'overdue_count' => (int) $expenseAgg->overdue_count,
+            'total_invoices' => (float) $invoiceAgg->total_amount,
+            'invoice_paid' => (float) $invoiceAgg->paid_amount,
+            'invoice_pending' => (float) $invoiceAgg->pending_amount,
+            'invoice_overdue' => (float) $invoiceAgg->overdue_amount,
+            'invoice_count' => (int) $invoiceAgg->total_count,
         ];
 
         return $this->success($summary);
@@ -179,6 +180,12 @@ class ExpenseReportController extends BaseApiController
                 ];
             })
             ->values()
+            ->filter(function ($item) {
+                // Only include categories that have expenses (amount > 0 and count > 0)
+                // AND exclude uncategorized entries (category_id is null)
+                return ($item['total_amount'] > 0 || $item['count'] > 0) 
+                    && $item['category_id'] !== null;
+            })
             ->sortByDesc('total_amount')
             ->values();
 

@@ -2,16 +2,17 @@
 
 namespace App\Models;
 
+use App\Traits\FormatsPhoneNumbers;
+use App\Traits\Loggable;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Traits\Loggable;
-use App\Traits\FormatsPhoneNumbers;
+use Laravel\Cashier\Billable;
 
 class Facility extends Model
 {
-    use HasFactory, SoftDeletes, Loggable;
+    use Billable, HasFactory, Loggable, SoftDeletes;
     use FormatsPhoneNumbers;
 
     protected $fillable = [
@@ -81,12 +82,12 @@ class Facility extends Model
     public function hasModuleAccess(string $module): bool
     {
         $moduleRecord = $this->modules()->where('module', $module)->first();
-        
+
         // If no record exists, default to enabled (backward compatibility)
-        if (!$moduleRecord) {
+        if (! $moduleRecord) {
             return true;
         }
-        
+
         return $moduleRecord->is_enabled;
     }
 
@@ -132,10 +133,10 @@ class Facility extends Model
     public function getEffectiveRolePermissions(int $roleId): array
     {
         $role = Role::findOrFail($roleId);
-        
+
         // Get global role permissions
         $globalPermissions = $role->permissions()->pluck('permissions.id', 'permissions.name')->toArray();
-        
+
         // Get facility-specific overrides
         $facilityOverrides = $this->rolePermissions()
             ->where('role_id', $roleId)
@@ -144,7 +145,7 @@ class Facility extends Model
             ->keyBy(function ($item) {
                 return $item->permission->name;
             });
-        
+
         // Merge: facility overrides take precedence
         $effectivePermissions = $globalPermissions;
         foreach ($facilityOverrides as $permissionName => $override) {
@@ -155,7 +156,7 @@ class Facility extends Model
                 unset($effectivePermissions[$permissionName]);
             }
         }
-        
+
         return $effectivePermissions;
     }
 
@@ -183,27 +184,27 @@ class Facility extends Model
         // Get global role permissions
         $role = Role::findOrFail($roleId);
         $globalPermissionNames = $role->permissions()->pluck('permissions.name')->toArray();
-        
+
         // Get all permissions by name
         $allPermissions = Permission::whereIn('name', array_merge($permissionNames, $globalPermissionNames))->get()->keyBy('name');
-        
+
         // Remove all existing overrides for this role
         $this->rolePermissions()->where('role_id', $roleId)->delete();
-        
+
         // Create overrides for permissions that differ from global
         foreach ($allPermissions as $permissionName => $permission) {
             $isInGlobal = in_array($permissionName, $globalPermissionNames);
             $isInRequested = in_array($permissionName, $permissionNames);
-            
+
             // Only create override if it differs from global
-            if ($isInRequested && !$isInGlobal) {
+            if ($isInRequested && ! $isInGlobal) {
                 // Permission is granted but not in global
                 $this->rolePermissions()->create([
                     'role_id' => $roleId,
                     'permission_id' => $permission->id,
                     'is_allowed' => true,
                 ]);
-            } elseif (!$isInRequested && $isInGlobal) {
+            } elseif (! $isInRequested && $isInGlobal) {
                 // Permission is denied but exists in global
                 $this->rolePermissions()->create([
                     'role_id' => $roleId,
@@ -264,7 +265,7 @@ class Facility extends Model
     // Accessors
     public function getLogoUrlAttribute()
     {
-        if (!$this->logo) {
+        if (! $this->logo) {
             return null;
         }
 
@@ -290,14 +291,38 @@ class Facility extends Model
 
     /**
      * Check if facility has valid coordinates
-     * 
-     * @return bool
      */
     public function hasCoordinates(): bool
     {
-        return $this->latitude !== null 
+        return $this->latitude !== null
             && $this->longitude !== null
             && $this->latitude >= -90 && $this->latitude <= 90
             && $this->longitude >= -180 && $this->longitude <= 180;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function stripeMetadata(): ?array
+    {
+        return [
+            'facility_id' => (string) $this->getKey(),
+            'app' => (string) config('app.name'),
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function stripeAddress(): array
+    {
+        if (empty($this->address)) {
+            return [];
+        }
+
+        return [
+            'line1' => mb_substr((string) $this->address, 0, 500),
+            'country' => 'US',
+        ];
     }
 }

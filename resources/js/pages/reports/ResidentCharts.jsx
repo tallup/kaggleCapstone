@@ -14,6 +14,7 @@ import {
     PieChart,
     TrendingUp
 } from 'lucide-react';
+import PrintableReportLayout, { ReportPrintButton } from '../../components/reports/PrintableReportLayout';
 
 export default function ResidentCharts() {
     const { data, isLoading, refetch } = useQuery({
@@ -54,19 +55,20 @@ export default function ResidentCharts() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-            <div className="max-w-7xl mx-auto px-4 py-8">
-                {/* Header */}
-                <div className="mb-8">
-                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-                        <div>
-                            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-                                <Users className="h-8 w-8 text-emerald-600" />
-                                Resident Analytics Dashboard
-                            </h1>
-                            <p className="mt-2 text-gray-600">Comprehensive resident statistics and distribution</p>
-                        </div>
-                        <div className="flex items-center gap-3">
+        <PrintableReportLayout title="Resident Analytics Dashboard">
+            <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+                <div className="max-w-7xl mx-auto px-4 py-8">
+                    {/* Header */}
+                    <div className="mb-8">
+                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+                            <div>
+                                <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+                                    <Users className="h-8 w-8 text-emerald-600" />
+                                    Resident Analytics Dashboard
+                                </h1>
+                                <p className="mt-2 text-gray-600">Comprehensive resident statistics and distribution</p>
+                            </div>
+                        <div className="flex items-center gap-3 no-print">
                             <button
                                 onClick={handleExport}
                                 className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
@@ -74,6 +76,7 @@ export default function ResidentCharts() {
                                 <Download className="h-4 w-4" />
                                 Export
                             </button>
+                            <ReportPrintButton />
                             <button
                                 onClick={() => refetch()}
                                 className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] rounded-lg text-sm font-medium hover:bg-[var(--theme-primary-hover)] transition"
@@ -223,6 +226,7 @@ export default function ResidentCharts() {
                     </div>
                 </div>
             </div>
-        </div>
+            </div>
+        </PrintableReportLayout>
     );
 }

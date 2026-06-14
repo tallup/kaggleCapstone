@@ -55,18 +55,18 @@ export default function Tooltip({
         <TooltipPrimitive.Provider delayDuration={delay}>
             <TooltipPrimitive.Root>
                 <TooltipPrimitive.Trigger asChild>
-                    <span className="inline-block">{children}</span>
+                    <span className="inline-block cursor-pointer">{children}</span>
                 </TooltipPrimitive.Trigger>
                 <TooltipPrimitive.Portal>
                     <TooltipPrimitive.Content
                         ref={contentRef}
                         side={sideMap[position] || 'top'}
                         sideOffset={8}
-                        className={`z-50 px-3 py-2 text-sm text-white bg-gray-900 rounded-lg shadow-lg pointer-events-none ${className}`}
+                        className={`z-[100] max-w-xs px-3 py-2 text-sm text-gray-900 bg-white border border-gray-200 rounded-lg shadow-md pointer-events-none ${className}`}
                         {...props}
                     >
                         {content}
-                        <TooltipPrimitive.Arrow className="fill-gray-900" />
+                        <TooltipPrimitive.Arrow className="fill-white drop-shadow-[0_1px_0_rgba(0,0,0,0.06)]" width={11} height={5} />
                     </TooltipPrimitive.Content>
                 </TooltipPrimitive.Portal>
             </TooltipPrimitive.Root>

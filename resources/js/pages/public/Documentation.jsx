@@ -21,7 +21,7 @@ export default function Documentation() {
       id: 'getting-started',
       name: 'Getting Started',
       icon: Home,
-      color: 'from-blue-500 to-cyan-500',
+      color: 'from-brand-primary-dark to-brand-sky',
       articles: [
         {
           id: 'introduction',
@@ -285,7 +285,7 @@ export default function Documentation() {
 - Incidents
 - Check-In/Out
 - Visitors
-- T-Logs
+- Progress notes
 
 **Enabling/Disabling Modules:**
 1. Navigate to Settings → Module Management
@@ -487,7 +487,7 @@ export default function Documentation() {
       id: 'residents',
       name: 'Resident Management',
       icon: Users,
-      color: 'from-blue-500 to-cyan-500',
+      color: 'from-brand-primary-dark to-brand-sky',
       articles: [
         {
           id: 'adding-residents',
@@ -1515,10 +1515,10 @@ A: Use the Contact page, email support, or use live chat if available.`
       <PublicNavigation />
 
       {/* Hero Section */}
-      <section className="pt-20 pb-12 bg-gradient-to-br from-blue-50 to-cyan-50">
+      <section className="pt-20 pb-12 bg-gradient-to-br from-brand-primary to-brand-primary">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-r from-blue-500 to-cyan-500 mb-4">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-r from-brand-primary-dark to-brand-sky mb-4">
               <Book className="w-8 h-8 text-white" />
             </div>
             <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
@@ -1538,7 +1538,7 @@ A: Use the Contact page, email support, or use live chat if available.`
                 placeholder="Search documentation..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-12 pr-4 py-4 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg"
+                className="w-full pl-12 pr-4 py-4 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-sky focus:border-brand-sky text-lg"
               />
             </div>
           </div>
@@ -1571,7 +1571,7 @@ A: Use the Contact page, email support, or use live chat if available.`
                       }}
                       className={`w-full text-left px-4 py-2 rounded-lg transition-all ${
                         !selectedCategory
-                          ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white'
+                          ? 'bg-gradient-to-r from-brand-primary-dark to-brand-sky text-white'
                           : 'text-gray-700 hover:bg-gray-100'
                       }`}
                     >
@@ -1585,7 +1585,7 @@ A: Use the Contact page, email support, or use live chat if available.`
                           onClick={() => scrollToCategory(category.id)}
                           className={`w-full text-left px-4 py-2 rounded-lg transition-all flex items-center gap-2 ${
                             selectedCategory === category.id
-                              ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white'
+                              ? 'bg-gradient-to-r from-brand-primary-dark to-brand-sky text-white'
                               : 'text-gray-700 hover:bg-gray-100'
                           }`}
                         >
@@ -1613,7 +1613,7 @@ A: Use the Contact page, email support, or use live chat if available.`
                       setSearchQuery('');
                       setSelectedCategory(null);
                     }}
-                    className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white px-6 py-3 rounded-lg font-semibold hover:from-blue-600 hover:to-cyan-600 transition-all"
+                    className="bg-gradient-to-r from-brand-primary-dark to-brand-sky text-white px-6 py-3 rounded-lg font-semibold hover:opacity-90 transition-all"
                   >
                     Clear Search
                   </button>
@@ -1683,16 +1683,16 @@ A: Use the Contact page, email support, or use live chat if available.`
       </section>
 
       {/* Help Section */}
-      <section className="py-20 bg-gradient-to-r from-blue-500 to-cyan-500">
+      <section className="py-20 bg-gradient-to-r from-brand-primary-dark to-brand-sky">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-4xl font-bold text-white mb-4">Still Need Help?</h2>
-          <p className="text-xl text-blue-100 mb-8">
+          <p className="text-xl text-brand-primary mb-8">
             Can't find what you're looking for? Our support team is here to help.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button
               onClick={() => navigate('/contact')}
-              className="bg-white text-blue-600 px-8 py-4 rounded-lg font-semibold text-lg hover:bg-gray-100 transition-all shadow-lg"
+              className="bg-white text-brand-primary-dark px-8 py-4 rounded-lg font-semibold text-lg hover:bg-gray-100 transition-all shadow-lg"
             >
               Contact Support
             </button>

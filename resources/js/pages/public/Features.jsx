@@ -23,7 +23,7 @@ export default function Features() {
         'Room and bed assignment management',
         'Resident status tracking',
       ],
-      color: 'from-blue-500 to-cyan-500'
+      color: 'from-brand-primary-dark to-brand-sky'
     },
     {
       icon: Pill,
@@ -101,7 +101,7 @@ export default function Features() {
         'Real-time dashboard monitoring',
         'Progress bars and time tracking',
       ],
-      color: 'from-teal-500 to-cyan-500'
+      color: 'from-brand-sky to-brand-primary-dark'
     },
     {
       icon: Building2,
@@ -140,7 +140,7 @@ export default function Features() {
         'Scheduled report delivery',
         'Real-time dashboards',
       ],
-      color: 'from-blue-500 to-indigo-500'
+      color: 'from-brand-primary-dark to-brand-sky'
     },
     {
       icon: ShoppingCart,
@@ -175,13 +175,26 @@ export default function Features() {
       {/* Navigation */}
       <PublicNavigation />
 
-      {/* Hero Section */}
-      <section className="pt-20 pb-12 bg-gradient-to-br from-blue-50 to-cyan-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">Comprehensive Features</h1>
-          <p className="text-base sm:text-lg lg:text-xl text-gray-600 max-w-3xl mx-auto">
-            Everything you need to manage your care facility efficiently and provide exceptional care
-          </p>
+      {/* Hero Section with Image */}
+      <section className="pt-20 pb-16 bg-gradient-to-br from-brand-primary to-brand-primary">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            <div className="space-y-6 text-center lg:text-left">
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900">Comprehensive Features</h1>
+              <p className="text-base sm:text-lg lg:text-xl text-gray-600 max-w-xl mx-auto lg:mx-0">
+                Everything you need to manage your care facility efficiently and provide exceptional care
+              </p>
+            </div>
+            <div>
+              <img
+                src="/images/slides/slide-7-features-operations.png"
+                alt="Streamline operations with every module you need"
+                className="w-full rounded-2xl shadow-lg"
+                loading="lazy"
+                draggable={false}
+              />
+            </div>
+          </div>
         </div>
       </section>
 
@@ -204,7 +217,7 @@ export default function Features() {
                   <ul className="space-y-2">
                     {feature.benefits.map((benefit, benefitIndex) => (
                       <li key={benefitIndex} className="flex items-start space-x-2 text-gray-600">
-                        <span className="text-blue-500 mt-1">•</span>
+                        <span className="text-brand-sky mt-1">•</span>
                         <span>{benefit}</span>
                       </li>
                     ))}
@@ -216,16 +229,51 @@ export default function Features() {
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="py-20 bg-gradient-to-r from-blue-500 to-cyan-500">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+      {/* Care Showcase */}
+      <section className="py-16 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            <div>
+              <img
+                src="/images/slides/slide-5-features-care.png"
+                alt="Resident management and medication tracking"
+                className="w-full rounded-2xl shadow-lg"
+                loading="lazy"
+                draggable={false}
+              />
+            </div>
+            <div className="space-y-5">
+              <h2 className="text-3xl sm:text-4xl font-bold text-gray-900">
+                Connecting Care, <span className="text-brand-sky">Simplifying Life</span>
+              </h2>
+              <p className="text-lg text-gray-600 leading-relaxed">
+                From resident profiles to medication tracking, every module is connected and works together seamlessly. Your staff can focus on care instead of paperwork.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section with Background Image */}
+      <section className="relative py-24 overflow-hidden">
+        <div className="absolute inset-0">
+          <img
+            src="/images/slides/slide-4-transform.png"
+            alt=""
+            className="w-full h-full object-cover"
+            loading="lazy"
+            draggable={false}
+          />
+          <div className="absolute inset-0 bg-black/40"></div>
+        </div>
+        <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center z-10">
           <h2 className="text-4xl font-bold text-white mb-4">Ready to Get Started?</h2>
-          <p className="text-xl text-blue-100 mb-8">
+          <p className="text-xl text-white/90 mb-8">
             Experience all these features with a free 14-day trial. No credit card required.
           </p>
           <button
             onClick={() => navigate('/register-facility')}
-            className="bg-white text-blue-600 px-8 py-4 rounded-lg font-semibold text-lg hover:bg-gray-100 transition-all shadow-lg"
+            className="bg-white text-brand-primary-dark px-8 py-4 rounded-xl font-bold text-lg hover:bg-gray-100 transition-all shadow-lg hover:shadow-xl hover:scale-105"
           >
             Start Free Trial
           </button>

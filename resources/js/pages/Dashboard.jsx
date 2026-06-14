@@ -14,6 +14,9 @@ import {
     Filler
 } from 'chart.js';
 import api from '../services/api';
+import logger from '../utils/logger';
+import { currentUserQueryOptions } from '../queries/currentUser';
+import { dashboardStatsQueryOptions } from '../queries/dashboardStats';
 import { useTheme } from '../contexts/ThemeContext';
 import { hexToRgb, addOpacity } from '../utils/colorUtils';
 import {
@@ -36,8 +39,10 @@ import StatCard from '../components/dashboard/StatCard';
 import ActionableItemsSection from '../components/dashboard/ActionableItemsSection';
 import MobileDashboard from '../components/dashboard/MobileDashboard';
 import UpcomingEventsWidget from '../components/dashboard/UpcomingEventsWidget';
-import TodaysSchedule from '../components/dashboard/TodaysSchedule';
 import CaregiverDashboard from '../components/dashboard/CaregiverDashboard';
+import DashboardLoadingSplash from '../components/dashboard/DashboardLoadingSplash';
+import { useUserNotifications, useFacilityUpdates, useStaffClockUpdates } from '../hooks/useRealtimeUpdates';
+import { getPacificNow } from '../utils/pacificTime';
 
 // Register Chart.js components
 ChartJS.register(
@@ -175,7 +180,7 @@ function ResidentVitalsTrendSection({ residents, defaultTrend }) {
             const response = await api.get(`/dashboard/resident-vitals/${residentId}`);
             setVitalsData(response.data);
         } catch (err) {
-            console.error('Failed to fetch vitals trend:', err);
+            logger.error('Failed to fetch vitals trend:', err);
         } finally {
             setIsLoading(false);
         }
@@ -221,19 +226,7 @@ function ResidentVitalsTrendSection({ residents, defaultTrend }) {
 export default function Dashboard() {
     const navigate = useNavigate();
 
-    // Fetch current user
-    const { data: currentUser } = useQuery({
-        queryKey: ['current-user'],
-        queryFn: async () => {
-            try {
-                const response = await api.get('/user');
-                return response.data;
-            } catch (err) {
-                console.error('Failed to fetch current user:', err);
-                return null;
-            }
-        },
-    });
+    const { data: currentUser, isFetched: userFetched } = useQuery(currentUserQueryOptions);
 
     // Redirect super admins to super admin dashboard
     useEffect(() => {
@@ -242,27 +235,32 @@ export default function Dashboard() {
         }
     }, [currentUser, navigate]);
 
-    const { data: stats, isLoading, error } = useQuery({
-        queryKey: ['dashboard-stats'],
-        queryFn: async () => {
-            try {
-                const response = await api.get('/dashboard/stats');
-                console.log('Dashboard stats response:', response.data);
-                if (response.data && response.data.data) {
-                    return response.data.data;
-                }
-                return response.data;
-            } catch (err) {
-                console.error('Dashboard API error:', err);
-                console.error('Error details:', err.response?.data);
-                // Return null to show error state instead of zeros
-                return null;
-            }
-        },
-        retry: 1,
-        refetchInterval: 60000, // Poll every 60 seconds for real-time updates
-        refetchIntervalInBackground: false, // Don't poll in background to save resources
+    // Real-time: invalidate dashboard stats when medication, vitals, incidents, or staff events fire
+    useFacilityUpdates(
+        currentUser?.facility_id,
+        ['medication.administration.created', 'vital.sign.created', 'incident.created'],
+        {
+            queryKeys: [
+                ['dashboard-stats'],
+                ['dashboard-daily-activities'],
+            ],
+        }
+    );
+
+    // Real-time: staff clock-in/out events
+    useStaffClockUpdates(currentUser?.facility_id, {
+        queryKeys: [['dashboard-stats'], ['staff-clock-ins-all']],
+        showToast: true,
+        getToastMessage: (_event, data) =>
+            data.clock_out_at
+                ? `${data.staff?.name || 'Staff'} clocked out`
+                : `${data.staff?.name || 'Staff'} clocked in`,
     });
+
+    // Real-time: personal notifications
+    useUserNotifications(currentUser?.id, { showToast: true });
+
+    const { data: stats, isLoading: statsLoading, isFetched: statsFetched, error } = useQuery(dashboardStatsQueryOptions);
 
     // Fetch daily activities for calendar (last 30 days)
     const { data: dailyActivities } = useQuery({
@@ -276,17 +274,23 @@ export default function Dashboard() {
                 });
                 return response.data;
             } catch (err) {
-                console.error('Daily activities API error:', err);
+                logger.error('Daily activities API error:', err);
                 return { data: [] };
             }
         },
         retry: false,
         refetchInterval: 120000, // Poll every 2 minutes
         refetchIntervalInBackground: false,
+        // Defer until primary stats load so the first paint does fewer parallel requests
+        enabled: !statsLoading,
     });
 
     // Determine user type early
     const isCaregiver = stats?.user_type === 'caregiver';
+
+    // Module overview counts (from /dashboard/stats — avoids 8 separate list API calls)
+    const moduleStats =
+        !isCaregiver && stats?.module_resource_counts ? stats.module_resource_counts : null;
 
     // Fetch trends data for admin users
     const { data: trendsData } = useQuery({
@@ -296,60 +300,17 @@ export default function Dashboard() {
                 const response = await api.get('/charts/residents');
                 return response.data;
             } catch (err) {
-                console.error('Trends API error:', err);
+                logger.error('Trends API error:', err);
                 return null;
             }
         },
         retry: false,
-        enabled: !isCaregiver && !isLoading, // Only fetch for admins after stats load
+        enabled: !isCaregiver && !statsLoading, // Only fetch for admins after stats load
         refetchInterval: 180000, // Poll every 3 minutes
         refetchIntervalInBackground: false,
     });
 
-    // Fetch module statistics for admin users
-    const { data: moduleStats } = useQuery({
-        queryKey: ['dashboard-module-stats'],
-        queryFn: async () => {
-            try {
-                const [assessmentsRes, sleepRes, housekeepingRes, incidentsRes, groceryRes, pharmacyRes, billingRes] = await Promise.all([
-                    api.get('/assessments?per_page=1').catch(() => ({ data: { meta: { total: 0 } } })),
-                    api.get('/sleep?per_page=1').catch(() => ({ data: { meta: { total: 0 } } })),
-                    api.get('/cleaning/tasks?per_page=1').catch(() => ({ data: { meta: { total: 0 } } })),
-                    api.get('/incidents?per_page=1').catch(() => ({ data: { meta: { total: 0 } } })),
-                    api.get('/grocery-status?per_page=1').catch(() => ({ data: { meta: { total: 0 } } })),
-                    api.get('/pharmacy/inventory?per_page=1').catch(() => ({ data: { meta: { total: 0 } } })),
-                    api.get('/billing/expenses?per_page=1').catch(() => ({ data: { meta: { total: 0 } } })),
-                ]);
-
-                return {
-                    assessments: assessmentsRes.data?.meta?.total || assessmentsRes.data?.total || 0,
-                    sleep: sleepRes.data?.meta?.total || sleepRes.data?.total || 0,
-                    housekeeping: housekeepingRes.data?.meta?.total || housekeepingRes.data?.total || 0,
-                    incidents: incidentsRes.data?.meta?.total || incidentsRes.data?.total || 0,
-                    grocery: groceryRes.data?.meta?.total || groceryRes.data?.total || 0,
-                    pharmacy: pharmacyRes.data?.meta?.total || pharmacyRes.data?.total || 0,
-                    billing: billingRes.data?.meta?.total || billingRes.data?.total || 0,
-                };
-            } catch (err) {
-                console.error('Module stats API error:', err);
-                return {
-                    assessments: 0,
-                    sleep: 0,
-                    housekeeping: 0,
-                    incidents: 0,
-                    grocery: 0,
-                    pharmacy: 0,
-                    billing: 0,
-                };
-            }
-        },
-        retry: false,
-        enabled: !isCaregiver && !isLoading,
-        refetchInterval: 300000, // Poll every 5 minutes
-        refetchIntervalInBackground: false,
-    });
-
-    // Fetch upcoming fire drills
+    // Fetch upcoming fire drills (Laravel paginator: { data: FireDrill[] })
     const { data: upcomingFireDrills } = useQuery({
         queryKey: ['upcoming-fire-drills'],
         queryFn: async () => {
@@ -363,18 +324,30 @@ export default function Dashboard() {
                 });
                 return response.data;
             } catch (err) {
-                console.error('Fire drills API error:', err);
+                logger.error('Fire drills API error:', err);
                 return { data: [] };
             }
+        },
+        // API/cache can occasionally expose non-array `data`; strings pass .length but break .slice().map()
+        select: (payload) => {
+            if (Array.isArray(payload)) {
+                return { data: payload };
+            }
+            if (!payload || typeof payload !== 'object') {
+                return { data: [] };
+            }
+            const rows = payload.data;
+            return { ...payload, data: Array.isArray(rows) ? rows : [] };
         },
         retry: false,
     });
 
     // Process daily activities for mini calendar
     const calendarData = useMemo(() => {
-        if (!dailyActivities?.data) return [];
+        const days = dailyActivities?.data;
+        if (!Array.isArray(days)) return [];
 
-        return dailyActivities.data.map(day => ({
+        return days.map(day => ({
             date: day.date,
             indicators: [
                 ...(day.appointments_count > 0 ? [{
@@ -411,7 +384,7 @@ export default function Dashboard() {
         }
     };
 
-    const currentHour = new Date().getHours();
+    const currentHour = getPacificNow().getUTCHours();
     const greeting = currentHour < 12 ? 'Good Morning' : currentHour < 18 ? 'Good Afternoon' : 'Good Evening';
 
     // Define stat cards based on user type with gradients and modern styling
@@ -425,7 +398,7 @@ export default function Dashboard() {
             iconBg: 'bg-[var(--theme-primary-bg-light)]',
             iconColor: 'text-[var(--theme-primary)]',
             description: 'Assigned to me',
-            link: '/administration/residents',
+            link: '/my-residents',
             trend: 'positive'
         },
         {
@@ -469,7 +442,7 @@ export default function Dashboard() {
             iconBg: 'bg-[var(--theme-primary-bg-light)]',
             iconColor: 'text-[var(--theme-secondary)]',
             description: 'Pending approval',
-            link: '/administration/leave-requests',
+            link: '/leave-requests',
             trend: (stats?.pending_leave_requests ?? 0) > 0 ? 'warning' : 'positive'
         },
         {
@@ -491,9 +464,8 @@ export default function Dashboard() {
             gradient: 'from-[var(--theme-primary)] to-[var(--theme-primary-light)]',
             iconBg: 'bg-[var(--theme-primary-bg-light)]',
             iconColor: 'text-[var(--theme-primary)]',
-            link: '/administration/residents',
+            link: '/organization/residents',
             description: 'Active residents',
-            trend: 'positive',
         },
         {
             title: 'Last 30 Days Appointments',
@@ -504,7 +476,6 @@ export default function Dashboard() {
             iconColor: 'text-[var(--theme-primary)]',
             link: '/appointments',
             description: 'Scheduled in last 30 days',
-            trend: 'positive',
         },
         {
             title: 'Last 30 Days Vitals',
@@ -515,7 +486,6 @@ export default function Dashboard() {
             iconColor: 'text-[var(--theme-secondary)]',
             link: '/vitals',
             description: 'Recorded in last 30 days',
-            trend: 'positive',
         },
         {
             title: 'Total Staff',
@@ -524,9 +494,8 @@ export default function Dashboard() {
             gradient: 'from-[var(--theme-primary)] to-[var(--theme-primary-light)]',
             iconBg: 'bg-[var(--theme-primary-bg-light)]',
             iconColor: 'text-[var(--theme-primary)]',
-            link: '/administration/users',
+            link: '/team/users',
             description: 'Active staff',
-            trend: 'positive',
         },
         {
             title: 'Active Medications',
@@ -537,7 +506,6 @@ export default function Dashboard() {
             iconColor: 'text-[var(--theme-secondary)]',
             link: '/medications',
             description: 'Current prescriptions',
-            trend: 'positive',
         },
         {
             title: 'Pending Assessments',
@@ -548,7 +516,7 @@ export default function Dashboard() {
             iconColor: 'text-[var(--theme-primary)]',
             link: '/assessments',
             description: 'Awaiting completion',
-            trend: (stats?.pending_assessments ?? 0) > 0 ? 'warning' : 'positive',
+            trend: (stats?.pending_assessments ?? 0) > 0 ? 'warning' : undefined,
         },
     ];
 
@@ -670,7 +638,7 @@ export default function Dashboard() {
                 title: 'Pending Approvals',
                 description: `${stats.pending_leave_requests} leave request${stats.pending_leave_requests > 1 ? 's' : ''} awaiting your approval`,
                 priority: 'info',
-                link: '/administration/leave-requests',
+                link: '/team/leave-requests',
                 metadata: { count: stats.pending_leave_requests },
             });
         }
@@ -708,8 +676,7 @@ export default function Dashboard() {
                         : drill.scheduled_date;
                     const drillDateTime = new Date(`${dateStr}T${timeStr}`);
                     if (isNaN(drillDateTime.getTime())) {
-                        console.warn('Invalid fire drill date:', drill);
-                        return;
+                            return;
                     }
                     tasks.push({
                         id: `fire-drill-${drill.id}`,
@@ -719,7 +686,7 @@ export default function Dashboard() {
                         link: '/fire-drills',
                     });
                 } catch (error) {
-                    console.error('Error processing fire drill task:', error, drill);
+                    logger.error('Error processing fire drill task:', error, drill);
                 }
             });
         }
@@ -772,7 +739,7 @@ export default function Dashboard() {
                 const response = await api.get('/dashboard/todays-schedule');
                 return response.data;
             } catch (err) {
-                console.error('Schedule API error:', err);
+                logger.error('Schedule API error:', err);
                 return [];
             }
         },
@@ -788,7 +755,7 @@ export default function Dashboard() {
                 const response = await api.get('/dashboard/upcoming-events');
                 return response.data;
             } catch (err) {
-                console.error('Upcoming events API error:', err);
+                logger.error('Upcoming events API error:', err);
                 return [];
             }
         },
@@ -796,8 +763,41 @@ export default function Dashboard() {
         refetchInterval: 300000,
     });
 
-    // Mobile view
-    if (isMobile && !isLoading) {
+    const showFireDrills =
+        Array.isArray(upcomingFireDrills?.data) && upcomingFireDrills.data.length > 0;
+    const trendsChartHasData =
+        Boolean(
+            trendsData &&
+                Array.isArray(trendsData.labels) &&
+                trendsData.labels.length > 0,
+        );
+    const showTrendsBesideUpcoming = trendsChartHasData && !showFireDrills;
+    const adminMiddleRowTwoCols = showFireDrills || showTrendsBesideUpcoming;
+
+    const isDashboardReady = userFetched && statsFetched;
+    if (!isDashboardReady) {
+        return <DashboardLoadingSplash />;
+    }
+
+    // Caregiver dashboard (all viewports — mobile uses responsive CaregiverDashboard, not admin MobileDashboard)
+    if (isCaregiver && !statsLoading) {
+        return (
+            <div className="min-h-screen bg-gray-50">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+                    <CaregiverDashboard
+                        user={currentUser}
+                        stats={stats}
+                        todaysSchedule={todaysSchedule?.data || todaysSchedule || []}
+                        upcomingEvents={upcomingEvents?.data || upcomingEvents || []}
+                        actionableItems={actionableItems}
+                    />
+                </div>
+            </div>
+        );
+    }
+
+    // Mobile admin view
+    if (isMobile && !statsLoading) {
         return (
             <MobileDashboard
                 greeting={greeting}
@@ -811,26 +811,10 @@ export default function Dashboard() {
         );
     }
 
-    // Caregiver Dashboard View
-    if (isCaregiver && !isLoading) {
-        return (
-            <div className="min-h-screen bg-gray-50">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
-                    <CaregiverDashboard
-                        user={currentUser}
-                        stats={stats}
-                        todaysSchedule={todaysSchedule?.data || todaysSchedule || []}
-                        upcomingEvents={upcomingEvents?.data || upcomingEvents || []}
-                    />
-                </div>
-            </div>
-        );
-    }
-
     return (
-        <div className="min-h-screen bg-gray-50">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
-                <div className="space-y-6">
+        <div className="min-h-screen bg-gray-100">
+            <div className="max-w-[1600px] mx-auto px-3 sm:px-4 lg:px-5 py-3 sm:py-4">
+                <div className="space-y-3">
                     {error && (
                         <div className="bg-white rounded-xl shadow-sm border-l-4 border-amber-500 p-4">
                             <div className="flex items-center space-x-3">
@@ -842,86 +826,116 @@ export default function Dashboard() {
                         </div>
                     )}
 
-                    {!isLoading && stats && stats.facility_context_missing && (
+                    {!statsLoading && stats && stats.facility_context_missing && (
                         <div className="bg-yellow-50 rounded-xl shadow-sm border-l-4 border-yellow-500 p-4">
                             <div className="flex items-center space-x-3">
                                 <AlertTriangle className="w-5 h-5 text-yellow-600" />
-                                <div>
-                                    <h3 className="text-sm font-medium text-yellow-800">Facility Context Missing</h3>
-                                    <div className="mt-1 text-sm text-yellow-700">
-                                        <p>Dashboard stats may be incomplete. Please ensure your user account has a facility assigned.</p>
-                                        <p className="mt-1 text-xs font-mono">
-                                            Debug: UserID: {stats.debug_user_id || 'N/A'} |
-                                            FacID: {stats.debug_facility_id || 'N/A'} |
-                                            BranchID: {stats.debug_branch_id || 'N/A'}
-                                            {stats.debug_error && <span className="block mt-1 text-red-600">Error: {stats.debug_error}</span>}
+                                    <div>
+                                        <h3 className="text-sm font-medium text-yellow-800">Facility Context Missing</h3>
+                                        <p className="mt-1 text-sm text-yellow-700">
+                                            Dashboard stats may be incomplete. Please ensure your user account has a facility assigned.
                                         </p>
                                     </div>
-                                </div>
                             </div>
                         </div>
                     )}
 
-                    {isLoading && (
+                    {statsLoading && (
                         <DashboardSkeleton />
                     )}
 
-                    {!isLoading && (
+                    {!statsLoading && (
                         <>
-                            {/* Minimal Welcome Header */}
-                            <div className="bg-gradient-to-br from-[var(--theme-primary)] to-[var(--theme-primary-dark)] rounded-xl shadow-sm p-6 text-white">
-                                <h1 className="text-2xl font-bold mb-1">
-                                    {greeting}, {currentUser?.first_name || currentUser?.name || 'User'} 👋
-                                </h1>
-                                <p className="text-white/90 text-sm">
-                                    {isCaregiver ? 'Welcome to your Care Dashboard' : 'Managing care with compassion and excellence'}
-                                </p>
+                            {/* Compact admin hero — date + context without large vertical padding */}
+                            <div
+                                className="bg-gradient-to-br from-[var(--theme-primary)] to-[var(--theme-primary-dark)] rounded-lg shadow-sm px-4 py-3 text-white flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2"
+                                role="banner"
+                            >
+                                <div>
+                                    <h1 className="text-xl font-bold leading-tight tracking-tight">
+                                        {greeting}, {currentUser?.first_name || currentUser?.name || 'User'} 👋
+                                    </h1>
+                                    <p className="text-white/80 text-xs mt-1">
+                                        {new Date().toLocaleDateString('en-US', {
+                                            weekday: 'long',
+                                            month: 'short',
+                                            day: 'numeric',
+                                            year: 'numeric',
+                                        })}
+                                        {' · '}
+                                        Facility overview — manage care with compassion and excellence
+                                    </p>
+                                </div>
                             </div>
 
-                            {/* Actionable Items Section - Most Important, Show First */}
-                            {actionableItems.length > 0 && (
-                                <ActionableItemsSection
-                                    items={actionableItems}
-                                    onItemClick={(item) => item.link && navigate(item.link)}
-                                />
-                            )}
-
-                            {/* Key Stat Cards - Primary Metrics */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {statCards.map((card, index) => (
-                                    <StatCard
-                                        key={index}
-                                        {...card}
-                                        onClick={() => card.link && navigate(card.link)}
-                                    />
-                                ))}
+                            {/* Attention queue + KPI grid: side-by-side on large screens */}
+                            <div
+                                className={
+                                    actionableItems.length > 0
+                                        ? 'grid grid-cols-1 gap-3 lg:grid-cols-12'
+                                        : 'grid grid-cols-1 gap-3'
+                                }
+                            >
+                                {actionableItems.length > 0 && (
+                                    <div className="lg:col-span-6 min-w-0 order-1">
+                                        <ActionableItemsSection
+                                            items={actionableItems}
+                                            onItemClick={(item) => item.link && navigate(item.link)}
+                                            dense
+                                        />
+                                    </div>
+                                )}
+                                <div
+                                    className={
+                                        actionableItems.length > 0
+                                            ? 'lg:col-span-6 min-w-0 order-2'
+                                            : ''
+                                    }
+                                >
+                                    <div
+                                        className={
+                                            actionableItems.length > 0
+                                                ? 'grid grid-cols-2 gap-3 xl:grid-cols-3'
+                                                : 'grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6'
+                                        }
+                                    >
+                                        {statCards.map((card, index) => (
+                                            <StatCard
+                                                key={index}
+                                                {...card}
+                                                dense
+                                                onClick={() => card.link && navigate(card.link)}
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
                             </div>
 
-                            {/* Today's Schedule - Timeline View */}
-                            <TodaysSchedule />
-
-                            {/* Upcoming Events from All Modules */}
-                            <UpcomingEventsWidget limit={15} />
-
-                            {/* Upcoming Fire Drills Widget - Important Safety Item */}
-                            {upcomingFireDrills?.data && upcomingFireDrills.data.length > 0 && (
-                                <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
-                                    <div className="px-6 py-4 border-b border-gray-200">
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-2">
-                                                <Flame className="w-5 h-5 text-orange-600" />
-                                                <h2 className="text-lg font-bold text-[var(--theme-primary)]">Upcoming Fire Drills</h2>
+                            <div
+                                className={`grid grid-cols-1 gap-3 ${adminMiddleRowTwoCols ? 'xl:grid-cols-2' : ''}`}
+                            >
+                                <div className="min-w-0">
+                                    <UpcomingEventsWidget limit={4} dense />
+                                </div>
+                                {showFireDrills && (
+                                <div className="min-w-0 bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+                                    <div className="px-4 py-2.5 border-b border-gray-200">
+                                        <div className="flex items-center justify-between gap-2">
+                                            <div className="flex items-center gap-2 min-w-0">
+                                                <Flame className="w-4 h-4 text-orange-600 shrink-0" />
+                                                <h2 className="text-base font-bold text-[var(--theme-primary)] truncate">Upcoming Fire Drills</h2>
                                             </div>
                                             <button
+                                                type="button"
                                                 onClick={() => navigate('/fire-drills')}
-                                                className="text-xs text-[var(--theme-primary)] hover:text-[var(--theme-primary-hover)] hover:underline transition-colors"
+                                                className="text-[11px] font-medium text-[var(--theme-primary)] hover:text-[var(--theme-primary-hover)] hover:underline transition-colors shrink-0"
                                             >
                                                 View All
                                             </button>
                                         </div>
                                     </div>
-                                    <div className="p-4">
-                                        <div className="space-y-3">
+                                    <div className="p-3">
+                                        <div className="space-y-2">
                                             {upcomingFireDrills.data.slice(0, 5).map((drill) => {
                                                 if (!drill.scheduled_date) return null;
                                                 let drillDate;
@@ -929,7 +943,7 @@ export default function Dashboard() {
                                                     drillDate = new Date(drill.scheduled_date);
                                                     if (isNaN(drillDate.getTime())) return null;
                                                 } catch (error) {
-                                                    console.error('Invalid drill date:', drill);
+                                                    logger.error('Invalid drill date:', drill);
                                                     return null;
                                                 }
                                                 const today = new Date();
@@ -964,14 +978,14 @@ export default function Dashboard() {
                                                             timeStr = timeDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
                                                         }
                                                     } catch (error) {
-                                                        console.error('Error formatting drill time:', error);
+                                                        logger.error('Error formatting drill time:', error);
                                                     }
                                                 }
 
                                                 return (
                                                     <div
                                                         key={drill.id}
-                                                        className={`flex items-center justify-between p-3 ${urgencyBg} rounded-xl hover:opacity-90 transition-colors cursor-pointer`}
+                                                        className={`flex items-center justify-between p-2.5 ${urgencyBg} rounded-lg hover:opacity-90 transition-colors cursor-pointer`}
                                                         onClick={() => navigate('/fire-drills')}
                                                     >
                                                         <div className="flex items-center space-x-3 flex-1">
@@ -997,11 +1011,17 @@ export default function Dashboard() {
                                         </div>
                                     </div>
                                 </div>
-                            )}
+                                )}
+                                {showTrendsBesideUpcoming && (
+                                    <div className="min-w-0">
+                                        <TrendsChartWidget data={trendsData} dense />
+                                    </div>
+                                )}
+                            </div>
 
-                            {/* Trends Chart for Admins - Analytics Section */}
-                            {!isCaregiver && trendsData && (
-                                <TrendsChartWidget data={trendsData} />
+                            {/* Trends chart full width when fire drills use the right column */}
+                            {!isCaregiver && trendsChartHasData && showFireDrills && (
+                                <TrendsChartWidget data={trendsData} dense />
                             )}
 
                             {/* Resident Vitals Trend Chart - Only for Caregivers */}
@@ -1018,72 +1038,73 @@ export default function Dashboard() {
                                     stats={stats}
                                     moduleStats={moduleStats}
                                     navigate={navigate}
+                                    dense
                                 />
                             )}
 
                             {/* Key Insights Section - Moved from Sidebar */}
                             {!isCaregiver && stats && (
-                                <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
-                                    <div className="px-6 py-4 border-b border-gray-200">
+                                <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+                                    <div className="px-4 py-2.5 border-b border-gray-200">
                                         <div className="flex items-center gap-2">
-                                            <TrendingUp className="w-5 h-5 text-[var(--theme-primary)]" />
-                                            <h2 className="text-lg font-bold text-[var(--theme-primary)]">Key Insights</h2>
+                                            <TrendingUp className="w-4 h-4 text-[var(--theme-primary)]" />
+                                            <h2 className="text-base font-bold text-[var(--theme-primary)]">Key Insights</h2>
                                         </div>
-                                        <p className="text-xs text-gray-500 mt-1">Performance metrics and analytics</p>
+                                        <p className="text-[11px] text-gray-500 mt-0.5">Performance metrics and analytics</p>
                                     </div>
-                                    <div className="p-6">
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                                            <div className="flex items-center gap-3 p-4 rounded-lg border border-gray-200">
-                                                <div className="bg-blue-50 text-blue-600 p-2 rounded-lg">
-                                                    <Users className="w-5 h-5" />
+                                    <div className="p-3 sm:p-4">
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
+                                            <div className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 rounded-lg border border-gray-200">
+                                                <div className="bg-blue-50 text-blue-600 p-1.5 rounded-md shrink-0">
+                                                    <Users className="w-4 h-4 sm:w-5 sm:h-5" />
                                                 </div>
-                                                <div>
-                                                    <p className="text-xs text-gray-600">Occupancy Rate</p>
-                                                    <p className="text-lg font-semibold text-gray-900">
+                                                <div className="min-w-0">
+                                                    <p className="text-[10px] sm:text-xs text-gray-600 leading-tight">Occupancy Rate</p>
+                                                    <p className="text-base sm:text-lg font-semibold text-gray-900 tabular-nums">
                                                         {(stats.occupancy_rate ?? 0).toFixed(1)}%
                                                     </p>
                                                 </div>
                                             </div>
-                                            <div className="flex items-center gap-3 p-4 rounded-lg border border-gray-200">
-                                                <div className="bg-green-50 text-green-600 p-2 rounded-lg">
-                                                    <ClipboardList className="w-5 h-5" />
+                                            <div className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 rounded-lg border border-gray-200">
+                                                <div className="bg-green-50 text-green-600 p-1.5 rounded-md shrink-0">
+                                                    <ClipboardList className="w-4 h-4 sm:w-5 sm:h-5" />
                                                 </div>
-                                                <div>
-                                                    <p className="text-xs text-gray-600">Compliance Score</p>
-                                                    <p className="text-lg font-semibold text-gray-900">
+                                                <div className="min-w-0">
+                                                    <p className="text-[10px] sm:text-xs text-gray-600 leading-tight">Compliance Score</p>
+                                                    <p className="text-base sm:text-lg font-semibold text-gray-900 tabular-nums">
                                                         {(stats.compliance_score ?? 0).toFixed(1)}%
                                                     </p>
                                                 </div>
                                             </div>
-                                            <div className="flex items-center gap-3 p-4 rounded-lg border border-gray-200">
-                                                <div className="bg-purple-50 text-purple-600 p-2 rounded-lg">
-                                                    <Pill className="w-5 h-5" />
+                                            <div className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 rounded-lg border border-gray-200">
+                                                <div className="bg-purple-50 text-purple-600 p-1.5 rounded-md shrink-0">
+                                                    <Pill className="w-4 h-4 sm:w-5 sm:h-5" />
                                                 </div>
-                                                <div>
-                                                    <p className="text-xs text-gray-600">Medication Adherence</p>
-                                                    <p className="text-lg font-semibold text-gray-900">
+                                                <div className="min-w-0">
+                                                    <p className="text-[10px] sm:text-xs text-gray-600 leading-tight">Medication Adherence</p>
+                                                    <p className="text-base sm:text-lg font-semibold text-gray-900 tabular-nums">
                                                         {(stats.medication_adherence_rate ?? 0).toFixed(1)}%
                                                     </p>
                                                 </div>
                                             </div>
-                                            <div className="flex items-center gap-3 p-4 rounded-lg border border-gray-200">
-                                                <div className="bg-orange-50 text-orange-600 p-2 rounded-lg">
-                                                    <Clock className="w-5 h-5" />
+                                            <div className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 rounded-lg border border-gray-200">
+                                                <div className="bg-orange-50 text-orange-600 p-1.5 rounded-md shrink-0">
+                                                    <Clock className="w-4 h-4 sm:w-5 sm:h-5" />
                                                 </div>
-                                                <div>
-                                                    <p className="text-xs text-gray-600">Avg Response Time</p>
-                                                    <p className="text-lg font-semibold text-gray-900">
+                                                <div className="min-w-0">
+                                                    <p className="text-[10px] sm:text-xs text-gray-600 leading-tight">Avg Response Time</p>
+                                                    <p className="text-base sm:text-lg font-semibold text-gray-900 tabular-nums">
                                                         {(stats.average_incident_response_time ?? 0).toFixed(1)} hrs
                                                     </p>
                                                 </div>
                                             </div>
-                                            <div className="flex items-center gap-3 p-4 rounded-lg border border-gray-200">
-                                                <div className="bg-indigo-50 text-indigo-600 p-2 rounded-lg">
-                                                    <UserCheck className="w-5 h-5" />
+                                            <div className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 rounded-lg border border-gray-200 col-span-2 sm:col-span-1 lg:col-span-1">
+                                                <div className="bg-indigo-50 text-indigo-600 p-1.5 rounded-md shrink-0">
+                                                    <UserCheck className="w-4 h-4 sm:w-5 sm:h-5" />
                                                 </div>
-                                                <div>
-                                                    <p className="text-xs text-gray-600">Staff Count</p>
-                                                    <p className="text-lg font-semibold text-gray-900">
+                                                <div className="min-w-0">
+                                                    <p className="text-[10px] sm:text-xs text-gray-600 leading-tight">Staff Count</p>
+                                                    <p className="text-base sm:text-lg font-semibold text-gray-900 tabular-nums">
                                                         {stats.staff_utilization ?? 0}
                                                     </p>
                                                 </div>
@@ -1101,7 +1122,7 @@ export default function Dashboard() {
 }
 
 // Modules Overview Component  
-function ModulesOverview({ stats, moduleStats, navigate }) {
+function ModulesOverview({ stats, moduleStats, navigate, dense = false }) {
     const modules = [
         {
             name: 'Assessments',
@@ -1177,7 +1198,7 @@ function ModulesOverview({ stats, moduleStats, navigate }) {
             name: 'Fire Drills',
             icon: Flame,
             path: '/fire-drills',
-            count: 0, // Will be populated from upcomingFireDrills
+            count: moduleStats?.fireDrills || 0,
             color: 'from-[var(--theme-primary)] to-[var(--theme-primary-dark)]',
             bgColor: 'bg-[var(--theme-primary-bg-light)]',
             iconColor: 'text-[var(--theme-primary)]',
@@ -1226,35 +1247,36 @@ function ModulesOverview({ stats, moduleStats, navigate }) {
     ];
 
     return (
-        <div className="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden">
-            <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <BarChart3 className="w-5 h-5 text-[var(--theme-primary)]" />
-                        <h2 className="text-base sm:text-lg font-bold text-[var(--theme-primary)]">Modules Overview</h2>
+        <div className={`bg-white border border-gray-100 overflow-hidden ${dense ? 'rounded-lg shadow-sm' : 'rounded-xl shadow-md'}`}>
+            <div className={`border-b border-gray-200 ${dense ? 'px-3 py-2.5' : 'px-4 sm:px-6 py-3 sm:py-4'}`}>
+                <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                        <BarChart3 className={`${dense ? 'w-4 h-4' : 'w-5 h-5'} text-[var(--theme-primary)] shrink-0`} />
+                        <h2 className={`font-bold text-[var(--theme-primary)] truncate ${dense ? 'text-sm sm:text-base' : 'text-base sm:text-lg'}`}>Modules Overview</h2>
                     </div>
-                    <span className="text-xs text-gray-500 hidden sm:inline">Quick access to all modules</span>
+                    <span className={`text-gray-500 hidden sm:inline shrink-0 ${dense ? 'text-[10px]' : 'text-xs'}`}>Quick access to all modules</span>
                 </div>
             </div>
-            <div className="p-4 sm:p-6">
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 sm:gap-4">
+            <div className={dense ? 'p-3' : 'p-4 sm:p-6'}>
+                <div className={`grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 ${dense ? 'gap-2 sm:gap-2.5' : 'gap-3 sm:gap-4'}`}>
                     {modules.map((module, index) => {
                         const Icon = module.icon;
                         return (
                             <button
                                 key={index}
+                                type="button"
                                 onClick={() => navigate(module.path)}
-                                className="group relative bg-white rounded-lg border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all duration-200 p-3 sm:p-4 text-left active:scale-95 touch-manipulation"
+                                className={`group relative bg-white rounded-lg border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all duration-200 text-left active:scale-95 touch-manipulation ${dense ? 'p-2 sm:p-2.5' : 'p-3 sm:p-4'}`}
                             >
-                                <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${module.color} rounded-t-lg`}></div>
-                                <div className="flex flex-col items-center text-center space-y-2 mt-1">
-                                    <div className={`${module.bgColor} p-2 sm:p-3 rounded-lg group-hover:scale-110 transition-transform duration-200`}>
-                                        <Icon className={`w-5 h-5 sm:w-6 sm:h-6 ${module.iconColor}`} />
+                                <div className={`absolute top-0 left-0 right-0 ${dense ? 'h-0.5' : 'h-1'} bg-gradient-to-r ${module.color} rounded-t-lg`}></div>
+                                <div className={`flex flex-col items-center text-center ${dense ? 'space-y-1 mt-0.5' : 'space-y-2 mt-1'}`}>
+                                    <div className={`${module.bgColor} ${dense ? 'p-1.5' : 'p-2 sm:p-3'} rounded-lg group-hover:scale-105 transition-transform duration-200`}>
+                                        <Icon className={`${dense ? 'w-4 h-4 sm:w-5 sm:h-5' : 'w-5 h-5 sm:w-6 sm:h-6'} ${module.iconColor}`} />
                                     </div>
                                     <div className="flex-1 w-full">
-                                        <p className="text-xs sm:text-sm font-semibold text-gray-900 mb-1">{module.name}</p>
-                                        <p className="text-lg sm:text-xl font-bold text-[var(--theme-primary)]">{module.count}</p>
-                                        <p className="text-xs text-gray-500 mt-1 line-clamp-2">{module.description}</p>
+                                        <p className={`font-semibold text-gray-900 ${dense ? 'text-[11px] sm:text-xs mb-0' : 'text-xs sm:text-sm mb-1'}`}>{module.name}</p>
+                                        <p className={`font-bold text-[var(--theme-primary)] tabular-nums ${dense ? 'text-sm sm:text-base' : 'text-lg sm:text-xl'}`}>{module.count}</p>
+                                        <p className={`text-gray-500 line-clamp-2 ${dense ? 'text-[10px] mt-0.5' : 'text-xs mt-1'}`}>{module.description}</p>
                                     </div>
                                 </div>
                                 <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1270,7 +1292,7 @@ function ModulesOverview({ stats, moduleStats, navigate }) {
 }
 
 // Trends Chart Widget for Admins
-function TrendsChartWidget({ data }) {
+function TrendsChartWidget({ data, dense = false }) {
     const { primary, secondary } = useTheme();
 
     if (!data || !data.labels || data.labels.length === 0) {
@@ -1343,17 +1365,17 @@ function TrendsChartWidget({ data }) {
     };
 
     return (
-        <div className="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden">
-            <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200">
+        <div className={`bg-white border border-gray-100 overflow-hidden ${dense ? 'rounded-lg shadow-sm' : 'rounded-xl shadow-md'}`}>
+            <div className={`border-b border-gray-200 ${dense ? 'px-3 py-2.5' : 'px-4 sm:px-6 py-3 sm:py-4'}`}>
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <BarChart3 className="w-5 h-5 text-[var(--theme-primary)]" />
-                        <h2 className="text-base sm:text-lg font-bold text-[var(--theme-primary)]">7-Day Trends Overview</h2>
+                        <BarChart3 className={`${dense ? 'w-4 h-4' : 'w-5 h-5'} text-[var(--theme-primary)]`} />
+                        <h2 className={`font-bold text-[var(--theme-primary)] ${dense ? 'text-sm sm:text-base' : 'text-base sm:text-lg'}`}>7-Day Trends Overview</h2>
                     </div>
                 </div>
             </div>
-            <div className="p-4 sm:p-6">
-                <div style={{ height: '250px' }}>
+            <div className={dense ? 'p-3' : 'p-4 sm:p-6'}>
+                <div style={{ height: dense ? '200px' : '250px' }}>
                     <Line data={chartData} options={options} />
                 </div>
             </div>

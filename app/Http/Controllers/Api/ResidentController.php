@@ -5,10 +5,14 @@ namespace App\Http\Controllers\Api;
 use App\Constants\UserRoles;
 use App\Http\Requests\Api\Resident\StoreResidentRequest;
 use App\Http\Requests\Api\Resident\UpdateResidentRequest;
+use App\Http\Requests\Api\Resident\UpdateResidentStatusRequest;
 use App\Http\Resources\Api\ResidentResource;
 use App\Models\Resident;
-use Illuminate\Http\Request;
+use App\Models\ResidentStatusEvent;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 class ResidentController extends BaseApiController
@@ -58,16 +62,25 @@ class ResidentController extends BaseApiController
         // Filter by status
         if ($request->has('status')) {
             if ($request->get('status') === 'active') {
-                $query->where('is_active', true);
+                $query->active();
             } elseif ($request->get('status') === 'inactive') {
-                $query->where('is_active', false);
+                $query->inactive();
             }
+        }
+
+        if ($request->filled('lifecycle_status')) {
+            $query->lifecycleStatus($request->get('lifecycle_status'));
+        }
+
+        if ($request->has('temporary_status')) {
+            $temporaryStatus = $request->get('temporary_status');
+            $query->temporaryStatus($temporaryStatus === '' ? null : $temporaryStatus);
         }
 
         // Only filter by active if explicitly requested and show_all is not set
         if (!$request->has('show_all') && !$request->has('status')) {
             // Default: show active residents, but allow all if show_all is set
-            $query->where('is_active', true);
+            $query->active();
         }
 
         $query->orderBy('created_at', 'desc');
@@ -95,13 +108,13 @@ class ResidentController extends BaseApiController
                 'vitalSigns',
                 'sleepRecords',
                 'sleepPatterns',
-                'medications' => function($query) {
+                'medicationOrders' => function($query) {
                     // Remove global scope to ensure all medications for this resident are loaded
                     // We've already verified access to the resident, so we can show all their medications
                     $query->withoutGlobalScopes()
                         ->orderBy('start_date', 'desc');
                 },
-                'medications.drug',
+                'medicationOrders.drug',
             ])
             ->findOrFail($id);
 
@@ -162,10 +175,14 @@ class ResidentController extends BaseApiController
     public function store(StoreResidentRequest $request): JsonResponse
     {
         $user = auth()->user();
-        
+
+        if ($this->isCaregiver($user)) {
+            return $this->error('Caregivers cannot create or edit resident records.', 403);
+        }
+
         // Allow administrators and super admins to create residents even without specific permission
         $isSuperAdmin = $user && ($user->role === 'super_admin' || $user->hasRole('super_admin'));
-        $isAdmin = $user && ($user->role === 'administrator' || $user->role === 'admin');
+        $isAdmin = $user && $user->isAnyAdmin();
         
         // Check permission only if user is not an admin or super admin
         if (!$isSuperAdmin && !$isAdmin) {
@@ -175,6 +192,8 @@ class ResidentController extends BaseApiController
         }
 
         $validated = $request->validated();
+
+        $this->syncResidentLifecycleFields($validated);
 
         // Generate full name from first_name, middle_names, and last_name
         $nameParts = array_filter([
@@ -217,29 +236,24 @@ class ResidentController extends BaseApiController
     public function update(UpdateResidentRequest $request, $id): JsonResponse
     {
         $user = auth()->user();
-        
+
+        if ($this->isCaregiver($user)) {
+            return $this->error('Caregivers cannot edit resident records.', 403);
+        }
+
         // Allow administrators and super admins to edit residents even without specific permission
         $isSuperAdmin = $user && ($user->role === 'super_admin' || $user->hasRole('super_admin'));
-        $isAdmin = $user && ($user->role === 'administrator' || $user->role === 'admin');
-        
+        $isAdmin = $user && $user->isAnyAdmin();
+
         // Check permission only if user is not an admin or super admin
         if (!$isSuperAdmin && !$isAdmin) {
-        if ($error = $this->requirePermission('edit_residents')) {
-            return $error;
+            if ($error = $this->requirePermission('edit_residents')) {
+                return $error;
             }
         }
 
         // Find resident without global scope to check permissions manually
         $resident = Resident::withoutGlobalScope(\App\Models\Scopes\FacilityScope::class)->findOrFail($id);
-        $user = $request->user();
-
-        // Check caregiver access
-        if ($this->isCaregiver($user)) {
-            $caregiverBranchId = (int) ($user->assigned_branch_id ?? 0);
-            if ($caregiverBranchId === 0 || (int) $resident->branch_id !== $caregiverBranchId) {
-                return $this->error('You do not have permission to update this resident.', 403);
-            }
-        }
 
         // Check facility access for non-super admins
         $currentUser = \Illuminate\Support\Facades\Auth::user();
@@ -257,6 +271,8 @@ class ResidentController extends BaseApiController
         }
 
         $validated = $request->validated();
+
+        $this->syncResidentLifecycleFields($validated);
 
         // Handle profile image upload
         if ($request->hasFile('profile_image')) {
@@ -312,12 +328,7 @@ class ResidentController extends BaseApiController
         }
 
         // Handle text fields - convert empty strings to null
-        // Note: special_instructions column doesn't exist in database, so we remove it
-        if (isset($validated['special_instructions'])) {
-            unset($validated['special_instructions']);
-        }
-        
-        foreach (['care_plan', 'notes'] as $field) {
+        foreach (['care_plan', 'notes', 'special_instructions', 'dietary_restrictions', 'code_status', 'primary_language', 'pharmacy_name', 'general_medication_instructions', 'diagnosis'] as $field) {
             if (isset($validated[$field]) && $validated[$field] === '') {
                 $validated[$field] = null;
             }
@@ -342,13 +353,134 @@ class ResidentController extends BaseApiController
         );
     }
 
+    public function updateStatus(UpdateResidentStatusRequest $request, $resident): JsonResponse
+    {
+        $user = $request->user();
+
+        $resident = Resident::withoutGlobalScope(\App\Models\Scopes\FacilityScope::class)->find($resident);
+        if (!$resident) {
+            return $this->error('Resident not found.', 404);
+        }
+
+        $resident->load('branch');
+        $validated = $request->validated();
+        $statusType = $validated['status_type'];
+
+        if ($this->isCaregiver($user)) {
+            if (
+                !$user?->assigned_branch_id
+                || !$this->checkBranchAccess($resident, $user)
+                || !$this->checkFacilityAccess($resident, $user)
+            ) {
+                return $this->error('You may only update residents in your assigned branch.', 403);
+            }
+
+            if ($statusType !== 'temporary') {
+                return $this->error('Caregivers can only update temporary resident status.', 403);
+            }
+        } else {
+            $isSuperAdmin = $user && ($user->role === 'super_admin' || $user->hasRole('super_admin'));
+            $isAdmin = $user && $user->isAnyAdmin();
+
+            if (!$isSuperAdmin && !$isAdmin) {
+                if ($error = $this->requirePermission('edit_residents', $user)) {
+                    return $error;
+                }
+            }
+
+            if (!$this->checkFacilityAccess($resident, $user)) {
+                return $this->error('You do not have permission to update this resident.', 403);
+            }
+        }
+
+        $toStatus = $validated['status'] ?? null;
+        $effectiveAt = Carbon::parse($validated['effective_at'] ?? now());
+
+        $resident = DB::transaction(function () use ($resident, $validated, $statusType, $toStatus, $effectiveAt, $user) {
+            $fromStatus = $statusType === 'lifecycle'
+                ? ($resident->lifecycle_status ?? ($resident->is_active ? 'active' : 'discharged'))
+                : $resident->temporary_status;
+
+            $details = $validated['details'] ?? [];
+            $updates = [];
+
+            if ($statusType === 'lifecycle') {
+                $updates = [
+                    'lifecycle_status' => $toStatus,
+                    'lifecycle_status_changed_at' => $effectiveAt,
+                    'is_active' => Resident::isActiveLifecycleStatus($toStatus),
+                    'status' => $toStatus,
+                ];
+
+                if ($toStatus === 'active') {
+                    $updates['discharge_date'] = null;
+                    $updates['discharge_reason'] = null;
+                    $updates['discharge_destination'] = null;
+                    $updates['discharge_notes'] = null;
+                } else {
+                    $updates['discharge_date'] = $validated['discharge_date'];
+                    $updates['discharge_reason'] = $validated['discharge_reason'];
+                    $updates['discharge_destination'] = $validated['discharge_destination'] ?? null;
+                    $updates['discharge_notes'] = $validated['discharge_notes'] ?? null;
+                    $updates['temporary_status'] = null;
+                    $updates['temporary_status_started_at'] = null;
+                    $updates['temporary_status_note'] = null;
+                    $details = array_merge($details, [
+                        'discharge_date' => $validated['discharge_date'],
+                        'discharge_reason' => $validated['discharge_reason'],
+                        'discharge_destination' => $validated['discharge_destination'] ?? null,
+                        'discharge_notes' => $validated['discharge_notes'] ?? null,
+                    ]);
+                }
+            } else {
+                $temporaryNote = $validated['temporary_status_note']
+                    ?? ($details['note'] ?? null);
+
+                $updates = [
+                    'temporary_status' => $toStatus,
+                    'temporary_status_started_at' => $toStatus ? $effectiveAt : null,
+                    'temporary_status_note' => $toStatus ? $temporaryNote : null,
+                ];
+
+                if ($temporaryNote !== null) {
+                    $details['temporary_status_note'] = $temporaryNote;
+                }
+            }
+
+            $resident->update($updates);
+
+            ResidentStatusEvent::create([
+                'resident_id' => $resident->id,
+                'branch_id' => $resident->branch_id,
+                'facility_id' => $resident->branch?->facility_id,
+                'status_type' => $statusType,
+                'from_status' => $fromStatus,
+                'to_status' => $toStatus,
+                'effective_at' => $effectiveAt,
+                'details' => $details === [] ? null : $details,
+                'created_by' => $user?->id,
+            ]);
+
+            return $resident->refresh()->load('branch');
+        });
+
+        return $this->success(
+            new ResidentResource($resident),
+            'Resident status updated successfully'
+        );
+    }
+
     public function destroy($id): JsonResponse
     {
         $user = auth()->user();
-        
+
+        if ($this->isCaregiver($user)) {
+            return $this->error('Caregivers cannot delete resident records.', 403);
+        }
+
         // Allow administrators and super admins to delete residents even without specific permission
         $isSuperAdmin = $user && ($user->role === 'super_admin' || $user->hasRole('super_admin'));
-        $isAdmin = $user && ($user->role === 'administrator' || $user->role === 'admin');
+        $isAdmin = $user && $user->isAnyAdmin();
         
         // Check permission only if user is not an admin or super admin
         if (!$isSuperAdmin && !$isAdmin) {
@@ -361,6 +493,35 @@ class ResidentController extends BaseApiController
         $resident->delete();
 
         return $this->success(null, 'Resident deleted successfully');
+    }
+
+    private function syncResidentLifecycleFields(array &$validated): void
+    {
+        if (array_key_exists('lifecycle_status', $validated)) {
+            $validated['is_active'] = Resident::isActiveLifecycleStatus($validated['lifecycle_status']);
+            $validated['status'] = $validated['lifecycle_status'];
+            $validated['lifecycle_status_changed_at'] = $validated['lifecycle_status_changed_at'] ?? now();
+            if ($validated['lifecycle_status'] === Resident::LIFECYCLE_ACTIVE) {
+                $validated['discharge_date'] = null;
+                $validated['discharge_reason'] = null;
+                $validated['discharge_destination'] = null;
+                $validated['discharge_notes'] = null;
+            }
+
+            return;
+        }
+
+        if (array_key_exists('is_active', $validated)) {
+            $validated['lifecycle_status'] = $validated['is_active'] ? 'active' : 'discharged';
+            $validated['status'] = $validated['lifecycle_status'];
+            $validated['lifecycle_status_changed_at'] = $validated['lifecycle_status_changed_at'] ?? now();
+            if ($validated['lifecycle_status'] === Resident::LIFECYCLE_ACTIVE) {
+                $validated['discharge_date'] = null;
+                $validated['discharge_reason'] = null;
+                $validated['discharge_destination'] = null;
+                $validated['discharge_notes'] = null;
+            }
+        }
     }
 }
 

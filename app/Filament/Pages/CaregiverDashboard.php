@@ -59,35 +59,36 @@ class CaregiverDashboard extends BaseDashboard
     public function getStats(): array
     {
         $userId = auth()->id();
-        
-        // Get residents assigned to this caregiver
-        $assignedResidents = Resident::whereHas('assignments', function($q) use ($userId) {
+
+        // Fetch assigned resident IDs once, reuse for all counts
+        $residentIds = Resident::whereHas('assignments', function($q) use ($userId) {
             $q->where('caregiver_id', $userId)->where('is_active', true);
-        })->count();
-        
-        // Today's appointments for assigned residents
-        $todayAppointments = Appointment::whereHas('resident.assignments', function($q) use ($userId) {
-            $q->where('caregiver_id', $userId)->where('is_active', true);
-        })->whereDate('appointment_date', today())->count();
-        
-        // Pending assessments for assigned residents
-        $pendingAssessments = Assessment::whereHas('resident.assignments', function($q) use ($userId) {
-            $q->where('caregiver_id', $userId)->where('is_active', true);
-        })->whereNotIn('status', ['approved', 'archived'])->count();
-        
-        // Vitals recorded today
-        $todayVitals = VitalSign::whereHas('resident.assignments', function($q) use ($userId) {
-            $q->where('caregiver_id', $userId)->where('is_active', true);
-        })->whereDate('measurement_date', today())->count();
-        
-        // Pending leave requests
+        })->pluck('id');
+
+        $assignedResidents = $residentIds->count();
+
+        $todayAppointments = $assignedResidents > 0
+            ? Appointment::whereIn('resident_id', $residentIds)
+                ->whereDate('appointment_date', today())->count()
+            : 0;
+
+        $pendingAssessments = $assignedResidents > 0
+            ? Assessment::whereIn('resident_id', $residentIds)
+                ->whereNotIn('status', ['approved', 'archived'])->count()
+            : 0;
+
+        $todayVitals = $assignedResidents > 0
+            ? VitalSign::whereIn('resident_id', $residentIds)
+                ->whereDate('measurement_date', today())->count()
+            : 0;
+
         $pendingLeaveRequests = LeaveRequest::where('staff_id', $userId)
             ->where('status', 'pending')->count();
-        
-        // Upcoming appointments this week
-        $weekAppointments = Appointment::whereHas('resident.assignments', function($q) use ($userId) {
-            $q->where('caregiver_id', $userId)->where('is_active', true);
-        })->whereBetween('appointment_date', [today(), today()->addDays(7)])->count();
+
+        $weekAppointments = $assignedResidents > 0
+            ? Appointment::whereIn('resident_id', $residentIds)
+                ->whereBetween('appointment_date', [today(), today()->addDays(7)])->count()
+            : 0;
 
         return [
             'assigned_residents' => $assignedResidents,

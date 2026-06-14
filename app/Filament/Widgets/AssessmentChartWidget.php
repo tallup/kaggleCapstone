@@ -12,16 +12,20 @@ class AssessmentChartWidget extends ChartWidget
 
     protected function getData(): array
     {
-        $assessments = Assessment::all();
-        
-        $completed = $assessments->where('completion_percentage', 100)->count();
-        $inProgress = $assessments->where('completion_percentage', '>', 0)->where('completion_percentage', '<', 100)->count();
-        $notStarted = $assessments->where('completion_percentage', 0)->count();
-        
+        $counts = Assessment::selectRaw("
+            sum(case when completion_percentage = 100 then 1 else 0 end) as completed,
+            sum(case when completion_percentage > 0 and completion_percentage < 100 then 1 else 0 end) as in_progress,
+            sum(case when completion_percentage = 0 then 1 else 0 end) as not_started
+        ")->first();
+
         return [
             'datasets' => [
                 [
-                    'data' => [$completed, $inProgress, $notStarted],
+                    'data' => [
+                        (int) $counts->completed,
+                        (int) $counts->in_progress,
+                        (int) $counts->not_started,
+                    ],
                     'backgroundColor' => ['#10B981', '#F59E0B', '#EF4444'],
                     'borderColor' => ['#059669', '#D97706', '#DC2626'],
                     'borderWidth' => 2,

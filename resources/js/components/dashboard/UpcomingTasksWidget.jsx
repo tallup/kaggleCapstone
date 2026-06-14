@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SidebarWidget } from './DashboardSidebar';
 import { Clock, Calendar, Flame, Pill, ClipboardList, ArrowRight } from 'lucide-react';
+import logger from '../../utils/logger';
 
 /**
  * UpcomingTasksWidget - Shows today's and tomorrow's tasks
@@ -46,7 +47,7 @@ export default function UpcomingTasksWidget({ tasks = [] }) {
                 hour12: true 
             });
         } catch (error) {
-            console.error('Error formatting time:', error, dateTime);
+            logger.error('Error formatting time:', error, dateTime);
             return '';
         }
     };

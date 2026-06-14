@@ -4,6 +4,10 @@ import api from '../services/api';
 import { Package, Plus, Search, Edit, Trash2, AlertTriangle, CheckCircle, TrendingDown, TrendingUp, MapPin } from 'lucide-react';
 import SectionCard from '../components/SectionCard';
 import Card from '../components/Card';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
+import Modal from '../components/ui/Modal';
+import Tooltip from '../components/ui/Tooltip';
+import CardIconButton from '../components/ui/CardIconButton';
 
 export default function PharmacyInventory() {
     const queryClient = useQueryClient();
@@ -25,6 +29,7 @@ export default function PharmacyInventory() {
         storage_notes: '',
     });
     const [errors, setErrors] = useState({});
+    const [errorMessage, setErrorMessage] = useState('');
 
     // Fetch branches
     const { data: branchesData } = useQuery({
@@ -63,6 +68,11 @@ export default function PharmacyInventory() {
             if (error.response?.data?.errors) {
                 setErrors(error.response.data.errors);
             }
+            if (error.response?.data?.message) {
+                setErrorMessage(error.response.data.message);
+            } else {
+                setErrorMessage('Failed to create inventory item. Please check the form for errors.');
+            }
         },
     });
 
@@ -78,6 +88,11 @@ export default function PharmacyInventory() {
             if (error.response?.data?.errors) {
                 setErrors(error.response.data.errors);
             }
+            if (error.response?.data?.message) {
+                setErrorMessage(error.response.data.message);
+            } else {
+                setErrorMessage('Failed to create inventory item. Please check the form for errors.');
+            }
         },
     });
 
@@ -89,6 +104,8 @@ export default function PharmacyInventory() {
             queryClient.invalidateQueries(['pharmacy-inventory']);
         },
     });
+
+    const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
     const inventory = data?.data || [];
     const branches = branchesData?.data || [];
@@ -110,6 +127,7 @@ export default function PharmacyInventory() {
             storage_notes: '',
         });
         setErrors({});
+        setErrorMessage('');
     };
 
     const handleEdit = (item) => {
@@ -132,25 +150,36 @@ export default function PharmacyInventory() {
     const handleSubmit = (e) => {
         e.preventDefault();
         setErrors({});
+        setErrorMessage('');
         
-        const submitData = {
-            ...formData,
-            quantity: parseInt(formData.quantity) || 0,
-            minimum_stock_level: parseInt(formData.minimum_stock_level) || 0,
-            maximum_stock_level: formData.maximum_stock_level ? parseInt(formData.maximum_stock_level) : null,
-            unit_cost: formData.unit_cost ? parseFloat(formData.unit_cost) : null,
-        };
-
         if (editing) {
+            // For updates, exclude branch_id and drug_id (they can't be changed)
+            const submitData = {
+                quantity: parseInt(formData.quantity) || 0,
+                minimum_stock_level: parseInt(formData.minimum_stock_level) || 0,
+                maximum_stock_level: formData.maximum_stock_level ? parseInt(formData.maximum_stock_level) : null,
+                unit_cost: formData.unit_cost ? parseFloat(formData.unit_cost) : null,
+                location: formData.location && formData.location.trim() ? formData.location.trim() : null,
+                requires_refrigeration: Boolean(formData.requires_refrigeration),
+                is_controlled_substance: Boolean(formData.is_controlled_substance),
+                storage_notes: formData.storage_notes && formData.storage_notes.trim() ? formData.storage_notes.trim() : null,
+            };
             updateMutation.mutate({ id: editing.id, data: submitData });
         } else {
+            // For creates, include all required fields
+            const submitData = {
+                branch_id: formData.branch_id || '',
+                drug_id: formData.drug_id || '',
+                quantity: parseInt(formData.quantity) || 0,
+                minimum_stock_level: parseInt(formData.minimum_stock_level) || 0,
+                maximum_stock_level: formData.maximum_stock_level ? parseInt(formData.maximum_stock_level) : null,
+                unit_cost: formData.unit_cost ? parseFloat(formData.unit_cost) : null,
+                location: formData.location && formData.location.trim() ? formData.location.trim() : null,
+                requires_refrigeration: Boolean(formData.requires_refrigeration),
+                is_controlled_substance: Boolean(formData.is_controlled_substance),
+                storage_notes: formData.storage_notes && formData.storage_notes.trim() ? formData.storage_notes.trim() : null,
+            };
             createMutation.mutate(submitData);
-        }
-    };
-
-    const handleDelete = (id) => {
-        if (window.confirm('Are you sure you want to delete this inventory item?')) {
-            deleteMutation.mutate(id);
         }
     };
 
@@ -170,21 +199,33 @@ export default function PharmacyInventory() {
         return <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">In Stock</span>;
     };
 
-    if (showForm) {
-        return (
-            <div>
-                <SectionCard>
-                    <div className="flex items-center justify-between mb-6">
-                        <h2 className="text-xl font-semibold text-gray-900">
-                            {editing ? 'Edit Inventory Item' : 'Add Inventory Item'}
-                        </h2>
-                        <button
-                            onClick={handleCloseForm}
-                            className="text-gray-500 hover:text-gray-700"
-                        >
-                            ✕
-                        </button>
-                    </div>
+    return (
+        <>
+            <ConfirmDialog
+                isOpen={deleteConfirmId != null}
+                onClose={() => !deleteMutation.isPending && setDeleteConfirmId(null)}
+                onConfirm={() => {
+                    if (deleteConfirmId == null) return;
+                    deleteMutation.mutate(deleteConfirmId, { onSuccess: () => setDeleteConfirmId(null) });
+                }}
+                title="Delete inventory item?"
+                description="This inventory item will be permanently removed."
+                confirmLabel="Delete"
+                cancelLabel="Cancel"
+                variant="danger"
+                isPending={deleteMutation.isPending}
+            />
+            <Modal
+                isOpen={showForm}
+                onClose={handleCloseForm}
+                title={editing ? 'Edit Inventory Item' : 'Add Inventory Item'}
+                size="xl"
+            >
+                    {errorMessage && (
+                        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                            <p className="text-sm text-red-800">{errorMessage}</p>
+                        </div>
+                    )}
 
                     <form onSubmit={handleSubmit} className="space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -352,12 +393,7 @@ export default function PharmacyInventory() {
                             </button>
                         </div>
                     </form>
-                </SectionCard>
-            </div>
-        );
-    }
-
-    return (
+            </Modal>
         <div>
             <SectionCard>
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
@@ -467,20 +503,26 @@ export default function PharmacyInventory() {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                             <div className="flex justify-end gap-2">
-                                                <button
-                                                    onClick={() => handleEdit(item)}
-                                                    className="p-2 border-2 border-[var(--theme-primary)] bg-white text-[var(--theme-primary)] hover:bg-[var(--theme-primary-bg)] hover:border-[var(--theme-primary-dark)] rounded-lg transition-all shadow-sm"
-                                                    title="Edit"
-                                                >
-                                                    <Edit className="w-4 h-4" />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDelete(item.id)}
-                                                    className="p-2 border-2 border-red-400 bg-white text-red-700 hover:bg-red-50 hover:border-red-500 rounded-lg transition-all shadow-sm"
-                                                    title="Delete"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
+                                                <Tooltip content="Edit" position="top">
+                                                    <CardIconButton
+                                                        variant="primary"
+                                                        type="button"
+                                                        onClick={() => handleEdit(item)}
+                                                        aria-label="Edit"
+                                                    >
+                                                        <Edit className="h-4 w-4" strokeWidth={2.5} />
+                                                    </CardIconButton>
+                                                </Tooltip>
+                                                <Tooltip content="Delete" position="top">
+                                                    <CardIconButton
+                                                        variant="delete"
+                                                        type="button"
+                                                        onClick={() => setDeleteConfirmId(item.id)}
+                                                        aria-label="Delete"
+                                                    >
+                                                        <Trash2 className="h-4 w-4" strokeWidth={2.5} />
+                                                    </CardIconButton>
+                                                </Tooltip>
                                             </div>
                                         </td>
                                     </tr>
@@ -491,6 +533,7 @@ export default function PharmacyInventory() {
                 )}
             </SectionCard>
         </div>
+        </>
     );
 }
 

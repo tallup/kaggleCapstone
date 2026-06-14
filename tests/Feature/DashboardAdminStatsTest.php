@@ -8,9 +8,9 @@ use App\Models\Facility;
 use App\Models\FireDrill;
 use App\Models\Resident;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
-use Carbon\Carbon;
 
 class DashboardAdminStatsTest extends TestCase
 {
@@ -78,6 +78,16 @@ class DashboardAdminStatsTest extends TestCase
                 'total_residents',
                 'today_appointments',
                 'upcoming_appointments',
+                'module_resource_counts' => [
+                    'assessments',
+                    'sleep',
+                    'housekeeping',
+                    'incidents',
+                    'grocery',
+                    'pharmacy',
+                    'billing',
+                    'fireDrills',
+                ],
             ],
         ]);
     }
@@ -123,4 +133,3 @@ class DashboardAdminStatsTest extends TestCase
         $this->assertTrue($response->json('data') === null || is_array($response->json('data')));
     }
 }
-

@@ -5,6 +5,7 @@ namespace App\Observers;
 use App\Models\Expense;
 use App\Models\Notification;
 use App\Models\User;
+use App\Services\NotificationService;
 use Carbon\Carbon;
 
 class ExpenseObserver
@@ -37,6 +38,8 @@ class ExpenseObserver
         foreach ($admins as $admin) {
             Notification::create([
                 'user_id' => $admin->id,
+                'facility_id' => $expense->facility_id ?? null,
+                'branch_id' => $expense->branch_id ?? null,
                 'type' => 'expense_created',
                 'title' => 'New Expense Created',
                 'message' => "New expense of \${$amount} for '{$expense->description}' ({$categoryName}){$location} was created on {$expenseDate}.",
@@ -51,6 +54,10 @@ class ExpenseObserver
                 ],
             ]);
         }
+
+        // Send email notifications
+        $notificationService = app(NotificationService::class);
+        $notificationService->sendExpenseEmail($expense, $admins, 'created');
     }
 
     /**
@@ -65,9 +72,9 @@ class ExpenseObserver
             // Load relationships
             $expense->load(['category', 'branch', 'facility', 'createdBy']);
 
-            // Get all administrators and managers for the facility
+            // Get all administrators and admins for the facility (only admin and administrator roles)
             $admins = User::where('facility_id', $expense->facility_id)
-                ->whereIn('role', ['administrator', 'admin', 'manager', 'super_admin'])
+                ->whereIn('role', ['administrator', 'admin'])
                 ->where('is_active', true)
                 ->get();
 
@@ -84,6 +91,8 @@ class ExpenseObserver
             foreach ($admins as $admin) {
                 Notification::create([
                     'user_id' => $admin->id,
+                    'facility_id' => $expense->facility_id ?? null,
+                    'branch_id' => $expense->branch_id ?? null,
                     'type' => 'expense_paid',
                     'title' => 'Expense Marked as Paid',
                     'message' => "Expense of \${$amount} for '{$expense->description}' ({$categoryName}){$location} has been marked as paid.",
@@ -98,6 +107,10 @@ class ExpenseObserver
                     ],
                 ]);
             }
+
+            // Send email notifications
+            $notificationService = app(NotificationService::class);
+            $notificationService->sendExpenseEmail($expense, $admins, 'paid');
         }
     }
 
@@ -129,6 +142,8 @@ class ExpenseObserver
         foreach ($admins as $admin) {
             Notification::create([
                 'user_id' => $admin->id,
+                'facility_id' => $expense->facility_id ?? null,
+                'branch_id' => $expense->branch_id ?? null,
                 'type' => 'expense_deleted',
                 'title' => 'Expense Deleted',
                 'message' => "Expense of \${$amount} for '{$expense->description}' ({$categoryName}){$location} has been deleted.",
@@ -142,6 +157,10 @@ class ExpenseObserver
                 ],
             ]);
         }
+
+        // Send email notifications
+        $notificationService = app(NotificationService::class);
+        $notificationService->sendExpenseEmail($expense, $admins, 'deleted');
     }
 }
 

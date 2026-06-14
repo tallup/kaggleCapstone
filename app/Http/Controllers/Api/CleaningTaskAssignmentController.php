@@ -46,6 +46,32 @@ class CleaningTaskAssignmentController extends BaseApiController
 
             $this->authorizeAssignments($request->user(), $cleaningTask);
 
+            // Validate that task has required relationships
+            if (!$cleaningTask->relationLoaded('area')) {
+                $cleaningTask->load('area');
+            }
+            
+            if (!$cleaningTask->area) {
+                \Log::error('Cleaning task missing area relationship', [
+                    'task_id' => $cleaningTask->id,
+                    'task_title' => $cleaningTask->title,
+                ]);
+                return response()->json([
+                    'message' => 'This task is not associated with a cleaning area. Please contact support.',
+                ], 422);
+            }
+
+            if (!$cleaningTask->area->branch_id) {
+                \Log::error('Cleaning area missing branch_id', [
+                    'task_id' => $cleaningTask->id,
+                    'area_id' => $cleaningTask->area->id,
+                    'area_name' => $cleaningTask->area->name,
+                ]);
+                return response()->json([
+                    'message' => 'This task\'s cleaning area is not associated with a branch. Please contact support.',
+                ], 422);
+            }
+
             $data = $request->validate([
                 'user_id' => 'required|exists:users,id',
                 'scheduled_date' => 'required|date',
@@ -171,16 +197,27 @@ class CleaningTaskAssignmentController extends BaseApiController
         }
 
         try {
-            if (!$user->hasPermission('edit_cleaning_areas')) {
+            if (!$user->hasPermission('assign_cleaning_tasks')) {
+                \Log::warning('User lacks permission for caregiver assignment', [
+                    'user_id' => $user->id,
+                    'user_role' => $user->role,
+                ]);
                 abort(403, 'You do not have permission to assign housekeeping tasks.');
             }
+        } catch (\BadMethodCallException $e) {
+            // hasPermission method doesn't exist on user model
+            \Log::error('hasPermission method not available on User model', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+            abort(500, 'Permission system error. Please contact support.');
         } catch (\Exception $e) {
             \Log::error('Error checking permission for caregiver assignment', [
                 'user_id' => $user->id,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
-            abort(403, 'You do not have permission to assign housekeeping tasks.');
+            abort(403, 'Unable to verify permissions. Please contact support.');
         }
 
         // Load area relationship if not already loaded
@@ -233,11 +270,22 @@ class CleaningTaskAssignmentController extends BaseApiController
 
         // Ensure task and area are loaded
         if (!$assignment->relationLoaded('task')) {
-            $assignment->load('task.area');
+            try {
+                $assignment->load('task.area');
+            } catch (\Exception $e) {
+                \Log::warning('Failed to load task relationship for notification', [
+                    'assignment_id' => $assignment->id,
+                    'error' => $e->getMessage(),
+                ]);
+                // Continue without task - notification will use generic text
+            }
         }
 
         $task = $assignment->task;
         if (!$task) {
+            \Log::warning('Assignment has no task - skipping detailed notification', [
+                'assignment_id' => $assignment->id,
+            ]);
             return;
         }
 

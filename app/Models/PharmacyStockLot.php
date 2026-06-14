@@ -61,7 +61,7 @@ class PharmacyStockLot extends Model
 
     public function supplier(): BelongsTo
     {
-        return $this->belongsTo(PharmacySupplier::class, 'supplier_id');
+        return $this->belongsTo(PharmacySupplier::class, 'supplier_id')->withTrashed();
     }
 
     public function transactions(): HasMany

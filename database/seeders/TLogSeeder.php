@@ -17,7 +17,7 @@ class TLogSeeder extends Seeder
      */
     public function run(): void
     {
-        $this->command->info('🌱 Starting T-Log seeding...');
+        $this->command->info('🌱 Starting progress note seeding...');
 
         // Get all facilities (without global scopes to ensure we get all during seeding)
         $facilities = Facility::withoutGlobalScopes()->where('is_active', true)->get();
@@ -34,7 +34,7 @@ class TLogSeeder extends Seeder
             return;
         }
 
-        // T-Log types (matching frontend)
+        // Progress note types (matching frontend)
         $logTypes = ['health', 'notes', 'follow-up', 'behavior', 'contacts', 'general'];
         
         // Notification levels
@@ -139,9 +139,9 @@ class TLogSeeder extends Seeder
                     continue;
                 }
 
-                // Create T-Logs for each resident in this branch
+                // Create progress notes for each resident in this branch
                 foreach ($residents as $resident) {
-                    // Create 2-5 T-Logs per resident
+                    // Create 2-5 progress notes per resident
                     $tLogCount = rand(2, 5);
 
                     for ($i = 0; $i < $tLogCount; $i++) {
@@ -178,7 +178,7 @@ class TLogSeeder extends Seeder
                         $reportedOn = Carbon::now()->subDays(rand(0, 90))
                             ->setTime(rand(6, 22), rand(0, 59));
 
-                        // Create T-Log
+                        // Create progress note
                         TLog::create([
                             'resident_id' => $resident->id,
                             'branch_id' => $branch->id, // Auto-filled from resident, but explicitly set
@@ -197,10 +197,10 @@ class TLogSeeder extends Seeder
                     }
                 }
 
-                $this->command->info("    Created T-Logs for branch: {$branch->name}");
+                $this->command->info("    Created progress notes for branch: {$branch->name}");
             }
         }
 
-        $this->command->info("✅ T-Log seeding completed! Created {$totalTLogs} T-Logs across all facilities and branches.");
+        $this->command->info("✅ Progress note seeding completed! Created {$totalTLogs} progress notes across all facilities and branches.");
     }
 }

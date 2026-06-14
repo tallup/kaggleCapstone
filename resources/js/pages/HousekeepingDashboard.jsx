@@ -1,8 +1,11 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Sparkles, RefreshCcw, CalendarDays, CheckCircle2, XCircle, Clock3, ShieldCheck, FileText, User } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import { Sparkles, RefreshCcw, CalendarDays, CheckCircle2, XCircle, Clock3, ShieldCheck, FileText, User, Building2 } from 'lucide-react';
 import api from '../services/api';
+import logger from '../utils/logger';
 import { getLocalDateString } from '../utils/pacificTime';
+import BranchSelector from '../components/BranchSelector';
 
 const statusOptions = [
     { value: '', label: 'All statuses' },
@@ -24,10 +27,12 @@ const formatTime = (value) => {
 };
 
 export default function HousekeepingDashboard() {
+    const [searchParams] = useSearchParams();
+    const selectedBranchId = searchParams.get('branch');
     const [selectedDate, setSelectedDate] = React.useState(() => getLocalDateString());
     const [areaId, setAreaId] = React.useState('');
     const [status, setStatus] = React.useState('');
-    const [showCompletionReport, setShowCompletionReport] = React.useState(false);
+    const [showCompletionReport, setShowCompletionReport] = React.useState(true);
     const [reportDateFrom, setReportDateFrom] = React.useState(() => {
         const date = new Date();
         date.setDate(date.getDate() - 7);
@@ -38,34 +43,67 @@ export default function HousekeepingDashboard() {
     });
     const [reportDateTo, setReportDateTo] = React.useState(() => getLocalDateString());
 
+    const { data: currentUser } = useQuery({
+        queryKey: ['current-user'],
+        queryFn: async () => {
+            const response = await api.get('/user');
+            return response.data;
+        },
+        staleTime: 5 * 60 * 1000,
+    });
+
     const { data, isLoading, isFetching, error, refetch } = useQuery({
-        queryKey: ['housekeeping-dashboard', selectedDate, areaId, status],
+        queryKey: ['housekeeping-dashboard', selectedDate, areaId, status, selectedBranchId],
         queryFn: async () => {
             const params = { date: selectedDate };
             if (areaId) params.area_id = areaId;
             if (status) params.status = status;
+            if (selectedBranchId) params.branch_id = selectedBranchId;
             const response = await api.get('/cleaning/dashboard', { params });
             return response.data;
         },
+        enabled: !!selectedBranchId, // Only fetch if branch is selected
     });
 
-    const { data: completionReport, isLoading: reportLoading } = useQuery({
-        queryKey: ['housekeeping-completion-report', reportDateFrom, reportDateTo],
+    const { data: completionReport, isLoading: reportLoading, error: reportError } = useQuery({
+        queryKey: ['housekeeping-completion-report', reportDateFrom, reportDateTo, selectedBranchId],
         queryFn: async () => {
             const params = { date_from: reportDateFrom, date_to: reportDateTo };
-            const response = await api.get('/cleaning/completion-report', { params });
-            return response.data;
+            if (selectedBranchId) params.branch_id = selectedBranchId;
+            try {
+                const response = await api.get('/cleaning/completion-report', { params });
+                return response.data;
+            } catch (error) {
+                logger.error('Error fetching completion report:', error);
+                throw error;
+            }
         },
-        enabled: showCompletionReport,
+        enabled: showCompletionReport && !!selectedBranchId,
         staleTime: 60 * 1000, // Cache for 1 minute - reports don't change as frequently
+        retry: 1, // Only retry once on failure
     });
 
     const summary = data?.summary ?? { total: 0, completed: 0, skipped: 0, pending: 0, required_missing: 0 };
     const rows = data?.rows ?? [];
     const areas = data?.areas ?? [];
 
+    // Show branch selector and wait for branch selection
+    if (!selectedBranchId) {
+        return (
+            <div className="space-y-6">
+                <BranchSelector currentUser={currentUser} />
+                <div className="rounded-xl bg-white p-8 text-center shadow-sm ring-1 ring-gray-100">
+                    <Building2 className="mx-auto h-12 w-12 text-gray-400" />
+                    <p className="mt-4 text-sm font-semibold text-gray-700">Please select a branch to continue</p>
+                    <p className="mt-2 text-xs text-gray-500">Select a branch from the dropdown above to view housekeeping dashboard data.</p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-6">
+            <BranchSelector currentUser={currentUser} />
             <header 
                 className="rounded-3xl p-6 text-white shadow-lg" 
                 style={{ 
@@ -271,7 +309,24 @@ export default function HousekeepingDashboard() {
                                 <div className="h-6 w-6 animate-spin rounded-full border-2" style={{ borderColor: 'var(--theme-primary-bg)', borderTopColor: 'var(--theme-primary)' }}></div>
                                 <span className="ml-3">Loading report...</span>
                             </div>
-                        ) : completionReport?.records?.length > 0 ? (
+                        ) : reportError ? (
+                            <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                                <p className="font-semibold mb-1">Unable to load completion report</p>
+                                <p className="text-xs">
+                                    {reportError.response?.data?.message || 
+                                     reportError.response?.data?.error || 
+                                     reportError.message || 
+                                     'Please check your connection and try again.'}
+                                </p>
+                                {reportError.response?.data?.errors && (
+                                    <ul className="mt-2 text-xs list-disc list-inside">
+                                        {Object.entries(reportError.response.data.errors).map(([key, messages]) => (
+                                            <li key={key}>{Array.isArray(messages) ? messages.join(', ') : messages}</li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </div>
+                        ) : completionReport && Array.isArray(completionReport.records) && completionReport.records.length > 0 ? (
                             <div className="overflow-x-auto">
                                 <table className="min-w-full divide-y divide-gray-100">
                                     <thead>
@@ -339,8 +394,26 @@ export default function HousekeepingDashboard() {
                                 </div>
                             </div>
                         ) : (
+                            // Show empty state if no data or if data structure is unexpected
                             <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-8 text-center text-sm text-gray-500">
-                                No completion records found for the selected date range.
+                                <p className="font-medium text-gray-700 mb-1">
+                                    {!completionReport 
+                                        ? 'Report not loaded' 
+                                        : 'No completion records found'}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                    {!completionReport ? (
+                                        <>
+                                            The completion report has not been loaded yet. 
+                                            If this persists, check the browser console for errors.
+                                        </>
+                                    ) : (
+                                        <>
+                                            No completed or skipped tasks found for the selected date range ({reportDateFrom} to {reportDateTo}).
+                                            Try adjusting the date range or complete some tasks to see them here.
+                                        </>
+                                    )}
+                                </p>
                             </div>
                         )}
                     </div>

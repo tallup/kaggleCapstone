@@ -56,7 +56,7 @@ export default function ServerSettings() {
       return response.data;
     },
     onSuccess: () => {
-      toast.showToast('Server settings updated successfully.', 'success');
+      toast.showToast('Server settings updated successfully.', 'success', { isFormSubmission: true });
       queryClient.invalidateQueries(['facility-settings', facilityId, 'server']);
     },
     onError: (error) => {
@@ -100,7 +100,7 @@ export default function ServerSettings() {
     <div className="space-y-6">
       <div className="bg-white rounded-xl shadow-sm p-6 flex items-center space-x-3">
         <div className="h-10 w-10 flex items-center justify-center rounded-lg bg-[var(--theme-primary)]/10 text-[var(--theme-primary)]">
-          <Server className="w-5 h-5" />
+          <Server className="w-5 h-5" strokeWidth={2.5} />
         </div>
         <div>
           <h1 className="text-xl font-semibold text-gray-900">Server Settings</h1>
@@ -166,7 +166,7 @@ export default function ServerSettings() {
           <button
             type="submit"
             disabled={saveMutation.isPending}
-            className="inline-flex items-center justify-center px-5 py-2.5 text-sm font-semibold rounded-lg bg-[var(--theme-primary)] text-white hover:bg-[var(--theme-primary-hover)] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center justify-center px-3 py-2 text-xs sm:px-5 sm:py-2.5 sm:text-sm font-semibold rounded-lg bg-[var(--theme-primary)] text-white hover:bg-[var(--theme-primary-hover)] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {saveMutation.isPending ? 'Saving...' : 'Save Changes'}
           </button>

@@ -1,0 +1,55 @@
+/* Footer link colors */
+footer.bg-gray-900 a,
+footer[class*="bg-gray-900"] a {
+    color: #e5e7eb !important;
+}
+
+footer.bg-gray-900 a:hover,
+footer[class*="bg-gray-900"] a:hover {
+    color: #67e8f9 !important;
+}
+
+/* Behavior chart modal readability */
+.behavior-chart-modal h1,
+.behavior-chart-modal h2,
+.behavior-chart-modal h3,
+.behavior-chart-modal h4,
+.behavior-chart-modal h5,
+.behavior-chart-modal h6,
+.behavior-chart-modal p,
+.behavior-chart-modal label,
+.behavior-chart-modal th,
+.behavior-chart-modal td,
+.behavior-chart-modal span:not([class*="bg-"]) {
+    color: #111827 !important;
+    opacity: 1 !important;
+}
+
+.behavior-chart-modal input,
+.behavior-chart-modal textarea,
+.behavior-chart-modal select,
+.behavior-chart-modal option {
+    color: #111827 !important;
+}
+
+/* Top “Back to Welcome Page” on login — same global theme * rules can force light text on pale background */
+.auth-page-login a.auth-back-link,
+.auth-page-login a.auth-back-link span {
+    color: #0f172a !important;
+}
+.auth-page-login a.auth-back-link:hover,
+.auth-page-login a.auth-back-link:hover span {
+    color: #1d4ed8 !important;
+}
+
+/* Login: theme surface rules (_theme-utilities) can set --theme-text-on-primary on <a>
+   inside white cards (links lack class*="bg-white"), producing white-on-white. */
+.auth-page-login .auth-login-card a[href] {
+    color: #1d4ed8 !important;
+}
+.auth-page-login .auth-login-card a[href]:hover {
+    color: #1e3a8a !important;
+}
+.auth-page-login .auth-login-card .auth-login-help {
+    color: #1f2937 !important;
+}

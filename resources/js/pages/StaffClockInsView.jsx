@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '../services/api';
 import { Clock, User, Calendar, Search, Filter, Download, MapPin } from 'lucide-react';
 import SectionCard from '../components/SectionCard';
 import EmptyState from '../components/ui/EmptyState';
 import { format } from 'date-fns';
+import { useStaffClockUpdates } from '../hooks/useRealtimeUpdates';
+import logger from '../utils/logger';
 
 export default function StaffClockInsView() {
     const [search, setSearch] = useState('');
@@ -15,6 +17,18 @@ export default function StaffClockInsView() {
     const [dateTo, setDateTo] = useState('');
     const [showFilters, setShowFilters] = useState(false);
     const [page, setPage] = useState(1);
+    const [currentUser, setCurrentUser] = useState(null);
+
+    useEffect(() => {
+        api.get('/user')
+            .then((r) => setCurrentUser(r.data))
+            .catch((e) => logger.error('Failed to fetch user:', e));
+    }, []);
+
+    // Real-time: update table immediately when staff clock in or out
+    useStaffClockUpdates(currentUser?.facility_id, { showToast: true });
+    const controlClass = 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-[var(--theme-primary)]';
+    const iconInputClass = 'w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-[var(--theme-primary)]';
 
     // Fetch all staff members (for filter dropdown)
     const { data: staffData } = useQuery({
@@ -133,25 +147,34 @@ export default function StaffClockInsView() {
         );
     };
 
+    const formatDateTime = (value) => {
+        if (!value) return 'N/A';
+        try {
+            return format(new Date(value), 'MM/dd/yyyy HH:mm');
+        } catch (_) {
+            return 'N/A';
+        }
+    };
+
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900">Staff Clock-Ins</h1>
                     <p className="text-sm text-gray-600 mt-1">View and manage all staff clock-in/out records</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                     <button
                         onClick={exportData}
-                        className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                        className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                     >
                         <Download className="w-4 h-4" />
                         Export
                     </button>
                     <button
                         onClick={() => setShowFilters(!showFilters)}
-                        className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                        className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                     >
                         <Filter className="w-4 h-4" />
                         Filters
@@ -174,7 +197,7 @@ export default function StaffClockInsView() {
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
                                     placeholder="Search by name..."
-                                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    className={iconInputClass}
                                 />
                             </div>
                         </div>
@@ -189,7 +212,7 @@ export default function StaffClockInsView() {
                                     setSelectedStaff(e.target.value);
                                     setPage(1);
                                 }}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                className={controlClass}
                             >
                                 <option value="">All Staff</option>
                                 {staffData?.map((staff) => (
@@ -210,7 +233,7 @@ export default function StaffClockInsView() {
                                     setSelectedBranch(e.target.value);
                                     setPage(1);
                                 }}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                className={controlClass}
                             >
                                 <option value="">All Branches</option>
                                 {branchesData?.map((branch) => (
@@ -231,7 +254,7 @@ export default function StaffClockInsView() {
                                     setStatusFilter(e.target.value);
                                     setPage(1);
                                 }}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                className={controlClass}
                             >
                                 <option value="">All Status</option>
                                 <option value="active">Active</option>
@@ -250,7 +273,7 @@ export default function StaffClockInsView() {
                                     setDateFrom(e.target.value);
                                     setPage(1);
                                 }}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                className={controlClass}
                             />
                         </div>
 
@@ -265,7 +288,7 @@ export default function StaffClockInsView() {
                                     setDateTo(e.target.value);
                                     setPage(1);
                                 }}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                className={controlClass}
                             />
                         </div>
 
@@ -322,7 +345,7 @@ export default function StaffClockInsView() {
             <SectionCard>
                 {isLoading ? (
                     <div className="text-center py-12">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--theme-primary)] mx-auto"></div>
                         <p className="text-gray-600 mt-4">Loading clock-ins...</p>
                     </div>
                 ) : filteredClockIns.length === 0 ? (
@@ -333,7 +356,45 @@ export default function StaffClockInsView() {
                     />
                 ) : (
                     <>
-                        <div className="overflow-x-auto">
+                        <div className="md:hidden space-y-3">
+                            {filteredClockIns.map((clockIn) => (
+                                <div key={clockIn.id} className="border border-gray-200 rounded-xl p-4 shadow-sm">
+                                    <div className="flex items-start justify-between gap-3 mb-3">
+                                        <div>
+                                            <p className="font-semibold text-gray-900">{clockIn.staff?.name || 'N/A'}</p>
+                                            <p className="text-xs text-gray-500">{clockIn.branch?.name || 'N/A'}</p>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            {getStatusBadge(clockIn.is_active)}
+                                            {getMethodBadge(clockIn.clock_method)}
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                                        <div>
+                                            <p className="text-xs uppercase tracking-wide text-gray-500">Clock In</p>
+                                            <p className="text-gray-900">{formatDateTime(clockIn.clock_in_at)}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-xs uppercase tracking-wide text-gray-500">Clock Out</p>
+                                            <p className="text-gray-900">{clockIn.clock_out_at ? formatDateTime(clockIn.clock_out_at) : '-'}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-xs uppercase tracking-wide text-gray-500">Hours</p>
+                                            <p className="font-medium text-gray-900">
+                                                {clockIn.total_hours
+                                                    ? `${clockIn.total_hours} hrs`
+                                                    : clockIn.is_active
+                                                        ? 'In Progress'
+                                                        : 'N/A'}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="hidden md:block overflow-x-auto">
                             <table className="w-full">
                                 <thead>
                                     <tr className="border-b border-gray-200">
@@ -361,16 +422,10 @@ export default function StaffClockInsView() {
                                                 {clockIn.branch?.name || 'N/A'}
                                             </td>
                                             <td className="py-3 px-4 text-sm text-gray-600">
-                                                {clockIn.clock_in_at 
-                                                    ? format(new Date(clockIn.clock_in_at), 'MM/dd/yyyy HH:mm')
-                                                    : 'N/A'
-                                                }
+                                                {formatDateTime(clockIn.clock_in_at)}
                                             </td>
                                             <td className="py-3 px-4 text-sm text-gray-600">
-                                                {clockIn.clock_out_at 
-                                                    ? format(new Date(clockIn.clock_out_at), 'MM/dd/yyyy HH:mm')
-                                                    : <span className="text-gray-400">-</span>
-                                                }
+                                                {clockIn.clock_out_at ? formatDateTime(clockIn.clock_out_at) : <span className="text-gray-400">-</span>}
                                             </td>
                                             <td className="py-3 px-4 text-sm font-medium text-gray-900">
                                                 {clockIn.total_hours 

@@ -102,7 +102,7 @@ export default function SuperAdminDashboard() {
       icon: Users,
       color: 'bg-[var(--theme-primary)]',
       hoverColor: 'hover:bg-[var(--theme-primary-hover)]',
-      link: '/administration/users',
+      link: '/team/users',
     },
   ];
 
@@ -149,7 +149,7 @@ export default function SuperAdminDashboard() {
       color: 'text-[var(--theme-primary)]',
       bgColor: 'bg-[var(--theme-primary-bg-light)]',
       hoverColor: 'hover:bg-[var(--theme-primary-bg-light)]',
-      onClick: () => navigate('/administration/users'),
+      onClick: () => navigate('/team/users'),
     },
     {
       title: 'Roles & Permissions',
@@ -184,14 +184,14 @@ export default function SuperAdminDashboard() {
               key={index}
               onClick={() => stat.link && navigate(stat.link)}
               className={`group bg-white rounded-xl shadow-md hover:shadow-2xl transition-all duration-300 border border-gray-100 hover:border-[var(--theme-primary)]/20 ${
-                stat.link ? 'cursor-pointer hover:-translate-y-1' : ''
+                stat.link ? 'cursor-pointer hover:-translate-y-1' : 'cursor-default'
               } ${stat.highlight ? 'ring-2 ring-[var(--theme-primary)] ring-opacity-50' : ''} animate-in fade-in slide-in-from-bottom-4`}
               style={{ animationDelay: `${index * 100}ms` }}
             >
               <div className="p-6">
                 <div className="flex items-center justify-between mb-5">
                   <div className={`p-3.5 rounded-xl bg-gradient-to-br ${stat.color} to-[var(--theme-primary-dark)] text-white shadow-lg group-hover:scale-110 transition-transform duration-300`}>
-                    <Icon className="w-6 h-6" />
+                    <Icon className="w-6 h-6" strokeWidth={2.5} />
                   </div>
                   {stat.highlight && (
                     <span className="px-3 py-1 text-xs font-semibold bg-gradient-to-r from-[var(--theme-secondary)] to-[var(--theme-secondary-light)] text-[var(--theme-primary)] rounded-full shadow-sm animate-pulse">
@@ -222,7 +222,7 @@ export default function SuperAdminDashboard() {
             >
               <div className="flex items-center justify-between mb-5">
                 <div className={`p-3.5 rounded-xl bg-gradient-to-br ${stat.color} to-[var(--theme-primary-dark)] text-white shadow-lg group-hover:scale-110 transition-transform duration-300`}>
-                  <Icon className="w-6 h-6" />
+                  <Icon className="w-6 h-6" strokeWidth={2.5} />
                 </div>
               </div>
               <div>
@@ -250,10 +250,10 @@ export default function SuperAdminDashboard() {
               <button
                 key={index}
                 onClick={action.onClick}
-                className="group p-5 border-2 border-gray-200 rounded-xl hover:border-[var(--theme-primary)]/30 hover:shadow-lg transition-all duration-300 text-left bg-gradient-to-br from-white to-gray-50/50 hover:from-white hover:to-[var(--theme-primary-bg-light)] hover:-translate-y-1"
+                className="group p-5 border-2 border-gray-200 rounded-xl hover:border-[var(--theme-primary)]/30 hover:shadow-lg transition-all duration-300 text-left bg-gradient-to-br from-white to-gray-50/50 hover:from-white hover:to-[var(--theme-primary-bg-light)] hover:-translate-y-1 cursor-pointer"
               >
                 <div className={`w-12 h-12 bg-gradient-to-br ${action.bgColor} to-[var(--theme-primary-bg)] rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-md`}>
-                  <Icon className={`w-6 h-6 ${action.color} group-hover:scale-110 transition-transform`} />
+                  <Icon className={`w-6 h-6 ${action.color} group-hover:scale-110 transition-transform`} strokeWidth={2.5} />
                 </div>
                 <h3 className="font-bold text-gray-900 mb-1.5 group-hover:text-[var(--theme-primary)] transition-colors">{action.title}</h3>
                 <p className="text-sm text-gray-600 leading-relaxed">{action.description}</p>
@@ -273,7 +273,7 @@ export default function SuperAdminDashboard() {
             </div>
             <button
               onClick={() => navigate('/super-admin/facilities')}
-              className="text-sm font-semibold text-[var(--theme-primary)] hover:text-[var(--theme-primary-dark)] transition-colors flex items-center gap-1"
+              className="text-sm font-semibold text-[var(--theme-primary)] hover:text-[var(--theme-primary-dark)] transition-colors flex items-center gap-1 cursor-pointer"
             >
               View All
               <span className="text-lg">→</span>
@@ -314,10 +314,10 @@ export default function SuperAdminDashboard() {
                     </td>
                     <td className="py-4 px-6 text-right">
                       <button
-                        onClick={() => navigate(`/super-admin/facilities?edit=${facility.id}`)}
-                        className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-semibold text-[var(--theme-primary)] hover:bg-[var(--theme-primary-bg-light)] rounded-lg transition-all duration-200 hover:scale-105"
+                        onClick={() => navigate(`/super-admin/facilities?editFacilityId=${facility.id}`)}
+                        className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-semibold text-[var(--theme-primary)] hover:bg-[var(--theme-primary-bg-light)] rounded-lg transition-all duration-200 hover:scale-105 cursor-pointer"
                       >
-                        <Eye className="w-4 h-4" />
+                        <Eye className="w-4 h-4" strokeWidth={2.5} />
                         View
                       </button>
                     </td>
@@ -339,7 +339,7 @@ export default function SuperAdminDashboard() {
             </div>
             <button
               onClick={() => navigate('/super-admin/facility-registrations')}
-              className="text-sm font-semibold text-[var(--theme-primary)] hover:text-[var(--theme-primary-dark)] transition-colors flex items-center gap-1"
+              className="text-sm font-semibold text-[var(--theme-primary)] hover:text-[var(--theme-primary-dark)] transition-colors flex items-center gap-1 cursor-pointer"
             >
               View All
               <span className="text-lg">→</span>
@@ -387,9 +387,9 @@ export default function SuperAdminDashboard() {
                     <td className="py-4 px-6 text-right">
                       <button
                         onClick={() => navigate(`/super-admin/facility-registrations?review=${registration.id}`)}
-                        className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-semibold text-[var(--theme-primary)] hover:bg-[var(--theme-primary-bg-light)] rounded-lg transition-all duration-200 hover:scale-105"
+                        className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-semibold text-[var(--theme-primary)] hover:bg-[var(--theme-primary-bg-light)] rounded-lg transition-all duration-200 hover:scale-105 cursor-pointer"
                       >
-                        <Eye className="w-4 h-4" />
+                        <Eye className="w-4 h-4" strokeWidth={2.5} />
                         Review
                       </button>
                     </td>

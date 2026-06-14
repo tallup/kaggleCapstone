@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import { ArrowLeft, Save, CheckCircle, XCircle, AlertCircle, Search } from 'lucide-react';
 import { useToastContext } from '../contexts/ToastContext';
+import logger from '../utils/logger';
 
 export default function FacilityPermissions({ facilityId, facilityName, onBack }) {
   const { showToast } = useToastContext();
@@ -34,10 +35,9 @@ export default function FacilityPermissions({ facilityId, facilityName, onBack }
     queryFn: async () => {
       try {
         const res = await api.get(`/facilities/${facilityId}/permissions`);
-        console.log('Fetched permissions data:', res.data.data);
         return res.data.data;
       } catch (err) {
-        console.error('Error fetching permissions:', err);
+        logger.error('Error fetching permissions:', err);
         throw err;
       }
     },
@@ -49,13 +49,10 @@ export default function FacilityPermissions({ facilityId, facilityName, onBack }
   // Module update mutation
   const updateModulesMutation = useMutation({
     mutationFn: async (modules) => {
-      console.log('Saving modules:', modules);
       const response = await api.put(`/facilities/${facilityId}/permissions/modules`, { modules });
-      console.log('Save response:', response.data);
       return response.data;
     },
     onSuccess: async (responseData) => {
-      console.log('Save successful, refetching...');
       // Invalidate all related queries
       queryClient.invalidateQueries(['facility-permissions']);
       queryClient.invalidateQueries(['facility-permissions-summary']);
@@ -64,13 +61,12 @@ export default function FacilityPermissions({ facilityId, facilityName, onBack }
       queryClient.invalidateQueries(['current-user']);
       
       // Force a refetch immediately
-      const { data: freshData } = await refetch();
-      console.log('Refetched data:', freshData);
+      await refetch();
       
-      showToast('Modules updated successfully', 'success');
+      showToast('Modules updated successfully', 'success', { isFormSubmission: true });
     },
     onError: (error) => {
-      console.error('Error updating modules:', error);
+      logger.error('Error updating modules:', error);
       const errorMessage = error.response?.data?.message || error.response?.data?.error || 'Failed to update modules';
       showToast(errorMessage, 'error');
     },
@@ -85,7 +81,7 @@ export default function FacilityPermissions({ facilityId, facilityName, onBack }
       queryClient.invalidateQueries(['facility-permissions', facilityId]);
       // Invalidate user data so it refreshes with new permissions
       queryClient.invalidateQueries(['current-user']);
-      showToast('Role permissions updated successfully', 'success');
+      showToast('Role permissions updated successfully', 'success', { isFormSubmission: true });
     },
     onError: (error) => {
       showToast(error.response?.data?.message || 'Failed to update role permissions', 'error');
@@ -101,7 +97,7 @@ export default function FacilityPermissions({ facilityId, facilityName, onBack }
       queryClient.invalidateQueries(['facility-permissions', facilityId]);
       // Invalidate user data so it refreshes with new roles/permissions
       queryClient.invalidateQueries(['current-user']);
-      showToast('Roles created successfully. Refreshing...', 'success');
+      showToast('Roles created successfully. Refreshing...', 'success', { isFormSubmission: true });
       // Refetch after a short delay to show updated data
       setTimeout(() => {
         refetch();

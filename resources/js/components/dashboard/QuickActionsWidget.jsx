@@ -17,7 +17,7 @@ export default function QuickActionsWidget({ isCaregiver = false }) {
         { label: 'Add Appointment', icon: CalendarIcon, link: '/appointments', color: 'bg-green-500 hover:bg-green-600' },
         { label: 'Medication Log', icon: Pill, link: '/medications', color: 'bg-purple-500 hover:bg-purple-600' },
     ] : [
-        { label: 'Add Resident', icon: UserPlus, link: '/administration/residents', color: 'bg-blue-500 hover:bg-blue-600' },
+        { label: 'Add Resident', icon: UserPlus, link: '/organization/residents', color: 'bg-blue-500 hover:bg-blue-600' },
         { label: 'Schedule Appointment', icon: CalendarIcon, link: '/appointments', color: 'bg-green-500 hover:bg-green-600' },
         { label: 'New Assessment', icon: ClipboardList, link: '/assessments', color: 'bg-purple-500 hover:bg-purple-600' },
         { label: 'Schedule Fire Drill', icon: Flame, link: '/fire-drills', color: 'bg-orange-500 hover:bg-orange-600' },

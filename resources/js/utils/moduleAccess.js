@@ -34,6 +34,7 @@ export const MODULE_MAP = {
   
   // Reports module
   '/reports': 'reports',
+  '/reports/analytics': 'reports',
   '/reports/charts': 'reports',
   '/reports/resident-charts': 'reports',
   '/reports/vitals-charts': 'reports',
@@ -43,11 +44,20 @@ export const MODULE_MAP = {
   '/reports/vitals-history': 'reports',
   '/reports/sleep-charts': 'reports',
   '/reports/staff-charts': 'reports',
+  '/reports/care-logs': 'reports',
+  '/reports/inspection-package': 'reports',
+  '/reports/housekeeping': 'housekeeping',
+  '/reports/grocery-status': 'grocery_status',
+  '/reports/fire-drills': 'fire_drills',
+  '/reports/incidents': 'incidents',
+  '/reports/pharmacy': 'pharmacy',
   
   // Residents module
   '/administration/residents': 'residents',
+  '/organization/residents': 'residents',
   '/my-residents': 'residents',
-  
+  '/residents': 'residents',
+
   // Grocery Status module
   '/grocery-status': 'grocery_status',
   
@@ -60,6 +70,12 @@ export const MODULE_MAP = {
   // Leave Requests module
   '/leave-requests': 'leave_requests',
   '/administration/leave-requests': 'leave_requests',
+  '/team/leave-requests': 'leave_requests',
+  
+  // Staff Scheduling module
+  '/staff/schedule': 'staff_scheduling',
+  '/staff/availability': 'staff_scheduling',
+  '/staff/attendance': 'staff_scheduling',
   
   // Billing & Expenses module
   '/billing/expense-categories': 'billing_expenses',

@@ -2,42 +2,26 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
-import { CheckCircle, XCircle, Calendar, Plus, User, Stethoscope, MapPin, ChevronDown, Edit, List, Grid } from 'lucide-react';
-import Card from '../components/Card';
+import { CheckCircle, XCircle, Calendar, Plus, User, Stethoscope, MapPin, ChevronDown, Edit, List, Grid, Building2 } from 'lucide-react';
 import SectionCard from '../components/SectionCard';
 import CalendarView from '../components/CalendarView';
-
-// Profile Image Component with fallback
-function ProfileImage({ resident }) {
-    const [imageError, setImageError] = useState(false);
-
-    if (!resident.profile_image_url && !resident.profile_image || imageError) {
-        return (
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold ${resident.gender?.toLowerCase() === 'male' ? 'bg-blue-500' : 'bg-pink-500'
-                }`}>
-                {resident.first_name?.[0]?.toUpperCase() || ''}{resident.last_name?.[0]?.toUpperCase() || ''}
-            </div>
-        );
-    }
-
-    return (
-        <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-gray-200 flex-shrink-0">
-            <img
-                src={resident.profile_image_url || `/storage/${resident.profile_image}`}
-                alt={`${resident.first_name} ${resident.last_name}`}
-                className="w-full h-full object-cover"
-                onError={() => setImageError(true)}
-            />
-        </div>
-    );
-}
+import BranchSelector from '../components/BranchSelector';
+import EntityCardShell, { EntityCardHeader } from '../components/ui/EntityCardShell';
+import ResidentAvatarInline from '../components/ui/ResidentAvatarInline';
+import DataPill, { DataPillSection } from '../components/ui/DataPill';
+import Tooltip from '../components/ui/Tooltip';
+import Modal from '../components/ui/Modal';
+import logger from '../utils/logger';
+import { toast } from 'sonner';
 
 export default function Appointments() {
     const queryClient = useQueryClient();
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
+    const selectedBranchId = searchParams.get('branch');
+    const headerResidentId = searchParams.get('residentId') || '';
     const [residentFilter, setResidentFilter] = useState('');
-    const [branchFilter, setBranchFilter] = useState('');
+    const effectiveResidentFilter = headerResidentId || residentFilter;
     const highlightedAppointmentId = useRef(null);
     const appointmentRowRefs = useRef({});
     const urlParamsProcessed = useRef(false);
@@ -57,6 +41,14 @@ export default function Appointments() {
         description: '',
         status: 'scheduled',
     });
+    
+    // Auto-fill branch for branch admin users on mount (not facility administrators)
+    React.useEffect(() => {
+        const isBranchAdmin = currentUser?.role === 'admin';
+        if (isBranchAdmin && currentUser?.assigned_branch_id && !formData.branch_id) {
+            setFormData(prev => ({ ...prev, branch_id: currentUser.assigned_branch_id }));
+        }
+    }, [currentUser]);
 
     // Fetch current user
     React.useEffect(() => {
@@ -65,7 +57,7 @@ export default function Appointments() {
                 const response = await api.get('/user');
                 setCurrentUser(response.data);
             } catch (err) {
-                console.error('Failed to fetch current user:', err);
+                logger.error('Failed to fetch current user:', err);
             }
         };
         fetchUser();
@@ -159,34 +151,36 @@ export default function Appointments() {
     // Permission checks
     const isSuperAdmin = currentUser?.role === 'super_admin';
     const isAdmin = currentUser?.role === 'administrator' || currentUser?.role === 'admin';
+    const isFacilityAdmin = currentUser?.role === 'administrator';
+    const isBranchAdmin = currentUser?.role === 'admin';
     const permissions = Array.isArray(currentUser?.permissions) ? currentUser.permissions : [];
-    // Caregivers can create appointments (similar to incidents)
-    const canCreate = isSuperAdmin || isAdmin || isCaregiver || permissions.includes('create_appointments');
+    // Admins bypass; everyone else (including caregivers) needs create_appointments (incl. facility overrides)
+    const canCreate = isSuperAdmin || isAdmin || permissions.includes('create_appointments');
     const canEdit = isSuperAdmin || isAdmin || permissions.includes('edit_appointments');
     const canDelete = isSuperAdmin || isAdmin || permissions.includes('delete_appointments');
 
     // Define queries FIRST before using them in useEffect
     const { data, isLoading, error: appointmentsError, refetch } = useQuery({
-        queryKey: ['appointments', residentFilter, branchFilter],
+        queryKey: ['appointments', effectiveResidentFilter, selectedBranchId],
         queryFn: async () => {
             try {
                 const params = {
                     per_page: 100,
                 };
-                if (residentFilter) {
-                    params.resident_id = residentFilter;
+                if (effectiveResidentFilter) {
+                    params.resident_id = effectiveResidentFilter;
                 }
-                if (branchFilter) {
-                    params.branch_id = branchFilter;
+                if (selectedBranchId) {
+                    params.branch_id = selectedBranchId;
                 }
                 const response = await api.get('/appointments', { params });
                 return response.data;
             } catch (error) {
-                console.error('Error fetching appointments:', error);
+                logger.error('Error fetching appointments:', error);
                 throw error;
             }
         },
-        enabled: !isCaregiver && !!residentFilter, // Only fetch for non-caregivers when resident is selected
+        enabled: !isCaregiver && !!effectiveResidentFilter, // Only fetch for non-caregivers when resident is selected
         retry: 1,
     });
 
@@ -203,7 +197,7 @@ export default function Appointments() {
                     data: branches.filter(b => b.is_active !== false)
                 };
             } catch (error) {
-                console.error('Error fetching branches:', error);
+                logger.error('Error fetching branches:', error);
                 throw error;
             }
         },
@@ -221,31 +215,38 @@ export default function Appointments() {
                 }
                 return (await api.get('/residents', { params })).data;
             } catch (error) {
-                console.error('Error fetching residents:', error);
+                logger.error('Error fetching residents:', error);
                 throw error;
             }
         },
-        enabled: true, // Always enabled, but filters by branch_id
+        enabled: !!selectedBranchId || isCaregiver, // Only fetch if branch is selected (or if caregiver - they have auto-selected branch)
         retry: 1,
     });
 
-    // All residents for filter dropdown (not filtered by branch)
+    // All residents for filter dropdown (filtered by branch)
     const { data: allResidentsData, error: allResidentsError } = useQuery({
-        queryKey: ['all-residents-list', branchFilter],
+        queryKey: ['all-residents-list', selectedBranchId],
         queryFn: async () => {
             try {
                 const params = { per_page: 100 };
-                if (branchFilter) {
-                    params.branch_id = branchFilter;
+                if (selectedBranchId) {
+                    params.branch_id = selectedBranchId;
                 }
                 return (await api.get('/residents', { params })).data;
             } catch (error) {
-                console.error('Error fetching all residents:', error);
+                logger.error('Error fetching all residents:', error);
                 throw error;
             }
         },
+        enabled: !!selectedBranchId || isCaregiver, // Only fetch if branch is selected (or if caregiver - they have auto-selected branch)
         retry: 1,
     });
+
+    const caregiverResidentsList = React.useMemo(() => {
+        const list = allResidentsData?.data || [];
+        if (!headerResidentId) return list;
+        return list.filter((r) => String(r.id) === headerResidentId);
+    }, [allResidentsData, headerResidentId]);
 
     // Read URL parameters on mount and set filters
     useEffect(() => {
@@ -273,10 +274,32 @@ export default function Appointments() {
 
             urlParamsProcessed.current = true;
         } catch (error) {
-            console.error('Error processing URL parameters:', error);
+            logger.error('Error processing URL parameters:', error);
             urlParamsProcessed.current = true;
         }
     }, []); // Only run once on mount
+
+    // Deep link: /appointments?openCreate=1&residentId=… (from legacy /appointments/create/:id)
+    React.useEffect(() => {
+        if (searchParams.get('openCreate') !== '1') return;
+        if (!isCaregiver && !selectedBranchId) return;
+
+        const rid = searchParams.get('residentId');
+        if (rid && !allResidentsData?.data) return;
+
+        const next = new URLSearchParams(searchParams);
+        next.delete('openCreate');
+        setSearchParams(next, { replace: true });
+
+        if (rid) {
+            const id = parseInt(rid, 10);
+            if (!Number.isNaN(id)) {
+                handleOpenAppointmentModal(id);
+            }
+        } else {
+            handleOpenFormManually();
+        }
+    }, [searchParams, isCaregiver, selectedBranchId, allResidentsData]);
 
     // Scroll to and highlight appointment when data is loaded
     useEffect(() => {
@@ -312,7 +335,7 @@ export default function Appointments() {
             // Cleanup function to clear timeout if component unmounts or dependencies change
             return () => clearTimeout(timeoutId);
         } catch (error) {
-            console.error('Error scrolling to appointment:', error);
+            logger.error('Error scrolling to appointment:', error);
         }
     }, [data, setSearchParams]);
 
@@ -333,10 +356,14 @@ export default function Appointments() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries(['appointments']);
+            toast.success('Appointment created successfully', '', { isFormSubmission: true });
             handleCloseForm();
         },
         onError: (error) => {
-            console.error('Error creating appointment:', error);
+            logger.error('Error creating appointment:', error);
+            toast.error(
+                error.response?.data?.message || 'Failed to create appointment. Please try again.'
+            );
         },
     });
 
@@ -344,6 +371,9 @@ export default function Appointments() {
     const [completingAppointment, setCompletingAppointment] = useState(null);
     const [completionNotes, setCompletionNotes] = useState('');
     const [completionDocuments, setCompletionDocuments] = useState([]);
+    const [cancellingAppointment, setCancellingAppointment] = useState(null);
+    const [cancellationStatus, setCancellationStatus] = useState('cancelled');
+    const [cancellationNotes, setCancellationNotes] = useState('');
 
     const handleStatusUpdate = async (id, status, notes = null, documents = []) => {
         try {
@@ -377,14 +407,18 @@ export default function Appointments() {
             setCompletionDocuments([]);
             refetch();
         } catch (error) {
-            console.error('Failed to update appointment status:', error);
-            alert(error.response?.data?.message || 'Failed to complete appointment');
+            logger.error('Failed to update appointment status:', error);
+            toast.error(error.response?.data?.message || 'Failed to complete appointment');
         }
     };
 
     const handleCancel = (id) => {
-        if (window.confirm('Are you sure you want to cancel this appointment?')) {
-            handleStatusUpdate(id, 'cancelled');
+        // Find the appointment object
+        const appointment = data?.data?.find(apt => apt.id === id);
+        if (appointment) {
+            setCancellingAppointment(appointment);
+            setCancellationStatus('cancelled');
+            setCancellationNotes('');
         }
     };
 
@@ -442,9 +476,10 @@ export default function Appointments() {
 
     // Handle opening appointment view for a specific resident
     const handleOpenAppointmentView = (residentId) => {
-        console.log('Navigating to appointment page for resident:', residentId);
-        // Navigate to the create appointment page
-        window.location.href = `/appointments/create/${residentId}`;
+        const qs = new URLSearchParams();
+        qs.set('residentId', String(residentId));
+        qs.set('openCreate', '1');
+        navigate(`/appointments?${qs.toString()}`, { replace: false });
     };
 
 
@@ -454,7 +489,7 @@ export default function Appointments() {
         setFormData(prev => ({
             ...prev,
             resident_id: residentId,
-            branch_id: resident?.branch_id || '',
+            branch_id: selectedBranchId ? String(selectedBranchId) : (resident?.branch_id || ''),
         }));
         setIsPreFilled(true); // Mark as pre-filled
         setShowForm(true);
@@ -463,7 +498,7 @@ export default function Appointments() {
     // Handle opening form manually (not from resident card)
     const handleOpenFormManually = () => {
         setFormData({
-            branch_id: '',
+            branch_id: selectedBranchId ? String(selectedBranchId) : '',
             resident_id: '',
             appointment_date: new Date().toISOString().split('T')[0],
             appointment_time: '',
@@ -481,7 +516,7 @@ export default function Appointments() {
         setShowForm(false);
         setIsPreFilled(false);
         setFormData({
-            branch_id: '',
+            branch_id: selectedBranchId ? String(selectedBranchId) : '',
             resident_id: '',
             appointment_date: new Date().toISOString().split('T')[0],
             appointment_time: '',
@@ -490,81 +525,112 @@ export default function Appointments() {
             description: '',
             status: 'scheduled',
         });
+        const next = new URLSearchParams(searchParams);
+        next.delete('openCreate');
+        setSearchParams(next, { replace: true });
     };
+
+    // Show branch selector and wait for branch selection (for non-caregivers)
+    if (!isCaregiver && !selectedBranchId) {
+        return (
+            <div>
+                <BranchSelector currentUser={currentUser} />
+                <div className="bg-white rounded-xl shadow-sm p-8 text-center">
+                    <Building2 className="mx-auto h-12 w-12 text-gray-400" />
+                    <p className="mt-4 text-sm font-semibold text-gray-700">Please select a branch to continue</p>
+                    <p className="mt-2 text-xs text-gray-500">Select a branch from the dropdown above to view and manage appointments.</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
+            <BranchSelector currentUser={currentUser} />
             {isCaregiver ? (
                 <>
                     {/* Resident Cards Section */}
                     <div>
                         <h3 className="text-lg font-semibold text-gray-900 mb-4">Residents</h3>
-                        {allResidentsData?.data && allResidentsData.data.length > 0 ? (
+                        {caregiverResidentsList.length > 0 ? (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-                                {(allResidentsData.data || []).map((resident) => {
+                                {caregiverResidentsList.map((resident) => {
                                     const nextAppt = getNextAppointment(resident.id);
                                     const age = calculateAge(resident.date_of_birth);
 
-                                    return (
-                                        <div key={resident.id} className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow border border-gray-200 overflow-hidden">
-                                            <div className="p-5">
-                                                {/* Resident Header */}
-                                                <div className="flex items-start justify-between mb-4">
-                                                    <div className="flex-1">
-                                                        <h4 className="text-lg font-semibold text-gray-900 mb-1">
-                                                            {resident.first_name} {resident.last_name}
-                                                        </h4>
-                                                        <div className="flex items-center space-x-4 text-sm text-gray-600">
-                                                            {age !== 'N/A' && (
-                                                                <span className="flex items-center">
-                                                                    <User className="w-4 h-4 mr-1" />
-                                                                    {age} years
-                                                                </span>
-                                                            )}
-                                                            {resident.room_number && (
-                                                                <span className="flex items-center">
-                                                                    <MapPin className="w-4 h-4 mr-1" />
-                                                                    Room {resident.room_number}
-                                                                </span>
-                                                            )}
+                                    const cardContent = (
+                                        <>
+                                            <EntityCardHeader
+                                                left={
+                                                    <div className="flex min-w-0 items-start gap-3">
+                                                        <ResidentAvatarInline resident={resident} className="h-10 w-10 text-xs" />
+                                                        <div className="min-w-0 flex-1">
+                                                            <h4 className="truncate text-lg font-semibold text-gray-900">
+                                                                {resident.first_name} {resident.last_name}
+                                                            </h4>
+                                                            <div className="mt-2 flex flex-wrap gap-2">
+                                                                {age !== 'N/A' && (
+                                                                    <DataPill icon={User}>{age} years</DataPill>
+                                                                )}
+                                                                {resident.room_number && (
+                                                                    <DataPill icon={MapPin}>Room {resident.room_number}</DataPill>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                    <ProfileImage resident={resident} />
-                                                </div>
+                                                }
+                                                right={
+                                                    canCreate ? (
+                                                        <Tooltip content="Add appointment">
+                                                            <span
+                                                                className="inline-flex rounded-lg border border-[var(--theme-primary)]/40 bg-[var(--theme-primary-bg)] p-2 shadow-sm [&_svg]:!text-[var(--theme-primary)]"
+                                                                aria-hidden
+                                                            >
+                                                                <Plus className="h-4 w-4" strokeWidth={2.5} />
+                                                            </span>
+                                                        </Tooltip>
+                                                    ) : null
+                                                }
+                                            />
 
-                                                {/* Resident Info */}
-                                                <div className="space-y-2 mb-4 text-sm">
+                                            {(resident.diagnosis || resident.allergies) && (
+                                                <div className="space-y-3">
                                                     {resident.diagnosis && (
-                                                        <div className="text-gray-600">
-                                                            <span className="font-medium">Diagnosis:</span> {resident.diagnosis}
-                                                        </div>
+                                                        <DataPillSection label="Diagnosis" className="!mt-0">
+                                                            {resident.diagnosis}
+                                                        </DataPillSection>
                                                     )}
                                                     {resident.allergies && (
-                                                        <div className="text-amber-600">
-                                                            <span className="font-medium">Allergies:</span> {resident.allergies}
-                                                        </div>
+                                                        <DataPillSection
+                                                            label="Allergies"
+                                                            className={resident.diagnosis ? '!mt-3' : '!mt-0'}
+                                                        >
+                                                            <span className="text-amber-800">{resident.allergies}</span>
+                                                        </DataPillSection>
                                                     )}
                                                 </div>
+                                            )}
 
-                                                {/* Next Appointment Info */}
-                                                {nextAppt && (
-                                                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-                                                        <div className="flex items-center justify-between">
-                                                            <div>
-                                                                <p className="text-xs text-blue-600 font-medium mb-1">Next Appointment</p>
-                                                                <p className="text-sm font-semibold text-blue-900">
-                                                                    {new Date(nextAppt.appointment_date).toLocaleDateString('en-US', {
-                                                                        month: 'short',
-                                                                        day: 'numeric',
-                                                                        year: 'numeric'
-                                                                    })}
-                                                                </p>
+                                            {nextAppt && (
+                                                <div className="mt-4 rounded-lg border border-slate-200/90 bg-slate-50/90 p-3">
+                                                    <div className="flex items-start justify-between gap-2">
+                                                        <div className="min-w-0">
+                                                            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                                                                Next appointment
+                                                            </p>
+                                                            <DataPill icon={Calendar} className="mt-2 max-w-full">
+                                                                {new Date(nextAppt.appointment_date).toLocaleDateString('en-US', {
+                                                                    month: 'short',
+                                                                    day: 'numeric',
+                                                                    year: 'numeric',
+                                                                })}
                                                                 {nextAppt.appointment_time && (
-                                                                    <p className="text-xs text-blue-700">
+                                                                    <>
+                                                                        {' · '}
                                                                         {(() => {
                                                                             const timeParts = nextAppt.appointment_time.split(':');
                                                                             if (timeParts.length >= 2) {
-                                                                                const hours = parseInt(timeParts[0]) || 0;
+                                                                                const hours = parseInt(timeParts[0], 10) || 0;
                                                                                 const minutes = timeParts[1] || '00';
                                                                                 const hour12 = hours % 12 || 12;
                                                                                 const ampm = hours >= 12 ? 'PM' : 'AM';
@@ -572,36 +638,50 @@ export default function Appointments() {
                                                                             }
                                                                             return '';
                                                                         })()}
-                                                                    </p>
+                                                                    </>
                                                                 )}
-                                                            </div>
-                                                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${nextAppt.status === 'scheduled' ? 'bg-amber-100 text-amber-800' :
-                                                                nextAppt.status === 'confirmed' ? 'bg-[var(--theme-primary-bg)] text-[var(--theme-primary)]' :
-                                                                    'bg-gray-100 text-gray-800'
-                                                                }`}>
-                                                                {nextAppt.status?.charAt(0).toUpperCase() + nextAppt.status?.slice(1)}
-                                                            </span>
+                                                            </DataPill>
                                                         </div>
+                                                        <span
+                                                            className={`shrink-0 rounded-full px-2 py-1 text-xs font-medium ${
+                                                                nextAppt.status === 'scheduled'
+                                                                    ? 'bg-amber-100 text-amber-800'
+                                                                    : nextAppt.status === 'confirmed'
+                                                                      ? 'bg-[var(--theme-primary-bg)] text-[var(--theme-primary)]'
+                                                                      : 'bg-gray-100 text-gray-800'
+                                                            }`}
+                                                        >
+                                                            {nextAppt.status?.charAt(0).toUpperCase() + nextAppt.status?.slice(1)}
+                                                        </span>
                                                     </div>
-                                                )}
+                                                </div>
+                                            )}
+                                        </>
+                                    );
 
-                                                {/* Appointment Button */}
-                                                {canCreate && (
-                                                    <Link
-                                                        to={`/appointments/create/${resident.id}`}
-                                                        onClick={(e) => {
-                                                            e.preventDefault();
-                                                            e.stopPropagation();
-                                                            window.location.href = `/appointments/create/${resident.id}`;
-                                                        }}
-                                                        className="w-full bg-[var(--theme-primary)] hover:bg-[var(--theme-primary-hover)] text-[var(--theme-text-on-primary)] px-4 py-2 rounded-lg transition-colors flex items-center justify-center space-x-2 no-underline"
-                                                    >
-                                                        <Calendar className="w-4 h-4" />
-                                                        <span>Schedule Appointment</span>
-                                                    </Link>
-                                                )}
-                                            </div>
-                                        </div>
+                                    if (canCreate) {
+                                        return (
+                                            <Link
+                                                key={resident.id}
+                                                to={`/appointments/create/${resident.id}`}
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    window.location.href = `/appointments/create/${resident.id}`;
+                                                }}
+                                                className="block rounded-2xl text-inherit no-underline outline-none transition focus-visible:ring-2 focus-visible:ring-[var(--theme-primary)] focus-visible:ring-offset-2"
+                                                aria-label={`Add appointment for ${resident.first_name} ${resident.last_name}`}
+                                            >
+                                                <EntityCardShell className="h-full cursor-pointer">
+                                                    {cardContent}
+                                                </EntityCardShell>
+                                            </Link>
+                                        );
+                                    }
+
+                                    return (
+                                        <EntityCardShell key={resident.id}>
+                                            {cardContent}
+                                        </EntityCardShell>
                                     );
                                 })}
                             </div>
@@ -632,48 +712,46 @@ export default function Appointments() {
                                     <p className="text-sm text-gray-500">Select branch and resident to view appointment history</p>
                                 </div>
                             </div>
-                            {canCreate && (
-                                <button
-                                    onClick={handleOpenFormManually}
-                                    className="inline-flex items-center gap-2 rounded-lg border-2 border-[var(--theme-primary)] bg-[var(--theme-primary)] px-4 py-2 text-sm font-semibold text-[var(--theme-text-on-primary)] hover:bg-[var(--theme-primary-hover)] transition-colors shadow-sm"
-                                >
-                                    <Plus className="h-4 w-4" />
-                                    Add Appointment
-                                </button>
-                            )}
+                            <div className="flex items-center gap-3">
+                                {isAdmin && (
+                                    <Link
+                                        to="/appointments/dashboard"
+                                        className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors shadow-sm"
+                                    >
+                                        <Calendar className="h-4 w-4" />
+                                        Dashboard
+                                    </Link>
+                                )}
+                                {canCreate && (
+                                    <button
+                                        onClick={handleOpenFormManually}
+                                        className="inline-flex items-center gap-2 rounded-lg border-2 border-[var(--theme-primary)] bg-[var(--theme-primary)] px-4 py-2 text-sm font-semibold text-[var(--theme-text-on-primary)] hover:bg-[var(--theme-primary-hover)] transition-colors shadow-sm"
+                                    >
+                                        <Plus className="h-4 w-4" />
+                                        Add Appointment
+                                    </button>
+                                )}
+                            </div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                            {/* Branch Filter */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-900 mb-2">Branch:</label>
-                                <div className="relative">
-                                    <MapPin className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                                    <select
-                                        value={branchFilter}
-                                        onChange={(e) => {
-                                            setBranchFilter(e.target.value);
-                                            setResidentFilter('');
-                                        }}
-                                        className="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent appearance-none bg-white"
-                                    >
-                                        <option value="">All Branches</option>
-                                        {(branchesData?.data || branchesData || []).map(branch => (
-                                            <option key={branch.id} value={branch.id}>{branch.name}</option>
-                                        ))}
-                                    </select>
-                                    <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                                </div>
-                            </div>
-
+                        <div className="grid grid-cols-1 md:grid-cols-1 gap-4 mb-6">
                             {/* Resident Filter */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-900 mb-2">Resident:</label>
                                 <div className="relative">
                                     <User className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                                     <select
-                                        value={residentFilter}
-                                        onChange={(e) => setResidentFilter(e.target.value)}
+                                        value={effectiveResidentFilter}
+                                        onChange={(e) => {
+                                            const v = e.target.value;
+                                            setResidentFilter(v);
+                                            setSearchParams((prev) => {
+                                                const p = new URLSearchParams(prev);
+                                                if (v) p.set('residentId', v);
+                                                else p.delete('residentId');
+                                                return p;
+                                            });
+                                        }}
                                         className="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent appearance-none bg-white"
                                     >
                                         <option value="">All Residents</option>
@@ -707,7 +785,7 @@ export default function Appointments() {
             {/* Appointment History Display */}
             {!isCaregiver && (
                 // Non-caregiver view - Show table or calendar
-                !residentFilter ? (
+                !effectiveResidentFilter ? (
                     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
                         <div className="w-20 h-20 bg-[var(--theme-primary-bg)] rounded-full flex items-center justify-center mx-auto mb-4">
                             <Calendar className="w-10 h-10 text-[var(--theme-primary)]" />
@@ -824,7 +902,69 @@ export default function Appointments() {
                             />
                         ) : data?.data?.length > 0 ? (
                             <div className="bg-white rounded-lg shadow overflow-hidden">
-                                <div className="overflow-x-auto">
+                                <div className="md:hidden p-3 space-y-3">
+                                    {data.data.map((appointment) => {
+                                        if (!appointment) return null;
+                                        const date = appointment.appointment_date ? new Date(appointment.appointment_date) : null;
+                                        const dateStr = date && !isNaN(date.getTime())
+                                            ? date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                                            : 'N/A';
+
+                                        let timeStr = '';
+                                        if (appointment.appointment_time) {
+                                            const timeParts = appointment.appointment_time.split(':');
+                                            if (timeParts.length >= 2) {
+                                                const hours = parseInt(timeParts[0]) || 0;
+                                                const minutes = timeParts[1] || '00';
+                                                const hour12 = hours % 12 || 12;
+                                                const ampm = hours >= 12 ? 'PM' : 'AM';
+                                                timeStr = `${hour12}:${minutes} ${ampm}`;
+                                            }
+                                        }
+
+                                        const statusClasses =
+                                            appointment.status === 'scheduled'
+                                                ? 'bg-amber-100 text-amber-800'
+                                                : appointment.status === 'confirmed'
+                                                    ? 'bg-[var(--theme-primary-bg)] text-[var(--theme-primary)]'
+                                                    : appointment.status === 'completed'
+                                                        ? 'bg-green-100 text-green-700'
+                                                        : appointment.status === 'cancelled'
+                                                            ? 'bg-red-100 text-red-800'
+                                                            : 'bg-gray-100 text-gray-800';
+
+                                        return (
+                                            <div key={appointment.id} className="border border-gray-200 rounded-xl p-4 shadow-sm">
+                                                <div className="flex items-start justify-between gap-3">
+                                                    <div>
+                                                        <p className="text-sm font-semibold text-gray-900">
+                                                            {appointment?.resident?.first_name || ''} {appointment?.resident?.last_name || ''}
+                                                        </p>
+                                                        <p className="text-xs text-gray-500 mt-1">
+                                                            {dateStr}{timeStr ? ` • ${timeStr}` : ''}
+                                                        </p>
+                                                    </div>
+                                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusClasses}`}>
+                                                        {appointment.status?.charAt(0).toUpperCase() + appointment.status?.slice(1)}
+                                                    </span>
+                                                </div>
+
+                                                <div className="mt-3 space-y-2 text-sm">
+                                                    <div>
+                                                        <p className="text-xs uppercase tracking-wide text-gray-500">Type</p>
+                                                        <p className="text-gray-900">{appointment?.appointment_type?.name || appointment?.appointmentType?.name || 'Other'}</p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-xs uppercase tracking-wide text-gray-500">Details</p>
+                                                        <p className="text-gray-900">{appointment?.description || appointment?.provider_name || '-'}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+
+                                <div className="hidden md:block overflow-x-auto">
                                     <table className="min-w-full divide-y divide-gray-200">
                                         <thead className="bg-gray-50">
                                             <tr>
@@ -870,7 +1010,7 @@ export default function Appointments() {
                                                             timeStr = `${hour12}:${minutes} ${ampm}`;
                                                         }
                                                     } catch (err) {
-                                                        console.error('Error parsing appointment time:', err);
+                                                        logger.error('Error parsing appointment time:', err);
                                                     }
                                                 }
 
@@ -889,7 +1029,7 @@ export default function Appointments() {
                                                                     appointmentRowRefs.current[String(appointment.id)] = el;
                                                                 }
                                                             } catch (err) {
-                                                                console.error('Error setting ref:', err);
+                                                                logger.error('Error setting ref:', err);
                                                             }
                                                         }}
                                                         className={`hover:bg-gray-50 transition-all duration-500 ${isHighlighted
@@ -953,8 +1093,14 @@ export default function Appointments() {
                 )
             )}
 
-            {showForm && (
+            <Modal
+                isOpen={showForm}
+                onClose={handleCloseForm}
+                title="Add Appointment"
+                size="xl"
+            >
                 <AddAppointmentModal
+                    inModal
                     branches={branchesData?.data || branchesData || []}
                     residents={residentsData?.data || residentsData || []}
                     formData={formData}
@@ -965,17 +1111,24 @@ export default function Appointments() {
                     mutation={createMutation}
                     isPreFilled={isPreFilled}
                     appointmentTypes={appointmentTypes}
+                    currentUser={currentUser}
+                    isFacilityAdmin={isFacilityAdmin}
+                    isBranchAdmin={isBranchAdmin}
+                    selectedBranchId={selectedBranchId}
                 />
-            )}
+            </Modal>
 
-            {/* Completion Notes Modal */}
-            {completingAppointment && (
-                <div className="fixed inset-0 backdrop-blur-md bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-                    <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-                        <div className="p-6 border-b">
-                            <h3 className="text-xl font-semibold text-gray-900">Complete Appointment</h3>
-                        </div>
-                        <div className="p-6 space-y-6">
+            <Modal
+                isOpen={completingAppointment != null}
+                onClose={() => {
+                    setCompletingAppointment(null);
+                    setCompletionNotes('');
+                    setCompletionDocuments([]);
+                }}
+                title="Complete appointment"
+                size="xl"
+            >
+                <div className="space-y-6">
                             <div>
                                 <label className="block text-sm font-bold text-gray-900 mb-1">
                                     Appointment Outcome / Notes (Optional)
@@ -1105,9 +1258,10 @@ export default function Appointments() {
                                     </div>
                                 )}
                             </div>
-                        </div>
-                        <div className="p-6 border-t flex items-center justify-end space-x-3">
+                </div>
+                <div className="flex items-center justify-end space-x-3 border-t border-gray-200 pt-4 mt-6">
                             <button
+                                type="button"
                                 onClick={() => {
                                     setCompletingAppointment(null);
                                     setCompletionNotes('');
@@ -1118,13 +1272,14 @@ export default function Appointments() {
                                 Cancel
                             </button>
                             <button
+                                type="button"
                                 onClick={() => {
                                     // Validate documents
                                     const validDocuments = completionDocuments.filter(doc =>
                                         doc.document_name && doc.document_type && doc.file
                                     );
                                     if (completionDocuments.length > 0 && validDocuments.length !== completionDocuments.length) {
-                                        alert('Please fill in all required fields for documents');
+                                        toast.warning('Please fill in all required fields for documents');
                                         return;
                                     }
                                     handleStatusUpdate(completingAppointment, 'completed', completionNotes || null, validDocuments);
@@ -1134,15 +1289,116 @@ export default function Appointments() {
                                 Mark as Completed
                             </button>
                         </div>
-                    </div>
-                </div>
-            )}
+            </Modal>
+
+            <Modal
+                isOpen={cancellingAppointment != null}
+                onClose={() => {
+                    setCancellingAppointment(null);
+                    setCancellationStatus('cancelled');
+                    setCancellationNotes('');
+                }}
+                title="Update appointment status"
+                size="xl"
+            >
+                <p className="text-sm text-gray-600 mb-4">Select the appointment status and add any comments.</p>
+                <div className="space-y-6">
+                            {/* Status Dropdown */}
+                            <div>
+                                <label className="block text-base font-semibold text-gray-900 mb-2" style={{ color: '#111827', fontWeight: 700 }}>
+                                    Appointment Status *
+                                </label>
+                                <select
+                                    value={cancellationStatus}
+                                    onChange={(e) => setCancellationStatus(e.target.value)}
+                                    required
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
+                                >
+                                    <option value="">- Please Select -</option>
+                                    <option value="scheduled">Scheduled</option>
+                                    <option value="confirmed">Confirmed</option>
+                                    <option value="in_progress">In Progress</option>
+                                    <option value="completed">Completed</option>
+                                    <option value="cancelled">Cancelled</option>
+                                    <option value="no_show">No Show</option>
+                                    <option value="rescheduled">Rescheduled</option>
+                                </select>
+                            </div>
+
+                            {/* Notes/Comments */}
+                            <div>
+                                <label className="block text-base font-semibold text-gray-900 mb-2" style={{ color: '#111827', fontWeight: 700 }}>
+                                    Comments (Optional)
+                                </label>
+                                <textarea
+                                    value={cancellationNotes}
+                                    onChange={(e) => setCancellationNotes(e.target.value)}
+                                    rows={4}
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
+                                    placeholder="Enter any comments or notes about this status change..."
+                                />
+                            </div>
+
+                            {/* Appointment Info */}
+                            {cancellingAppointment && (
+                                <div className="bg-gray-50 p-4 rounded-lg">
+                                    <p className="text-sm text-gray-600">
+                                        <strong>Resident:</strong> {cancellingAppointment.resident?.name || (cancellingAppointment.resident?.first_name + ' ' + cancellingAppointment.resident?.last_name)}
+                                    </p>
+                                    <p className="text-sm text-gray-600 mt-1">
+                                        <strong>Date:</strong> {new Date(cancellingAppointment.appointment_date).toLocaleDateString()}
+                                    </p>
+                                    {cancellingAppointment.appointment_time && (
+                                        <p className="text-sm text-gray-600 mt-1">
+                                            <strong>Time:</strong> {cancellingAppointment.appointment_time}
+                                        </p>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                <div className="flex items-center justify-end space-x-3 border-t border-gray-200 pt-4 mt-6">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setCancellingAppointment(null);
+                                    setCancellationStatus('cancelled');
+                                    setCancellationNotes('');
+                                }}
+                                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-all"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (!cancellationStatus) {
+                                        toast.warning('Please select an appointment status');
+                                        return;
+                                    }
+                                    handleStatusUpdate(cancellingAppointment.id, cancellationStatus, cancellationNotes || null);
+                                    setCancellingAppointment(null);
+                                    setCancellationStatus('cancelled');
+                                    setCancellationNotes('');
+                                }}
+                                className="px-4 py-2 bg-[var(--theme-primary)] text-white rounded-lg hover:bg-[var(--theme-primary-hover)] transition-all"
+                            >
+                                Update Status
+                            </button>
+                        </div>
+            </Modal>
         </div>
     );
 }
 
-function AddAppointmentModal({ branches, residents, formData, setFormData, onClose, onSubmit, isSubmitting, mutation, isPreFilled = false, appointmentTypes = [] }) {
+function AddAppointmentModal({ branches, residents, formData, setFormData, onClose, onSubmit, isSubmitting, mutation, isPreFilled = false, appointmentTypes = [], currentUser, isFacilityAdmin, isBranchAdmin, selectedBranchId, inModal = false }) {
     const [errors, setErrors] = React.useState({});
+    
+    // Ensure branch_id is set from selectedBranchId if provided
+    React.useEffect(() => {
+        if (selectedBranchId && !formData.branch_id) {
+            setFormData(prev => ({ ...prev, branch_id: String(selectedBranchId) }));
+        }
+    }, [selectedBranchId]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -1161,43 +1417,43 @@ function AddAppointmentModal({ branches, residents, formData, setFormData, onClo
         onSubmit();
     };
 
-    return (
-        <div className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50 p-4" style={{ backgroundColor: 'rgba(0, 0, 0, 0.1)' }}>
-            <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-                <div className="p-6 border-b flex items-center justify-between">
-                    <h3 className="text-xl font-semibold text-gray-900">Add Appointment</h3>
-                    <button onClick={onClose} className="text-gray-500 hover:text-gray-700 text-2xl">×</button>
-                </div>
+    const formInner = (
                 <form onSubmit={handleSubmit}>
-                    <div className="p-6 space-y-6">
+                    <div className={`${inModal ? 'space-y-6' : 'p-6 space-y-6'}`}>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                                <label className="block text-sm font-bold text-gray-900 mb-1">
-                                    Branch
-                                </label>
-                                <div className="relative">
-                                    <select
-                                        value={formData.branch_id}
-                                        onChange={(e) => {
-                                            setFormData({
-                                                ...formData,
-                                                branch_id: e.target.value,
-                                                resident_id: '' // Reset resident when branch changes
-                                            });
-                                            setErrors({ ...errors, branch_id: null, resident_id: null });
-                                        }}
-                                        disabled={isPreFilled}
-                                        className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent ${isPreFilled ? 'bg-gray-100 cursor-not-allowed opacity-75' : ''
-                                            }`}
-                                    >
-                                        <option value="">All Branches</option>
-                                        {(branches || []).map(branch => (
-                                            <option key={branch.id} value={branch.id}>{branch.name}</option>
-                                        ))}
-                                    </select>
+                            {/* Branch Selection - Only show if branch not already selected from URL */}
+                            {!selectedBranchId ? (
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-900 mb-1">
+                                        Branch
+                                    </label>
+                                    <div className="relative">
+                                        <select
+                                            value={formData.branch_id}
+                                            onChange={(e) => {
+                                                setFormData({
+                                                    ...formData,
+                                                    branch_id: e.target.value,
+                                                    resident_id: '' // Reset resident when branch changes
+                                                });
+                                                setErrors({ ...errors, branch_id: null, resident_id: null });
+                                            }}
+                                            disabled={isPreFilled || (!isFacilityAdmin && isBranchAdmin && currentUser?.assigned_branch_id)}
+                                            className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent ${isPreFilled || (!isFacilityAdmin && isBranchAdmin && currentUser?.assigned_branch_id) ? 'bg-gray-100 cursor-not-allowed opacity-75' : ''
+                                                }`}
+                                        >
+                                            <option value="">All Branches</option>
+                                            {(branches || []).map(branch => (
+                                                <option key={branch.id} value={branch.id}>{branch.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    {errors.branch_id && <p className="text-xs text-red-600 mt-1">{errors.branch_id}</p>}
                                 </div>
-                                {errors.branch_id && <p className="text-xs text-red-600 mt-1">{errors.branch_id}</p>}
-                            </div>
+                            ) : (
+                                // Branch is selected from URL, use it as hidden field
+                                <input type="hidden" value={selectedBranchId.toString()} />
+                            )}
                             <div>
                                 <label className="block text-sm font-bold text-gray-900 mb-1">
                                     Resident *
@@ -1321,7 +1577,7 @@ function AddAppointmentModal({ branches, residents, formData, setFormData, onClo
                             </div>
                         )}
                     </div>
-                    <div className="p-6 border-t flex items-center justify-end space-x-3">
+                    <div className={`${inModal ? 'pt-4 mt-4 border-t border-gray-200' : 'p-6 border-t'} flex items-center justify-end space-x-3`}>
                         <button
                             type="button"
                             onClick={onClose}
@@ -1338,9 +1594,9 @@ function AddAppointmentModal({ branches, residents, formData, setFormData, onClo
                         </button>
                     </div>
                 </form>
-            </div>
-        </div>
     );
+
+    return formInner;
 }
 
 

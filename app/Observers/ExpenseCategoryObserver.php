@@ -5,6 +5,7 @@ namespace App\Observers;
 use App\Models\ExpenseCategory;
 use App\Models\Notification;
 use App\Models\User;
+use App\Services\NotificationService;
 
 class ExpenseCategoryObserver
 {
@@ -30,6 +31,8 @@ class ExpenseCategoryObserver
         foreach ($admins as $admin) {
             Notification::create([
                 'user_id' => $admin->id,
+                'facility_id' => $category->facility_id ?? null,
+                'branch_id' => $category->branch_id ?? null,
                 'type' => 'expense_category_created',
                 'title' => 'Expense Category Created',
                 'message' => "New expense category '{$category->name}' ({$category->type}) has been created.",
@@ -43,6 +46,10 @@ class ExpenseCategoryObserver
                 ],
             ]);
         }
+
+        // Send email notifications
+        $notificationService = app(NotificationService::class);
+        $notificationService->sendExpenseCategoryEmail($category, $admins, 'created');
     }
 
     /**
@@ -67,6 +74,8 @@ class ExpenseCategoryObserver
         foreach ($admins as $admin) {
             Notification::create([
                 'user_id' => $admin->id,
+                'facility_id' => $category->facility_id ?? null,
+                'branch_id' => $category->branch_id ?? null,
                 'type' => 'expense_category_updated',
                 'title' => 'Expense Category Updated',
                 'message' => "Expense category '{$category->name}' has been updated.",
@@ -79,6 +88,10 @@ class ExpenseCategoryObserver
                 ],
             ]);
         }
+
+        // Send email notifications
+        $notificationService = app(NotificationService::class);
+        $notificationService->sendExpenseCategoryEmail($category, $admins, 'updated');
     }
 
     /**
@@ -101,6 +114,8 @@ class ExpenseCategoryObserver
         foreach ($admins as $admin) {
             Notification::create([
                 'user_id' => $admin->id,
+                'facility_id' => $category->facility_id ?? null,
+                'branch_id' => $category->branch_id ?? null,
                 'type' => 'expense_category_deleted',
                 'title' => 'Expense Category Deleted',
                 'message' => "Expense category '{$category->name}' has been deleted.",
@@ -113,6 +128,10 @@ class ExpenseCategoryObserver
                 ],
             ]);
         }
+
+        // Send email notifications
+        $notificationService = app(NotificationService::class);
+        $notificationService->sendExpenseCategoryEmail($category, $admins, 'deleted');
     }
 }
 

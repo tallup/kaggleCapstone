@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Services\ActivityLogService;
 use App\Services\LocationService;
 use App\Models\Facility;
+use App\Models\StaffClockIn;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -39,12 +40,12 @@ class AuthController extends Controller
                 ], 422);
             }
             
-            // Find facility by provider code
+            // Find facility by provider code (excludes soft-deleted)
             $facility = Facility::whereRaw('LOWER(provider_code) = ?', [strtolower($request->provider_code)])->first();
             
-            if (!$facility) {
+            if (!$facility || !$facility->is_active) {
                 return response()->json([
-                    'message' => 'Invalid provider code',
+                    'message' => 'Invalid provider code or facility is no longer active.',
                 ], 422);
             }
             
@@ -65,9 +66,20 @@ class AuthController extends Controller
                     'message' => 'Invalid credentials',
                 ], 401);
             }
-            
-            // Manually log in the user
-            Auth::login($user);
+
+            if (!$user->is_active) {
+                return response()->json([
+                    'message' => 'This account has been deactivated. Please contact an administrator.',
+                ], 403);
+            }
+
+            if ($request->hasSession()) {
+                $request->session()->flush();
+            }
+            Auth::guard('web')->login($user);
+            if ($request->hasSession()) {
+                $request->session()->regenerate();
+            }
         } else {
             // Single facility or no facility - use normal authentication
             // Try to find the user first to verify they exist
@@ -101,30 +113,62 @@ class AuthController extends Controller
                     'message' => 'This account has been deactivated. Please contact an administrator.',
                 ], 403);
             }
-            
-            // Clear any existing session before logging in to avoid conflicts
-            if ($request->hasSession()) {
-                $request->session()->invalidate();
-                $request->session()->regenerateToken();
+
+            // Block login if user belongs to a deleted or inactive facility
+            if ($user->facility_id) {
+                $userFacility = Facility::find($user->facility_id);
+                if (!$userFacility || !$userFacility->is_active) {
+                    return response()->json([
+                        'message' => 'This facility is no longer active. Please contact an administrator.',
+                    ], 403);
+                }
             }
             
-            // Manually log in the user
-            Auth::login($user, true);
+            // Clear guest session data without invalidate() — invalidating before login can 500 on the
+            // first POST after an expired/stale session cookie (session driver edge case).
+            if ($request->hasSession()) {
+                $request->session()->flush();
+            }
+
+            Auth::guard('web')->login($user, true);
+            if ($request->hasSession()) {
+                $request->session()->regenerate();
+            }
         }
 
-        if (Auth::check()) {
+        if (Auth::guard('web')->check()) {
             /** @var \App\Models\User $user */
-            $user = Auth::user();
+            $user = Auth::guard('web')->user();
 
             if (!$user?->is_active) {
                 // Immediately end the session and block login for inactive accounts
-                Auth::logout();
-                $request->session()->invalidate();
-                $request->session()->regenerateToken();
+                Auth::guard('web')->logout();
+                if ($request->hasSession()) {
+                    $request->session()->invalidate();
+                    $request->session()->regenerateToken();
+                }
 
                 return response()->json([
                     'message' => 'This account has been deactivated. Please contact an administrator.',
                 ], 403);
+            }
+
+            // Block access if user's facility has been deleted or marked inactive
+            if ($user->facility_id) {
+                $userFacility = Facility::find($user->facility_id);
+                if (!$userFacility || !$userFacility->is_active) {
+                    // Revoke tokens before clearing auth (after logout, $request->user() is null)
+                    $user->tokens()->delete();
+                    Auth::guard('web')->logout();
+                    if ($request->hasSession()) {
+                        $request->session()->invalidate();
+                        $request->session()->regenerateToken();
+                    }
+
+                    return response()->json([
+                        'message' => 'This facility is no longer active. Please contact an administrator.',
+                    ], 403);
+                }
             }
 
             // Validate provider code if provided (for single-facility emails, provider_code is optional but validated if provided)
@@ -134,21 +178,25 @@ class AuthController extends Controller
                     // Find facility by provider code (case-insensitive)
                     $facility = Facility::whereRaw('LOWER(provider_code) = ?', [strtolower($request->provider_code)])->first();
 
-                    if (!$facility) {
-                        Auth::logout();
-                        $request->session()->invalidate();
-                        $request->session()->regenerateToken();
+                    if (!$facility || !$facility->is_active) {
+                        Auth::guard('web')->logout();
+                        if ($request->hasSession()) {
+                            $request->session()->invalidate();
+                            $request->session()->regenerateToken();
+                        }
 
                         return response()->json([
-                            'message' => 'Invalid provider code',
+                            'message' => 'Invalid provider code or facility is no longer active.',
                         ], 422);
                     }
 
                     // Verify user belongs to this facility
                     if ($user->facility_id !== $facility->id) {
-                        Auth::logout();
-                        $request->session()->invalidate();
-                        $request->session()->regenerateToken();
+                        Auth::guard('web')->logout();
+                        if ($request->hasSession()) {
+                            $request->session()->invalidate();
+                            $request->session()->regenerateToken();
+                        }
 
                         return response()->json([
                             'message' => 'You don\'t belong to this facility',
@@ -163,9 +211,11 @@ class AuthController extends Controller
             
             if ($locationCheckResult !== null) {
                 // Location check failed
-                Auth::logout();
-                $request->session()->invalidate();
-                $request->session()->regenerateToken();
+                Auth::guard('web')->logout();
+                if ($request->hasSession()) {
+                    $request->session()->invalidate();
+                    $request->session()->regenerateToken();
+                }
 
                 return response()->json([
                     'message' => $locationCheckResult['message'],
@@ -174,18 +224,36 @@ class AuthController extends Controller
             }
 
             $token = $user->createToken('api-token')->plainTextToken;
-            
-            // Regenerate session to prevent session fixation attacks
-            $request->session()->regenerate();
 
-            // Log login
-            ActivityLogService::login($user, [
-                'ip_address' => $request->ip(),
-                'user_agent' => $request->userAgent(),
-            ]);
+            // Log login (non-fatal — activity log failures must not block sign-in)
+            try {
+                ActivityLogService::login($user, [
+                    'ip_address' => $request->ip(),
+                    'user_agent' => $request->userAgent(),
+                ]);
+            } catch (\Throwable $e) {
+                Log::warning('Activity log login failed', [
+                    'user_id' => $user->id,
+                    'message' => $e->getMessage(),
+                ]);
+            }
+
+            // Automatically clock in the user if they have an assigned branch
+            $this->autoClockIn($user, $request);
+
+            try {
+                $userPayload = $this->transformUser($user);
+            } catch (\Throwable $e) {
+                Log::error('transformUser failed during login', [
+                    'user_id' => $user->id,
+                    'message' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                ]);
+                $userPayload = $this->minimalLoginUserPayload($user);
+            }
 
             return response()->json([
-                'user' => $this->transformUser($user),
+                'user' => $userPayload,
                 'token' => $token,
             ]);
         }
@@ -198,16 +266,26 @@ class AuthController extends Controller
     public function logout(Request $request): JsonResponse
     {
         $user = $request->user();
-        
-        // Log logout before deleting tokens
+
+        // Automatically clock out the user if they're clocked in
         if ($user) {
+            $this->autoClockOut($user, $request);
+
+            // Log logout before deleting tokens
             ActivityLogService::logout($user, [
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),
             ]);
+
+            $user->tokens()->delete();
         }
-        
-        $request->user()->tokens()->delete();
+
+        // Clear web session guard so the next login does not inherit a stale session (avoids edge-case 500s)
+        if ($request->hasSession()) {
+            Auth::guard('web')->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+        }
 
         return response()->json([
             'message' => 'Logged out successfully',
@@ -220,6 +298,14 @@ class AuthController extends Controller
             $user = $request->user();
             if (!$user) {
                 return response()->json(['message' => 'Unauthenticated'], 401);
+            }
+            // Reject if user's facility has been deleted or marked inactive (so frontend redirects to login)
+            if ($user->facility_id) {
+                $facility = Facility::find($user->facility_id);
+                if (!$facility || !$facility->is_active) {
+                    $request->user()->currentAccessToken()->delete();
+                    return response()->json(['message' => 'This facility is no longer active.'], 401);
+                }
             }
             return response()->json($this->transformUser($user));
         } catch (\Exception $e) {
@@ -258,6 +344,169 @@ class AuthController extends Controller
         ]);
     }
 
+    public function refreshToken(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
+        $request->user()->currentAccessToken()->delete();
+
+        $newToken = $user->createToken('api-token')->plainTextToken;
+
+        return response()->json([
+            'token' => $newToken,
+            'token_issued_at' => now()->toIso8601String(),
+        ]);
+    }
+
+    public function validateToken(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['valid' => false], 401);
+        }
+
+        // Invalidate token if user's facility has been deleted or marked inactive
+        if ($user->facility_id) {
+            $facility = Facility::find($user->facility_id);
+            if (!$facility || !$facility->is_active) {
+                $request->user()->currentAccessToken()->delete();
+                return response()->json(['valid' => false], 401);
+            }
+        }
+
+        return response()->json([
+            'valid' => true,
+            'user_id' => $user->id,
+        ]);
+    }
+
+    public function updateCredentials(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'current_password' => 'required|string',
+            'email' => 'nullable|email|max:255',
+            'password' => 'nullable|string|min:8|confirmed',
+        ]);
+
+        $user = $request->user();
+
+        if (!Hash::check($validated['current_password'], $user->password)) {
+            return response()->json([
+                'message' => 'Current password is incorrect',
+            ], 422);
+        }
+
+        $newEmail = isset($validated['email']) ? strtolower(trim($validated['email'])) : null;
+        $hasEmailChange = $newEmail !== null && $newEmail !== '' && $newEmail !== $user->email;
+        $hasPasswordChange = !empty($validated['password']);
+
+        if (!$hasEmailChange && !$hasPasswordChange) {
+            return response()->json([
+                'message' => 'No credential changes were provided',
+            ], 422);
+        }
+
+        if ($hasEmailChange) {
+            $emailQuery = \App\Models\User::query()
+                ->where('email', $newEmail)
+                ->where('id', '!=', $user->id);
+
+            if ($user->facility_id) {
+                $emailQuery->where('facility_id', $user->facility_id);
+            } else {
+                $emailQuery->whereNull('facility_id');
+            }
+
+            if ($emailQuery->exists()) {
+                return response()->json([
+                    'message' => 'That email is already in use',
+                ], 422);
+            }
+
+            $user->email = $newEmail;
+        }
+
+        if ($hasPasswordChange) {
+            $user->password = Hash::make($validated['password']);
+        }
+
+        $user->save();
+
+        return response()->json([
+            'message' => 'Credentials updated successfully',
+            'user' => $this->transformUser($user->fresh()),
+        ]);
+    }
+
+    /**
+     * Minimal user payload when full transformUser fails (keeps sign-in working).
+     */
+    protected function minimalLoginUserPayload(\App\Models\User $user): array
+    {
+        try {
+            $user->loadMissing(['assignedBranch', 'facility']);
+        } catch (\Throwable $e) {
+            Log::warning('minimalLoginUserPayload: loadMissing failed', [
+                'user_id' => $user->id,
+                'message' => $e->getMessage(),
+            ]);
+        }
+
+        $facility = null;
+        try {
+            $facility = $user->facility ?? ($user->assignedBranch ? $user->assignedBranch->facility : null);
+        } catch (\Throwable $e) {
+            Log::warning('minimalLoginUserPayload: facility resolve failed', [
+                'user_id' => $user->id,
+                'message' => $e->getMessage(),
+            ]);
+        }
+
+        $brandingName = 'HomeLogic360';
+        if ($facility && $facility->name) {
+            $brandingName = $facility->name;
+        }
+
+        $tz = config('app.timezone', 'UTC');
+        $now = Carbon::now($tz);
+
+        return [
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'role' => $user->role,
+            'facility_id' => $user->facility_id,
+            'assigned_branch_id' => $user->assigned_branch_id,
+            'facility_branding' => [
+                'name' => $brandingName,
+                'logo' => asset('images/logonew.png'),
+                'primary_color' => '#1E3A5F',
+                'secondary_color' => '#86EFAC',
+                'accent_color' => '#FFFFFF',
+            ],
+            'enabled_modules' => ($user->role === 'super_admin' || $user->hasRole('super_admin'))
+                ? array_keys(\App\Constants\Modules::all())
+                : [],
+            'permissions' => [],
+            'report_context' => [
+                'facility_name' => $facility ? $facility->name : $brandingName,
+                'facility_address' => $facility ? (string) ($facility->address ?? '') : '',
+                'facility_phone' => $facility ? (string) ($facility->phone ?? '') : '',
+                'branch_name' => $user->assignedBranch ? $user->assignedBranch->name : null,
+                'branch_address' => $user->assignedBranch ? (string) ($user->assignedBranch->address ?? '') : '',
+            ],
+            'app_timezone' => $tz,
+            'app_timezone_abbr' => $now->format('T'),
+            'app_timezone_offset' => $now->format('P'),
+            'app_current_time' => $now->toIso8601String(),
+        ];
+    }
+
     /**
      * Attach application timezone metadata to the user payload.
      */
@@ -292,11 +541,9 @@ class AuthController extends Controller
         if ($facility) {
             $payload['facility_branding'] = $facility->branding;
             
-            // Include enabled modules for this facility
-            $enabledModules = $facility->modules()
-                ->where('is_enabled', true)
-                ->pluck('module')
-                ->toArray();
+            // Include enabled modules for this facility (hasModuleAccess treats "no record" as enabled)
+            $allModuleKeys = array_keys(\App\Constants\Modules::all());
+            $enabledModules = array_values(array_filter($allModuleKeys, fn ($key) => $facility->hasModuleAccess($key)));
             $payload['enabled_modules'] = $enabledModules;
         } else {
             // Default branding for super admin / HomeLogic360
@@ -316,10 +563,28 @@ class AuthController extends Controller
             }
         }
 
+        // Report header context for printable reports (facility/branch name and address)
+        $payload['report_context'] = [
+            'facility_name' => $facility ? $facility->name : ($payload['facility_branding']['name'] ?? ''),
+            'facility_address' => $facility ? ($facility->address ?? '') : '',
+            'facility_phone' => $facility ? ($facility->phone ?? '') : '',
+            'branch_name' => $user->assignedBranch ? $user->assignedBranch->name : null,
+            'branch_address' => $user->assignedBranch ? ($user->assignedBranch->address ?? '') : '',
+        ];
+
         // Include effective permissions for navigation checks
         // Get all permissions the user effectively has (considering facility overrides)
         // Ensure it's always an array to prevent frontend errors
-        $permissions = $this->getEffectivePermissions($user);
+        try {
+            $permissions = $this->getEffectivePermissions($user);
+        } catch (\Throwable $e) {
+            Log::error('getEffectivePermissions failed during transformUser', [
+                'user_id' => $user->id,
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            $permissions = [];
+        }
         $payload['permissions'] = is_array($permissions) ? $permissions : [];
 
         return $payload;
@@ -335,11 +600,9 @@ class AuthController extends Controller
             return \App\Models\Permission::pluck('name')->toArray();
         }
 
-        // Use already loaded roles if available, otherwise load with permissions
-        $userRoles = $user->relationLoaded('roles') 
-            ? $user->roles 
-            : $user->roles()->with('permissions')->get();
-        
+        // Spatie roles when present; else legacy `users.role` → roles table (must match User::hasPermission)
+        $userRoles = $user->rolesForPermissionResolution();
+
         if ($userRoles->isEmpty()) {
             return [];
         }
@@ -436,6 +699,32 @@ class AuthController extends Controller
                     // If module is disabled, don't add permission
                 }
                 // If explicitly denied, don't add permission
+            }
+
+            // Facility-only grants (UI "Added"): not on global role but allowed for this facility
+            foreach ($roleFacilityOverrides as $permissionName => $override) {
+                if (! $override->is_allowed) {
+                    continue;
+                }
+                if (in_array($permissionName, $roleGlobalPermissions, true)) {
+                    continue;
+                }
+                if (! isset($permissionModuleMap[$permissionName])) {
+                    try {
+                        $permissionModuleMap[$permissionName] = \App\Helpers\ModulePermissionMapper::getModuleForPermission($permissionName);
+                    } catch (\Exception $e) {
+                        \Log::warning('ModulePermissionMapper error for permission: ' . $permissionName, [
+                            'error' => $e->getMessage(),
+                        ]);
+                        $permissionModuleMap[$permissionName] = null;
+                    }
+                }
+                $module = $permissionModuleMap[$permissionName];
+                if ($module === null) {
+                    $effectivePermissions[] = $permissionName;
+                } elseif ($facility && in_array($module, $enabledModules, true)) {
+                    $effectivePermissions[] = $permissionName;
+                }
             }
         }
 
@@ -565,6 +854,260 @@ class AuthController extends Controller
         ]);
 
         return null;
+    }
+
+    /**
+     * Automatically clock in user after successful login
+     * 
+     * @param \App\Models\User $user
+     * @param \Illuminate\Http\Request $request
+     * @return void
+     */
+    protected function autoClockIn(\App\Models\User $user, Request $request): void
+    {
+        // Only clock in users who have an assigned branch (staff members)
+        if (!$user->assigned_branch_id) {
+            return;
+        }
+
+        // Check if user is already clocked in
+        if ($user->hasActiveClockIn()) {
+            Log::info('User already clocked in, skipping auto clock-in', [
+                'user_id' => $user->id,
+            ]);
+            return;
+        }
+
+        try {
+            $locationService = app(LocationService::class);
+            
+            // Get location from request (may be null if not provided)
+            $latitude = $request->input('latitude');
+            $longitude = $request->input('longitude');
+
+            // If location not provided in request, try to get from IP
+            if ($latitude === null || $longitude === null) {
+                $ipLocation = $locationService->getLocationFromIp($request->ip());
+                if ($ipLocation) {
+                    $latitude = $ipLocation['latitude'];
+                    $longitude = $ipLocation['longitude'];
+                }
+            }
+
+            // Validate location if provided (optional for auto clock-in)
+            if ($latitude !== null && $longitude !== null) {
+                $locationError = $locationService->validateCheckInLocation(
+                    $user,
+                    $latitude,
+                    $longitude
+                );
+
+                // If location validation fails, still clock in but log warning
+                // This allows auto clock-in even if location check fails
+                if ($locationError) {
+                    Log::warning('Auto clock-in location validation failed, clocking in anyway', [
+                        'user_id' => $user->id,
+                        'error' => $locationError['message'] ?? 'Unknown error',
+                    ]);
+                }
+            } else {
+                // No location available - log but still allow clock-in
+                Log::info('Auto clock-in without location coordinates', [
+                    'user_id' => $user->id,
+                    'ip' => $request->ip(),
+                ]);
+            }
+
+            // Create clock-in record
+            $clockIn = StaffClockIn::create([
+                'staff_id' => $user->id,
+                'branch_id' => $user->assigned_branch_id,
+                'facility_id' => $user->facility_id,
+                'clock_in_at' => now(),
+                'clock_in_latitude' => $latitude,
+                'clock_in_longitude' => $longitude,
+                'is_active' => true,
+                'clock_method' => 'authenticated',
+            ]);
+
+            $clockIn->load(['staff', 'branch', 'facility']);
+
+            // Create notifications for admins
+            $this->notifyStaffClockIn($clockIn);
+
+            Log::info('User automatically clocked in on login', [
+                'user_id' => $user->id,
+                'clock_in_id' => $clockIn->id,
+            ]);
+        } catch (\Exception $e) {
+            // Log error but don't fail login if clock-in fails
+            Log::error('Failed to auto clock-in user on login', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+        }
+    }
+
+    /**
+     * Notify admins about staff clock-in
+     */
+    private function notifyStaffClockIn(StaffClockIn $clockIn): void
+    {
+        $clockIn->load(['staff', 'branch', 'facility']);
+        
+        // Get admins and facility admins
+        $users = \App\Models\User::where(function($query) use ($clockIn) {
+            $query->whereIn('role', ['super_admin', 'administrator', 'admin', 'manager']);
+            
+            // Filter by facility if applicable
+            if ($clockIn->facility_id) {
+                $query->where(function($q) use ($clockIn) {
+                    $q->where('facility_id', $clockIn->facility_id)
+                      ->orWhereNull('facility_id'); // Super admins
+                });
+            }
+        })
+        ->where('is_active', true)
+        ->where('id', '!=', $clockIn->staff_id) // Don't notify the staff member themselves
+        ->get();
+
+        $branchName = $clockIn->branch?->name ?? 'Unknown Branch';
+        $staffName = $clockIn->staff?->name ?? 'Unknown Staff';
+        $time = Carbon::parse($clockIn->clock_in_at)->format('g:i A');
+
+        foreach ($users as $admin) {
+            \App\Models\Notification::create([
+                'user_id' => $admin->id,
+                'type' => 'staff_clock_in',
+                'title' => 'Staff Clocked In',
+                'message' => "{$staffName} clocked in at {$branchName} at {$time}",
+                'icon' => 'clock',
+                'icon_color' => 'text-green-600',
+                'action_url' => '/check-in-dashboard',
+                'metadata' => [
+                    'clock_in_id' => $clockIn->id,
+                    'staff_id' => $clockIn->staff_id,
+                    'branch_id' => $clockIn->branch_id,
+                    'facility_id' => $clockIn->facility_id,
+                ],
+            ]);
+        }
+
+        // Send email notifications
+        try {
+            $notificationService = app(\App\Services\NotificationService::class);
+            $notificationService->sendStaffClockInEmail($clockIn, $users, 'clocked_in');
+        } catch (\Exception $e) {
+            Log::warning('Failed to send clock-in email notification', [
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Automatically clock out user on logout
+     * 
+     * @param \App\Models\User $user
+     * @param \Illuminate\Http\Request $request
+     * @return void
+     */
+    protected function autoClockOut(\App\Models\User $user, Request $request): void
+    {
+        // Check if user has an active clock-in
+        if (!$user->hasActiveClockIn()) {
+            return;
+        }
+
+        try {
+            $activeClockIn = $user->activeClockIn;
+
+            // Get location from request (optional)
+            $latitude = $request->input('latitude');
+            $longitude = $request->input('longitude');
+
+            // Clock out
+            $activeClockIn->clockOut($latitude, $longitude);
+
+            // Reload relationships
+            $activeClockIn->load(['staff', 'branch', 'facility']);
+
+            // Notify admins
+            $this->notifyStaffClockOut($activeClockIn, $user);
+
+            Log::info('User automatically clocked out on logout', [
+                'user_id' => $user->id,
+                'clock_in_id' => $activeClockIn->id,
+            ]);
+        } catch (\Exception $e) {
+            // Log error but don't fail logout if clock-out fails
+            Log::error('Failed to auto clock-out user on logout', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+        }
+    }
+
+    /**
+     * Notify admins about staff clock-out
+     */
+    private function notifyStaffClockOut(StaffClockIn $clockIn, ?\App\Models\User $actionBy = null): void
+    {
+        $clockIn->load(['staff', 'branch', 'facility']);
+        
+        // Get admins and facility admins
+        $users = \App\Models\User::where(function($query) use ($clockIn) {
+            $query->whereIn('role', ['super_admin', 'administrator', 'admin', 'manager']);
+            
+            // Filter by facility if applicable
+            if ($clockIn->facility_id) {
+                $query->where(function($q) use ($clockIn) {
+                    $q->where('facility_id', $clockIn->facility_id)
+                      ->orWhereNull('facility_id'); // Super admins
+                });
+            }
+        })
+        ->where('is_active', true)
+        ->where('id', '!=', $clockIn->staff_id) // Don't notify the staff member themselves
+        ->get();
+
+        $branchName = $clockIn->branch?->name ?? 'Unknown Branch';
+        $staffName = $clockIn->staff?->name ?? 'Unknown Staff';
+        $time = Carbon::parse($clockIn->clock_out_at)->format('g:i A');
+        $duration = $clockIn->total_hours ? round($clockIn->total_hours, 2) . ' hours' : 'N/A';
+        
+        $actionByText = $actionBy && $actionBy->id !== $clockIn->staff_id 
+            ? " by {$actionBy->name}" 
+            : '';
+
+        foreach ($users as $admin) {
+            \App\Models\Notification::create([
+                'user_id' => $admin->id,
+                'type' => 'staff_clock_out',
+                'title' => 'Staff Clocked Out',
+                'message' => "{$staffName} clocked out{$actionByText} at {$branchName} at {$time} (Duration: {$duration})",
+                'icon' => 'clock',
+                'icon_color' => 'text-blue-600',
+                'action_url' => '/check-in-dashboard',
+                'metadata' => [
+                    'clock_in_id' => $clockIn->id,
+                    'staff_id' => $clockIn->staff_id,
+                    'branch_id' => $clockIn->branch_id,
+                    'facility_id' => $clockIn->facility_id,
+                ],
+            ]);
+        }
+
+        // Send email notifications
+        try {
+            $notificationService = app(\App\Services\NotificationService::class);
+            $notificationService->sendStaffClockInEmail($clockIn, $users, 'clocked_out');
+        } catch (\Exception $e) {
+            Log::warning('Failed to send clock-out email notification', [
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 }
 

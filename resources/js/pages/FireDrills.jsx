@@ -2,15 +2,21 @@ import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm, FormProvider } from 'react-hook-form';
 import api from '../services/api';
+import logger from '../utils/logger';
 import { toast } from 'sonner';
-import { Flame, Plus, Search, Filter, Edit, Trash2, Calendar, Clock, CheckCircle, XCircle, AlertTriangle, List, Grid, X, Sparkles, ClipboardList, ArrowLeft, Loader2 } from 'lucide-react';
+import { Flame, Plus, Search, Filter, Edit, Trash2, Calendar, Clock, CheckCircle, XCircle, AlertTriangle, List, Grid, X, ArrowLeft, Loader2 } from 'lucide-react';
 import SectionCard from '../components/SectionCard';
-import Card from '../components/Card';
+import EntityCardShell, { EntityCardHeader } from '../components/ui/EntityCardShell';
+import CardIconButton from '../components/ui/CardIconButton';
+import DataPill, { DataPillSection } from '../components/ui/DataPill';
 import CalendarView from '../components/CalendarView';
 import Select from '../components/ui/radix/Select';
 import FormInput from '../components/forms/FormInput';
 import FormTextarea from '../components/forms/FormTextarea';
 import FormSelect from '../components/forms/FormSelect';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
+import Modal from '../components/ui/Modal';
+import Tooltip from '../components/ui/Tooltip';
 
 export default function FireDrills() {
     const queryClient = useQueryClient();
@@ -23,8 +29,8 @@ export default function FireDrills() {
     const [showForm, setShowForm] = useState(false);
     const [editing, setEditing] = useState(null);
     const [currentUser, setCurrentUser] = useState(null);
-    const [showTemplateModal, setShowTemplateModal] = useState(false);
-    const [showCreateFromTemplateModal, setShowCreateFromTemplateModal] = useState(false);
+    /** { type: 'delete' | 'complete' | 'cancel', id: number } | null */
+    const [fireConfirm, setFireConfirm] = useState(null);
 
     // Fetch current user
     React.useEffect(() => {
@@ -33,7 +39,7 @@ export default function FireDrills() {
                 const response = await api.get('/user');
                 setCurrentUser(response.data);
             } catch (err) {
-                console.error('Failed to fetch current user:', err);
+                logger.error('Failed to fetch current user:', err);
             }
         };
         fetchUser();
@@ -60,17 +66,6 @@ export default function FireDrills() {
         queryFn: async () => (await api.get('/branches', { params: { per_page: 100 } })).data,
     });
 
-    // Fetch templates (scope by branch filter if not all)
-    const { data: templatesData } = useQuery({
-        queryKey: ['fire-drill-templates', branchFilter],
-        queryFn: async () => {
-            const params = { per_page: 100 };
-            if (branchFilter && branchFilter !== 'all') {
-                params.branch_id = branchFilter;
-            }
-            return (await api.get('/fire-drill-templates', { params })).data;
-        },
-    });
 
     // Build query params
     const queryParams = useMemo(() => {
@@ -130,23 +125,8 @@ export default function FireDrills() {
         },
     });
 
-    const createFromTemplateMutation = useMutation({
-        mutationFn: async (payload) => {
-            return (await api.post('/fire-drills/from-template', payload)).data;
-        },
-        onSuccess: () => {
-            toast.success('Fire drills scheduled from template');
-            queryClient.invalidateQueries(['fire-drills']);
-            queryClient.invalidateQueries(['reminders', 'upcoming']);
-        },
-        onError: (error) => {
-            toast.error(error?.response?.data?.message || 'Could not create from template');
-        },
-    });
-
     const drills = data?.data || [];
     const branches = branchesData?.data || [];
-    const templates = templatesData?.data || [];
 
     // Filter drills by search
     const filteredDrills = useMemo(() => {
@@ -159,23 +139,27 @@ export default function FireDrills() {
         );
     }, [drills, search]);
 
-    const handleDelete = (id) => {
-        if (window.confirm('Are you sure you want to delete this fire drill?')) {
-            deleteMutation.mutate(id);
+    const fireConfirmPending =
+        deleteMutation.isPending || markCompleteMutation.isPending || cancelMutation.isPending;
+
+    const handleFireConfirm = () => {
+        if (!fireConfirm) return;
+        const done = () => setFireConfirm(null);
+        const { id } = fireConfirm;
+        if (fireConfirm.type === 'delete') {
+            deleteMutation.mutate(id, { onSuccess: done });
+        } else if (fireConfirm.type === 'complete') {
+            markCompleteMutation.mutate(id, { onSuccess: done });
+        } else if (fireConfirm.type === 'cancel') {
+            cancelMutation.mutate(id, { onSuccess: done });
         }
     };
 
-    const handleMarkComplete = (id) => {
-        if (window.confirm('Mark this fire drill as complete?')) {
-            markCompleteMutation.mutate(id);
-        }
-    };
+    const handleDelete = (id) => setFireConfirm({ type: 'delete', id });
 
-    const handleCancel = (id) => {
-        if (window.confirm('Cancel this fire drill? This action cannot be undone.')) {
-            cancelMutation.mutate(id);
-        }
-    };
+    const handleMarkComplete = (id) => setFireConfirm({ type: 'complete', id });
+
+    const handleCancel = (id) => setFireConfirm({ type: 'cancel', id });
 
     const handleCloseForm = () => {
         setShowForm(false);
@@ -227,41 +211,43 @@ export default function FireDrills() {
         ).slice(0, 3);
     }, [filteredDrills]);
 
-    if (showForm) {
-        return (
-            <div>
-                <FireDrillForm
-                    record={editing}
-                    branches={branches}
-                    templates={templates}
-                    isCaregiver={isCaregiver}
-                    caregiverBranchId={currentUser?.assigned_branch_id}
-                    onClose={handleCloseForm}
-                    onSuccess={() => {
-                        handleCloseForm();
-                        queryClient.invalidateQueries(['fire-drills']);
-                        queryClient.invalidateQueries(['reminders', 'upcoming']);
-                    }}
-                    onOpenTemplateModal={() => setShowTemplateModal(true)}
-                />
-            </div>
-        );
-    }
-
-    if (!isCaregiver && showTemplateModal) {
-        return (
-            <FireDrillTemplateForm
-                branches={branches}
-                onClose={() => setShowTemplateModal(false)}
-                onCreated={() => {
-                    queryClient.invalidateQueries(['fire-drill-templates']);
-                    setShowTemplateModal(false);
-                }}
-            />
-        );
-    }
+    const fireConfirmCopy =
+        fireConfirm?.type === 'delete'
+            ? {
+                  title: 'Delete this fire drill?',
+                  description: 'This fire drill will be permanently removed.',
+                  confirmLabel: 'Delete',
+                  variant: 'danger',
+              }
+            : fireConfirm?.type === 'complete'
+              ? {
+                    title: 'Mark fire drill complete?',
+                    description: 'This will record the drill as completed.',
+                    confirmLabel: 'Mark complete',
+                    variant: 'primary',
+                }
+              : fireConfirm?.type === 'cancel'
+                ? {
+                      title: 'Cancel this fire drill?',
+                      description: 'This action cannot be undone.',
+                      confirmLabel: 'Cancel drill',
+                      variant: 'danger',
+                  }
+                : { title: '', description: '', confirmLabel: 'Confirm', variant: 'neutral' };
 
     return (
+        <>
+            <ConfirmDialog
+                isOpen={fireConfirm != null}
+                onClose={() => !fireConfirmPending && setFireConfirm(null)}
+                onConfirm={handleFireConfirm}
+                title={fireConfirmCopy.title}
+                description={fireConfirmCopy.description}
+                confirmLabel={fireConfirmCopy.confirmLabel}
+                cancelLabel="Back"
+                variant={fireConfirmCopy.variant}
+                isPending={fireConfirmPending}
+            />
         <div>
             <SectionCard>
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
@@ -272,28 +258,14 @@ export default function FireDrills() {
                     {!isCaregiver && (
                         <div className="flex flex-col sm:flex-row gap-2">
                             <button
-                                onClick={() => setShowCreateFromTemplateModal(true)}
-                                className="w-full sm:w-auto px-4 py-2 border border-[var(--theme-primary)] text-[var(--theme-primary)] rounded-lg hover:bg-[var(--theme-primary-bg-light)] transition-colors flex items-center justify-center space-x-2"
+                                onClick={() => {
+                                    setEditing(null);
+                                    setShowForm(true);
+                                }}
+                                className="w-full sm:w-auto px-4 py-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] rounded-lg hover:bg-[var(--theme-primary-hover)] transition-colors flex items-center justify-center space-x-2"
                             >
-                                <Sparkles className="w-4 h-4" />
-                                <span>Schedule from Template</span>
-                            </button>
-                        <button
-                            onClick={() => {
-                                setEditing(null);
-                                setShowForm(true);
-                            }}
-                            className="w-full sm:w-auto px-4 py-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] rounded-lg hover:bg-[var(--theme-primary-hover)] transition-colors flex items-center justify-center space-x-2"
-                        >
-                            <Plus className="w-4 h-4" />
-                            <span>Schedule Fire Drill</span>
-                        </button>
-                            <button
-                                onClick={() => setShowTemplateModal(true)}
-                                className="w-full sm:w-auto px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center space-x-2"
-                            >
-                                <ClipboardList className="w-4 h-4" />
-                                <span>Create Template</span>
+                                <Plus className="w-4 h-4" />
+                                <span>Schedule Fire Drill</span>
                             </button>
                         </div>
                     )}
@@ -476,121 +448,122 @@ export default function FireDrills() {
                 ) : (
                     <div className="grid grid-cols-1 gap-4">
                         {filteredDrills.map((drill) => (
-                            <Card key={drill.id} className="p-4">
-                                <div className="flex items-start justify-between">
-                                    <div className="flex-1">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <Flame className="w-5 h-5 text-orange-600" />
-                                            <h3 className="font-semibold text-gray-900">{drill.branch?.name || 'Unknown Branch'}</h3>
+                            <EntityCardShell key={drill.id}>
+                                <EntityCardHeader
+                                    left={
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <Flame className="h-5 w-5 shrink-0 text-orange-600" />
                                             {getStatusBadge(drill.status)}
                                         </div>
-                                        <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
-                                            <div className="flex items-center gap-1">
-                                                <Calendar className="w-4 h-4" />
-                                                <span className="font-medium">Scheduled:</span> {formatDateTime(drill.scheduled_date, drill.scheduled_time)}
-                                            </div>
-                                            <div className="flex items-center gap-1">
-                                                <Clock className="w-4 h-4" />
-                                                <span className="font-medium">Created by:</span> {drill.created_by?.name || 'N/A'}
-                                            </div>
-                                            {drill.completed_at && (
-                                                <div className="flex items-center gap-1">
-                                                    <CheckCircle className="w-4 h-4" />
-                                                    <span className="font-medium">Completed:</span> {new Date(drill.completed_at).toLocaleString()}
-                                                </div>
+                                    }
+                                    right={
+                                        <>
+                                            {drill.status === 'scheduled' && !isCaregiver && (
+                                                <>
+                                                    <Tooltip content="Mark complete" position="top">
+                                                        <CardIconButton
+                                                            variant="resolve"
+                                                            icon={CheckCircle}
+                                                            aria-label="Mark complete"
+                                                            onClick={() => handleMarkComplete(drill.id)}
+                                                        />
+                                                    </Tooltip>
+                                                    <Tooltip content="Cancel drill" position="top">
+                                                        <CardIconButton
+                                                            variant="delete"
+                                                            icon={XCircle}
+                                                            aria-label="Cancel drill"
+                                                            onClick={() => handleCancel(drill.id)}
+                                                        />
+                                                    </Tooltip>
+                                                </>
                                             )}
-                                        </div>
-                                        {drill.notes && (
-                                            <div className="mt-2 text-sm text-gray-600">
-                                                <span className="font-medium">Notes:</span> {drill.notes}
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div className="flex items-center gap-2 ml-4">
-                                        {/* Quick Actions for Scheduled Drills */}
-                                        {drill.status === 'scheduled' && !isCaregiver && (
-                                            <>
-                                                <button
-                                                    onClick={() => handleMarkComplete(drill.id)}
-                                                    className="px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded-lg hover:bg-green-700 transition-colors flex items-center gap-1"
-                                                    title="Mark Complete"
-                                                >
-                                                    <CheckCircle className="w-3 h-3" />
-                                                    Complete
-                                                </button>
-                                                <button
-                                                    onClick={() => handleCancel(drill.id)}
-                                                    className="px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 transition-colors flex items-center gap-1"
-                                                    title="Cancel"
-                                                >
-                                                    <XCircle className="w-3 h-3" />
-                                                    Cancel
-                                                </button>
-                                            </>
-                                        )}
-                                        {!isCaregiver && (
-                                            <>
-                                                <button
-                                                    onClick={() => handleEdit(drill)}
-                                                    className="p-2 text-gray-600 hover:text-[var(--theme-primary)] transition-colors"
-                                                    title="Edit"
-                                                >
-                                                    <Edit className="w-4 h-4" />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDelete(drill.id)}
-                                                    className="p-2 text-gray-600 hover:text-red-600 transition-colors"
-                                                    title="Delete"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                            </>
-                                        )}
-                                    </div>
+                                            {!isCaregiver && (
+                                                <>
+                                                    <Tooltip content="Edit" position="top">
+                                                        <CardIconButton
+                                                            variant="edit"
+                                                            icon={Edit}
+                                                            aria-label="Edit fire drill"
+                                                            onClick={() => handleEdit(drill)}
+                                                        />
+                                                    </Tooltip>
+                                                    <Tooltip content="Delete" position="top">
+                                                        <CardIconButton
+                                                            variant="delete"
+                                                            icon={Trash2}
+                                                            aria-label="Delete fire drill"
+                                                            onClick={() => handleDelete(drill.id)}
+                                                        />
+                                                    </Tooltip>
+                                                </>
+                                            )}
+                                        </>
+                                    }
+                                />
+
+                                <h3 className="text-lg font-bold leading-snug text-slate-900 sm:text-xl">
+                                    {drill.branch?.name || 'Unknown Branch'}
+                                </h3>
+
+                                <div className="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                                    <DataPill icon={Calendar}>
+                                        <span className="font-normal text-slate-600">
+                                            Scheduled: {formatDateTime(drill.scheduled_date, drill.scheduled_time)}
+                                        </span>
+                                    </DataPill>
+                                    <DataPill icon={Clock}>
+                                        <span className="font-normal text-slate-600">
+                                            Created by: {drill.created_by?.name || 'N/A'}
+                                        </span>
+                                    </DataPill>
+                                    {drill.completed_at && (
+                                        <DataPill icon={CheckCircle} className="sm:col-span-2">
+                                            <span className="font-normal text-slate-600">
+                                                Completed: {new Date(drill.completed_at).toLocaleString()}
+                                            </span>
+                                        </DataPill>
+                                    )}
                                 </div>
-                            </Card>
+
+                                {drill.notes ? (
+                                    <DataPillSection label="Notes">
+                                        <p className="text-sm text-slate-600">{drill.notes}</p>
+                                    </DataPillSection>
+                                ) : null}
+                            </EntityCardShell>
                         ))}
                     </div>
                 )}
             </SectionCard>
+        </div>
 
-            {showForm && (
+            <Modal
+                isOpen={showForm}
+                onClose={handleCloseForm}
+                title={editing ? 'Edit Fire Drill' : 'Schedule Fire Drill'}
+                size="xl"
+            >
                 <FireDrillForm
+                    key={editing?.id ?? 'new'}
+                    inModal
                     record={editing}
                     branches={branches}
-                    templates={templates}
                     isCaregiver={isCaregiver}
                     caregiverBranchId={currentUser?.assigned_branch_id}
                     onClose={handleCloseForm}
                     onSuccess={() => {
-                        queryClient.invalidateQueries(['fire-drills']);
-                        queryClient.invalidateQueries(['reminders', 'upcoming']);
                         handleCloseForm();
-                    }}
-                    onOpenTemplateModal={() => setShowTemplateModal(true)}
-                />
-            )}
-
-
-            {!isCaregiver && showCreateFromTemplateModal && (
-                <CreateFromTemplateModal
-                    templates={templates}
-                    isLoading={createFromTemplateMutation.isLoading}
-                    onClose={() => setShowCreateFromTemplateModal(false)}
-                    onSubmit={async (payload) => {
-                        await createFromTemplateMutation.mutateAsync(payload);
                         queryClient.invalidateQueries(['fire-drills']);
                         queryClient.invalidateQueries(['reminders', 'upcoming']);
-                        setShowCreateFromTemplateModal(false);
                     }}
                 />
-            )}
-        </div>
+            </Modal>
+        </>
     );
 }
 
-function FireDrillForm({ record, branches, templates = [], isCaregiver, caregiverBranchId, onClose, onSuccess, onOpenTemplateModal }) {
-    const [selectedTemplateId, setSelectedTemplateId] = useState(null);
+function FireDrillForm({ record, branches, isCaregiver, caregiverBranchId, onClose, onSuccess, inModal = false }) {
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const methods = useForm({
@@ -602,28 +575,6 @@ function FireDrillForm({ record, branches, templates = [], isCaregiver, caregive
             notes: record?.notes || '',
         },
     });
-
-    const applyTemplate = (templateId) => {
-        const template = templates.find(t => t.id === Number(templateId));
-        if (!template) return;
-
-        const time = template.scheduled_time ? template.scheduled_time.toString().slice(0,5) : '10:00';
-        const today = new Date();
-        let nextDate = new Date(today);
-        if (template.day_of_month) {
-            nextDate.setDate(template.day_of_month);
-            if (nextDate < today) {
-                nextDate.setMonth(nextDate.getMonth() + 1);
-            }
-        }
-
-        methods.setValue('branch_id', template.branch_id);
-        methods.setValue('scheduled_time', time);
-        methods.setValue('scheduled_date', nextDate.toISOString().split('T')[0]);
-        methods.setValue('notes', template.notes || methods.getValues('notes'));
-        setSelectedTemplateId(templateId);
-        toast.success('Template applied');
-    };
 
     const onSubmit = async (data) => {
         setIsSubmitting(true);
@@ -644,10 +595,10 @@ function FireDrillForm({ record, branches, templates = [], isCaregiver, caregive
                 await api.post('/fire-drills', payload);
             }
 
-            toast.success(record ? 'Fire drill updated successfully' : 'Fire drill created successfully');
+            toast.success(record ? 'Fire drill updated successfully' : 'Fire drill created successfully', '', { isFormSubmission: true });
             onSuccess();
         } catch (error) {
-            console.error('Error saving fire drill:', error);
+            logger.error('Error saving fire drill:', error);
             const errorMessage = error.response?.data?.message || 'Failed to save fire drill';
             toast.error(errorMessage);
         } finally {
@@ -657,6 +608,7 @@ function FireDrillForm({ record, branches, templates = [], isCaregiver, caregive
 
     return (
         <div className="space-y-6">
+            {!inModal && (
             <div className="flex items-center gap-3">
                 <button
                     type="button"
@@ -670,8 +622,10 @@ function FireDrillForm({ record, branches, templates = [], isCaregiver, caregive
                     {record ? 'Edit Fire Drill' : 'Schedule Fire Drill'}
                 </p>
             </div>
+            )}
 
-            <div className="rounded-3xl bg-white shadow-lg ring-1 ring-gray-100">
+            <div className={inModal ? '' : 'rounded-3xl bg-white shadow-lg ring-1 ring-gray-100'}>
+                {!inModal && (
                 <div className="border-b border-gray-100 px-6 py-4 sm:px-8 sm:py-5">
                     <h2 className="text-xl font-semibold text-gray-900">
                         {record ? 'Edit Fire Drill' : 'Schedule New Fire Drill'}
@@ -680,51 +634,11 @@ function FireDrillForm({ record, branches, templates = [], isCaregiver, caregive
                         {record ? 'Update fire drill details below.' : 'Fill in the details to schedule a new fire drill.'}
                     </p>
                 </div>
+                )}
 
-                <div className="px-6 py-6 sm:px-8 sm:py-8">
+                <div className={inModal ? '' : 'px-6 py-6 sm:px-8 sm:py-8'}>
                     <FormProvider {...methods}>
                         <form onSubmit={methods.handleSubmit(onSubmit)} className="space-y-6">
-                            {templates.length > 0 && (
-                                <div className="rounded-2xl border border-gray-200 bg-gray-50 p-5">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-sm font-semibold text-gray-900 mb-2">Apply Template</label>
-                                            <div className="flex gap-2">
-                                                <Select
-                                                    value={selectedTemplateId?.toString() || ''}
-                                                    onValueChange={(value) => setSelectedTemplateId(value || null)}
-                                                    placeholder="Choose a template"
-                                                    options={templates.map(t => ({
-                                                        value: t.id.toString(),
-                                                        label: `${t.name} (${t.frequency})`,
-                                                    }))}
-                                                    className="flex-1"
-                                                />
-                                                <button
-                                                    type="button"
-                                                    onClick={() => selectedTemplateId && applyTemplate(selectedTemplateId)}
-                                                    className="inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[var(--theme-primary-hover)] disabled:opacity-50 disabled:cursor-not-allowed"
-                                                    style={{ backgroundColor: 'var(--theme-primary)' }}
-                                                    disabled={!selectedTemplateId}
-                                                >
-                                                    Apply
-                                                </button>
-                                            </div>
-                                            <p className="text-xs text-gray-500 mt-2">Prefill branch, date, time, and notes from a saved template.</p>
-                                        </div>
-                                        <div className="flex items-end">
-                                            <button
-                                                type="button"
-                                                onClick={onOpenTemplateModal}
-                                                className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
-                                            >
-                                                + New Template
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <FormSelect
                                     name="branch_id"
@@ -796,7 +710,7 @@ function FireDrillForm({ record, branches, templates = [], isCaregiver, caregive
                                         </>
                                     ) : (
                                         <>
-                                            <Sparkles className="h-4 w-4" />
+                                            <Plus className="h-4 w-4" />
                                             {record ? 'Update' : 'Create'}
                                         </>
                                     )}
@@ -810,261 +724,4 @@ function FireDrillForm({ record, branches, templates = [], isCaregiver, caregive
     );
 }
 
-function FireDrillTemplateForm({ branches, onClose, onCreated }) {
-    const [isSubmitting, setIsSubmitting] = useState(false);
-
-    const methods = useForm({
-        defaultValues: {
-            branch_id: null,
-            name: '',
-            description: '',
-            frequency: 'monthly',
-            day_of_month: '',
-            scheduled_time: '10:00',
-            notes: '',
-        },
-    });
-
-    const onSubmit = async (data) => {
-        setIsSubmitting(true);
-        try {
-            await api.post('/fire-drill-templates', {
-                ...data,
-                branch_id: data.branch_id ? parseInt(data.branch_id) : null,
-                scheduled_time: `${data.scheduled_time}:00`,
-                day_of_month: data.day_of_month ? Number(data.day_of_month) : null,
-            });
-            toast.success('Template created successfully');
-            onCreated();
-        } catch (error) {
-            const errorMessage = error?.response?.data?.message || 'Failed to save template';
-            toast.error(errorMessage);
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
-    return (
-        <div className="space-y-6">
-            <div className="flex items-center gap-3">
-                <button
-                    type="button"
-                    onClick={onClose}
-                    className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-100"
-                >
-                    <ArrowLeft className="h-4 w-4" />
-                    Back to fire drills
-                </button>
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Create Template
-                </p>
-            </div>
-
-            <div className="rounded-3xl bg-white shadow-lg ring-1 ring-gray-100">
-                <div className="border-b border-gray-100 px-6 py-4 sm:px-8 sm:py-5">
-                    <h2 className="text-xl font-semibold text-gray-900">Create Fire Drill Template</h2>
-                    <p className="mt-1 text-sm text-gray-500">
-                        Create a reusable template for scheduling fire drills.
-                    </p>
-                </div>
-
-                <div className="px-6 py-6 sm:px-8 sm:py-8">
-                    <FormProvider {...methods}>
-                        <form onSubmit={methods.handleSubmit(onSubmit)} className="space-y-6">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <FormInput
-                                    name="name"
-                                    label="Name"
-                                    placeholder="e.g., Monthly Fire Drill"
-                                    required
-                                />
-
-                                <FormSelect
-                                    name="branch_id"
-                                    label="Branch"
-                                    placeholder="Select Branch"
-                                    required
-                                    options={branches.map(branch => ({
-                                        value: branch.id.toString(),
-                                        label: branch.name,
-                                    }))}
-                                />
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <FormSelect
-                                    name="frequency"
-                                    label="Frequency"
-                                    required
-                                    options={[
-                                        { value: 'monthly', label: 'Monthly' },
-                                        { value: 'quarterly', label: 'Quarterly' },
-                                    ]}
-                                />
-
-                                <FormInput
-                                    name="day_of_month"
-                                    label="Day of Month"
-                                    type="number"
-                                    min={1}
-                                    max={31}
-                                    placeholder="e.g., 15"
-                                />
-
-                                <FormInput
-                                    name="scheduled_time"
-                                    label="Time"
-                                    type="time"
-                                    required
-                                />
-                            </div>
-
-                            <FormTextarea
-                                name="notes"
-                                label="Notes"
-                                placeholder="Guidelines, assembly points, etc."
-                                rows={4}
-                            />
-
-                            <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
-                                <button
-                                    type="button"
-                                    onClick={onClose}
-                                    className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={isSubmitting}
-                                    className="inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[var(--theme-primary-hover)] disabled:opacity-50 disabled:cursor-not-allowed"
-                                    style={{ backgroundColor: 'var(--theme-primary)' }}
-                                >
-                                    {isSubmitting ? (
-                                        <>
-                                            <Loader2 className="h-4 w-4 animate-spin" />
-                                            Saving...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Sparkles className="h-4 w-4" />
-                                            Save Template
-                                        </>
-                                    )}
-                                </button>
-                            </div>
-                        </form>
-                    </FormProvider>
-                </div>
-            </div>
-        </div>
-    );
-}
-
-function CreateFromTemplateModal({ templates, isLoading, onClose, onSubmit }) {
-    const [templateId, setTemplateId] = useState('');
-    const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
-    const [occurrences, setOccurrences] = useState(3);
-    const [errors, setErrors] = useState({});
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setErrors({});
-        if (!templateId) {
-            setErrors({ template_id: ['Please select a template'] });
-            return;
-        }
-        try {
-            await onSubmit({
-                template_id: Number(templateId),
-                start_date: startDate,
-                occurrences: Number(occurrences),
-            });
-        } catch (error) {
-            setErrors(error?.response?.data?.errors || { general: [error?.response?.data?.message || 'Failed to schedule from template'] });
-        }
-    };
-
-    return (
-        <div 
-            className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50 p-4"
-            onClick={onClose}
-        >
-            <div 
-                className="bg-white rounded-lg shadow-xl w-full max-w-xl p-6"
-                onClick={(e) => e.stopPropagation()}
-            >
-                <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-900">Schedule from Template</h3>
-                    <button 
-                        onClick={onClose} 
-                        className="text-gray-400 hover:text-gray-600 transition-colors"
-                        type="button"
-                    >
-                        <X className="w-5 h-5" />
-                    </button>
-                </div>
-
-                {errors.general && <p className="text-sm text-red-600 mb-2">{errors.general[0]}</p>}
-
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Template *</label>
-                        <Select
-                            value={templateId}
-                            onValueChange={(value) => setTemplateId(value)}
-                            options={templates.map(t => ({
-                                value: t.id.toString(),
-                                label: `${t.name} (${t.frequency})`,
-                            }))}
-                            placeholder={templates.length ? 'Select template' : 'No templates available'}
-                            className="w-full"
-                            disabled={!templates.length}
-                        />
-                        {errors.template_id && <p className="text-xs text-red-600 mt-1">{errors.template_id[0]}</p>}
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Start Date *</label>
-                            <input
-                                type="date"
-                                value={startDate}
-                                onChange={(e) => setStartDate(e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
-                                required
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Occurrences</label>
-                            <input
-                                type="number"
-                                min="1"
-                                max="12"
-                                value={occurrences}
-                                onChange={(e) => setOccurrences(e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
-                            />
-                        </div>
-                    </div>
-
-                    <p className="text-xs text-gray-600">We’ll schedule future drills based on the template frequency (monthly or quarterly).</p>
-
-                    <div className="flex items-center justify-end gap-3">
-                        <button type="button" onClick={onClose} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
-                            Cancel
-                        </button>
-                        <button
-                            type="submit"
-                            disabled={isLoading || !templates.length}
-                            className="px-4 py-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] rounded-lg hover:bg-[var(--theme-primary-hover)] disabled:opacity-50"
-                        >
-                            {isLoading ? 'Scheduling...' : 'Schedule'}
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    );
-}
 

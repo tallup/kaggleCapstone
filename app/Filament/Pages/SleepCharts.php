@@ -90,16 +90,25 @@ class SleepCharts extends Page
     {
         $hoursData = SleepRecord::selectRaw('
             CASE 
-                WHEN total_sleep_hours < 4 THEN "Less than 4 hours"
-                WHEN total_sleep_hours BETWEEN 4 AND 6 THEN "4-6 hours"
-                WHEN total_sleep_hours BETWEEN 6 AND 8 THEN "6-8 hours"
-                WHEN total_sleep_hours BETWEEN 8 AND 10 THEN "8-10 hours"
-                WHEN total_sleep_hours > 10 THEN "More than 10 hours"
+                WHEN sleep_records.total_sleep_hours < 4 THEN "Less than 4 hours"
+                WHEN sleep_records.total_sleep_hours BETWEEN 4 AND 6 THEN "4-6 hours"
+                WHEN sleep_records.total_sleep_hours BETWEEN 6 AND 8 THEN "6-8 hours"
+                WHEN sleep_records.total_sleep_hours BETWEEN 8 AND 10 THEN "8-10 hours"
+                WHEN sleep_records.total_sleep_hours > 10 THEN "More than 10 hours"
                 ELSE "Unknown"
-            END as sleep_range
+            END as sleep_range,
+            COUNT(*) as count
         ')
-        ->groupBy('sleep_range')
-        ->selectRaw('COUNT(*) as count')
+        ->groupByRaw('
+            CASE 
+                WHEN sleep_records.total_sleep_hours < 4 THEN "Less than 4 hours"
+                WHEN sleep_records.total_sleep_hours BETWEEN 4 AND 6 THEN "4-6 hours"
+                WHEN sleep_records.total_sleep_hours BETWEEN 6 AND 8 THEN "6-8 hours"
+                WHEN sleep_records.total_sleep_hours BETWEEN 8 AND 10 THEN "8-10 hours"
+                WHEN sleep_records.total_sleep_hours > 10 THEN "More than 10 hours"
+                ELSE "Unknown"
+            END
+        ')
         ->pluck('count', 'sleep_range');
 
         $labels = $hoursData->keys()->toArray();

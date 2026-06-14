@@ -7,6 +7,7 @@ import {
 import PublicNavigation from '../../components/PublicNavigation';
 import PublicFooter from '../../components/PublicFooter';
 import api from '../../services/api';
+import logger from '../../utils/logger';
 import { useToastContext } from '../../contexts/ToastContext';
 
 export default function RegisterFacility() {
@@ -161,7 +162,7 @@ export default function RegisterFacility() {
       showToast('Registration submitted successfully! Our team will review your request.', 'success');
       navigate('/register-facility/success');
     } catch (error) {
-      console.error('Registration error:', error);
+      logger.error('Registration error:', error);
       
       if (error.response?.data?.errors) {
         const apiErrors = error.response.data.errors;
@@ -191,7 +192,7 @@ export default function RegisterFacility() {
                 name="facility_name"
                 value={formData.facility_name}
                 onChange={handleChange}
-                className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${
+                className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-brand-sky focus:border-brand-sky transition-all ${
                   errors.facility_name ? 'border-red-500' : 'border-gray-300'
                 }`}
                 placeholder="Enter your facility name"
@@ -213,7 +214,7 @@ export default function RegisterFacility() {
                 name="facility_type"
                 value={formData.facility_type}
                 onChange={handleChange}
-                className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${
+                className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-brand-sky focus:border-brand-sky transition-all ${
                   errors.facility_type ? 'border-red-500' : 'border-gray-300'
                 }`}
                 required
@@ -245,7 +246,7 @@ export default function RegisterFacility() {
                 value={formData.number_of_beds}
                 onChange={handleChange}
                 min="1"
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-sky focus:border-brand-sky transition-all"
                 placeholder="e.g., 50"
               />
             </div>
@@ -260,7 +261,7 @@ export default function RegisterFacility() {
                 value={formData.years_in_operation}
                 onChange={handleChange}
                 min="0"
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-sky focus:border-brand-sky transition-all"
                 placeholder="e.g., 10"
               />
             </div>
@@ -279,7 +280,7 @@ export default function RegisterFacility() {
                 name="contact_name"
                 value={formData.contact_name}
                 onChange={handleChange}
-                className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${
+                className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-brand-sky focus:border-brand-sky transition-all ${
                   errors.contact_name ? 'border-red-500' : 'border-gray-300'
                 }`}
                 placeholder="Full name of primary contact"
@@ -302,7 +303,7 @@ export default function RegisterFacility() {
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
-                className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${
+                className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-brand-sky focus:border-brand-sky transition-all ${
                   errors.email ? 'border-red-500' : 'border-gray-300'
                 }`}
                 placeholder="contact@facility.com"
@@ -325,7 +326,7 @@ export default function RegisterFacility() {
                 name="phone"
                 value={formData.phone}
                 onChange={handleChange}
-                className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${
+                className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-brand-sky focus:border-brand-sky transition-all ${
                   errors.phone ? 'border-red-500' : 'border-gray-300'
                 }`}
                 placeholder="(555) 123-4567"
@@ -348,7 +349,7 @@ export default function RegisterFacility() {
                   name="address"
                   value={formData.address}
                   onChange={handleChange}
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-sky focus:border-brand-sky transition-all"
                   placeholder="123 Main Street"
                 />
               </div>
@@ -362,7 +363,7 @@ export default function RegisterFacility() {
                   name="city"
                   value={formData.city}
                   onChange={handleChange}
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-sky focus:border-brand-sky transition-all"
                   placeholder="City"
                 />
               </div>
@@ -376,7 +377,7 @@ export default function RegisterFacility() {
                   name="state"
                   value={formData.state}
                   onChange={handleChange}
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-sky focus:border-brand-sky transition-all"
                   placeholder="State"
                 />
               </div>
@@ -390,7 +391,7 @@ export default function RegisterFacility() {
                   name="zip_code"
                   value={formData.zip_code}
                   onChange={handleChange}
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-sky focus:border-brand-sky transition-all"
                   placeholder="12345"
                 />
               </div>
@@ -406,7 +407,7 @@ export default function RegisterFacility() {
                   name="requested_subdomain"
                   value={formData.requested_subdomain}
                   onChange={handleChange}
-                  className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-mono text-sm"
+                  className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-sky focus:border-brand-sky transition-all font-mono text-sm"
                   placeholder="your-facility-name"
                   pattern="[a-z0-9-]+"
                 />
@@ -431,7 +432,7 @@ export default function RegisterFacility() {
                 name="current_software"
                 value={formData.current_software}
                 onChange={handleChange}
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-sky focus:border-brand-sky transition-all"
                 placeholder="e.g., Paper-based, Excel, Other software name"
               />
             </div>
@@ -445,17 +446,17 @@ export default function RegisterFacility() {
                 value={formData.reason_for_switching}
                 onChange={handleChange}
                 rows={4}
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-none"
+                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-sky focus:border-brand-sky transition-all resize-none"
                 placeholder="Tell us why you're interested in HomeLogic360..."
               />
             </div>
 
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="bg-brand-primary/30 border border-brand-sky/30 rounded-lg p-4">
               <div className="flex items-start gap-3">
-                <Shield className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                <Shield className="w-5 h-5 text-brand-primary-dark mt-0.5 flex-shrink-0" />
                 <div>
-                  <h4 className="font-semibold text-blue-900 mb-1">What Happens Next?</h4>
-                  <ul className="text-sm text-blue-800 space-y-1">
+                  <h4 className="font-semibold text-brand-primary-dark mb-1">What Happens Next?</h4>
+                  <ul className="text-sm text-gray-700 space-y-1">
                     <li>• Our team will review your registration request</li>
                     <li>• You'll receive an email confirmation</li>
                     <li>• A super admin will review and approve your facility</li>
@@ -470,9 +471,9 @@ export default function RegisterFacility() {
       case 4:
         return (
           <div className="space-y-6">
-            <div className="bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-200 rounded-lg p-6">
+            <div className="bg-gradient-to-br from-brand-primary to-brand-primary border border-brand-sky/30 rounded-lg p-6">
               <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <CheckCircle className="w-5 h-5 text-blue-600" />
+                <CheckCircle className="w-5 h-5 text-brand-primary-dark" />
                 Review Your Information
               </h3>
               
@@ -535,7 +536,7 @@ export default function RegisterFacility() {
       <PublicNavigation />
 
       {/* Hero Section */}
-      <section className="pt-24 pb-12 bg-gradient-to-br from-blue-500 via-blue-600 to-cyan-500">
+      <section className="pt-24 pb-12 bg-gradient-to-br from-brand-primary-dark via-brand-sky to-brand-sky">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-white/20 backdrop-blur-sm mb-6">
             <Building2 className="w-8 h-8 text-white" />
@@ -570,7 +571,7 @@ export default function RegisterFacility() {
                     <div
                       className={`w-12 h-12 rounded-full flex items-center justify-center border-2 transition-all ${
                         currentStep >= step.number
-                          ? 'bg-gradient-to-br from-blue-500 to-cyan-500 border-blue-500 text-white'
+                          ? 'bg-gradient-to-br from-brand-primary-dark to-brand-sky border-brand-sky text-white'
                           : 'bg-white border-gray-300 text-gray-400'
                       }`}
                     >
@@ -588,7 +589,7 @@ export default function RegisterFacility() {
                   </div>
                   {index < steps.length - 1 && (
                     <div className={`flex-1 h-1 mx-2 ${
-                      currentStep > step.number ? 'bg-blue-500' : 'bg-gray-300'
+                      currentStep > step.number ? 'bg-brand-sky' : 'bg-gray-300'
                     }`} />
                   )}
                 </React.Fragment>
@@ -625,7 +626,7 @@ export default function RegisterFacility() {
                   <button
                     type="button"
                     onClick={handleNext}
-                    className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-all shadow-lg hover:shadow-xl flex items-center gap-2"
+                    className="px-6 py-3 bg-brand-primary-dark text-white rounded-lg font-semibold hover:opacity-90 transition-all shadow-lg hover:shadow-xl flex items-center gap-2"
                   >
                     Next
                     <ArrowRight className="w-4 h-4" />
@@ -634,7 +635,7 @@ export default function RegisterFacility() {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="px-8 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-all shadow-lg hover:shadow-xl flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-8 py-3 bg-brand-primary-dark text-white rounded-lg font-semibold hover:opacity-90 transition-all shadow-lg hover:shadow-xl flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {loading ? (
                       <>

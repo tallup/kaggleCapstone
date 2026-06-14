@@ -5,6 +5,7 @@ namespace App\Observers;
 use App\Models\Medication;
 use App\Models\Notification;
 use App\Models\User;
+use App\Services\NotificationService;
 use Carbon\Carbon;
 
 class MedicationObserver
@@ -75,6 +76,8 @@ class MedicationObserver
             
             Notification::create([
                 'user_id' => $caregiver->id,
+                'facility_id' => $medication->resident?->branch?->facility_id ?? null,
+                'branch_id' => $medication->branch_id ?? $medication->resident?->branch_id ?? null,
                 'type' => 'medication_created',
                 'title' => 'New Medication Added',
                 'message' => "{$medicationName} has been added for {$residentName}. Start date: {$startDate}{$timesStr}",
@@ -88,6 +91,10 @@ class MedicationObserver
                 ],
             ]);
         }
+
+        // Send email notifications
+        $notificationService = app(NotificationService::class);
+        $notificationService->sendMedicationEmail($medication, $caregivers);
     }
 }
 

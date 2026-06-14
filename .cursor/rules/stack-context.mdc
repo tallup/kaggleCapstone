@@ -1,0 +1,14 @@
+---
+description: Evergreen stack context for AI agents (Laravel, Filament, React)
+alwaysApply: true
+---
+
+# Evergreen — stack
+
+- **Backend**: Laravel **12**, PHP **8.2+**, **Filament v3** admin (`app/Filament`). Prefer Filament Resources/schemas over ad-hoc Blade CRUD.
+- **Frontend**: **Vite 7**, **React 19**, **React Router**, **TanStack Query**, **Tailwind CSS 4**; Radix-based UI patterns. There is **no Inertia** in this repo unless explicitly added—SPA talks to Laravel via **API + Sanctum** patterns as implemented.
+- **Package manager**: Use **npm** unless a `pnpm-lock.yaml` appears (this project uses npm/`package-lock.json` if present).
+- **OS**: Developer machine is **Linux (Ubuntu)**; shell commands should be POSIX-friendly.
+- **Specialized agent-style skills** (personal): `react-architect`, `filament-react-bridge`, `api-security`, `fullstack-ui`, `local-dev-environment`, plus existing Laravel/Filament/Stripe skills—invoke by task (e.g. “using the API security skill”).
+
+When unsure, read `composer.json` and `package.json` for authoritative versions.

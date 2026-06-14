@@ -66,7 +66,7 @@ export default function BrandingSettings() {
       return response.data?.data || response.data;
     },
     onSuccess: (brandingData) => {
-      toast.showToast('Branding settings updated successfully.', 'success');
+      toast.showToast('Branding settings updated successfully.', 'success', { isFormSubmission: true });
       
       // Prevent useEffect from overwriting our form values for a while
       justSavedRef.current = true;
@@ -178,7 +178,7 @@ export default function BrandingSettings() {
     <div className="space-y-6">
       <div className="bg-white rounded-xl shadow-sm p-6 flex items-center space-x-3">
         <div className="h-10 w-10 flex items-center justify-center rounded-lg bg-[var(--theme-primary)]/10 text-[var(--theme-primary)]">
-          <Palette className="w-5 h-5" />
+          <Palette className="w-5 h-5" strokeWidth={2.5} />
         </div>
         <div>
           <h1 className="text-xl font-semibold text-gray-900">Branding Settings</h1>
@@ -226,14 +226,14 @@ export default function BrandingSettings() {
                       onClick={removeLogo}
                       className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
                     >
-                      <X className="w-3 h-3" />
+                      <X className="w-3 h-3" strokeWidth={2.5} />
                     </button>
                   )}
                 </div>
               )}
               {!logoPreview && !defaultValues.logo_url && (
                 <div className="h-20 w-20 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center bg-gray-50">
-                  <ImageIcon className="w-8 h-8 text-gray-400" />
+                  <ImageIcon className="w-8 h-8 text-gray-400" strokeWidth={2.5} />
                 </div>
               )}
             </div>
@@ -249,9 +249,9 @@ export default function BrandingSettings() {
               />
               <label
                 htmlFor="logo-upload"
-                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 cursor-pointer"
+                className="inline-flex items-center px-3 py-1.5 text-xs sm:px-4 sm:py-2 sm:text-sm border border-gray-300 rounded-lg font-medium text-gray-700 bg-white hover:bg-gray-50 cursor-pointer"
               >
-                <Upload className="w-4 h-4 mr-2" />
+                <Upload className="w-4 h-4 mr-2" strokeWidth={2.5} />
                 {logoPreview || defaultValues.logo_url ? 'Change Logo' : 'Upload Logo'}
               </label>
               <p className="mt-1 text-xs text-gray-500">
@@ -281,14 +281,14 @@ export default function BrandingSettings() {
                       onClick={removeFavicon}
                       className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
                     >
-                      <X className="w-3 h-3" />
+                      <X className="w-3 h-3" strokeWidth={2.5} />
                     </button>
                   )}
                 </div>
               )}
               {!faviconPreview && !defaultValues.favicon_url && (
                 <div className="h-16 w-16 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center bg-gray-50">
-                  <ImageIcon className="w-6 h-6 text-gray-400" />
+                  <ImageIcon className="w-6 h-6 text-gray-400" strokeWidth={2.5} />
                 </div>
               )}
             </div>
@@ -304,9 +304,9 @@ export default function BrandingSettings() {
               />
               <label
                 htmlFor="favicon-upload"
-                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 cursor-pointer"
+                className="inline-flex items-center px-3 py-1.5 text-xs sm:px-4 sm:py-2 sm:text-sm border border-gray-300 rounded-lg font-medium text-gray-700 bg-white hover:bg-gray-50 cursor-pointer"
               >
-                <Upload className="w-4 h-4 mr-2" />
+                <Upload className="w-4 h-4 mr-2" strokeWidth={2.5} />
                 {faviconPreview || defaultValues.favicon_url ? 'Change Favicon' : 'Upload Favicon'}
               </label>
               <p className="mt-1 text-xs text-gray-500">
@@ -449,7 +449,7 @@ export default function BrandingSettings() {
           <button
             type="submit"
             disabled={saveMutation.isPending}
-            className="inline-flex items-center justify-center px-5 py-2.5 text-sm font-semibold rounded-lg bg-[var(--theme-primary)] text-white hover:bg-[var(--theme-primary-hover)] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center justify-center px-3 py-2 text-xs sm:px-5 sm:py-2.5 sm:text-sm font-semibold rounded-lg bg-[var(--theme-primary)] text-white hover:bg-[var(--theme-primary-hover)] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {saveMutation.isPending ? 'Saving...' : 'Save Changes'}
           </button>

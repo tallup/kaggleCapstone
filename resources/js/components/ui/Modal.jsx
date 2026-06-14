@@ -3,6 +3,13 @@ import { X } from 'lucide-react';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { fadeIn, fadeOut, scaleFadeIn, scaleFadeOut, shouldAnimate } from '../../utils/animationPresets';
 
+/**
+ * Hub create/edit pattern (keep list/filters mounted; never `if (showForm) return <Form />`):
+ * - Parent: <Modal isOpen={showForm} onClose={...} title={addOrEditTitle} size="xl">…</Modal> alongside main UI.
+ * - Child form: pass `inModal` and skip duplicate page title + close button; use `className={inModal ? '' : 'bg-white …'}` on the form shell.
+ * - Reset local state when switching add vs edit: `key={editing?.id ?? 'new'}` on the form inside Modal.
+ */
+
 export default function Modal({
     isOpen,
     onClose,
@@ -113,14 +120,14 @@ export default function Modal({
                 {/* Backdrop */}
                 <DialogPrimitive.Overlay
                     ref={backdropRef}
-                    className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-50"
+                    className="fixed inset-0 z-[200] bg-slate-900/20 backdrop-blur-lg"
                     onClick={closeOnBackdropClick ? onClose : undefined}
                 />
 
-                {/* Modal */}
+                {/* Modal — above app chrome (sidebar/header often use z-50) */}
                 <DialogPrimitive.Content
                     ref={modalContentRef}
-                    className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-2xl shadow-xl w-full max-h-[90vh] z-50 overflow-hidden flex flex-col ${sizeClasses[size]} ${className}`}
+                    className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-2xl shadow-xl w-full max-h-[90vh] z-[210] overflow-hidden flex flex-col ${sizeClasses[size]} ${className}`}
                     onClick={(e) => e.stopPropagation()}
                 >
                     <div ref={modalRef} className="flex flex-col h-full max-h-[90vh]">

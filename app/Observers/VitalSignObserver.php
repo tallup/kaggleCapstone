@@ -5,6 +5,8 @@ namespace App\Observers;
 use App\Models\VitalSign;
 use App\Models\Notification;
 use App\Models\User;
+use App\Services\NotificationService;
+use App\Events\VitalSignCreated;
 use Carbon\Carbon;
 
 class VitalSignObserver
@@ -82,6 +84,8 @@ class VitalSignObserver
             
             Notification::create([
                 'user_id' => $caregiver->id,
+                'facility_id' => $vitalSign->resident?->branch?->facility_id ?? null,
+                'branch_id' => $vitalSign->branch_id ?? $vitalSign->resident?->branch_id ?? null,
                 'type' => $isCritical ? 'vital_critical' : 'vital_recorded',
                 'title' => $title,
                 'message' => "Vital signs for {$residentName} were recorded by {$takenByName} on {$measurementDate}{$vitalsStr}",
@@ -109,6 +113,8 @@ class VitalSignObserver
                 
                 Notification::create([
                     'user_id' => $admin->id,
+                    'facility_id' => $vitalSign->resident?->branch?->facility_id ?? null,
+                    'branch_id' => $vitalSign->branch_id ?? $vitalSign->resident?->branch_id ?? null,
                     'type' => 'vital_critical',
                     'title' => 'Critical Vital Signs Alert',
                     'message' => "CRITICAL: Vital signs recorded for {$residentName} require immediate attention",
@@ -119,10 +125,22 @@ class VitalSignObserver
                         'vital_sign_id' => $vitalSign->id,
                         'resident_id' => $vitalSign->resident_id,
                         'status' => 'critical',
-                    ],
-                ]);
-            }
+                ],
+            ]);
         }
+
+        // Send email notifications
+        $notificationService = app(NotificationService::class);
+        $notificationService->sendVitalSignEmail($vitalSign, $caregivers, $isCritical);
+        
+        // If critical, also send to admins
+        if ($isCritical && $admins->isNotEmpty()) {
+            $notificationService->sendVitalSignEmail($vitalSign, $admins, true);
+        }
+
+        // Broadcast real-time event
+        event(new VitalSignCreated($vitalSign));
     }
+}
 }
 

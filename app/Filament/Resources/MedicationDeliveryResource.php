@@ -77,7 +77,6 @@ class MedicationDeliveryResource extends Resource
                             ->nullable(),
                         Forms\Components\TextInput::make('pharmacy_name')
                             ->label('Pharmacy Name')
-                            ->required()
                             ->maxLength(255),
                         Forms\Components\TextInput::make('quantity_received')
                             ->label('Quantity Received')

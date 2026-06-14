@@ -28,6 +28,8 @@ class BranchObserver
             
             Notification::create([
                 'user_id' => $admin->id,
+                'facility_id' => $branch->facility_id ?? null,
+                'branch_id' => $branch->branch_id ?? $branch->assigned_branch_id ?? null,
                 'type' => 'branch_created',
                 'title' => 'New Branch Added',
                 'message' => "A new branch, {$branchName}, has been added to {$facilityName}",

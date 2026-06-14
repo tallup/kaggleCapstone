@@ -1,17 +1,25 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { Lock, Mail, Eye, EyeOff, ShieldCheck, ClipboardList, Clock, Home, Info, Building2 } from 'lucide-react';
-import api from '../services/api';
+import { useNavigate, useLocation, useSearchParams, Link } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
+import { Lock, Mail, Eye, EyeOff, ShieldCheck, ClipboardList, Clock, Home } from 'lucide-react';
+import { toast } from 'sonner';
+import api, { storeAuthToken } from '../services/api';
+import { clearCachedCurrentUser, currentUserQueryOptions, persistFacilityBranding } from '../queries/currentUser';
+import { dashboardStatsQueryOptions } from '../queries/dashboardStats';
+import { applyThemeCssVariables } from '../hooks/useThemeVariables';
 import { useAnimateOnMount } from '../hooks/useAnimateOnMount';
 import { slideInLeft, slideInRight, fadeIn, shake, shouldAnimate } from '../utils/animationPresets';
 import { getUserLocation, formatDistance } from '../utils/location';
+import logger from '../utils/logger';
 
 export default function Login() {
+    const queryClient = useQueryClient();
     const navigate = useNavigate();
     const location = useLocation();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
+    const [errorDebug, setErrorDebug] = useState(null);
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [userLocation, setUserLocation] = useState(null);
@@ -19,6 +27,15 @@ export default function Login() {
     const brandPanelRef = useAnimateOnMount('slideUp', { delay: 0, duration: 600 });
     const formRef = useAnimateOnMount('slideUp', { delay: 200, duration: 600 });
     const errorRef = useRef(null);
+
+    // If user landed on /login with an invite token (e.g. bad redirect), send them to accept-invite
+    const [searchParams] = useSearchParams();
+    React.useEffect(() => {
+        const inviteToken = searchParams.get('token');
+        if (location.pathname === '/login' && inviteToken) {
+            navigate('/portal/accept-invite?token=' + encodeURIComponent(inviteToken), { replace: true });
+        }
+    }, [location.pathname, searchParams, navigate]);
 
     // Redirect if already logged in (but validate token first)
     // Only do this if we're actually on the login page
@@ -33,6 +50,8 @@ export default function Login() {
     }, []);
     
     React.useEffect(() => {
+        // Don't run redirect-if-logged-in if we're about to redirect to accept-invite
+        if (searchParams.get('token')) return;
         // Only run if we're on the login page and component is still mounted
         if (location.pathname !== '/login' || !isMountedRef.current) return;
         
@@ -44,10 +63,10 @@ export default function Login() {
                 if (window.location.pathname === '/login' && isMountedRef.current && location.pathname === '/login') {
                     // Validate token by making a quick API call
                     api.get('/user')
-                        .then(() => {
-                            // Token is valid, redirect to dashboard
+                        .then((res) => {
                             if (window.location.pathname === '/login' && isMountedRef.current) {
-                                navigate('/dashboard', { replace: true });
+                                const role = res.data?.role ?? '';
+                                navigate(role === 'family' ? '/portal' : '/dashboard', { replace: true });
                             }
                         })
                         .catch((err) => {
@@ -55,12 +74,14 @@ export default function Login() {
                             // Only clear if still on login page and component is mounted
                             if (window.location.pathname === '/login' && isMountedRef.current) {
                                 localStorage.removeItem('auth_token');
+                                localStorage.removeItem('token');
+                                localStorage.removeItem('access_token');
                                 localStorage.removeItem('user_name');
                                 localStorage.removeItem('user_role');
                             }
                             // Don't show error if it's a 401 (expected when token is invalid)
                             if (err.response?.status !== 401) {
-                                console.error('Token validation failed:', err);
+                                logger.error('Token validation failed:', err);
                             }
                         });
                 }
@@ -90,7 +111,7 @@ export default function Login() {
                 }
             } catch (err) {
                 // Silently fail - backend will use IP fallback
-                console.warn('Failed to get user location:', err);
+                logger.warn('Failed to get user location:', err);
             } finally {
                 setLocationLoading(false);
             }
@@ -98,6 +119,26 @@ export default function Login() {
 
         requestLocation();
     }, []);
+
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        const reason = params.get('reason');
+        const fromSessionFlag = sessionStorage.getItem('session_expired') === '1';
+
+        if (reason === 'session-expired' || fromSessionFlag) {
+            toast.info('Your session expired due to inactivity. Please sign in again.', {
+                duration: 3500,
+            });
+            sessionStorage.removeItem('session_expired');
+
+            if (reason === 'session-expired') {
+                params.delete('reason');
+                const query = params.toString();
+                const nextUrl = query ? `/login?${query}` : '/login';
+                window.history.replaceState({}, '', nextUrl);
+            }
+        }
+    }, [location.search]);
 
     // Animate error message
     useEffect(() => {
@@ -109,6 +150,7 @@ export default function Login() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
+        setErrorDebug(null);
         setLoading(true);
 
         try {
@@ -126,22 +168,67 @@ export default function Login() {
 
             const response = await api.post('/login', loginData);
 
-            if (response.data.token) {
-                // Store token and user info
-                localStorage.setItem('auth_token', response.data.token);
-                if (response.data.user) {
-                    localStorage.setItem('user_name', response.data.user.name || response.data.user.email);
-                    localStorage.setItem('user_role', response.data.user.role || '');
+            const token =
+                response.data?.token ||
+                response.data?.access_token ||
+                response.data?.data?.token ||
+                null;
+
+            if (token) {
+                storeAuthToken(token);
+                clearCachedCurrentUser(queryClient);
+
+                // Use facility_branding from the login response to seed the theme BEFORE the
+                // in-flight GET /user resolves. Without this, ThemeWrapper's stash fallback
+                // returns null during the in-flight window and applies the default HomeLogic360
+                // palette (dark blue #1E3A5F), which then races React's render/commit and can
+                // remain visible on the dashboard's first paint until a manual refresh.
+                const loginUser = response.data?.user;
+                const loginBranding =
+                    loginUser && loginUser.role !== 'super_admin' && loginUser.facility_branding
+                        ? loginUser.facility_branding
+                        : null;
+                if (loginBranding) {
+                    persistFacilityBranding(loginBranding);
+                    applyThemeCssVariables(loginBranding);
                 }
-                
-                // Redirect all users to React dashboard
-                navigate('/dashboard');
+
+                // Must fetch GET /user here — do not setQueryData from the login payload alone.
+                // Seeding the cache makes prefetchQuery/fetchQuery skip the network request while
+                // data looks "fresh", so facility_branding / theme never updates until a full reload.
+                const user = await queryClient.fetchQuery(currentUserQueryOptions);
+                const effectiveUser = user ?? response.data.user;
+                if (effectiveUser) {
+                    localStorage.setItem('user_name', effectiveUser.name || effectiveUser.email);
+                    localStorage.setItem('user_role', effectiveUser.role || '');
+                }
+                const role = effectiveUser?.role ?? '';
+                // Defer navigation one macrotask so ThemeWrapper/ThemeProvider re-render with the cached user
+                // and useLayoutEffect applies facility CSS variables before the dashboard first paints.
+                await new Promise((resolve) => setTimeout(resolve, 0));
+                if (role === 'family') {
+                    navigate('/portal');
+                } else {
+                    try {
+                        await queryClient.prefetchQuery(dashboardStatsQueryOptions);
+                    } catch (prefetchErr) {
+                        logger.warn('Post-login dashboard prefetch failed:', prefetchErr);
+                    }
+                    navigate('/dashboard');
+                }
             }
         } catch (err) {
             // Handle location-based errors with distance information
-            const errorMessage = err.response?.data?.message || 'Invalid credentials. Please try again.';
+            let errorMessage = err.response?.data?.message || 'Invalid credentials. Please try again.';
+            if (err.response?.status === 500 && errorMessage === 'An error occurred') {
+                errorMessage = 'Sign-in could not complete. Please try again.';
+            }
             const distance = err.response?.data?.distance;
-            
+            const debug = err.response?.data?.debug;
+            if (debug && typeof debug === 'object') {
+                setErrorDebug(debug);
+            }
+
             if (distance !== undefined && distance !== null) {
                 // Format the error message to include distance if available
                 setError(errorMessage);
@@ -154,8 +241,8 @@ export default function Login() {
     };
 
     return (
-        <div className="h-screen flex items-center justify-center bg-gradient-to-br from-slate-100 via-blue-50 to-slate-100 overflow-hidden">
-            <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center">
+        <div className="auth-page-login min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-100 via-blue-50 to-slate-100 py-8 sm:py-10 overflow-x-hidden overflow-y-auto">
+            <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 min-h-0 flex items-center">
                 <div className="w-full grid lg:grid-cols-2 gap-6 items-center">
                     {/* Brand / Welcome Panel - Compact with High Contrast */}
                     <div 
@@ -212,22 +299,13 @@ export default function Login() {
                     {/* Authentication Panel - Compact with High Contrast */}
                     <div className="flex items-center justify-center w-full">
                         <div ref={formRef} className="w-full max-w-md space-y-5">
-                            {/* Logo and Back to Home Link */}
-                            <div className="flex flex-col items-center mb-4">
+                            {/* Back to home */}
+                            <div className="auth-back-to-welcome flex justify-center mb-1">
                                 <a
                                     href="/"
-                                    className="flex items-center space-x-3 bg-white/90 backdrop-blur-sm px-4 py-3 rounded-xl shadow-lg border border-gray-200 mb-3 hover:shadow-xl hover:border-blue-300 transition-all group no-underline"
+                                    className="auth-back-link inline-flex items-center gap-2 text-sm font-semibold bg-white/0 !text-slate-900 hover:!text-blue-800 underline-offset-2 hover:underline"
                                 >
-                                    <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-600 to-blue-700 flex items-center justify-center shadow-md group-hover:from-blue-700 group-hover:to-blue-800 transition-all">
-                                        <Building2 className="w-6 h-6 text-white" />
-                                    </div>
-                                    <span className="text-xl font-bold text-gray-900 group-hover:text-blue-700 transition-colors">HomeLogic360</span>
-                                </a>
-                                <a
-                                    href="/"
-                                    className="flex items-center space-x-2 text-sm text-blue-700 hover:text-blue-800 font-semibold hover:underline transition-colors no-underline"
-                                >
-                                    <Home className="w-4 h-4" />
+                                    <Home className="w-4 h-4 shrink-0 !text-slate-800" aria-hidden="true" />
                                     <span>Back to Welcome Page</span>
                                 </a>
                             </div>
@@ -246,10 +324,17 @@ export default function Login() {
                                 <h2 className="text-2xl font-bold text-gray-900">Sign in to HomeLogic360</h2>
                             </div>
 
-                            <div className="bg-white border-2 border-gray-300 rounded-xl shadow-xl p-6 space-y-4">
+                            <div className="auth-login-card bg-white border-2 border-gray-300 rounded-xl shadow-xl p-6 space-y-4">
                                 {error && (
-                                    <div ref={errorRef} className="p-3 bg-red-100 border-2 border-red-400 rounded-lg">
+                                    <div ref={errorRef} className="p-3 bg-red-100 border-2 border-red-400 rounded-lg space-y-2">
                                         <p className="text-sm font-semibold text-red-900">{error}</p>
+                                        {errorDebug && (
+                                            <pre className="text-xs text-red-950/90 whitespace-pre-wrap break-words max-h-40 overflow-auto bg-red-50/80 border border-red-200 rounded p-2 font-mono">
+                                                {errorDebug.message && `[${errorDebug.message}]\n`}
+                                                {errorDebug.file && `${errorDebug.file}`}
+                                                {errorDebug.line != null && `:${errorDebug.line}`}
+                                            </pre>
+                                        )}
                                     </div>
                                 )}
 
@@ -308,6 +393,15 @@ export default function Login() {
                                         </div>
                                     </div>
 
+                                    <div className="flex justify-end -mt-0.5">
+                                        <Link
+                                            to="/forgot-password"
+                                            className="text-sm font-semibold text-blue-800 hover:text-blue-900 underline-offset-2 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+                                        >
+                                            Forgot your password?
+                                        </Link>
+                                    </div>
+
                                     <button
                                         type="submit"
                                         disabled={loading || locationLoading}
@@ -318,9 +412,12 @@ export default function Login() {
                                 </form>
 
                                 <div className="pt-4 border-t-2 border-gray-300">
-                                    <p className="text-sm text-gray-700 text-center font-medium">
+                                    <p className="auth-login-help text-sm text-gray-800 text-center font-medium">
                                         Need help?{' '}
-                                        <a href="mailto:support@homelogic360.com" className="text-blue-700 font-bold hover:text-blue-800 hover:underline transition-colors">
+                                        <a
+                                            href="mailto:support@homelogic360.com"
+                                            className="font-bold text-blue-800 hover:text-blue-900 hover:underline transition-colors"
+                                        >
                                             Contact support
                                         </a>
                                     </p>

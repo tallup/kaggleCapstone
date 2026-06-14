@@ -2,12 +2,11 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
 use App\Models\Assessment;
-use Illuminate\Http\Request;
-use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class AssessmentController extends BaseApiController
 {
@@ -26,9 +25,20 @@ class AssessmentController extends BaseApiController
         if ($currentUser && $currentUser->role !== 'super_admin') {
             // Filter assessments by branches that belong to the user's facility
             if ($currentUser->facility_id) {
-                $query->whereHas('branch', function($q) use ($currentUser) {
-                    $q->where('facility_id', $currentUser->facility_id);
-                });
+                // Use optimized whereIn pattern instead of whereHas for better performance
+                $branchIds = $this->getFacilityBranchIds($currentUser->facility_id);
+                if (! empty($branchIds)) {
+                    $query->whereIn('branch_id', $branchIds);
+                } else {
+                    // No branches for facility, return empty results
+                    return response()->json([
+                        'data' => [],
+                        'current_page' => 1,
+                        'last_page' => 1,
+                        'per_page' => $request->get('per_page', 20),
+                        'total' => 0,
+                    ]);
+                }
             } else {
                 // User has no facility assigned, return empty results
                 return response()->json([
@@ -36,7 +46,7 @@ class AssessmentController extends BaseApiController
                     'current_page' => 1,
                     'last_page' => 1,
                     'per_page' => $request->get('per_page', 20),
-                    'total' => 0
+                    'total' => 0,
                 ]);
             }
         }
@@ -45,17 +55,17 @@ class AssessmentController extends BaseApiController
         $this->applyBranchFilter($query, $request, $currentUser);
 
         // Filter by status
-        if ($request->has('status') && !empty($request->get('status'))) {
+        if ($request->has('status') && ! empty($request->get('status'))) {
             $query->where('status', $request->get('status'));
         }
 
         // Filter by type
-        if ($request->has('assessment_type') && !empty($request->get('assessment_type'))) {
+        if ($request->has('assessment_type') && ! empty($request->get('assessment_type'))) {
             $query->where('assessment_type', $request->get('assessment_type'));
         }
 
         // Filter by resident
-        if ($request->has('resident_id') && !empty($request->get('resident_id'))) {
+        if ($request->has('resident_id') && ! empty($request->get('resident_id'))) {
             $query->where('resident_id', $request->get('resident_id'));
         }
 
@@ -77,15 +87,15 @@ class AssessmentController extends BaseApiController
         }
 
         // Search
-        if ($request->has('search') && !empty($request->get('search'))) {
+        if ($request->has('search') && ! empty($request->get('search'))) {
             $search = $request->get('search');
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('assessment_type', 'like', "%{$search}%")
-                  ->orWhere('notes', 'like', "%{$search}%")
-                  ->orWhereHas('resident', function($q) use ($search) {
-                      $q->where('first_name', 'like', "%{$search}%")
-                        ->orWhere('last_name', 'like', "%{$search}%");
-                  });
+                    ->orWhere('notes', 'like', "%{$search}%")
+                    ->orWhereHas('resident', function ($q) use ($search) {
+                        $q->where('first_name', 'like', "%{$search}%")
+                            ->orWhere('last_name', 'like', "%{$search}%");
+                    });
             });
         }
 
@@ -112,7 +122,7 @@ class AssessmentController extends BaseApiController
         if ($currentUser && $currentUser->role !== 'super_admin') {
             if ($currentUser->facility_id) {
                 // Verify the assessment's branch belongs to the user's facility
-                if (!$assessment->branch || $assessment->branch->facility_id !== $currentUser->facility_id) {
+                if (! $assessment->branch || $assessment->branch->facility_id !== $currentUser->facility_id) {
                     return response()->json(['message' => 'Assessment not found'], 404);
                 }
             } else {
@@ -121,8 +131,8 @@ class AssessmentController extends BaseApiController
             }
         }
 
-        // If no sections exist, create default sections and questions
-        if ($assessment->sections()->count() === 0) {
+        // If no sections exist, create default sections and questions (admin workflow only; avoids writes on caregiver views)
+        if ($assessment->sections()->count() === 0 && ! $this->isCaregiver($currentUser)) {
             $this->createDefaultSections($assessment);
             $assessment->refresh();
             $assessment->load(['sections.questions']);
@@ -149,7 +159,7 @@ class AssessmentController extends BaseApiController
                     ['What is the resident\'s primary language?', 'text'],
                     ['Is the resident currently married?', 'yes_no'],
                     ['What is the resident\'s highest level of education?', 'select', ['Elementary', 'High School', 'College', 'Graduate', 'Other']],
-                ]
+                ],
             ],
             'medical_history' => [
                 'Medical History',
@@ -159,7 +169,7 @@ class AssessmentController extends BaseApiController
                     ['Does the resident have any known allergies?', 'yes_no'],
                     ['What allergies are present?', 'textarea'],
                     ['Has the resident had any recent surgeries?', 'yes_no'],
-                ]
+                ],
             ],
             'functional' => [
                 'Functional Assessment',
@@ -169,7 +179,7 @@ class AssessmentController extends BaseApiController
                     ['Can the resident transfer from bed to chair independently?', 'yes_no'],
                     ['Can the resident bathe independently?', 'yes_no'],
                     ['Can the resident dress independently?', 'yes_no'],
-                ]
+                ],
             ],
             'cognitive' => [
                 'Cognitive Assessment',
@@ -179,7 +189,7 @@ class AssessmentController extends BaseApiController
                     ['Can the resident make decisions independently?', 'yes_no'],
                     ['Has the resident been diagnosed with dementia or Alzheimer\'s?', 'yes_no'],
                     ['Describe cognitive abilities:', 'textarea'],
-                ]
+                ],
             ],
             'behavioral' => [
                 'Behavioral Assessment',
@@ -188,7 +198,7 @@ class AssessmentController extends BaseApiController
                     ['Describe any behavioral concerns:', 'textarea'],
                     ['Is the resident cooperative with care?', 'yes_no'],
                     ['Does the resident require redirection?', 'yes_no'],
-                ]
+                ],
             ],
         ];
 
@@ -214,16 +224,20 @@ class AssessmentController extends BaseApiController
 
     public function store(Request $request): JsonResponse
     {
+        if ($response = $this->forbidCaregiverMutation()) {
+            return $response;
+        }
+
         $user = auth()->user();
-        
+
         // Allow administrators and super admins to create assessments even without specific permission
         $isSuperAdmin = $user && ($user->role === 'super_admin' || $user->hasRole('super_admin'));
         $isAdmin = $user && ($user->role === 'administrator' || $user->role === 'admin');
-        
+
         // Check permission only if user is not an admin or super admin
-        if (!$isSuperAdmin && !$isAdmin) {
-        if ($error = $this->requirePermission('create_assessments')) {
-            return $error;
+        if (! $isSuperAdmin && ! $isAdmin) {
+            if ($error = $this->requirePermission('create_assessments')) {
+                return $error;
             }
         }
 
@@ -258,16 +272,20 @@ class AssessmentController extends BaseApiController
 
     public function update(Request $request, $id): JsonResponse
     {
+        if ($response = $this->forbidCaregiverMutation()) {
+            return $response;
+        }
+
         $user = auth()->user();
-        
+
         // Allow administrators and super admins to edit assessments even without specific permission
         $isSuperAdmin = $user && ($user->role === 'super_admin' || $user->hasRole('super_admin'));
         $isAdmin = $user && ($user->role === 'administrator' || $user->role === 'admin');
-        
+
         // Check permission only if user is not an admin or super admin
-        if (!$isSuperAdmin && !$isAdmin) {
-        if ($error = $this->requirePermission('edit_assessments')) {
-            return $error;
+        if (! $isSuperAdmin && ! $isAdmin) {
+            if ($error = $this->requirePermission('edit_assessments')) {
+                return $error;
             }
         }
 
@@ -292,13 +310,13 @@ class AssessmentController extends BaseApiController
 
         // Update timestamps based on status
         if (isset($validated['status'])) {
-            if ($validated['status'] === 'completed' && !$assessment->completed_at) {
+            if ($validated['status'] === 'completed' && ! $assessment->completed_at) {
                 $validated['completed_at'] = Carbon::now();
             }
-            if ($validated['status'] === 'reviewed' && !$assessment->reviewed_at) {
+            if ($validated['status'] === 'reviewed' && ! $assessment->reviewed_at) {
                 $validated['reviewed_at'] = Carbon::now();
             }
-            if ($validated['status'] === 'approved' && !$assessment->approved_at) {
+            if ($validated['status'] === 'approved' && ! $assessment->approved_at) {
                 $validated['approved_at'] = Carbon::now();
             }
         }
@@ -310,16 +328,20 @@ class AssessmentController extends BaseApiController
 
     public function destroy($id): JsonResponse
     {
+        if ($response = $this->forbidCaregiverMutation()) {
+            return $response;
+        }
+
         $user = auth()->user();
-        
+
         // Allow administrators and super admins to delete assessments even without specific permission
         $isSuperAdmin = $user && ($user->role === 'super_admin' || $user->hasRole('super_admin'));
         $isAdmin = $user && ($user->role === 'administrator' || $user->role === 'admin');
-        
+
         // Check permission only if user is not an admin or super admin
-        if (!$isSuperAdmin && !$isAdmin) {
-        if ($error = $this->requirePermission('delete_assessments')) {
-            return $error;
+        if (! $isSuperAdmin && ! $isAdmin) {
+            if ($error = $this->requirePermission('delete_assessments')) {
+                return $error;
             }
         }
 
@@ -337,6 +359,10 @@ class AssessmentController extends BaseApiController
 
     public function updateStatus(Request $request, $id): JsonResponse
     {
+        if ($response = $this->forbidCaregiverMutation()) {
+            return $response;
+        }
+
         // Check module access
         $moduleAccessError = $this->requireModuleAccess(\App\Constants\Modules::ASSESSMENTS);
         if ($moduleAccessError) {
@@ -352,22 +378,39 @@ class AssessmentController extends BaseApiController
         $status = $validated['status'];
 
         // Update timestamps based on status
-        if ($status === 'completed' && !$assessment->completed_at) {
+        if ($status === 'completed' && ! $assessment->completed_at) {
             $assessment->completed_at = Carbon::now();
-            
+
             // Calculate and save scores when marking as completed
             try {
                 $calculatedScores = $assessment->calculateScores();
                 $assessment->scores = $calculatedScores;
             } catch (\Exception $e) {
-                \Log::error('Failed to calculate assessment scores: ' . $e->getMessage());
+                \Log::error('Failed to calculate assessment scores: '.$e->getMessage());
                 // Continue even if score calculation fails
             }
+
+            // Notify admins
+            try {
+                $admins = \App\Models\User::where(function ($query) {
+                    $query->whereIn('role', ['admin', 'administrator', 'super_admin']);
+                })
+                    ->orWhereHas('roles', fn ($q) => $q->whereIn('name', ['admin', 'administrator', 'super_admin']))
+                    ->get();
+
+                app(\App\Services\NotificationService::class)->sendAssessmentEmail(
+                    $assessment,
+                    $admins,
+                    'completed'
+                );
+            } catch (\Exception $e) {
+                \Log::error('Failed to trigger assessment notification', ['error' => $e->getMessage()]);
+            }
         }
-        if ($status === 'reviewed' && !$assessment->reviewed_at) {
+        if ($status === 'reviewed' && ! $assessment->reviewed_at) {
             $assessment->reviewed_at = Carbon::now();
         }
-        if ($status === 'approved' && !$assessment->approved_at) {
+        if ($status === 'approved' && ! $assessment->approved_at) {
             $assessment->approved_at = Carbon::now();
         }
 
@@ -377,4 +420,3 @@ class AssessmentController extends BaseApiController
         return response()->json($assessment->load(['resident', 'branch', 'assessor']));
     }
 }
-

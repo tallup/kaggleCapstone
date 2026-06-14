@@ -48,9 +48,9 @@ export default function HIPAACompliance() {
       <PublicNavigation />
 
       {/* Hero Section */}
-      <section className="pt-20 pb-12 bg-gradient-to-br from-blue-50 to-cyan-50">
+      <section className="pt-20 pb-12 bg-gradient-to-br from-brand-primary to-brand-primary">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center mx-auto mb-6">
+          <div className="w-20 h-20 rounded-full bg-gradient-to-br from-brand-primary-dark to-brand-sky flex items-center justify-center mx-auto mb-6">
             <Shield className="w-10 h-10 text-white" />
           </div>
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">HIPAA Compliance</h1>
@@ -95,7 +95,7 @@ export default function HIPAACompliance() {
       {/* Additional Information */}
       <section className="py-20 bg-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl p-8">
+          <div className="bg-gradient-to-br from-brand-primary to-brand-primary rounded-xl p-8">
             <h2 className="text-2xl font-bold text-gray-900 mb-4">Business Associate Agreement</h2>
             <p className="text-gray-700 mb-4">
               All customers using HomeLogic360 to store or process PHI must execute a Business Associate Agreement (BAA) with us. This agreement:
@@ -114,15 +114,15 @@ export default function HIPAACompliance() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 bg-gradient-to-r from-blue-500 to-cyan-500">
+      <section className="py-20 bg-gradient-to-r from-brand-primary-dark to-brand-sky">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-4xl font-bold text-white mb-4">HIPAA-Compliant Care Management</h2>
-          <p className="text-xl text-blue-100 mb-8">
+          <p className="text-xl text-brand-primary mb-8">
             Trust HomeLogic360 for secure, compliant care facility management.
           </p>
           <button
             onClick={() => navigate('/register-facility')}
-            className="bg-white text-blue-600 px-8 py-4 rounded-lg font-semibold text-lg hover:bg-gray-100 transition-all shadow-lg"
+            className="bg-white text-brand-primary-dark px-8 py-4 rounded-lg font-semibold text-lg hover:bg-gray-100 transition-all shadow-lg"
           >
             Start Free Trial
           </button>

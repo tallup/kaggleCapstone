@@ -36,8 +36,10 @@ class FireDrillController extends BaseApiController
             $query->where('branch_id', $user->assigned_branch_id);
         }
 
-        // Note: Branch filtering via request parameter is handled by facility filter above
-        // The facility filter ensures only branches from the user's facility are accessible
+        // Filter by branch_id parameter (for non-caregivers - caregivers are already filtered above)
+        if (!$isCaregiver && $request->has('branch_id') && !empty($request->get('branch_id'))) {
+            $query->where('branch_id', $request->get('branch_id'));
+        }
 
         // Filter by status
         if ($request->has('status')) {

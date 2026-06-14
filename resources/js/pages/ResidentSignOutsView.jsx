@@ -53,7 +53,6 @@ export default function ResidentSignOutsView() {
             if (search) params.search = search;
             
             const response = await api.get('/residents/sign-outs/history', { params });
-            console.log('Resident Sign-Outs API Response:', response.data);
             // Handle paginated response - Laravel pagination returns data in 'data' key and meta separately
             if (response.data && Array.isArray(response.data)) {
                 // If it's a direct array (non-paginated)

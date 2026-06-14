@@ -39,6 +39,7 @@ class ResidentSignOutController extends Controller
         }
 
         $validated = $request->validate([
+            'branch_id' => 'nullable|integer|exists:branches,id',
             'destination' => 'nullable|string|max:255',
             'purpose' => 'nullable|string|max:1000',
             'accompanied_by' => 'nullable|string|max:255',
@@ -47,10 +48,26 @@ class ResidentSignOutController extends Controller
             'notes' => 'nullable|string|max:1000',
         ]);
 
+        // Use provided branch_id if user is an administrator, otherwise use resident's branch
+        $isAdmin = in_array($user->role, ['super_admin', 'administrator', 'admin']);
+        $branchId = null;
+        $facilityId = null;
+
+        if ($isAdmin && isset($validated['branch_id'])) {
+            // Administrator selected a branch - use it
+            $branchId = $validated['branch_id'];
+            $branch = \App\Models\Branch::find($branchId);
+            $facilityId = $branch?->facility_id ?? null;
+        } else {
+            // Use resident's branch
+            $branchId = $resident->branch_id;
+            $facilityId = $resident->branch->facility_id ?? null;
+        }
+
         $signOut = ResidentSignOut::create([
             'resident_id' => $resident->id,
-            'branch_id' => $resident->branch_id,
-            'facility_id' => $resident->branch->facility_id ?? null,
+            'branch_id' => $branchId,
+            'facility_id' => $facilityId,
             'sign_out_at' => now(),
             'destination' => $validated['destination'] ?? null,
             'purpose' => $validated['purpose'] ?? null,
@@ -160,6 +177,10 @@ class ResidentSignOutController extends Controller
                 ],
             ]);
         }
+
+        // Send email notifications
+        $notificationService = app(\App\Services\NotificationService::class);
+        $notificationService->sendResidentSignOutEmail($signOut, $users, 'signed_out');
     }
 
     /**
@@ -213,6 +234,10 @@ class ResidentSignOutController extends Controller
                 ],
             ]);
         }
+
+        // Send email notifications
+        $notificationService = app(\App\Services\NotificationService::class);
+        $notificationService->sendResidentSignOutEmail($signOut, $users, 'returned');
     }
 
     /**
@@ -265,6 +290,11 @@ class ResidentSignOutController extends Controller
         $query = ResidentSignOut::with(['resident', 'branch', 'createdBy'])
             ->where('is_active', true);
 
+        // Apply facility filtering for non-super admins
+        if ($user->role !== 'super_admin' && $user->facility_id) {
+            $query->where('facility_id', $user->facility_id);
+        }
+
         // Apply branch filter for caregivers
         if ($user->isCaregiver() && $user->assigned_branch_id) {
             $query->where('branch_id', $user->assigned_branch_id);
@@ -291,6 +321,11 @@ class ResidentSignOutController extends Controller
 
         $query = ResidentSignOut::overdue()
             ->with(['resident', 'branch', 'createdBy']);
+
+        // Apply facility filtering for non-super admins
+        if ($user->role !== 'super_admin' && $user->facility_id) {
+            $query->where('facility_id', $user->facility_id);
+        }
 
         // Apply branch filter for caregivers
         if ($user->isCaregiver() && $user->assigned_branch_id) {
@@ -319,7 +354,7 @@ class ResidentSignOutController extends Controller
         $query = ResidentSignOut::with(['resident', 'branch', 'createdBy', 'signedInBy']);
 
         // Apply access level filtering
-        $isAdmin = $user->role === 'super_admin' || $user->role === 'administrator' || $user->hasRole('administrator');
+        $isAdmin = $user->role === 'super_admin' || $user->isAnyAdmin();
         
         if ($user->isCaregiver() && $user->assigned_branch_id) {
             // Caregivers can only see sign-outs from their assigned branch
@@ -371,4 +406,3 @@ class ResidentSignOutController extends Controller
         return response()->json($signOuts);
     }
 }
-

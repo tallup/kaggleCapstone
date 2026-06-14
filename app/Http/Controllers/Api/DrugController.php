@@ -11,7 +11,32 @@ class DrugController extends BaseApiController
 {
     public function index(Request $request): JsonResponse
     {
+        $user = auth()->user();
         $query = Drug::query();
+
+        // Filter by facility: Show only drugs used in medications or pharmacy inventory within user's facility
+        // Super admins see all drugs
+        // COMMENTED OUT: This restricts viewing newly created drugs which are not yet used.
+        // Users should see the global drug list to be able to add/manage them.
+        /*
+        if ($user && $user->role !== 'super_admin') {
+            if ($user->facility_id) {
+                $query->where(function($q) use ($user) {
+                    // Drugs used in medications within facility branches
+                    $q->whereHas('medications.branch', function($branchQuery) use ($user) {
+                        $branchQuery->where('facility_id', $user->facility_id);
+                    })
+                    // OR drugs in pharmacy inventory within facility branches
+                    ->orWhereHas('pharmacyInventory.branch', function($branchQuery) use ($user) {
+                        $branchQuery->where('facility_id', $user->facility_id);
+                    });
+                });
+            } else {
+                // User has no facility assigned, return empty results
+                $query->whereRaw('1 = 0'); // Force empty result
+            }
+        }
+        */
 
         // Filter by active status
         if ($request->has('active_only') && $request->get('active_only') === 'true') {

@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { getLocalDateString } from '../../utils/pacificTime';
 import { usePreventDateInputReload } from '../../hooks/usePreventDateInputReload';
+import PrintableReportLayout, { ReportPrintButton } from '../../components/reports/PrintableReportLayout';
 
 export default function SleepCharts() {
     const [dateFrom, setDateFrom] = useState(() => {
@@ -71,6 +72,11 @@ export default function SleepCharts() {
         window.URL.revokeObjectURL(url);
     };
 
+    const selectedResident = React.useMemo(() => {
+        if (!residentId) return null;
+        return residents.find(r => String(r.id) === String(residentId)) ?? null;
+    }, [residentId, residents]);
+
     if (isLoading) {
         return (
             <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
@@ -85,19 +91,24 @@ export default function SleepCharts() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-            <div className="max-w-7xl mx-auto px-4 py-8">
-                {/* Header */}
-                <div className="mb-8">
-                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-                        <div>
-                            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-                                <Moon className="h-8 w-8 text-[var(--theme-primary)]" />
-                                Sleep Analytics Dashboard
-                            </h1>
-                            <p className="mt-2 text-gray-600">Comprehensive sleep data analysis and insights</p>
-                        </div>
-                        <div className="flex items-center gap-3">
+        <PrintableReportLayout
+            title="Sleep Analytics Dashboard"
+            subtitle={`${dateFrom} to ${dateTo}`}
+            resident={selectedResident}
+        >
+            <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+                <div className="max-w-7xl mx-auto px-4 py-8">
+                    {/* Header */}
+                    <div className="mb-8">
+                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+                            <div>
+                                <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+                                    <Moon className="h-8 w-8 text-[var(--theme-primary)]" />
+                                    Sleep Analytics Dashboard
+                                </h1>
+                                <p className="mt-2 text-gray-600">Comprehensive sleep data analysis and insights</p>
+                            </div>
+                        <div className="flex items-center gap-3 no-print">
                             <button
                                 onClick={handleExport}
                                 className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
@@ -105,6 +116,7 @@ export default function SleepCharts() {
                                 <Download className="h-4 w-4" />
                                 Export
                             </button>
+                            <ReportPrintButton />
                             <button
                                 onClick={() => refetch()}
                                 className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] rounded-lg text-sm font-medium hover:bg-[var(--theme-primary-hover)] transition"
@@ -116,7 +128,7 @@ export default function SleepCharts() {
                     </div>
 
                     {/* Filters */}
-                    <div ref={filtersRef} className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+                    <div ref={filtersRef} className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 no-print">
                         <div className="flex flex-wrap items-end gap-4">
                             <div className="flex-1 min-w-[200px]">
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -201,14 +213,14 @@ export default function SleepCharts() {
                 </div>
 
                 {/* Statistics Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 md:gap-6 mb-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
                     <div className="group relative bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100 hover:border-transparent">
                         <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-blue-500 to-blue-600"></div>
                         <div className="p-6">
                             <div className="flex items-start justify-between mb-3">
                                 <div className="flex-1">
                                     <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-2">Total Records</p>
-                                    <p className="text-3xl font-bold text-gray-900">{(data?.total_records || 0).toLocaleString()}</p>
+                                    <p className="text-3xl font-bold text-gray-900">{(data?.total_records ?? 0).toLocaleString()}</p>
                                 </div>
                                 <div className="bg-blue-50 p-3 rounded-xl group-hover:scale-110 transition-transform duration-300">
                                     <BarChart3 className="w-6 h-6 text-blue-600" />
@@ -223,7 +235,7 @@ export default function SleepCharts() {
                                 <div className="flex-1">
                                     <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-2">Avg Sleep Hours</p>
                                     <p className="text-3xl font-bold text-gray-900">
-                                        {data?.avg_sleep_hours ? parseFloat(data.avg_sleep_hours).toFixed(1) : '0.0'}h
+                                        {data?.avg_sleep_hours != null ? parseFloat(data.avg_sleep_hours).toFixed(1) : '0.0'}h
                                     </p>
                                 </div>
                                 <div className="bg-indigo-50 p-3 rounded-xl group-hover:scale-110 transition-transform duration-300">
@@ -239,43 +251,11 @@ export default function SleepCharts() {
                                 <div className="flex-1">
                                     <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-2">Avg Quality</p>
                                     <p className="text-3xl font-bold text-gray-900">
-                                        {data?.avg_quality ? parseFloat(data.avg_quality).toFixed(1) : '0.0'}/10
+                                        {data?.avg_quality != null ? parseFloat(data.avg_quality).toFixed(1) : '0.0'}/10
                                     </p>
                                 </div>
                                 <div className="bg-yellow-50 p-3 rounded-xl group-hover:scale-110 transition-transform duration-300">
                                     <Star className="w-6 h-6 text-yellow-600" />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="group relative bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100 hover:border-transparent">
-                        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-red-500 to-red-600"></div>
-                        <div className="p-6">
-                            <div className="flex items-start justify-between mb-3">
-                                <div className="flex-1">
-                                    <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-2">Min Hours</p>
-                                    <p className="text-3xl font-bold text-gray-900">
-                                        {data?.min_sleep_hours ? parseFloat(data.min_sleep_hours).toFixed(1) : '0.0'}h
-                                    </p>
-                                </div>
-                                <div className="bg-red-50 p-3 rounded-xl group-hover:scale-110 transition-transform duration-300">
-                                    <Minus className="w-6 h-6 text-red-600" />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="group relative bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100 hover:border-transparent">
-                        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-green-500 to-green-600"></div>
-                        <div className="p-6">
-                            <div className="flex items-start justify-between mb-3">
-                                <div className="flex-1">
-                                    <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-2">Max Hours</p>
-                                    <p className="text-3xl font-bold text-gray-900">
-                                        {data?.max_sleep_hours ? parseFloat(data.max_sleep_hours).toFixed(1) : '0.0'}h
-                                    </p>
-                                </div>
-                                <div className="bg-green-50 p-3 rounded-xl group-hover:scale-110 transition-transform duration-300">
-                                    <Plus className="w-6 h-6 text-green-600" />
                                 </div>
                             </div>
                         </div>
@@ -287,7 +267,7 @@ export default function SleepCharts() {
                                 <div className="flex-1">
                                     <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-2">Total Hours</p>
                                     <p className="text-3xl font-bold text-gray-900">
-                                        {data?.total_sleep_hours ? parseFloat(data.total_sleep_hours).toFixed(1) : '0.0'}h
+                                        {data?.total_sleep_hours != null ? parseFloat(data.total_sleep_hours).toFixed(1) : '0.0'}h
                                     </p>
                                 </div>
                                 <div className="bg-purple-50 p-3 rounded-xl group-hover:scale-110 transition-transform duration-300">
@@ -500,6 +480,7 @@ export default function SleepCharts() {
                     </div>
                 </div>
             </div>
-        </div>
+            </div>
+        </PrintableReportLayout>
     );
 }

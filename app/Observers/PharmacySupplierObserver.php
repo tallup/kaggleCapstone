@@ -5,6 +5,7 @@ namespace App\Observers;
 use App\Models\PharmacySupplier;
 use App\Models\Notification;
 use App\Models\User;
+use App\Services\NotificationService;
 
 class PharmacySupplierObserver
 {
@@ -34,6 +35,8 @@ class PharmacySupplierObserver
         foreach ($admins as $admin) {
             Notification::create([
                 'user_id' => $admin->id,
+                'facility_id' => $supplier->facility_id ?? null,
+                'branch_id' => $supplier->branch_id ?? $supplier->assigned_branch_id ?? null,
                 'type' => 'pharmacy_supplier_created',
                 'title' => 'New Pharmacy Supplier Added',
                 'message' => "New pharmacy supplier '{$supplier->name}' has been added.",
@@ -46,6 +49,10 @@ class PharmacySupplierObserver
                 ],
             ]);
         }
+
+        // Send email notifications
+        $notificationService = app(NotificationService::class);
+        $notificationService->sendPharmacySupplierEmail($supplier, $admins, 'created');
     }
 
     /**
@@ -68,6 +75,8 @@ class PharmacySupplierObserver
         foreach ($admins as $admin) {
             Notification::create([
                 'user_id' => $admin->id,
+                'facility_id' => $supplier->facility_id ?? null,
+                'branch_id' => $supplier->branch_id ?? $supplier->assigned_branch_id ?? null,
                 'type' => 'pharmacy_supplier_updated',
                 'title' => 'Pharmacy Supplier Updated',
                 'message' => "Pharmacy supplier '{$supplier->name}' has been updated.",
@@ -80,6 +89,10 @@ class PharmacySupplierObserver
                 ],
             ]);
         }
+
+        // Send email notifications
+        $notificationService = app(NotificationService::class);
+        $notificationService->sendPharmacySupplierEmail($supplier, $admins, 'updated');
     }
 }
 

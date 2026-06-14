@@ -150,6 +150,10 @@ class VisitorController extends Controller
                 ],
             ]);
         }
+
+        // Send email notifications
+        $notificationService = app(\App\Services\NotificationService::class);
+        $notificationService->sendVisitorEmail($visitor, $users, 'checked_in');
     }
 
     /**
@@ -202,6 +206,10 @@ class VisitorController extends Controller
                 ],
             ]);
         }
+
+        // Send email notifications
+        $notificationService = app(\App\Services\NotificationService::class);
+        $notificationService->sendVisitorEmail($visitor, $users, 'checked_out');
     }
 
     /**
@@ -216,6 +224,11 @@ class VisitorController extends Controller
         }
 
         $query = Visitor::with(['branch', 'visitingResident', 'visitingStaff', 'checkedInBy', 'checkedOutBy']);
+
+        // Apply facility filtering for non-super admins
+        if ($user->role !== 'super_admin' && $user->facility_id) {
+            $query->where('facility_id', $user->facility_id);
+        }
 
         // Apply branch filter for caregivers
         if ($user->isCaregiver() && $user->assigned_branch_id) {
@@ -273,6 +286,11 @@ class VisitorController extends Controller
 
         $query = Visitor::with(['branch', 'visitingResident', 'visitingStaff', 'checkedInBy'])
             ->where('is_active', true);
+
+        // Apply facility filtering for non-super admins
+        if ($user->role !== 'super_admin' && $user->facility_id) {
+            $query->where('facility_id', $user->facility_id);
+        }
 
         // Apply branch filter for caregivers
         if ($user->isCaregiver() && $user->assigned_branch_id) {

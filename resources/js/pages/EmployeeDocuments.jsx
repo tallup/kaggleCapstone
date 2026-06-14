@@ -2,6 +2,10 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import { FileText, Plus, Edit, Trash2, Search, Filter, Download, Calendar, User as UserIcon, AlertCircle, X } from 'lucide-react';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
+import Modal from '../components/ui/Modal';
+import Tooltip from '../components/ui/Tooltip';
+import CardIconButton from '../components/ui/CardIconButton';
 
 export default function EmployeeDocuments() {
     const queryClient = useQueryClient();
@@ -12,6 +16,7 @@ export default function EmployeeDocuments() {
     const [activeFilter, setActiveFilter] = useState('all');
     const [showForm, setShowForm] = useState(false);
     const [editing, setEditing] = useState(null);
+    const [deleteConfirmId, setDeleteConfirmId] = useState(null);
     const [currentPage, setCurrentPage] = useState(1);
 
     const { data, isLoading } = useQuery({
@@ -80,27 +85,22 @@ export default function EmployeeDocuments() {
         return { text: `${days} days`, color: 'text-green-600' };
     };
 
-    if (showForm) {
-        return (
-            <div>
-                <EmployeeDocumentForm
-                    record={editing}
-                    users={usersData?.data || []}
-                    onClose={() => {
-                        setShowForm(false);
-                        setEditing(null);
-                    }}
-                    onSuccess={() => {
-                        setShowForm(false);
-                        setEditing(null);
-                        queryClient.invalidateQueries(['employee-documents']);
-                    }}
-                />
-            </div>
-        );
-    }
-
     return (
+        <>
+            <ConfirmDialog
+                isOpen={deleteConfirmId != null}
+                onClose={() => !deleteMutation.isPending && setDeleteConfirmId(null)}
+                onConfirm={() => {
+                    if (deleteConfirmId == null) return;
+                    deleteMutation.mutate(deleteConfirmId, { onSuccess: () => setDeleteConfirmId(null) });
+                }}
+                title="Delete this document?"
+                description="The file will be permanently removed."
+                confirmLabel="Delete"
+                cancelLabel="Cancel"
+                variant="danger"
+                isPending={deleteMutation.isPending}
+            />
         <div>
             <div className="bg-white rounded-lg shadow p-6 mb-6">
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
@@ -271,7 +271,11 @@ export default function EmployeeDocuments() {
                                             <td className="px-4 py-4 whitespace-nowrap">
                                                 <div className="flex items-center space-x-2">
                                                     {document.is_expired && (
-                                                        <AlertCircle className="w-4 h-4 text-red-500" title="Expired" />
+                                                        <Tooltip content="Expired" position="top">
+                                                            <span className="inline-flex" aria-label="Expired">
+                                                                <AlertCircle className="w-4 h-4 text-red-500" aria-hidden />
+                                                            </span>
+                                                        </Tooltip>
                                                     )}
                                                     <span className={`text-xs px-2 py-1 rounded-full ${
                                                         document.is_active 
@@ -285,37 +289,41 @@ export default function EmployeeDocuments() {
                                             <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-right min-w-[180px]">
                                                 <div className="flex items-center justify-end gap-2">
                                                     {document.file_path && (
-                                                        <a
-                                                            href={`/storage/${document.file_path}`}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="p-2 rounded-lg bg-[var(--theme-primary)]/10 text-[var(--theme-primary)] hover:bg-[var(--theme-primary)] hover:text-white transition-colors"
-                                                            title="Download"
-                                                        >
-                                                            <Download className="w-5 h-5" />
-                                                        </a>
+                                                        <Tooltip content="Download">
+                                                            <a
+                                                                href={document.download_url || `/api/v1/employee-documents/${document.id}/download`}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="inline-flex rounded-lg border border-emerald-300 bg-emerald-50 p-2 shadow-sm transition hover:border-emerald-400 hover:bg-emerald-100 [&_svg]:!text-emerald-600"
+                                                                aria-label="Download"
+                                                            >
+                                                                <Download className="h-4 w-4" strokeWidth={2.5} />
+                                                            </a>
+                                                        </Tooltip>
                                                     )}
-                                                    <button
-                                                        onClick={() => {
-                                                            setEditing(document);
-                                                            setShowForm(true);
-                                                        }}
-                                                        className="p-2 rounded-lg bg-blue-100 text-blue-600 hover:bg-blue-600 hover:text-white transition-colors"
-                                                        title="Edit"
-                                                    >
-                                                        <Edit className="w-5 h-5" />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => {
-                                                            if (window.confirm('Are you sure you want to delete this document?')) {
-                                                                deleteMutation.mutate(document.id);
-                                                            }
-                                                        }}
-                                                        className="p-2 rounded-lg bg-red-100 text-red-600 hover:bg-red-600 hover:text-white transition-colors"
-                                                        title="Delete"
-                                                    >
-                                                        <Trash2 className="w-5 h-5" />
-                                                    </button>
+                                                    <Tooltip content="Edit">
+                                                        <CardIconButton
+                                                            variant="edit"
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setEditing(document);
+                                                                setShowForm(true);
+                                                            }}
+                                                            aria-label="Edit"
+                                                        >
+                                                            <Edit className="h-4 w-4" strokeWidth={2.5} />
+                                                        </CardIconButton>
+                                                    </Tooltip>
+                                                    <Tooltip content="Delete">
+                                                        <CardIconButton
+                                                            variant="delete"
+                                                            type="button"
+                                                            onClick={() => setDeleteConfirmId(document.id)}
+                                                            aria-label="Delete"
+                                                        >
+                                                            <Trash2 className="h-4 w-4" strokeWidth={2.5} />
+                                                        </CardIconButton>
+                                                    </Tooltip>
                                                 </div>
                                             </td>
                                         </tr>
@@ -360,11 +368,38 @@ export default function EmployeeDocuments() {
                 </div>
             )}
         </div>
+
+            <Modal
+                isOpen={showForm}
+                onClose={() => {
+                    setShowForm(false);
+                    setEditing(null);
+                }}
+                title={editing ? 'Edit Document' : 'Add Document'}
+                size="xl"
+            >
+                <EmployeeDocumentForm
+                    key={editing?.id ?? 'new'}
+                    inModal
+                    record={editing}
+                    users={usersData?.data || []}
+                    onClose={() => {
+                        setShowForm(false);
+                        setEditing(null);
+                    }}
+                    onSuccess={() => {
+                        setShowForm(false);
+                        setEditing(null);
+                        queryClient.invalidateQueries(['employee-documents']);
+                    }}
+                />
+            </Modal>
+        </>
     );
 }
 
 // Employee Document Form Component
-function EmployeeDocumentForm({ record, users, onClose, onSuccess }) {
+function EmployeeDocumentForm({ record, users, onClose, onSuccess, inModal = false }) {
     const [formData, setFormData] = useState({
         user_id: record?.user_id || '',
         document_name: record?.document_name || '',
@@ -416,17 +451,42 @@ function EmployeeDocumentForm({ record, users, onClose, onSuccess }) {
                 return;
             }
 
+            let response;
             if (record) {
-                await api.put(`/employee-documents/${record.id}`, formDataToSend);
+                response = await api.put(`/employee-documents/${record.id}`, formDataToSend);
             } else {
-                await api.post('/employee-documents', formDataToSend);
+                response = await api.post('/employee-documents', formDataToSend);
             }
-            onSuccess();
+            
+            // Check if the request was successful (status 200-299)
+            if (response.status >= 200 && response.status < 300) {
+                onSuccess();
+            } else {
+                // Only show error if the response indicates failure
+                if (response.data?.errors) {
+                    setErrors(response.data.errors);
+                } else {
+                    setErrors({ general: response.data?.message || 'Failed to save document' });
+                }
+            }
         } catch (error) {
-            if (error.response?.data?.errors) {
+            // Check if it's a network error or actual server error
+            // If status is 201 (created), the document was saved successfully
+            if (error.response?.status === 201) {
+                // Document was saved successfully, just call onSuccess
+                onSuccess();
+            } else if (error.response?.data?.errors) {
                 setErrors(error.response.data.errors);
             } else {
-                setErrors({ general: error.response?.data?.message || 'Failed to save document' });
+                // Only show error if it's not a 201 status
+                const errorMessage = error.response?.data?.message || 'Failed to save document';
+                // Don't show error if document was actually created (201)
+                if (error.response?.status !== 201) {
+                    setErrors({ general: errorMessage });
+                } else {
+                    // Document was saved, just close the form
+                    onSuccess();
+                }
             }
         } finally {
             setIsSubmitting(false);
@@ -434,18 +494,21 @@ function EmployeeDocumentForm({ record, users, onClose, onSuccess }) {
     };
 
     return (
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className={inModal ? '' : 'bg-white rounded-lg shadow p-6'}>
+            {!inModal && (
             <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-semibold text-gray-900">
                     {record ? 'Edit Document' : 'Add Document'}
                 </h2>
                 <button
+                    type="button"
                     onClick={onClose}
                     className="text-gray-400 hover:text-gray-600"
                 >
                     <X className="w-6 h-6" />
                 </button>
             </div>
+            )}
 
                     {errors.general && (
                         <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">

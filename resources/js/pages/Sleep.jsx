@@ -1,18 +1,38 @@
 import React, { useState, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import { Moon, Plus, Search, Calendar, Clock, User, Edit, Trash2, Filter, ChevronDown, X } from 'lucide-react';
 import { getLocalDateString } from '../utils/pacificTime';
 import CalendarComponent from '../components/ui/Calendar';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
+import Modal from '../components/ui/Modal';
+import Tooltip from '../components/ui/Tooltip';
+import EntityCardShell, { EntityCardHeader } from '../components/ui/EntityCardShell';
+import CardIconButton from '../components/ui/CardIconButton';
+import DataPill, { DataPillSection } from '../components/ui/DataPill';
+import ResidentAvatarInline from '../components/ui/ResidentAvatarInline';
+import { RESIDENT_CONTEXT_QUERY_KEY } from '../utils/headerResidentSwitcher';
 
 export default function Sleep() {
     const queryClient = useQueryClient();
+    const [searchParams] = useSearchParams();
     const [dateFilter, setDateFilter] = useState('all');
     const [residentFilter, setResidentFilter] = useState('');
     const [search, setSearch] = useState('');
     const [showForm, setShowForm] = useState(false);
     const [editingRecord, setEditingRecord] = useState(null);
     const [selectedCalendarDate, setSelectedCalendarDate] = useState(null);
+    const [sleepDeleteId, setSleepDeleteId] = useState(null);
+
+    React.useEffect(() => {
+        const rid =
+            searchParams.get(RESIDENT_CONTEXT_QUERY_KEY) ||
+            searchParams.get('resident_id') ||
+            searchParams.get('resident') ||
+            '';
+        setResidentFilter(rid);
+    }, [searchParams]);
 
     const { data: currentUser } = useQuery({
         queryKey: ['current-user'],
@@ -32,6 +52,20 @@ export default function Sleep() {
         staleTime: 5 * 60 * 1000,
     });
 
+    // Check if user is a facility administrator (can access all branches in facility)
+    const isFacilityAdmin = React.useMemo(() => {
+        if (!currentUser) return false;
+        const role = currentUser.role?.toLowerCase().trim() || '';
+        return role === 'administrator';
+    }, [currentUser]);
+    
+    // Check if user is a branch-level admin (restricted to assigned branch)
+    const isBranchAdmin = React.useMemo(() => {
+        if (!currentUser) return false;
+        const role = currentUser.role?.toLowerCase().trim() || '';
+        return role === 'admin';
+    }, [currentUser]);
+    
     const isCaregiver = React.useMemo(() => {
         if (!currentUser) {
             return false;
@@ -232,6 +266,11 @@ export default function Sleep() {
         },
     });
 
+    const handleConfirmSleepDelete = () => {
+        if (sleepDeleteId == null) return;
+        deleteMutation.mutate(sleepDeleteId, { onSuccess: () => setSleepDeleteId(null) });
+    };
+
     // Process sleep records for calendar
     const calendarData = useMemo(() => {
         if (!allSleepRecordsForCalendar?.data) return [];
@@ -342,21 +381,44 @@ export default function Sleep() {
         setShowForm(true);
     };
 
-    const handleDelete = async (id) => {
-        if (window.confirm('Are you sure you want to delete this sleep record?')) {
-            deleteMutation.mutate(id);
-        }
+    const handleDelete = (id) => {
+        setSleepDeleteId(id);
     };
 
-    if (showForm) {
-        return (
-            <div>
+    return (
+        <>
+            <ConfirmDialog
+                isOpen={sleepDeleteId != null}
+                onClose={() => !deleteMutation.isPending && setSleepDeleteId(null)}
+                onConfirm={handleConfirmSleepDelete}
+                title="Delete sleep record?"
+                description="This record will be permanently removed."
+                confirmLabel="Delete"
+                cancelLabel="Cancel"
+                variant="danger"
+                isPending={deleteMutation.isPending}
+            />
+            <Modal
+                isOpen={showForm}
+                onClose={() => {
+                    setShowForm(false);
+                    setEditingRecord(null);
+                }}
+                title={editingRecord ? 'Edit Sleep Record' : 'Add Sleep Record'}
+                size="xl"
+            >
                 <SleepRecordForm
+                    key={editingRecord?.id ?? 'new'}
                     record={editingRecord}
                     residents={residentOptions}
                     isCaregiver={isCaregiver}
                     caregiverBranchId={caregiverBranchId}
                     caregiverBranchName={caregiverBranchName}
+                    currentUser={currentUser}
+                    isFacilityAdmin={isFacilityAdmin}
+                    isBranchAdmin={isBranchAdmin}
+                    inModal
+                    defaultResidentId={editingRecord ? '' : residentFilter}
                     onClose={() => {
                         setShowForm(false);
                         setEditingRecord(null);
@@ -368,11 +430,7 @@ export default function Sleep() {
                         queryClient.invalidateQueries(['sleep-records-calendar']);
                     }}
                 />
-            </div>
-        );
-    }
-
-    return (
+            </Modal>
         <div>
             {/* Filters */}
             <div className="bg-white rounded-lg shadow p-6 mb-6">
@@ -455,11 +513,12 @@ export default function Sleep() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {data?.data?.length > 0 ? (
                         data.data.map((record) => (
-                            <div key={record.id} className="bg-white rounded-lg shadow p-6">
-                                <div className="flex items-start justify-between">
-                                    <div className="flex-1">
-                                        <div className="flex items-center space-x-3 mb-3">
-                                            <div>
+                            <EntityCardShell key={record.id}>
+                                <EntityCardHeader
+                                    left={
+                                        <div className="flex min-w-0 items-start gap-3">
+                                            <ResidentAvatarInline resident={record.resident} />
+                                            <div className="min-w-0">
                                                 <h3 className="text-lg font-semibold text-gray-900">
                                                     {record.resident?.first_name} {record.resident?.last_name}
                                                 </h3>
@@ -468,107 +527,100 @@ export default function Sleep() {
                                                 </p>
                                             </div>
                                         </div>
+                                    }
+                                    right={
+                                        <>
+                                            <Tooltip content="Edit" position="top">
+                                                <CardIconButton
+                                                    variant="edit"
+                                                    type="button"
+                                                    onClick={() => handleEdit(record)}
+                                                    aria-label="Edit sleep record"
+                                                >
+                                                    <Edit className="h-4 w-4" strokeWidth={2.5} />
+                                                </CardIconButton>
+                                            </Tooltip>
+                                            <Tooltip content="Delete" position="top">
+                                                <CardIconButton
+                                                    variant="delete"
+                                                    type="button"
+                                                    onClick={() => handleDelete(record.id)}
+                                                    aria-label="Delete sleep record"
+                                                >
+                                                    <Trash2 className="h-4 w-4" strokeWidth={2.5} />
+                                                </CardIconButton>
+                                            </Tooltip>
+                                        </>
+                                    }
+                                />
 
-                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-                                            <div className="flex items-center space-x-2">
-                                                <Clock className="w-4 h-4 text-gray-400" />
-                                                <div>
-                                                    <p className="text-xs text-gray-500">Sleep Time</p>
-                                                    <p className="text-sm font-semibold text-gray-900">
-                                                        {formatTime(record.sleep_time)}
-                                                    </p>
-                                                </div>
-                                            </div>
-
-                                            <div className="flex items-center space-x-2">
-                                                <Clock className="w-4 h-4 text-gray-400" />
-                                                <div>
-                                                    <p className="text-xs text-gray-500">Wake Time</p>
-                                                    <p className="text-sm font-semibold text-gray-900">
-                                                        {formatTime(record.wake_time)}
-                                                    </p>
-                                                </div>
-                                            </div>
-
-                                            <div className="flex items-center space-x-2">
-                                                <Moon className="w-4 h-4 text-gray-400" />
-                                                <div>
-                                                    <p className="text-xs text-gray-500">Duration</p>
-                                                    <p className={`text-sm font-semibold ${
-                                                        getDurationColor(record.total_sleep_hours) === 'green' ? 'text-green-600' :
-                                                        getDurationColor(record.total_sleep_hours) === 'yellow' ? 'text-yellow-600' :
-                                                        getDurationColor(record.total_sleep_hours) === 'red' ? 'text-red-600' :
-                                                        'text-gray-600'
-                                                    }`}>
-                                                        {Number.isFinite(Number(record.total_sleep_hours)) ? Number(record.total_sleep_hours).toFixed(2) : 'N/A'} hrs
-                                                    </p>
-                                                </div>
-                                            </div>
-
-                                            {record.sleep_quality && (
-                                                <div className="flex items-center space-x-2">
-                                                    <Moon className="w-4 h-4 text-gray-400" />
-                                                    <div>
-                                                        <p className="text-xs text-gray-500">Quality</p>
-                                                        <p className={`text-sm font-semibold ${
-                                                            getQualityColor(record.sleep_quality) === 'green' ? 'text-green-600' :
-                                                            getQualityColor(record.sleep_quality) === 'yellow' ? 'text-yellow-600' :
-                                                            getQualityColor(record.sleep_quality) === 'red' ? 'text-red-600' :
-                                                            'text-gray-600'
-                                                        }`}>
-                                                            {record.sleep_quality}/10
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {record.restlessness_episodes !== null && (
-                                                <div className="flex items-center space-x-2">
-                                                    <Moon className="w-4 h-4 text-gray-400" />
-                                                    <div>
-                                                        <p className="text-xs text-gray-500">Restlessness</p>
-                                                        <p className="text-sm font-semibold text-gray-900">
-                                                            {record.restlessness_episodes} episodes
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        {record.notes && (
-                                            <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-                                                <p className="text-sm text-gray-700">
-                                                    <span className="font-medium">Notes: </span>
-                                                    {record.notes}
-                                                </p>
-                                            </div>
-                                        )}
-
-                                        {record.created_by && (
-                                            <p className="text-xs text-gray-500 mt-2">
-                                                Recorded by: {record.created_by?.name || 'Unknown'}
-                                            </p>
-                                        )}
-                                    </div>
-
-                                    <div className="flex space-x-2 ml-4">
-                                        <button
-                                            onClick={() => handleEdit(record)}
-                                            className="p-2 text-[var(--theme-primary)] hover:bg-green-50 rounded-lg transition-colors"
-                                            title="Edit"
+                                <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                                    <DataPill icon={Clock} contentClassName="!block">
+                                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Sleep</span>
+                                        <span className="block font-semibold text-slate-800">{formatTime(record.sleep_time)}</span>
+                                    </DataPill>
+                                    <DataPill icon={Clock} contentClassName="!block">
+                                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Wake</span>
+                                        <span className="block font-semibold text-slate-800">{formatTime(record.wake_time)}</span>
+                                    </DataPill>
+                                    <DataPill icon={Moon} contentClassName="!block">
+                                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Duration</span>
+                                        <span
+                                            className={`block font-semibold ${
+                                                getDurationColor(record.total_sleep_hours) === 'green'
+                                                    ? 'text-green-600'
+                                                    : getDurationColor(record.total_sleep_hours) === 'yellow'
+                                                      ? 'text-yellow-600'
+                                                      : getDurationColor(record.total_sleep_hours) === 'red'
+                                                        ? 'text-red-600'
+                                                        : 'text-slate-800'
+                                            }`}
                                         >
-                                            <Edit className="w-4 h-4" />
-                                        </button>
-                                        <button
-                                            onClick={() => handleDelete(record.id)}
-                                            className="p-2 text-[var(--theme-secondary)] hover:bg-amber-50 rounded-lg transition-colors"
-                                            title="Delete"
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
-                                    </div>
+                                            {Number.isFinite(Number(record.total_sleep_hours))
+                                                ? `${Number(record.total_sleep_hours).toFixed(2)} hrs`
+                                                : 'N/A'}
+                                        </span>
+                                    </DataPill>
+                                    {record.sleep_quality != null && record.sleep_quality !== '' && (
+                                        <DataPill icon={Moon} contentClassName="!block">
+                                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Quality</span>
+                                            <span
+                                                className={`block font-semibold ${
+                                                    getQualityColor(record.sleep_quality) === 'green'
+                                                        ? 'text-green-600'
+                                                        : getQualityColor(record.sleep_quality) === 'yellow'
+                                                          ? 'text-yellow-600'
+                                                          : getQualityColor(record.sleep_quality) === 'red'
+                                                            ? 'text-red-600'
+                                                            : 'text-slate-800'
+                                                }`}
+                                            >
+                                                {record.sleep_quality}/10
+                                            </span>
+                                        </DataPill>
+                                    )}
+                                    {record.restlessness_episodes !== null && (
+                                        <DataPill icon={Moon} contentClassName="!block">
+                                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Restlessness</span>
+                                            <span className="block font-semibold text-slate-800">
+                                                {record.restlessness_episodes} episodes
+                                            </span>
+                                        </DataPill>
+                                    )}
                                 </div>
-                            </div>
+
+                                {record.notes && (
+                                    <DataPillSection label="Notes" className="mt-4">
+                                        {record.notes}
+                                    </DataPillSection>
+                                )}
+
+                                {record.created_by && (
+                                    <p className="mt-3 text-xs text-gray-500">
+                                        Recorded by: {record.created_by?.name || 'Unknown'}
+                                    </p>
+                                )}
+                            </EntityCardShell>
                         ))
                     ) : (
                         <div className="bg-white rounded-lg shadow p-12 text-center">
@@ -584,14 +636,40 @@ export default function Sleep() {
                 </div>
             )}
         </div>
+        </>
     );
 }
 
 // Sleep Record Form Component
-function SleepRecordForm({ record, residents, isCaregiver, caregiverBranchId, caregiverBranchName, onClose, onSuccess }) {
+function SleepRecordForm({
+    record,
+    residents,
+    isCaregiver,
+    caregiverBranchId,
+    caregiverBranchName,
+    onClose,
+    onSuccess,
+    currentUser,
+    isFacilityAdmin,
+    isBranchAdmin,
+    inModal = false,
+    defaultResidentId = '',
+}) {
+    const initialResidentId = record?.resident_id
+        ? String(record.resident_id)
+        : defaultResidentId
+          ? String(defaultResidentId)
+          : '';
     const [formData, setFormData] = useState({
-        resident_id: record?.resident_id || '',
-        branch_id: record?.branch_id || caregiverBranchId || '',
+        resident_id: initialResidentId,
+        branch_id:
+            record?.branch_id != null && record.branch_id !== ''
+                ? String(record.branch_id)
+                : caregiverBranchId
+                  ? String(caregiverBranchId)
+                  : isBranchAdmin && currentUser?.assigned_branch_id
+                    ? String(currentUser.assigned_branch_id)
+                    : '',
         sleep_date: record?.sleep_date || getLocalDateString(),
         sleep_time: record?.sleep_time || '',
         wake_time: record?.wake_time || '',
@@ -600,6 +678,25 @@ function SleepRecordForm({ record, residents, isCaregiver, caregiverBranchId, ca
         restlessness_episodes: record?.restlessness_episodes || 0,
         notes: record?.notes || '',
     });
+
+    React.useEffect(() => {
+        if (record || !defaultResidentId || residents.length === 0) return;
+        const rid = String(defaultResidentId);
+        const resident = residents.find((r) => String(r.id) === rid);
+        if (!resident) return;
+        setFormData((prev) => ({
+            ...prev,
+            resident_id: rid,
+            branch_id: prev.branch_id || String(resident.branch_id || ''),
+        }));
+    }, [record, defaultResidentId, residents]);
+    
+    // Auto-fill branch for admin users on mount
+    React.useEffect(() => {
+        if (isBranchAdmin && currentUser?.assigned_branch_id && !record && !formData.branch_id) {
+            setFormData(prev => ({ ...prev, branch_id: String(currentUser.assigned_branch_id) }));
+        }
+    }, [isBranchAdmin, currentUser, record]);
 
     const [errors, setErrors] = useState({});
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -683,18 +780,21 @@ function SleepRecordForm({ record, residents, isCaregiver, caregiverBranchId, ca
     };
 
     return (
-        <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-gray-900">
-                    {record ? 'Edit Sleep Record' : 'Add Sleep Record'}
-                </h2>
-                <button
-                    onClick={onClose}
-                    className="text-gray-400 hover:text-gray-600"
-                >
-                    <X className="w-6 h-6" />
-                </button>
-            </div>
+        <div className={inModal ? '' : 'bg-white rounded-lg shadow p-6'}>
+            {!inModal && (
+                <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-xl font-semibold text-gray-900">
+                        {record ? 'Edit Sleep Record' : 'Add Sleep Record'}
+                    </h2>
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="text-gray-400 hover:text-gray-600"
+                    >
+                        <X className="w-6 h-6" />
+                    </button>
+                </div>
+            )}
 
             {errors.general && (
                         <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
@@ -720,7 +820,8 @@ function SleepRecordForm({ record, residents, isCaregiver, caregiverBranchId, ca
                                         value={formData.branch_id}
                                         onChange={(e) => setFormData({...formData, branch_id: e.target.value, resident_id: ''})}
                                         required
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
+                                        disabled={!isFacilityAdmin && isBranchAdmin && currentUser?.assigned_branch_id}
+                                        className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent ${!isFacilityAdmin && isBranchAdmin && currentUser?.assigned_branch_id ? 'bg-gray-100 cursor-not-allowed opacity-75' : ''}`}
                                     >
                                         <option value="">Select Branch</option>
                                         {branches.map(branch => (

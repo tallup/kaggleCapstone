@@ -5,6 +5,24 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
         <title>{{ config('app.name', 'HomeLogic360') }}</title>
+        @php
+            $appBuildId = '';
+            if (! file_exists(public_path('hot')) && file_exists(public_path('build/manifest.json'))) {
+                $appBuildId = (string) filemtime(public_path('build/manifest.json'));
+            }
+        @endphp
+        @if ($appBuildId !== '')
+            <script>window.__APP_BUILD_ID__ = @json($appBuildId);</script>
+        @endif
+
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap">
+        
+        {{-- PWA Manifest --}}
+        <link rel="manifest" href="{{ asset('manifest.json') }}">
+        <meta name="theme-color" content="#E0F2FE">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-status-bar-style" content="default">
+        <meta name="apple-mobile-web-app-title" content="HL360">
         
         {{-- Favicon and App Icons --}}
         <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('images/logonew.png') }}">

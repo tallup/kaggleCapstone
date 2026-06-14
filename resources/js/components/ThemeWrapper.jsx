@@ -2,29 +2,33 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '../services/api';
 import { ThemeProvider } from '../contexts/ThemeContext';
+import logger from '../utils/logger';
+import { currentUserQueryOptions, FACILITY_BRANDING_SESSION_KEY } from '../queries/currentUser';
+
+function hasAuthToken() {
+    if (typeof window === 'undefined') return false;
+    const t = localStorage.getItem('auth_token') || localStorage.getItem('token') || localStorage.getItem('access_token');
+    return typeof t === 'string' && t.trim() !== '' && t !== 'null' && t !== 'undefined';
+}
+
+function readStashedFacilityBranding() {
+    try {
+        const raw = sessionStorage.getItem(FACILITY_BRANDING_SESSION_KEY);
+        if (!raw) return null;
+        const o = JSON.parse(raw);
+        if (o && typeof o.primary_color === 'string') return o;
+    } catch (e) {
+        /* ignore */
+    }
+    return null;
+}
 
 /**
  * Wrapper component that fetches user data and provides theme
  * This ensures theme is available at the root level
  */
 export default function ThemeWrapper({ children }) {
-    const { data: userData } = useQuery({
-        queryKey: ['current-user'],
-        queryFn: async () => {
-            try {
-                const response = await api.get('/user');
-                return response.data;
-            } catch (err) {
-                // Don't log 401 errors - they're expected when not logged in
-                if (err.response?.status !== 401) {
-                    console.error('Failed to fetch user for theme:', err);
-                }
-                return null;
-            }
-        },
-        staleTime: 1 * 60 * 1000, // Reduced to 1 minute for faster updates
-        retry: false, // Don't retry on 401 errors
-    });
+    const { data: userData, isLoading } = useQuery(currentUserQueryOptions);
 
     // Fetch super admin theme if user is super admin
     const isSuperAdmin = userData?.role === 'super_admin';
@@ -35,7 +39,7 @@ export default function ThemeWrapper({ children }) {
                 const response = await api.get('/system-settings/super-admin-theme');
                 return response.data.data;
             } catch (err) {
-                console.error('Failed to fetch super admin theme:', err);
+                logger.error('Failed to fetch super admin theme:', err);
                 return null;
             }
         },
@@ -72,9 +76,17 @@ export default function ThemeWrapper({ children }) {
             };
         }
         
-        // For regular users, use their facility branding
-        return userData?.facility_branding || null;
-    }, [userData, isSuperAdmin, superAdminTheme]);
+        // For regular users, use their facility branding.
+        // While GET /user is in flight, use last known branding so we don't flash the default HomeLogic palette
+        if (userData?.facility_branding) {
+            return userData.facility_branding;
+        }
+        if (isLoading && hasAuthToken()) {
+            const stashed = readStashedFacilityBranding();
+            if (stashed) return stashed;
+        }
+        return null;
+    }, [userData, isSuperAdmin, superAdminTheme, isLoading]);
 
     return (
         <ThemeProvider facilityBranding={facilityBranding}>

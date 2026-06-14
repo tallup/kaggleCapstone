@@ -1,11 +1,16 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Plus, Edit, Trash2, Eye, X, FileText, Calendar, User, Search, Filter, ArrowLeft, AlertTriangle, ExternalLink, Download } from 'lucide-react';
 import api from '../services/api';
 import Card from '../components/Card';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
+import Modal from '../components/ui/Modal';
+import Tooltip from '../components/ui/Tooltip';
 import { toast } from 'sonner';
 import TLogForm from './TLogForm';
+import logger from '../utils/logger';
+import { RESIDENT_CONTEXT_QUERY_KEY } from '../utils/headerResidentSwitcher';
 
 const NOTIFICATION_LEVEL_COLORS = {
     urgent: 'bg-red-100 text-red-800 border-red-300',
@@ -31,17 +36,18 @@ export default function TLogs() {
     const [showForm, setShowForm] = useState(false);
     const [showViewModal, setShowViewModal] = useState(false);
     const [selectedTLog, setSelectedTLog] = useState(null);
+    const [deleteConfirmId, setDeleteConfirmId] = useState(null);
     const [filters, setFilters] = useState({
         type: searchParams.get('type') || 'all',
         notification_level: searchParams.get('notification_level') || 'all',
-        resident_id: searchParams.get('resident_id') || '',
+        resident_id: searchParams.get('resident_id') || searchParams.get(RESIDENT_CONTEXT_QUERY_KEY) || '',
         branch_id: searchParams.get('branch_id') || '',
         search: searchParams.get('search') || '',
         date_from: searchParams.get('date_from') || '',
         date_to: searchParams.get('date_to') || '',
     });
 
-    // Fetch T-Logs
+    // Fetch progress notes
     const { data, isLoading, error, refetch } = useQuery({
         queryKey: ['t-logs', filters],
         queryFn: async () => {
@@ -183,11 +189,11 @@ export default function TLogs() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries(['t-logs']);
-            toast.success('T-Log deleted successfully');
+            toast.success('Progress note deleted successfully');
         },
         onError: (error) => {
-            console.error('Error deleting T-Log:', error);
-            toast.error(error.response?.data?.message || 'Failed to delete T-Log');
+            logger.error('Error deleting progress note:', error);
+            toast.error(error.response?.data?.message || 'Failed to delete progress note');
         },
     });
 
@@ -211,11 +217,22 @@ export default function TLogs() {
         setSelectedTLog(null);
     };
 
-    const handleDelete = (id) => {
-        if (window.confirm('Are you sure you want to delete this T-Log?')) {
-            deleteMutation.mutate(id);
-        }
+    const handleConfirmDelete = () => {
+        if (deleteConfirmId == null) return;
+        deleteMutation.mutate(deleteConfirmId, { onSuccess: () => setDeleteConfirmId(null) });
     };
+
+    const canModifyProgressNotes = !isCaregiver;
+
+    // Caregivers must not open the edit form (defense if state gets out of sync)
+    useEffect(() => {
+        if (!showForm || !selectedTLog || !isCaregiver) {
+            return;
+        }
+        toast.error('You can add new progress notes or view existing ones, but not edit them.');
+        setShowForm(false);
+        setSelectedTLog(null);
+    }, [showForm, selectedTLog, isCaregiver]);
 
     const handleFilterChange = (key, value) => {
         const newFilters = { ...filters, [key]: value };
@@ -231,6 +248,12 @@ export default function TLogs() {
         setSearchParams(newParams);
     };
 
+    // Header resident switcher uses `residentId`; keep filters in sync when URL changes.
+    useEffect(() => {
+        const rid = searchParams.get(RESIDENT_CONTEXT_QUERY_KEY) || searchParams.get('resident_id') || '';
+        setFilters((f) => (f.resident_id === rid ? f : { ...f, resident_id: rid }));
+    }, [searchParams.toString()]);
+
     const tLogs = data?.data || [];
     const residents = residentsData?.data || [];
     const branches = branchesData?.data || [];
@@ -240,6 +263,7 @@ export default function TLogs() {
         return (
             <ViewTLog
                 tLog={selectedTLog}
+                canEdit={canModifyProgressNotes}
                 onClose={() => {
                     setShowViewModal(false);
                     setSelectedTLog(null);
@@ -252,21 +276,36 @@ export default function TLogs() {
         );
     }
 
-    // If form is open, show form as full page (like Expenses/Incidents form)
-    if (showForm) {
-        return (
-            <TLogForm
-                tLog={selectedTLog}
-                onClose={handleCloseForm}
-                onSuccess={() => {
-                    queryClient.invalidateQueries(['t-logs']);
-                    handleCloseForm();
-                }}
-            />
-        );
-    }
-
     return (
+        <>
+            <ConfirmDialog
+                isOpen={deleteConfirmId != null}
+                onClose={() => !deleteMutation.isPending && setDeleteConfirmId(null)}
+                onConfirm={handleConfirmDelete}
+                title="Delete this progress note?"
+                description="This action cannot be undone."
+                confirmLabel="Delete"
+                cancelLabel="Cancel"
+                variant="danger"
+                isPending={deleteMutation.isPending}
+            />
+            <Modal
+                isOpen={showForm}
+                onClose={handleCloseForm}
+                title={selectedTLog ? 'Edit progress note' : 'New progress note'}
+                size="xl"
+            >
+                <TLogForm
+                    key={selectedTLog?.id ?? 'new'}
+                    tLog={selectedTLog}
+                    inModal
+                    onClose={handleCloseForm}
+                    onSuccess={() => {
+                        queryClient.invalidateQueries(['t-logs']);
+                        handleCloseForm();
+                    }}
+                />
+            </Modal>
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <h1 className="text-2xl font-bold text-gray-900">T-Logs</h1>
@@ -275,7 +314,7 @@ export default function TLogs() {
                     className="flex items-center gap-2 px-4 py-2 bg-[var(--theme-primary)] text-white rounded-lg hover:bg-[var(--theme-primary-dark)] transition-colors"
                 >
                     <Plus className="w-5 h-5" />
-                    New T-Log
+                    New progress note
                 </button>
             </div>
 
@@ -366,7 +405,7 @@ export default function TLogs() {
                 </div>
             </Card>
 
-            {/* T-Logs List */}
+            {/* Progress notes list */}
             {isLoading ? (
                 <Card>
                     <div className="text-center py-8">Loading...</div>
@@ -430,28 +469,41 @@ export default function TLogs() {
                                     </div>
                                 </div>
 
-                                <div className="flex gap-2 ml-4">
-                                    <button
-                                        onClick={() => handleView(tLog)}
-                                        className="p-2.5 border-2 border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400 rounded-lg transition-all shadow-sm"
-                                        title="View"
-                                    >
-                                        <Eye className="w-5 h-5" />
-                                    </button>
-                                    <button
-                                        onClick={() => handleOpenForm(tLog)}
-                                        className="p-2.5 border-2 border-[var(--theme-primary)] bg-white text-[var(--theme-primary)] hover:bg-[var(--theme-primary-bg)] hover:border-[var(--theme-primary-dark)] rounded-lg transition-all shadow-sm"
-                                        title="Edit"
-                                    >
-                                        <Edit className="w-5 h-5" />
-                                    </button>
-                                    <button
-                                        onClick={() => handleDelete(tLog.id)}
-                                        className="p-2.5 border-2 border-red-400 bg-white text-red-700 hover:bg-red-50 hover:border-red-500 rounded-lg transition-all shadow-sm"
-                                        title="Delete"
-                                    >
-                                        <Trash2 className="w-5 h-5" />
-                                    </button>
+                                <div className="ml-4 flex gap-2">
+                                    <Tooltip content="View" position="top">
+                                        <button
+                                            type="button"
+                                            onClick={() => handleView(tLog)}
+                                            className="rounded-lg border-2 border-gray-300 bg-white p-2.5 text-gray-700 shadow-sm transition-all hover:border-gray-400 hover:bg-gray-50"
+                                            aria-label="View progress note"
+                                        >
+                                            <Eye className="h-5 w-5 !text-slate-700" strokeWidth={2.5} />
+                                        </button>
+                                    </Tooltip>
+                                    {canModifyProgressNotes && (
+                                        <>
+                                            <Tooltip content="Edit" position="top">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleOpenForm(tLog)}
+                                                    className="rounded-lg border-2 border-gray-300 bg-white p-2.5 text-[var(--theme-primary)] shadow-sm transition-all hover:border-[var(--theme-primary-dark)] hover:bg-[var(--theme-primary-bg)]"
+                                                    aria-label="Edit progress note"
+                                                >
+                                                    <Edit className="h-5 w-5 !text-emerald-700" strokeWidth={2.5} />
+                                                </button>
+                                            </Tooltip>
+                                            <Tooltip content="Delete" position="top">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setDeleteConfirmId(tLog.id)}
+                                                    className="rounded-lg border-2 border-red-400 bg-white p-2.5 text-red-700 shadow-sm transition-all hover:border-red-500 hover:bg-red-50"
+                                                    aria-label="Delete progress note"
+                                                >
+                                                    <Trash2 className="h-5 w-5 !text-red-700" strokeWidth={2.5} />
+                                                </button>
+                                            </Tooltip>
+                                        </>
+                                    )}
                                 </div>
                             </div>
                         </Card>
@@ -483,11 +535,12 @@ export default function TLogs() {
             )}
 
         </div>
+        </>
     );
 }
 
-// View T-Log Component (Full Page View)
-function ViewTLog({ tLog, onClose, onEdit }) {
+// View progress note (full page view)
+function ViewTLog({ tLog, onClose, onEdit, canEdit = true }) {
     const handleDownload = async (attachmentId, fileName) => {
         try {
             const response = await api.get(
@@ -505,7 +558,7 @@ function ViewTLog({ tLog, onClose, onEdit }) {
             link.remove();
             window.URL.revokeObjectURL(url);
         } catch (error) {
-            console.error('Error downloading file:', error);
+            logger.error('Error downloading file:', error);
             toast.error('Failed to download file');
         }
     };
@@ -517,28 +570,33 @@ function ViewTLog({ tLog, onClose, onEdit }) {
                 <div className="bg-gradient-to-r from-[var(--theme-primary)] to-[var(--theme-primary-hover)] p-6">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
-                            <button
-                                onClick={onClose}
-                                className="p-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors text-white"
-                                title="Go back"
-                            >
-                                <ArrowLeft className="w-5 h-5" />
-                            </button>
+                            <Tooltip content="Go back" position="bottom">
+                                <button
+                                    type="button"
+                                    onClick={onClose}
+                                    className="p-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors text-white"
+                                    aria-label="Go back"
+                                >
+                                    <ArrowLeft className="w-5 h-5" strokeWidth={2.25} />
+                                </button>
+                            </Tooltip>
                             <div>
                                 <h1 className="text-3xl font-bold text-white flex items-center gap-3">
                                     <FileText className="w-8 h-8" />
-                                    T-Log Details
+                                    Progress note details
                                 </h1>
-                                <p className="text-white/90 mt-1">Comprehensive T-Log information and documentation</p>
+                                <p className="text-white/90 mt-1">Comprehensive progress note information and documentation</p>
                             </div>
                         </div>
-                        <button
-                            onClick={onEdit}
-                            className="px-6 py-2 bg-white text-[var(--theme-primary)] rounded-lg hover:bg-gray-50 font-semibold transition-colors flex items-center gap-2"
-                        >
-                            <Edit className="w-4 h-4" />
-                            Edit T-Log
-                        </button>
+                        {canEdit && (
+                            <button
+                                onClick={onEdit}
+                                className="px-6 py-2 bg-white text-[var(--theme-primary)] rounded-lg hover:bg-gray-50 font-semibold transition-colors flex items-center gap-2"
+                            >
+                                <Edit className="w-4 h-4" />
+                                Edit progress note
+                            </button>
+                        )}
                     </div>
                 </div>
 
@@ -700,22 +758,27 @@ function ViewTLog({ tLog, onClose, onEdit }) {
                                             </p>
                                         </div>
                                         <div className="flex items-center gap-2">
-                                            <a
-                                                href={attachment.file_url}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="p-2 text-gray-600 hover:text-[var(--theme-primary)] hover:bg-white rounded-lg transition-colors"
-                                                title="View"
-                                            >
-                                                <Eye className="w-5 h-5" />
-                                            </a>
-                                            <button
-                                                onClick={() => handleDownload(attachment.id, attachment.file_name)}
-                                                className="p-2 text-gray-600 hover:text-[var(--theme-primary)] hover:bg-white rounded-lg transition-colors"
-                                                title="Download"
-                                            >
-                                                <Download className="w-5 h-5" />
-                                            </button>
+                                            <Tooltip content="View" position="top">
+                                                <a
+                                                    href={attachment.file_url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="p-2 text-gray-600 hover:text-[var(--theme-primary)] hover:bg-white rounded-lg transition-colors inline-flex"
+                                                    aria-label="View attachment"
+                                                >
+                                                    <Eye className="w-5 h-5" strokeWidth={2.25} />
+                                                </a>
+                                            </Tooltip>
+                                            <Tooltip content="Download" position="top">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleDownload(attachment.id, attachment.file_name)}
+                                                    className="p-2 text-gray-600 hover:text-[var(--theme-primary)] hover:bg-white rounded-lg transition-colors"
+                                                    aria-label="Download attachment"
+                                                >
+                                                    <Download className="w-5 h-5" strokeWidth={2.25} />
+                                                </button>
+                                            </Tooltip>
                                         </div>
                                     </div>
                                 ))}

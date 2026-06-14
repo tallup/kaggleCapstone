@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import logger from '../utils/logger';
 import { BarChart3, LineChart, Grid, Download, Edit, Moon, Calendar, User, Filter, HelpCircle, Eye, TrendingUp, List } from 'lucide-react';
 import { Bar, Line } from 'react-chartjs-2';
 import CalendarComponent from '../components/ui/Calendar';
@@ -31,6 +32,20 @@ ChartJS.register(
     Legend,
     Filler
 );
+
+/** Coerce API values to arrays (objects like {} are truthy but break .map). */
+function ensureArray(value) {
+    if (Array.isArray(value)) {
+        return value;
+    }
+    if (value === null || value === undefined) {
+        return [];
+    }
+    if (typeof value === 'object') {
+        return Object.keys(value).length ? Object.values(value) : [];
+    }
+    return [];
+}
 
 export default function SleepPatterns() {
     const navigate = useNavigate();
@@ -75,7 +90,7 @@ export default function SleepPatterns() {
                     setBranchId((prev) => prev || String(user.assigned_branch_id));
                 }
             } catch (err) {
-                console.error('Failed to fetch current user:', err);
+                logger.error('Failed to fetch current user:', err);
             }
         };
 
@@ -148,14 +163,17 @@ export default function SleepPatterns() {
                         year: year,
                     }
                 });
-                console.log('Sleep Pattern API Response:', response.data);
-                console.log('Daily Data:', response.data?.daily_data);
-                console.log('Daily Data Length:', response.data?.daily_data?.length);
-                console.log('Pattern:', response.data?.pattern);
-                return response.data;
+                const raw = response.data ?? {};
+                return {
+                    ...raw,
+                    pattern: raw?.pattern ?? null,
+                    daily_data: ensureArray(raw?.daily_data),
+                    hourly_distribution: ensureArray(raw?.hourly_distribution),
+                    key_observations: ensureArray(raw?.key_observations),
+                    weekly_summary: ensureArray(raw?.weekly_summary),
+                };
             } catch (err) {
-                console.error('Sleep Pattern API Error:', err);
-                console.error('Error details:', err.response?.data);
+                logger.error('Sleep Pattern API Error:', err);
                 const message = err.response?.status === 403
                     ? err.response?.data?.message || 'You do not have access to this resident.'
                     : err.response?.data?.message || err.message || 'Unable to load sleep pattern data.';
@@ -703,7 +721,7 @@ export default function SleepPatterns() {
                                             <Line data={chartData} options={chartOptions} />
                                         )}
                                         {chartType === 'heatmap' && (
-                                            <HourlyHeatmap data={patternData.hourly_distribution || []} />
+                                            <HourlyHeatmap data={ensureArray(patternData.hourly_distribution)} />
                                         )}
                                     </div>
                                 </div>
@@ -866,7 +884,9 @@ export default function SleepPatterns() {
 
 // Hourly Heatmap Component
 function HourlyHeatmap({ data }) {
-    if (!data || data.length === 0) {
+    const rows = ensureArray(data);
+
+    if (rows.length === 0) {
         return (
             <div className="text-center py-20 text-gray-500">
                 No hourly distribution data available
@@ -882,7 +902,7 @@ function HourlyHeatmap({ data }) {
     };
 
     // Get the maximum percentage for color scaling
-    const percentages = data.map(d => toNumber(d.percentage));
+    const percentages = rows.map(d => toNumber(d.percentage));
     const maxPercentage = Math.max(...percentages, 1);
 
     // Function to get color intensity based on percentage
@@ -941,7 +961,7 @@ function HourlyHeatmap({ data }) {
 
             {/* Heatmap Grid */}
             <div className="grid grid-cols-12 gap-2 mb-6">
-                {data.map((item, index) => {
+                {rows.map((item, index) => {
                     const hour = parseInt(item.hour) || 0;
                     const percentage = toNumber(item.percentage);
                     const isNewPeriod = hour % 6 === 0;
@@ -978,7 +998,7 @@ function HourlyHeatmap({ data }) {
             {/* Time Period Summary */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
                 {timePeriods.map((period) => {
-                    const periodData = data.filter(item => {
+                    const periodData = rows.filter(item => {
                         const hour = parseInt(item.hour) || 0;
                         return period.hours.includes(hour);
                     });

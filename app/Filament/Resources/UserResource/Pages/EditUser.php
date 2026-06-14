@@ -27,26 +27,55 @@ class EditUser extends EditRecord
             }
         }
 
+        // Branch admins must have an assigned_branch_id
+        if (($data['role'] ?? $this->record->role) === 'admin') {
+            $assignedBranchId = $data['assigned_branch_id'] ?? $this->record->assigned_branch_id;
+            if (empty($assignedBranchId)) {
+                throw new \Illuminate\Validation\ValidationException(
+                    validator([], []),
+                    ['assigned_branch_id' => ['Branch admins must have an assigned branch.']]
+                );
+            }
+        }
+
         return $data;
     }
 
     protected function afterSave(): void
     {
-        // Automatically assign administrator role if user role is 'admin' or 'administrator'
+        // Automatically assign the appropriate role based on user role field
         $user = $this->record;
         $role = $user->role ?? null;
         
-        if (in_array($role, ['admin', 'administrator'])) {
+        if ($role === 'administrator') {
             $adminRole = Role::where('name', 'administrator')->first();
             if ($adminRole) {
                 if (!$user->hasRole('administrator')) {
                     $user->assignRole('administrator');
                 }
             }
-        } else {
-            // Remove administrator role if role is changed to something else
+            // Remove admin role if it exists
+            if ($user->hasRole('admin')) {
+                $user->roles()->where('name', 'admin')->detach();
+            }
+        } elseif ($role === 'admin') {
+            $adminRole = Role::where('name', 'admin')->first();
+            if ($adminRole) {
+                if (!$user->hasRole('admin')) {
+                    $user->assignRole('admin');
+                }
+            }
+            // Remove administrator role if it exists
             if ($user->hasRole('administrator')) {
                 $user->roles()->where('name', 'administrator')->detach();
+            }
+        } else {
+            // Remove both admin roles if role is changed to something else
+            if ($user->hasRole('administrator')) {
+                $user->roles()->where('name', 'administrator')->detach();
+            }
+            if ($user->hasRole('admin')) {
+                $user->roles()->where('name', 'admin')->detach();
             }
         }
     }

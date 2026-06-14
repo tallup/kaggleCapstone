@@ -12,6 +12,11 @@ echo "🎨 Building frontend assets..."
 npm ci
 npm run build
 
+if [ ! -f public/build/manifest.json ] && [ ! -d public/build ]; then
+    echo "❌ Frontend build artifacts missing (expected public/build/manifest.json or public/build/)"
+    exit 1
+fi
+
 # Run migrations
 echo "🗄️ Running database migrations..."
 php artisan migrate --force

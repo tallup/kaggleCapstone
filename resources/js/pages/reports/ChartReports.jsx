@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { getLocalDateString } from '../../utils/pacificTime';
 import { usePreventDateInputReload } from '../../hooks/usePreventDateInputReload';
+import PrintableReportLayout, { ReportPrintButton } from '../../components/reports/PrintableReportLayout';
 
 export default function ChartReports() {
     const [dateFrom, setDateFrom] = useState(() => {
@@ -35,7 +36,6 @@ export default function ChartReports() {
     // Refetch data when dates change
     useEffect(() => {
         if (dateFrom && dateTo) {
-            console.log('ChartReports: Dates changed, invalidating query', { dateFrom, dateTo });
             queryClient.invalidateQueries(['chart-overview', dateFrom, dateTo]);
         }
     }, [dateFrom, dateTo, queryClient]);
@@ -43,15 +43,11 @@ export default function ChartReports() {
     const { data: stats, isLoading, refetch } = useQuery({
         queryKey: ['chart-overview', dateFrom, dateTo],
         queryFn: async () => {
-            console.log('ChartReports: Fetching data with dates', { dateFrom, dateTo });
             const [residents, vitals, appointments, sleep] = await Promise.all([
                 api.get('/charts/residents').then(r => r.data),
                 api.get('/charts/vitals').then(r => r.data),
                 api.get('/charts/appointments').then(r => r.data),
-                api.get('/charts/sleep', { params: { date_from: dateFrom, date_to: dateTo } }).then(r => {
-                    console.log('ChartReports: Sleep data received', r.data);
-                    return r.data;
-                }),
+                api.get('/charts/sleep', { params: { date_from: dateFrom, date_to: dateTo } }).then(r => r.data),
             ]);
             return { residents, vitals, appointments, sleep };
         },
@@ -92,19 +88,23 @@ export default function ChartReports() {
     }
 
     return (
-        <div ref={containerRef} className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-            <div className="max-w-7xl mx-auto px-4 py-8">
-                {/* Header */}
-                <div className="mb-8">
-                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-                        <div>
-                            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-                                <BarChart3 className="h-8 w-8 text-[var(--theme-primary)]" />
-                                Chart Reports Dashboard
-                            </h1>
-                            <p className="mt-2 text-gray-600">Comprehensive overview of all facility metrics and analytics</p>
-                        </div>
-                        <div className="flex items-center gap-3">
+        <PrintableReportLayout
+            title="Chart Reports Dashboard"
+            subtitle={`${dateFrom} to ${dateTo}`}
+        >
+            <div ref={containerRef} className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+                <div className="max-w-7xl mx-auto px-4 py-8">
+                    {/* Page header (report title is in PrintableReportLayout) */}
+                    <div className="mb-8">
+                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+                            <div>
+                                <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+                                    <BarChart3 className="h-8 w-8 text-[var(--theme-primary)]" />
+                                    Chart Reports Dashboard
+                                </h1>
+                                <p className="mt-2 text-gray-600">Comprehensive overview of all facility metrics and analytics</p>
+                            </div>
+                        <div className="flex items-center gap-3 no-print">
                             <button
                                 onClick={handleExport}
                                 className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
@@ -112,6 +112,7 @@ export default function ChartReports() {
                                 <Download className="h-4 w-4" />
                                 Export
                             </button>
+                            <ReportPrintButton />
                             <button
                                 onClick={() => refetch()}
                                 className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] rounded-lg text-sm font-medium hover:bg-[var(--theme-primary-hover)] transition"
@@ -123,7 +124,7 @@ export default function ChartReports() {
                     </div>
 
                     {/* Date Filters */}
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 no-print">
                         <div className="flex flex-wrap items-end gap-4">
                             <div className="flex-1 min-w-[200px]">
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -139,7 +140,6 @@ export default function ChartReports() {
                                             e.nativeEvent.stopImmediatePropagation();
                                         }
                                         const newDate = e.target.value;
-                                        console.log('ChartReports: DateFrom changed to', newDate);
                                         setDateFrom(newDate);
                                         // Force refetch when date changes
                                         setTimeout(() => {
@@ -179,7 +179,6 @@ export default function ChartReports() {
                                             e.nativeEvent.stopImmediatePropagation();
                                         }
                                         const newDate = e.target.value;
-                                        console.log('ChartReports: DateTo changed to', newDate);
                                         setDateTo(newDate);
                                         // Force refetch when date changes
                                         setTimeout(() => {
@@ -619,7 +618,8 @@ export default function ChartReports() {
                         <p className="text-gray-600">Start recording data to see analytics and insights here.</p>
                     </div>
                 )}
+                </div>
             </div>
-        </div>
+        </PrintableReportLayout>
     );
 }

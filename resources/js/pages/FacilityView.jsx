@@ -6,6 +6,8 @@ import {
     ArrowLeft, Building2, MapPin, Phone, Mail, Globe, Key, Palette,
     CheckCircle, XCircle, Calendar, User, Copy, ExternalLink, Edit
 } from 'lucide-react';
+import logger from '../utils/logger';
+import Tooltip from '../components/ui/Tooltip';
 
 export default function FacilityView() {
     const { id } = useParams();
@@ -26,7 +28,7 @@ export default function FacilityView() {
             setCopiedField(fieldName);
             setTimeout(() => setCopiedField(null), 2000);
         } catch (err) {
-            console.error('Failed to copy:', err);
+            logger.error('Failed to copy:', err);
         }
     };
 
@@ -394,17 +396,20 @@ function InfoItem({ icon, label, value, copyable, onCopy, copied, fullWidth }) {
                     </div>
                 </div>
                 {copyable && (
-                    <button
-                        onClick={onCopy}
-                        className="ml-2 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all"
-                        title="Copy to clipboard"
-                    >
-                        {copied ? (
-                            <CheckCircle className="w-5 h-5 text-green-600" />
-                        ) : (
-                            <Copy className="w-5 h-5" />
-                        )}
-                    </button>
+                    <Tooltip content="Copy to clipboard" position="top">
+                        <button
+                            type="button"
+                            onClick={onCopy}
+                            className="ml-2 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all"
+                            aria-label="Copy to clipboard"
+                        >
+                            {copied ? (
+                                <CheckCircle className="w-5 h-5 text-green-600" />
+                            ) : (
+                                <Copy className="w-5 h-5" strokeWidth={2.25} />
+                            )}
+                        </button>
+                    </Tooltip>
                 )}
             </div>
         </div>

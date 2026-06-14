@@ -1,13 +1,25 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import { ArrowLeft, ClipboardList, Calendar, User, CheckCircle, AlertCircle } from 'lucide-react';
+import logger from '../utils/logger';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
+import { isCaregiverRole } from '../utils/userRoles';
 
 export default function AssessmentDetail() {
     const { id } = useParams();
     const navigate = useNavigate();
     const queryClient = useQueryClient();
+    const [submitConfirmOpen, setSubmitConfirmOpen] = useState(false);
+
+    const { data: currentUser, isLoading: isLoadingUser } = useQuery({
+        queryKey: ['current-user'],
+        queryFn: async () => (await api.get('/user')).data,
+        staleTime: 60_000,
+    });
+
+    const readOnly = isCaregiverRole(currentUser?.role);
 
     const { data, isLoading, error, isSuccess } = useQuery({
         queryKey: ['assessment-detail', id],
@@ -17,7 +29,6 @@ export default function AssessmentDetail() {
     const saveMutation = useMutation({
         mutationFn: async ({ questionId, value }) => {
             const response = await api.patch(`/assessments/${id}/questions/${questionId}`, { response_value: value });
-            console.log(`API Save Response for question ${questionId}:`, response.data);
             return response;
         },
         onMutate: async ({ questionId, value }) => {
@@ -38,7 +49,7 @@ export default function AssessmentDetail() {
             return { previous };
         },
         onError: (err, vars, context) => {
-            console.error(`Save error for question ${vars.questionId}:`, err);
+            logger.error(`Save error for question ${vars.questionId}:`, err);
             if (context?.previous) {
                 queryClient.setQueryData(['assessment-detail', id], context.previous);
             }
@@ -64,28 +75,19 @@ export default function AssessmentDetail() {
     
     React.useEffect(() => {
         // Only run if query is successful and data is loaded
-        if (isLoading || !isSuccess) {
-            console.log('AssessmentDetail: Waiting for data to load', { isLoading, isSuccess });
+        if (isLoading || !isSuccess || isLoadingUser || readOnly) {
             return;
         }
 
         if (!data || !data.resident || !data.sections) {
-            console.log('AssessmentDetail: Missing data, resident, or sections', { 
-                hasData: !!data, 
-                hasResident: !!data?.resident, 
-                hasSections: !!data?.sections,
-                dataKeys: data ? Object.keys(data) : []
-            });
             return;
         }
 
         // Skip if we've already pre-filled this assessment
         if (hasPrefilledRef.current.has(data.id)) {
-            console.log('AssessmentDetail: Already pre-filled assessment', data.id);
             return;
         }
 
-        console.log('AssessmentDetail: Starting pre-fill for assessment', data.id, 'resident:', data.resident);
         const resident = data.resident;
         const questionsToPrefill = [];
 
@@ -108,7 +110,7 @@ export default function AssessmentDetail() {
                 }
                 return age;
             } catch (error) {
-                console.error('Error calculating age:', error);
+                logger.error('Error calculating age:', error);
                 return null;
             }
         };
@@ -117,7 +119,6 @@ export default function AssessmentDetail() {
         const getResidentValue = (questionText, questionType) => {
             if (!questionText) return null;
             const normalized = normalizeQuestionText(questionText);
-            console.log('AssessmentDetail: Matching question text:', questionText, 'normalized:', normalized);
             
             // Age calculation - check for age-related questions
             if (normalized.includes('age') || 
@@ -180,7 +181,7 @@ export default function AssessmentDetail() {
             }
             if (normalized.includes('physician name') || 
                 (normalized.includes('physician') && normalized.includes('name'))) {
-                return resident.physician_name || null;
+                return resident.primary_care_doctor || resident.physician_name || null;
             }
             if (normalized.includes('physician phone') || 
                 (normalized.includes('physician') && normalized.includes('phone'))) {
@@ -191,22 +192,13 @@ export default function AssessmentDetail() {
         };
 
         // Process each section
-        console.log('AssessmentDetail: Processing sections', data.sections.map(s => ({ 
-            type: s.section_type, 
-            title: s.title || s.section_title, 
-            questionCount: s.questions?.length || 0 
-        })));
-        
         data.sections.forEach((section) => {
             // Only process medical_history sections (skip demographic section entirely)
             const title = (section.title || section.section_title || '').toLowerCase();
             if (!section.questions || section.section_type !== 'medical_history' || title === 'demographic information') {
-                console.log('AssessmentDetail: Skipping section', section.section_type, 'questions:', section.questions?.length);
                 return;
             }
 
-            console.log('AssessmentDetail: Processing section', section.section_type, 'with', section.questions.length, 'questions');
-            
             section.questions.forEach((question) => {
                 const currentValue = question.response_value;
                 const isEmpty = !currentValue || 
@@ -216,75 +208,49 @@ export default function AssessmentDetail() {
                     String(currentValue).trim() === 'null' ||
                     String(currentValue).trim() === 'undefined';
                 
-                console.log('AssessmentDetail: Checking question', question.id, question.question_text, 'current value:', currentValue, 'isEmpty:', isEmpty);
-                
                 // Only pre-fill if question doesn't have a response value yet
                 if (isEmpty) {
                     const residentValue = getResidentValue(question.question_text, question.response_type);
-                    console.log('AssessmentDetail: Resident value for question', question.id, ':', residentValue, 'resident data:', {
-                        name: resident.name || `${resident.first_name} ${resident.last_name}`,
-                        date_of_birth: resident.date_of_birth,
-                        gender: resident.gender,
-                        emergency_contact_name: resident.emergency_contact_name,
-                        emergency_contact_phone: resident.emergency_contact_phone,
-                        diagnosis: resident.diagnosis,
-                        allergies: resident.allergies,
-                        medications: resident.medications,
-                        physician_name: resident.physician_name,
-                        pep_or_doctor: resident.pep_or_doctor,
-                    });
                     
                     if (residentValue !== null && residentValue !== undefined && String(residentValue).trim() !== '') {
                         questionsToPrefill.push({
                             questionId: question.id,
                             value: String(residentValue).trim(),
                         });
-                        console.log('AssessmentDetail: Added question to pre-fill list', question.id, question.question_text, 'with value:', residentValue);
-                    } else {
-                        console.log('AssessmentDetail: No resident value found for question', question.id, question.question_text, 'normalized text:', normalizeQuestionText(question.question_text));
                     }
-                } else {
-                    console.log('AssessmentDetail: Question already has value, skipping', question.id, currentValue);
                 }
             });
         });
 
         // Save all pre-filled questions
         if (questionsToPrefill.length > 0) {
-            console.log('AssessmentDetail: Pre-filling', questionsToPrefill.length, 'questions', questionsToPrefill);
-            hasPrefilledRef.current.add(data.id); // Mark as pre-filled to prevent re-running
+            hasPrefilledRef.current.add(data.id);
             
             // Save questions sequentially to avoid race conditions
             const saveQuestions = async () => {
                 for (const { questionId, value } of questionsToPrefill) {
                     try {
-                        console.log(`AssessmentDetail: Pre-filling question ${questionId} with value:`, value);
                         await saveMutation.mutateAsync({ questionId, value });
-                        console.log(`AssessmentDetail: Successfully saved question ${questionId}`);
                     } catch (err) {
-                        console.error(`AssessmentDetail: Failed to pre-fill question ${questionId}:`, err);
+                        logger.error(`AssessmentDetail: Failed to pre-fill question ${questionId}:`, err);
                         // Continue with other questions even if one fails
                     }
                 }
                 
-                // Wait a bit for all saves to propagate, then refresh
                 setTimeout(() => {
-                    console.log('AssessmentDetail: Refreshing assessment data after pre-fill');
                     queryClient.invalidateQueries(['assessment-detail', id]);
                 }, 500);
             };
             
             saveQuestions().catch(err => {
-                console.error('AssessmentDetail: Error in pre-fill process:', err);
+                logger.error('AssessmentDetail: Error in pre-fill process:', err);
                 // Remove from set so it can retry
                 hasPrefilledRef.current.delete(data.id);
             });
         } else {
-            console.log('AssessmentDetail: No questions to pre-fill');
-            // If no questions to pre-fill, mark as done anyway
             hasPrefilledRef.current.add(data.id);
         }
-    }, [data, isLoading, isSuccess, saveMutation, queryClient, id]); // Dependencies - include isSuccess to ensure data is loaded
+    }, [data, isLoading, isSuccess, isLoadingUser, readOnly, saveMutation, queryClient, id]); // Dependencies - include isSuccess to ensure data is loaded
 
     // Calculate section progress
     const getSectionProgress = (section) => {
@@ -317,10 +283,8 @@ export default function AssessmentDetail() {
         return totalQuestions > 0 ? Math.round((answeredQuestions / totalQuestions) * 100) : 0;
     }, [data]);
 
-    const handleSubmit = () => {
-        if (window.confirm('Are you sure you want to submit this assessment for review? You can continue editing later if needed.')) {
-            submitMutation.mutate('reviewed');
-        }
+    const handleConfirmSubmitForReview = () => {
+        submitMutation.mutate('reviewed', { onSuccess: () => setSubmitConfirmOpen(false) });
     };
 
     if (isLoading) {
@@ -343,6 +307,18 @@ export default function AssessmentDetail() {
     const assessment = data;
 
     return (
+        <>
+            <ConfirmDialog
+                isOpen={submitConfirmOpen}
+                onClose={() => !submitMutation.isPending && setSubmitConfirmOpen(false)}
+                onConfirm={handleConfirmSubmitForReview}
+                title="Submit for review?"
+                description="You can continue editing later if needed. This will move the assessment to reviewed status."
+                confirmLabel="Submit"
+                cancelLabel="Cancel"
+                variant="primary"
+                isPending={submitMutation.isPending}
+            />
         <div>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4 md:mb-6">
                 <div className="flex items-center space-x-3">
@@ -356,9 +332,10 @@ export default function AssessmentDetail() {
                         </p>
                     </div>
                 </div>
-                {assessment.status !== 'approved' && assessment.status !== 'archived' && (
+                {!readOnly && assessment.status !== 'approved' && assessment.status !== 'archived' && (
                     <button
-                        onClick={handleSubmit}
+                        type="button"
+                        onClick={() => setSubmitConfirmOpen(true)}
                         disabled={submitMutation.isPending}
                         className="px-4 py-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] rounded-lg hover:bg-[var(--theme-primary-hover)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
                     >
@@ -388,7 +365,9 @@ export default function AssessmentDetail() {
                     />
                 </div>
                 <p className="text-xs text-gray-500 mt-2">
-                    You can save your progress and return anytime to complete the assessment.
+                    {readOnly
+                        ? 'You are viewing this assessment in read-only mode.'
+                        : 'You can save your progress and return anytime to complete the assessment.'}
                 </p>
             </div>
 
@@ -467,6 +446,7 @@ export default function AssessmentDetail() {
                                             <p className="text-xs text-gray-500 mb-2">Type: {q.response_type}</p>
                                             <QuestionInput
                                                 question={q}
+                                                readOnly={readOnly}
                                                 onSave={(value) => saveMutation.mutateAsync({ questionId: q.id, value })}
                                             />
                                         </div>
@@ -485,10 +465,11 @@ export default function AssessmentDetail() {
                 )}
             </div>
         </div>
+        </>
     );
 }
 
-function QuestionInput({ question, onSave }) {
+function QuestionInput({ question, onSave, readOnly = false }) {
     const initialValue = question.response_value ?? '';
     const [value, setValue] = React.useState(initialValue);
     const [saving, setSaving] = React.useState(false);
@@ -525,9 +506,8 @@ function QuestionInput({ question, onSave }) {
         setSaving(true);
         try {
             await onSave(normalizedValue);
-            console.log(`Saved question ${question.id}:`, normalizedValue);
         } catch (error) {
-            console.error(`Failed to save question ${question.id}:`, error);
+            logger.error(`Failed to save question ${question.id}:`, error);
             alert(`Failed to save answer. Please try again.`);
         } finally {
             setSaving(false);
@@ -536,6 +516,9 @@ function QuestionInput({ question, onSave }) {
 
     // Debounced save on change for text/number/textarea
     React.useEffect(() => {
+        if (readOnly) {
+            return;
+        }
         // Skip auto-save for read-only age questions
         if (isAgeQuestion) {
             return;
@@ -570,12 +553,32 @@ function QuestionInput({ question, onSave }) {
                 clearTimeout(saveTimeoutRef.current);
             }
         };
-    }, [value, question.response_value, isAgeQuestion]);
+    }, [value, question.response_value, isAgeQuestion, readOnly]);
 
     const common = {
         className:
             'mt-2 w-full px-3 py-2 border border-gray-300 rounded text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent',
     };
+
+    if (readOnly) {
+        const raw = question.response_value;
+        let display = '';
+        if (raw !== null && raw !== undefined) {
+            if (typeof raw === 'boolean') {
+                display = raw ? 'Yes' : 'No';
+            } else {
+                const strVal = String(raw).trim();
+                if (strVal === 'true' || strVal === '1') display = 'Yes';
+                else if (strVal === 'false' || strVal === '0') display = 'No';
+                else display = strVal;
+            }
+        }
+        return (
+            <div className="mt-2 px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-sm text-gray-900 min-h-[2.5rem]">
+                {display ? display : <span className="text-gray-400 italic">No answer provided</span>}
+            </div>
+        );
+    }
 
     switch (question.response_type) {
         case 'number':
@@ -641,7 +644,7 @@ function QuestionInput({ question, onSave }) {
                     try {
                         options = JSON.parse(question.response_options);
                     } catch (e) {
-                        console.error('Failed to parse response_options:', e);
+                        logger.error('Failed to parse response_options:', e);
                         options = [];
                     }
                 }

@@ -22,7 +22,7 @@ class DashboardController extends BaseApiController
         $user->refresh();
         
         // Check if cache should be cleared (for debugging/admin use)
-        if (request()->has('clear_cache') && ($user->role === 'super_admin' || $user->role === 'administrator')) {
+        if (request()->has('clear_cache') && ($user->role === 'super_admin' || $user->isFacilityAdministrator())) {
             $this->dashboardService->clearCacheForUser($user);
         }
         

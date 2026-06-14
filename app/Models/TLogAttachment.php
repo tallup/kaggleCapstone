@@ -4,7 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Support\Facades\Storage;
 
 class TLogAttachment extends Model
 {
@@ -24,7 +23,7 @@ class TLogAttachment extends Model
         'file_size' => 'integer',
     ];
 
-    protected $appends = ['file_url', 'file_size_human'];
+    protected $appends = ['file_url', 'download_url', 'file_size_human'];
 
     // Relationships
     public function tLog(): BelongsTo
@@ -40,16 +39,25 @@ class TLogAttachment extends Model
     // Accessors
     public function getFileUrlAttribute(): ?string
     {
-        if (!$this->file_path) {
+        if (! $this->file_path) {
             return null;
         }
 
-        return Storage::disk('public')->url($this->file_path);
+        return $this->download_url;
+    }
+
+    public function getDownloadUrlAttribute(): ?string
+    {
+        if (! $this->file_path || ! $this->t_log_id || ! $this->id) {
+            return null;
+        }
+
+        return "/api/v1/t-logs/{$this->t_log_id}/attachments/{$this->id}/download";
     }
 
     public function getFileSizeHumanAttribute(): ?string
     {
-        if (!$this->file_size) {
+        if (! $this->file_size) {
             return null;
         }
 
@@ -62,7 +70,7 @@ class TLogAttachment extends Model
             $unit++;
         }
 
-        return round($size, 2) . ' ' . $units[$unit];
+        return round($size, 2).' '.$units[$unit];
     }
 
     // Helper methods

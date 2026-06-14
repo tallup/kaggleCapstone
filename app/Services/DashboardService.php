@@ -5,19 +5,24 @@ namespace App\Services;
 use App\Constants\UserRoles;
 use App\Models\Appointment;
 use App\Models\Assessment;
+use App\Models\CleaningTask;
+use App\Models\CleaningTaskAssignment;
+use App\Models\Expense;
+use App\Models\FireDrill;
+use App\Models\GroceryStatusUpdate;
+use App\Models\Incident;
 use App\Models\LeaveRequest;
 use App\Models\Medication;
 use App\Models\MedicationAdministration;
+use App\Models\PharmacyInventory;
 use App\Models\Resident;
+use App\Models\SleepRecord;
 use App\Models\User;
 use App\Models\VitalSign;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
-use App\Models\FireDrill;
-use App\Models\GroceryStatusUpdate;
-use App\Models\CleaningTaskAssignment;
 
 class DashboardService
 {
@@ -27,14 +32,14 @@ class DashboardService
     public function getStatsForUser(User $user): array
     {
         // Include facility_id in cache key for better cache invalidation
-        $facilityId = $user->facility_id ?? ($user->assigned_branch_id ? 
+        $facilityId = $user->facility_id ?? ($user->assigned_branch_id ?
             (\App\Models\Branch::find($user->assigned_branch_id)?->facility_id ?? 'none') : 'none');
-        
-        // Cache stats for 1 minute to reduce database load (reduced from 2 minutes for faster updates)
+
+        // Cache stats for 5 minutes (clearCacheForUser() handles invalidation when data changes)
         $cacheKey = "dashboard.stats.{$user->id}.{$user->role}.{$facilityId}";
-        
+
         try {
-            return Cache::remember($cacheKey, 60, function () use ($user) {
+            return Cache::remember($cacheKey, 300, function () use ($user) {
                 if (UserRoles::isCaregiverRole($user->role)) {
                     return $this->getCaregiverStats($user);
                 }
@@ -49,12 +54,12 @@ class DashboardService
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
-            
+
             // Return empty stats on error rather than failing
             return $this->getEmptyStats($user, $e->getMessage());
         }
     }
-    
+
     /**
      * Clear dashboard cache for a user
      * Clears all possible cache keys for this user (with different facility_ids)
@@ -62,20 +67,20 @@ class DashboardService
     public function clearCacheForUser(User $user): void
     {
         // Clear cache with current facility_id
-        $facilityId = $user->facility_id ?? ($user->assigned_branch_id ? 
+        $facilityId = $user->facility_id ?? ($user->assigned_branch_id ?
             (\App\Models\Branch::find($user->assigned_branch_id)?->facility_id ?? 'none') : 'none');
-        
+
         $cacheKey = "dashboard.stats.{$user->id}.{$user->role}.{$facilityId}";
         Cache::forget($cacheKey);
-        
+
         // Also clear with old cache key format for backward compatibility
         $oldCacheKey = "dashboard.stats.{$user->id}.{$user->role}";
         Cache::forget($oldCacheKey);
-        
+
         // Clear cache with 'none' facility_id (in case it changed)
         $noneCacheKey = "dashboard.stats.{$user->id}.{$user->role}.none";
         Cache::forget($noneCacheKey);
-        
+
         // Try to clear cache with any facility_id this user might have had
         // Get all possible facility_ids from branches
         if ($user->assigned_branch_id) {
@@ -85,14 +90,14 @@ class DashboardService
                 Cache::forget($branchCacheKey);
             }
         }
-        
+
         Log::info('DashboardService: Cleared cache for user', [
             'user_id' => $user->id,
             'user_role' => $user->role,
             'facility_id' => $facilityId,
         ]);
     }
-    
+
     /**
      * Get empty stats structure for error cases
      */
@@ -118,7 +123,7 @@ class DashboardService
                 'debug_error' => $errorMessage,
             ];
         }
-        
+
         return [
             'total_residents' => 0,
             'active_residents' => 0,
@@ -140,6 +145,16 @@ class DashboardService
             'medication_adherence_rate' => 0,
             'average_incident_response_time' => 0,
             'staff_utilization' => 0,
+            'module_resource_counts' => [
+                'assessments' => 0,
+                'sleep' => 0,
+                'housekeeping' => 0,
+                'incidents' => 0,
+                'grocery' => 0,
+                'pharmacy' => 0,
+                'billing' => 0,
+                'fireDrills' => 0,
+            ],
             'facility_id' => null,
             'facility_context_missing' => true,
             'debug_user_id' => $user->id,
@@ -158,7 +173,7 @@ class DashboardService
         $branchId = $user->assigned_branch_id;
 
         // If no branch assigned, return empty stats
-        if (!$branchId) {
+        if (! $branchId) {
             return [
                 'assigned_residents' => 0,
                 'todays_appointments' => 0,
@@ -274,25 +289,26 @@ class DashboardService
      */
     private function isAdministratorRole(?string $role): bool
     {
-        if (!$role) {
+        if (! $role) {
             return false;
         }
-        
+
         $roleLower = strtolower(trim($role));
+
         return in_array($roleLower, ['administrator', 'admin', 'super_admin']);
     }
-    
+
     /**
      * Get admin dashboard stats
      */
     public function getAdminStats(?User $user = null): array
     {
         $user = $user ?? auth()->user();
-        
+
         // Use the same facility resolution logic as BaseApiController
         $facility = null;
         $isAdministrator = $this->isAdministratorRole($user->role ?? null);
-        
+
         // Super admins can float between facilities; prefer explicit context
         if ($user && $user->role === 'super_admin') {
             try {
@@ -308,17 +324,17 @@ class DashboardService
                 if ($user && $user->facility_id) {
                     $facility = \App\Models\Facility::find($user->facility_id);
                 }
-                
+
                 // If still not found, try deriving from assigned branch
-                if (!$facility && $user && $user->assigned_branch_id) {
+                if (! $facility && $user && $user->assigned_branch_id) {
                     $branch = \App\Models\Branch::find($user->assigned_branch_id);
                     if ($branch && $branch->facility_id) {
                         $facility = \App\Models\Facility::find($branch->facility_id);
                     }
                 }
-                
+
                 // Also try middleware context (may have been set)
-                if (!$facility) {
+                if (! $facility) {
                     try {
                         $facility = app()->bound('facility') ? app('facility') : null;
                     } catch (\Exception $e) {
@@ -334,12 +350,12 @@ class DashboardService
                 }
 
                 // Fallback to user's facility_id
-                if (!$facility && $user && $user->facility_id) {
+                if (! $facility && $user && $user->facility_id) {
                     $facility = \App\Models\Facility::find($user->facility_id);
                 }
 
                 // Derive facility from assigned branch if still unknown
-                if (!$facility && $user && $user->assigned_branch_id) {
+                if (! $facility && $user && $user->assigned_branch_id) {
                     $branch = \App\Models\Branch::find($user->assigned_branch_id);
                     if ($branch && $branch->facility_id) {
                         $facility = \App\Models\Facility::find($branch->facility_id);
@@ -347,7 +363,7 @@ class DashboardService
                 }
             }
         }
-        
+
         $facilityId = $facility ? $facility->id : null;
         $branchId = $user->assigned_branch_id ?? null;
 
@@ -373,7 +389,7 @@ class DashboardService
                 ]);
             }
         }
-        
+
         // Build queries without global scopes and apply explicit facility filters
         $residentsQuery = Resident::withoutGlobalScopes()->where('is_active', true);
         $rangeStart = now()->subDays(30)->startOfDay();
@@ -385,13 +401,13 @@ class DashboardService
 
         // If admin has assigned_branch_id but no facility_id, use branch-based filtering
         // This ensures admins see data even if facility_id isn't set on their user record
-        if ($branchId && !$facilityId && $isAdministrator) {
+        if ($branchId && ! $facilityId && $isAdministrator) {
             // Get all branch IDs in the same facility as the assigned branch
             $assignedBranch = \App\Models\Branch::find($branchId);
             if ($assignedBranch && $assignedBranch->facility_id) {
                 $facilityId = $assignedBranch->facility_id;
                 $facility = \App\Models\Facility::find($facilityId);
-                
+
                 Log::info('DashboardService: Derived facility from assigned branch', [
                     'user_id' => $user->id,
                     'branch_id' => $branchId,
@@ -401,9 +417,10 @@ class DashboardService
         }
 
         // Get all branch IDs in the facility for more efficient and reliable querying
+        // Always fetch branch IDs early using cached method to optimize queries
         $facilityBranchIds = null;
         if ($facilityId) {
-            $facilityBranchIds = \App\Models\Branch::where('facility_id', $facilityId)->pluck('id')->toArray();
+            $facilityBranchIds = $this->getFacilityBranchIds($facilityId);
             Log::info('DashboardService: Facility branches', [
                 'facility_id' => $facilityId,
                 'branch_ids' => $facilityBranchIds,
@@ -413,8 +430,8 @@ class DashboardService
             // If we have a branch but no facility_id, try to get facility from branch
             $assignedBranch = \App\Models\Branch::find($branchId);
             if ($assignedBranch && $assignedBranch->facility_id) {
-                // Get all branches in the same facility
-                $facilityBranchIds = \App\Models\Branch::where('facility_id', $assignedBranch->facility_id)->pluck('id')->toArray();
+                // Get all branches in the same facility using cached method
+                $facilityBranchIds = $this->getFacilityBranchIds($assignedBranch->facility_id);
                 Log::info('DashboardService: Facility branches from branch context', [
                     'branch_id' => $branchId,
                     'facility_id' => $assignedBranch->facility_id,
@@ -425,27 +442,34 @@ class DashboardService
         }
 
         if ($facilityId) {
-            // Use branch-based filtering if we have branch IDs (more efficient and reliable than whereHas)
-            if ($facilityBranchIds && !empty($facilityBranchIds)) {
-                // Filter by branch IDs directly (similar to caregiver approach but for all branches in facility)
+            // Always use branch-based filtering with whereIn (more efficient than whereHas)
+            // This eliminates the need for nested whereHas queries which are slow
+            if ($facilityBranchIds && ! empty($facilityBranchIds)) {
+                // Filter by branch IDs directly (optimized path)
                 $residentsQuery->whereIn('branch_id', $facilityBranchIds);
-                
+
                 $appointmentsQuery->whereIn('branch_id', $facilityBranchIds);
-                
-                // For vitals, assessments, medications - filter by resident's branch
+
+                // For vitals, assessments, medications - filter by resident's branch using whereIn
+                // This is more efficient than nested whereHas queries
                 $vitalsQuery->whereHas('resident', function ($q) use ($facilityBranchIds) {
                     $q->whereIn('branch_id', $facilityBranchIds)->where('is_active', true);
                 });
-                
+
                 $assessmentsQuery->whereHas('resident', function ($q) use ($facilityBranchIds) {
                     $q->whereIn('branch_id', $facilityBranchIds)->where('is_active', true);
                 });
-                
+
                 $activeMedicationsQuery->whereHas('resident', function ($q) use ($facilityBranchIds) {
                     $q->whereIn('branch_id', $facilityBranchIds)->where('is_active', true);
                 });
             } else {
-                // Fallback to facility-based filtering using whereHas
+                // This fallback should rarely be needed, but kept for safety
+                // With proper indexes on branches.facility_id, whereHas will still perform well
+                Log::warning('DashboardService: No branch IDs found for facility, using whereHas fallback', [
+                    'facility_id' => $facilityId,
+                ]);
+
                 $residentsQuery->whereHas('branch', function ($q) use ($facilityId) {
                     $q->where('facility_id', $facilityId);
                 });
@@ -472,26 +496,26 @@ class DashboardService
                     })->where('is_active', true);
                 });
             }
-            
+
             // Staff query - check if facility_id column exists before using it
             if (Schema::hasColumn('users', 'facility_id')) {
                 $staffQuery->where('facility_id', $facilityId);
             } else {
                 // Fallback: filter by users who have assigned_branch_id in facility branches
-                if ($facilityBranchIds && !empty($facilityBranchIds)) {
+                if ($facilityBranchIds && ! empty($facilityBranchIds)) {
                     $staffQuery->whereIn('assigned_branch_id', $facilityBranchIds);
                 }
             }
         }
 
-        // If no facility found, try additional fallback methods for administrators
-        if (!$facilityId && $user && $user->role !== 'super_admin' && $isAdministrator) {
+        // If no facility found, try additional fallback methods for administrators (only if residents table has created_by)
+        if (! $facilityId && $user && $user->role !== 'super_admin' && $isAdministrator && Schema::hasColumn('residents', 'created_by')) {
             // Try to find facility from any residents created by this user
             $residentWithFacility = Resident::withoutGlobalScopes()
                 ->where('created_by', $user->id)
                 ->whereNotNull('facility_id')
                 ->first();
-            
+
             if ($residentWithFacility && $residentWithFacility->facility_id) {
                 $facilityId = $residentWithFacility->facility_id;
                 $facility = \App\Models\Facility::find($facilityId);
@@ -500,15 +524,15 @@ class DashboardService
                     'derived_facility_id' => $facilityId,
                 ]);
             }
-            
+
             // If still not found, try to find from branch where user created residents
-            if (!$facilityId) {
+            if (! $facilityId) {
                 $residentWithBranch = Resident::withoutGlobalScopes()
                     ->where('created_by', $user->id)
                     ->whereNotNull('branch_id')
                     ->with('branch')
                     ->first();
-                
+
                 if ($residentWithBranch && $residentWithBranch->branch && $residentWithBranch->branch->facility_id) {
                     $facilityId = $residentWithBranch->branch->facility_id;
                     $facility = \App\Models\Facility::find($facilityId);
@@ -518,9 +542,9 @@ class DashboardService
                     ]);
                 }
             }
-            
+
             // If still no facility, log warning and query all data (no filters)
-            if (!$facilityId) {
+            if (! $facilityId) {
                 Log::warning('DashboardService: No facility context found for administrator - querying all data', [
                     'user_id' => $user->id,
                     'user_role' => $user->role,
@@ -535,9 +559,10 @@ class DashboardService
                 // Queries are already built without filters when $facilityId is null
             } else {
                 // Re-apply facility filters since we just found the facility
-                $facilityBranchIds = \App\Models\Branch::where('facility_id', $facilityId)->pluck('id')->toArray();
-                
-                if ($facilityBranchIds && !empty($facilityBranchIds)) {
+                // Use cached method to get branch IDs
+                $facilityBranchIds = $this->getFacilityBranchIds($facilityId);
+
+                if ($facilityBranchIds && ! empty($facilityBranchIds)) {
                     $residentsQuery->whereIn('branch_id', $facilityBranchIds);
                     $appointmentsQuery->whereIn('branch_id', $facilityBranchIds);
                     $vitalsQuery->whereHas('resident', function ($q) use ($facilityBranchIds) {
@@ -555,7 +580,7 @@ class DashboardService
                     $staffQuery->where('facility_id', $facilityId);
                 } else {
                     // Fallback: filter by users who have assigned_branch_id in facility branches
-                    if ($facilityBranchIds && !empty($facilityBranchIds)) {
+                    if ($facilityBranchIds && ! empty($facilityBranchIds)) {
                         $staffQuery->whereIn('assigned_branch_id', $facilityBranchIds);
                     }
                 }
@@ -633,17 +658,17 @@ class DashboardService
         }
 
         // Final check: Ensure facilityBranchIds is set if we have facilityId but it wasn't set earlier
-        if ($facilityId && (!$facilityBranchIds || empty($facilityBranchIds))) {
+        if ($facilityId && (! $facilityBranchIds || empty($facilityBranchIds))) {
             $facilityBranchIds = \App\Models\Branch::where('facility_id', $facilityId)->pluck('id')->toArray();
             Log::info('DashboardService: Set facilityBranchIds from facilityId in final check', [
                 'facility_id' => $facilityId,
                 'branch_count' => count($facilityBranchIds),
             ]);
         }
-        
+
         // Also check if we have branch with facility but facilityId wasn't resolved
         // This is a critical fallback - if user has branch assigned, we MUST derive facility
-        if (!$facilityId && $branchId) {
+        if (! $facilityId && $branchId) {
             $assignedBranch = \App\Models\Branch::find($branchId);
             if ($assignedBranch) {
                 if ($assignedBranch->facility_id) {
@@ -677,10 +702,10 @@ class DashboardService
         // 1. User is an administrator (not super_admin)
         // 2. No facilityId was resolved
         // 3. No branch-based filtering is available (no branchId or no facilityBranchIds)
-        $hasValidContext = $facilityId || ($branchId && $facilityBranchIds && !empty($facilityBranchIds));
-        $shouldShowWarning = !$hasValidContext && 
-                             $user && 
-                             $user->role !== 'super_admin' && 
+        $hasValidContext = $facilityId || ($branchId && $facilityBranchIds && ! empty($facilityBranchIds));
+        $shouldShowWarning = ! $hasValidContext &&
+                             $user &&
+                             $user->role !== 'super_admin' &&
                              $isAdministrator;
 
         // Log final context determination for debugging
@@ -723,14 +748,80 @@ class DashboardService
             'facility_context_missing' => $shouldShowWarning,
             // Add debug info about what was tried
             'facility_resolution_attempted' => $isAdministrator,
-            'user_has_facility_id' => (bool)($user->facility_id ?? false),
-            'user_has_branch_id' => (bool)($user->assigned_branch_id ?? false),
-            'has_branch_based_filtering' => (bool)($branchId && $facilityBranchIds && !empty($facilityBranchIds)),
+            'user_has_facility_id' => (bool) ($user->facility_id ?? false),
+            'user_has_branch_id' => (bool) ($user->assigned_branch_id ?? false),
+            'has_branch_based_filtering' => (bool) ($branchId && $facilityBranchIds && ! empty($facilityBranchIds)),
             'has_valid_context' => $hasValidContext,
             'debug_user_id' => $user->id,
             'debug_facility_id' => $user->facility_id,
             'debug_branch_id' => $user->assigned_branch_id,
+            'module_resource_counts' => $this->aggregateModuleResourceCounts($user, $facilityId, $facilityBranchIds),
         ];
+    }
+
+    /**
+     * Totals for dashboard module overview cards (single payload with /dashboard/stats — avoids 8 separate list API calls).
+     *
+     * @param  array<int>|null  $facilityBranchIds
+     * @return array<string, int>
+     */
+    private function aggregateModuleResourceCounts(User $user, ?int $facilityId, ?array $facilityBranchIds): array
+    {
+        $empty = [
+            'assessments' => 0,
+            'sleep' => 0,
+            'housekeeping' => 0,
+            'incidents' => 0,
+            'grocery' => 0,
+            'pharmacy' => 0,
+            'billing' => 0,
+            'fireDrills' => 0,
+        ];
+
+        try {
+            if ($user->role === 'super_admin' && ! $facilityId && empty($facilityBranchIds)) {
+                return [
+                    'assessments' => Assessment::withoutGlobalScopes()->count(),
+                    'sleep' => SleepRecord::query()->count(),
+                    'housekeeping' => CleaningTask::query()->count(),
+                    'incidents' => Incident::withoutGlobalScopes()->count(),
+                    'grocery' => GroceryStatusUpdate::withoutGlobalScopes()->count(),
+                    'pharmacy' => PharmacyInventory::withoutGlobalScopes()->count(),
+                    'billing' => Expense::withoutGlobalScopes()->count(),
+                    'fireDrills' => FireDrill::withoutGlobalScopes()->count(),
+                ];
+            }
+
+            if (empty($facilityBranchIds)) {
+                return $empty;
+            }
+
+            $branchIds = array_values(array_filter(array_map('intval', $facilityBranchIds)));
+
+            return [
+                'assessments' => Assessment::withoutGlobalScopes()->whereIn('branch_id', $branchIds)->count(),
+                'sleep' => SleepRecord::query()->whereIn('branch_id', $branchIds)->count(),
+                'housekeeping' => CleaningTask::query()
+                    ->whereHas('area', static function ($q) use ($branchIds): void {
+                        $q->whereIn('branch_id', $branchIds);
+                    })
+                    ->count(),
+                'incidents' => Incident::withoutGlobalScopes()->whereIn('branch_id', $branchIds)->count(),
+                'grocery' => GroceryStatusUpdate::withoutGlobalScopes()->whereIn('branch_id', $branchIds)->count(),
+                'pharmacy' => PharmacyInventory::withoutGlobalScopes()->whereIn('branch_id', $branchIds)->count(),
+                'billing' => $facilityId
+                    ? Expense::withoutGlobalScopes()->where('facility_id', $facilityId)->count()
+                    : 0,
+                'fireDrills' => FireDrill::withoutGlobalScopes()->whereIn('branch_id', $branchIds)->count(),
+            ];
+        } catch (\Throwable $e) {
+            Log::warning('DashboardService: aggregateModuleResourceCounts failed', [
+                'user_id' => $user->id,
+                'message' => $e->getMessage(),
+            ]);
+
+            return $empty;
+        }
     }
 
     /**
@@ -741,35 +832,35 @@ class DashboardService
         $now = now();
         $weekStart = $now->copy()->startOfWeek();
         $weekEnd = $weekStart->copy()->addDays(6);
-        
+
         // Optimize: Get all assessments and vitals for the week in 2 queries instead of 14
         $assessmentsQuery = Assessment::whereBetween('assessment_date', [$weekStart->toDateString(), $weekEnd->toDateString()])
             ->whereHas('resident', function ($q) use ($branchId) {
-                    if ($branchId) {
-                        $q->where('branch_id', $branchId)->where('is_active', true);
-                    } else {
-                        $q->where('is_active', true);
-                    }
+                if ($branchId) {
+                    $q->where('branch_id', $branchId)->where('is_active', true);
+                } else {
+                    $q->where('is_active', true);
+                }
             });
-        
+
         $vitalsQuery = VitalSign::whereBetween('measurement_date', [$weekStart->toDateString(), $weekEnd->toDateString()])
             ->whereHas('resident', function ($q) use ($branchId) {
-                    if ($branchId) {
-                        $q->where('branch_id', $branchId)->where('is_active', true);
-                    } else {
-                        $q->where('is_active', true);
-                    }
+                if ($branchId) {
+                    $q->where('branch_id', $branchId)->where('is_active', true);
+                } else {
+                    $q->where('is_active', true);
+                }
             });
-        
+
         // Get all data at once
         $assessments = $assessmentsQuery->get()->groupBy(function ($item) {
             return $item->assessment_date->format('Y-m-d');
         });
-        
+
         $vitals = $vitalsQuery->get()->groupBy(function ($item) {
             return $item->measurement_date->format('Y-m-d');
         });
-        
+
         $days = [];
         for ($i = 0; $i < 7; $i++) {
             $day = $weekStart->copy()->addDays($i);
@@ -835,11 +926,11 @@ class DashboardService
                         ->where('status', 'completed')
                         ->exists();
 
-                    if (!$alreadyAdministered) {
+                    if (! $alreadyAdministered) {
                         $residentName = 'Unknown';
                         if ($medication->resident) {
-                            $name = trim(($medication->resident->first_name ?? '') . ' ' . ($medication->resident->last_name ?? ''));
-                            $residentName = !empty($name) ? $name : ($medication->resident->name ?? 'Unknown');
+                            $name = trim(($medication->resident->first_name ?? '').' '.($medication->resident->last_name ?? ''));
+                            $residentName = ! empty($name) ? $name : ($medication->resident->name ?? 'Unknown');
                         }
                         $reminders[] = [
                             'medication_id' => $medication->id,
@@ -901,11 +992,11 @@ class DashboardService
     private function getResidentList(?int $branchId, int $limit = 10): array
     {
         $query = Resident::where('is_active', true);
-        
+
         if ($branchId) {
             $query->where('branch_id', $branchId);
         }
-        
+
         return $query->orderBy('first_name')
             ->limit($limit)
             ->get()
@@ -963,9 +1054,10 @@ class DashboardService
             ->map(function ($appointment) {
                 $residentName = 'Unknown';
                 if ($appointment->resident) {
-                    $name = trim(($appointment->resident->first_name ?? '') . ' ' . ($appointment->resident->last_name ?? ''));
-                    $residentName = !empty($name) ? $name : ($appointment->resident->name ?? 'Unknown');
+                    $name = trim(($appointment->resident->first_name ?? '').' '.($appointment->resident->last_name ?? ''));
+                    $residentName = ! empty($name) ? $name : ($appointment->resident->name ?? 'Unknown');
                 }
+
                 return [
                     'id' => $appointment->id,
                     'resident_name' => $residentName,
@@ -990,10 +1082,11 @@ class DashboardService
             ->limit(10)
             ->get()
             ->map(function ($resident) {
-                $name = trim(($resident->first_name ?? '') . ' ' . ($resident->last_name ?? ''));
+                $name = trim(($resident->first_name ?? '').' '.($resident->last_name ?? ''));
                 if (empty($name)) {
                     $name = $resident->name ?? 'Unknown';
                 }
+
                 return [
                     'id' => $resident->id,
                     'name' => $name,
@@ -1018,16 +1111,16 @@ class DashboardService
     {
         // Cache for 5 minutes to reduce load
         $cacheKey = "daily.activities.{$user->id}.{$days}";
-        
+
         return Cache::remember($cacheKey, 300, function () use ($user, $days) {
-        $startDate = Carbon::now()->subDays($days);
-        $endDate = Carbon::now();
-        
-        $branchId = null;
-        if (UserRoles::isCaregiverRole($user->role)) {
-            $branchId = $user->assigned_branch_id;
-        }
-        
+            $startDate = Carbon::now()->subDays($days);
+            $endDate = Carbon::now();
+
+            $branchId = null;
+            if (UserRoles::isCaregiverRole($user->role)) {
+                $branchId = $user->assigned_branch_id;
+            }
+
             // Optimize: Get all data in 3 queries instead of 90+ queries (30 days × 3 queries)
             $residentQuery = function ($q) use ($branchId) {
                 if ($branchId) {
@@ -1036,7 +1129,7 @@ class DashboardService
                     $q->where('is_active', true);
                 }
             };
-            
+
             // Get all appointments for the date range
             $appointments = Appointment::whereHas('resident', $residentQuery)
                 ->whereBetween('appointment_date', [$startDate->toDateString(), $endDate->toDateString()])
@@ -1044,20 +1137,20 @@ class DashboardService
                 ->groupBy(function ($item) {
                     return $item->appointment_date->format('Y-m-d');
                 });
-            
+
             // Get all medications active in the date range
             $medications = Medication::whereHas('resident', $residentQuery)
-            ->where('is_active', true)
+                ->where('is_active', true)
                 ->where(function ($q) use ($startDate, $endDate) {
                     $q->where(function ($subQ) use ($startDate) {
                         $subQ->whereNull('start_date')->orWhere('start_date', '<=', $startDate);
                     })
-                    ->where(function ($subQ) use ($endDate) {
-                        $subQ->whereNull('end_date')->orWhere('end_date', '>=', $endDate);
-                    });
+                        ->where(function ($subQ) use ($endDate) {
+                            $subQ->whereNull('end_date')->orWhere('end_date', '>=', $endDate);
+                        });
                 })
                 ->get();
-            
+
             // Count medications per day (simplified - medications span multiple days)
             $medicationsByDay = [];
             foreach ($medications as $medication) {
@@ -1065,14 +1158,14 @@ class DashboardService
                 $medEnd = $medication->end_date ? Carbon::parse($medication->end_date) : $endDate;
                 $current = max($medStart, $startDate);
                 $end = min($medEnd, $endDate);
-                
+
                 while ($current <= $end) {
                     $dateStr = $current->format('Y-m-d');
                     $medicationsByDay[$dateStr] = ($medicationsByDay[$dateStr] ?? 0) + 1;
                     $current->addDay();
                 }
             }
-            
+
             // Get all vitals for the date range
             $vitals = VitalSign::whereHas('resident', $residentQuery)
                 ->whereBetween('measurement_date', [$startDate->toDateString(), $endDate->toDateString()])
@@ -1080,30 +1173,30 @@ class DashboardService
                 ->groupBy(function ($item) {
                     return $item->measurement_date->format('Y-m-d');
                 });
-            
+
             $activities = [];
             $currentDate = $startDate->copy();
-            
+
             while ($currentDate <= $endDate) {
                 $dateStr = $currentDate->format('Y-m-d');
-                
+
                 $appointmentsCount = $appointments->get($dateStr)?->count() ?? 0;
                 $medicationsDue = $medicationsByDay[$dateStr] ?? 0;
                 $vitalsRecorded = $vitals->get($dateStr)?->count() ?? 0;
-            
-            if ($appointmentsCount > 0 || $medicationsDue > 0 || $vitalsRecorded > 0) {
-                $activities[] = [
-                    'date' => $dateStr,
-                    'appointments_count' => $appointmentsCount,
-                    'medications_due' => $medicationsDue,
-                    'vitals_recorded' => $vitalsRecorded,
-                ];
+
+                if ($appointmentsCount > 0 || $medicationsDue > 0 || $vitalsRecorded > 0) {
+                    $activities[] = [
+                        'date' => $dateStr,
+                        'appointments_count' => $appointmentsCount,
+                        'medications_due' => $medicationsDue,
+                        'vitals_recorded' => $vitalsRecorded,
+                    ];
+                }
+
+                $currentDate->addDay();
             }
-            
-            $currentDate->addDay();
-        }
-        
-        return $activities;
+
+            return $activities;
         });
     }
 
@@ -1120,7 +1213,7 @@ class DashboardService
             'staff_utilization' => 0,
         ];
 
-        if (!$facilityId) {
+        if (! $facilityId) {
             return $metrics;
         }
 
@@ -1129,14 +1222,14 @@ class DashboardService
             ->where('facility_id', $facilityId)
             ->where('is_active', true)
             ->get();
-        
+
         $totalResidents = Resident::withoutGlobalScopes()
             ->where('is_active', true)
             ->whereHas('branch', function ($q) use ($facilityId) {
                 $q->where('facility_id', $facilityId);
             })
             ->count();
-        
+
         $activeBranches = $branches->count();
         if ($activeBranches > 0) {
             // Calculate average residents per branch (as a simple occupancy metric)
@@ -1155,7 +1248,7 @@ class DashboardService
             })
             ->whereBetween('created_at', [$rangeStart, now()])
             ->count();
-        
+
         $completedAssessments = Assessment::withoutGlobalScopes()
             ->whereHas('resident', function ($q) use ($facilityId) {
                 $q->whereHas('branch', function ($b) use ($facilityId) {
@@ -1165,7 +1258,7 @@ class DashboardService
             ->whereBetween('created_at', [$rangeStart, now()])
             ->whereIn('status', ['approved', 'completed'])
             ->count();
-        
+
         if ($totalAssessments > 0) {
             $metrics['compliance_score'] = round(($completedAssessments / $totalAssessments) * 100, 1);
         }
@@ -1180,7 +1273,7 @@ class DashboardService
                 })->where('is_active', true);
             })
             ->count();
-        
+
         $completedAdministrations = \App\Models\MedicationAdministration::withoutGlobalScopes()
             ->whereBetween('administered_at', [$weekStart, now()])
             ->where('status', 'completed')
@@ -1190,7 +1283,7 @@ class DashboardService
                 })->where('is_active', true);
             })
             ->count();
-        
+
         // Estimate total due based on active medications and frequency
         // For simplicity, assume each medication needs administration daily
         $estimatedTotalDue = $totalMedicationsDue * 7; // 7 days
@@ -1206,7 +1299,7 @@ class DashboardService
             ->whereBetween('created_at', [$rangeStart, now()])
             ->whereNotNull('resolved_at')
             ->get();
-        
+
         if ($resolvedIncidents->count() > 0) {
             $totalResponseTime = $resolvedIncidents->sum(function ($incident) {
                 return $incident->created_at->diffInHours($incident->resolved_at);
@@ -1220,7 +1313,7 @@ class DashboardService
             ->where('is_active', true)
             ->where('role', '!=', 'super_admin')
             ->count();
-        
+
         // For now, utilization is just the count (can be enhanced with capacity later)
         $metrics['staff_utilization'] = $totalStaff;
 
@@ -1244,7 +1337,7 @@ class DashboardService
                 ->with(['resident', 'branch', 'appointmentType'])
                 ->whereDate('appointment_date', '>=', today())
                 ->whereNotIn('status', ['cancelled', 'completed']);
-            
+
             if ($facilityId) {
                 $appointmentsQuery->whereHas('branch', function ($q) use ($facilityId) {
                     $q->where('facility_id', $facilityId);
@@ -1259,12 +1352,12 @@ class DashboardService
                 ->limit($limit)
                 ->get()
                 ->each(function ($appointment) use (&$events) {
-                    $dateTime = \Carbon\Carbon::parse($appointment->appointment_date->format('Y-m-d') . ' ' . ($appointment->appointment_time ?? '00:00:00'));
+                    $dateTime = \Carbon\Carbon::parse($appointment->appointment_date->format('Y-m-d').' '.($appointment->appointment_time ?? '00:00:00'));
                     $events[] = [
-                        'id' => 'appointment_' . $appointment->id,
+                        'id' => 'appointment_'.$appointment->id,
                         'type' => 'appointment',
                         'title' => $appointment->title ?? ($appointment->appointmentType?->name ?? 'Appointment'),
-                        'description' => $appointment->resident ? $appointment->resident->first_name . ' ' . $appointment->resident->last_name : 'No resident',
+                        'description' => $appointment->resident ? $appointment->resident->first_name.' '.$appointment->resident->last_name : 'No resident',
                         'date' => $appointment->appointment_date->toDateString(),
                         'time' => $appointment->appointment_time,
                         'datetime' => $dateTime->toIso8601String(),
@@ -1278,12 +1371,12 @@ class DashboardService
         }
 
         // 2. Upcoming Fire Drills
-        if ((!$isCaregiver || $facilityId) && Schema::hasTable('fire_drills')) {
+        if ((! $isCaregiver || $facilityId) && Schema::hasTable('fire_drills')) {
             $fireDrillsQuery = FireDrill::withoutGlobalScopes()
                 ->with(['branch'])
                 ->where('status', 'scheduled')
                 ->whereDate('scheduled_date', '>=', today());
-            
+
             if ($facilityId) {
                 $fireDrillsQuery->whereHas('branch', function ($q) use ($facilityId) {
                     $q->where('facility_id', $facilityId);
@@ -1298,11 +1391,11 @@ class DashboardService
                 ->limit($limit)
                 ->get()
                 ->each(function ($drill) use (&$events) {
-                    $dateTime = \Carbon\Carbon::parse($drill->scheduled_date->format('Y-m-d') . ' ' . ($drill->scheduled_time ?? '10:00:00'));
+                    $dateTime = \Carbon\Carbon::parse($drill->scheduled_date->format('Y-m-d').' '.($drill->scheduled_time ?? '10:00:00'));
                     $events[] = [
-                        'id' => 'firedrill_' . $drill->id,
+                        'id' => 'firedrill_'.$drill->id,
                         'type' => 'fire_drill',
-                        'title' => 'Fire Drill: ' . ($drill->branch?->name ?? 'Unknown Branch'),
+                        'title' => 'Fire Drill: '.($drill->branch?->name ?? 'Unknown Branch'),
                         'description' => $drill->notes ?? 'Scheduled fire drill',
                         'date' => $drill->scheduled_date->toDateString(),
                         'time' => $drill->scheduled_time,
@@ -1320,7 +1413,7 @@ class DashboardService
             $assessmentsQuery = Assessment::withoutGlobalScopes()
                 ->with(['resident', 'resident.branch'])
                 ->whereNotIn('status', ['approved', 'archived', 'completed']);
-            
+
             if ($facilityId) {
                 $assessmentsQuery->whereHas('resident', function ($q) use ($facilityId) {
                     $q->whereHas('branch', function ($b) use ($facilityId) {
@@ -1339,15 +1432,15 @@ class DashboardService
                 ->get()
                 ->each(function ($assessment) use (&$events) {
                     $events[] = [
-                        'id' => 'assessment_' . $assessment->id,
+                        'id' => 'assessment_'.$assessment->id,
                         'type' => 'assessment',
-                        'title' => 'Assessment: ' . ($assessment->resident ? $assessment->resident->first_name . ' ' . $assessment->resident->last_name : 'Unknown'),
-                        'description' => 'Status: ' . ucfirst($assessment->status),
+                        'title' => 'Assessment: '.($assessment->resident ? $assessment->resident->first_name.' '.$assessment->resident->last_name : 'Unknown'),
+                        'description' => 'Status: '.ucfirst($assessment->status),
                         'date' => $assessment->assessment_date?->toDateString() ?? $assessment->created_at->toDateString(),
                         'time' => null,
                         'datetime' => ($assessment->assessment_date ?? $assessment->created_at)->toIso8601String(),
                         'branch' => $assessment->resident?->branch?->name,
-                        'link' => '/assessments/' . $assessment->id,
+                        'link' => '/assessments/'.$assessment->id,
                         'icon' => 'clipboard',
                         'color' => 'purple',
                     ];
@@ -1379,10 +1472,10 @@ class DashboardService
                     $medicationName = $medication->drug?->name ?? $medication->name ?? 'Unknown Medication';
                     $timeStr = $medication->time_1 ?? '09:00:00';
                     $events[] = [
-                        'id' => 'medication_' . $medication->id,
+                        'id' => 'medication_'.$medication->id,
                         'type' => 'medication',
-                        'title' => 'Medication: ' . $medicationName,
-                        'description' => $medication->resident ? $medication->resident->first_name . ' ' . $medication->resident->last_name : 'No resident',
+                        'title' => 'Medication: '.$medicationName,
+                        'description' => $medication->resident ? $medication->resident->first_name.' '.$medication->resident->last_name : 'No resident',
                         'date' => $nextDue->toDateString(),
                         'time' => $timeStr,
                         'datetime' => $nextDue->setTimeFromTimeString($timeStr)->toIso8601String(),
@@ -1395,15 +1488,15 @@ class DashboardService
         }
 
         // 5. Pending Grocery Status Updates (current and next week)
-        if ((!$isCaregiver || $facilityId) && Schema::hasTable('grocery_status_updates')) {
+        if ((! $isCaregiver || $facilityId) && Schema::hasTable('grocery_status_updates')) {
             $currentWeekStart = now()->startOfWeek();
             $nextWeekStart = $currentWeekStart->copy()->addWeek();
-            
+
             $groceryQuery = GroceryStatusUpdate::withoutGlobalScopes()
                 ->with(['branch'])
                 ->whereIn('status', ['pending', 'in_progress'])
                 ->whereIn('week_start_date', [$currentWeekStart->toDateString(), $nextWeekStart->toDateString()]);
-            
+
             if ($facilityId) {
                 $groceryQuery->whereHas('branch', function ($q) use ($facilityId) {
                     $q->where('facility_id', $facilityId);
@@ -1418,10 +1511,10 @@ class DashboardService
                 ->get()
                 ->each(function ($grocery) use (&$events) {
                     $events[] = [
-                        'id' => 'grocery_' . $grocery->id,
+                        'id' => 'grocery_'.$grocery->id,
                         'type' => 'grocery',
-                        'title' => 'Grocery Status: ' . ($grocery->branch?->name ?? 'Unknown Branch'),
-                        'description' => 'Week of ' . $grocery->week_start_date->format('M d') . ' - Status: ' . ucfirst($grocery->status),
+                        'title' => 'Grocery Status: '.($grocery->branch?->name ?? 'Unknown Branch'),
+                        'description' => 'Week of '.$grocery->week_start_date->format('M d').' - Status: '.ucfirst($grocery->status),
                         'date' => $grocery->week_start_date->toDateString(),
                         'time' => null,
                         'datetime' => $grocery->week_start_date->toIso8601String(),
@@ -1434,13 +1527,13 @@ class DashboardService
         }
 
         // 6. Scheduled Cleaning Task Assignments
-        if ((!$isCaregiver || $facilityId) && Schema::hasTable('cleaning_task_assignments')) {
+        if ((! $isCaregiver || $facilityId) && Schema::hasTable('cleaning_task_assignments')) {
             $cleaningQuery = CleaningTaskAssignment::withoutGlobalScopes()
                 ->with(['task.area.branch', 'user'])
                 ->where('status', 'assigned')
                 ->whereDate('scheduled_date', '>=', today())
                 ->whereDate('scheduled_date', '<=', now()->addDays(7));
-            
+
             if ($facilityId) {
                 $cleaningQuery->whereHas('task.area.branch', function ($q) use ($facilityId) {
                     $q->where('facility_id', $facilityId);
@@ -1458,9 +1551,9 @@ class DashboardService
                 ->get()
                 ->each(function ($assignment) use (&$events) {
                     $events[] = [
-                        'id' => 'cleaning_' . $assignment->id,
+                        'id' => 'cleaning_'.$assignment->id,
                         'type' => 'cleaning',
-                        'title' => 'Cleaning: ' . ($assignment->task?->title ?? 'Task'),
+                        'title' => 'Cleaning: '.($assignment->task?->title ?? 'Task'),
                         'description' => $assignment->task?->area?->name ?? 'Housekeeping',
                         'date' => $assignment->scheduled_date->toDateString(),
                         'time' => null,
@@ -1488,7 +1581,7 @@ class DashboardService
     private function getCurrentFacility(?User $user = null): ?\App\Models\Facility
     {
         $user = $user ?? auth()->user();
-        if (!$user) {
+        if (! $user) {
             return null;
         }
 
@@ -1509,12 +1602,12 @@ class DashboardService
         }
 
         // Fallback to user's facility_id
-        if (!$facility && $user->facility_id) {
+        if (! $facility && $user->facility_id) {
             $facility = \App\Models\Facility::find($user->facility_id);
         }
 
         // Derive facility from assigned branch if still unknown
-        if (!$facility && $user->assigned_branch_id) {
+        if (! $facility && $user->assigned_branch_id) {
             $branch = \App\Models\Branch::find($user->assigned_branch_id);
             if ($branch && $branch->facility_id) {
                 $facility = \App\Models\Facility::find($branch->facility_id);
@@ -1553,7 +1646,7 @@ class DashboardService
                 ->whereDate('appointment_date', today())
                 ->whereNotIn('status', ['cancelled', 'completed']);
 
-            if ($facilityBranchIds && !empty($facilityBranchIds)) {
+            if ($facilityBranchIds && ! empty($facilityBranchIds)) {
                 $appointmentsQuery->whereIn('branch_id', $facilityBranchIds);
             } elseif ($facilityId) {
                 $appointmentsQuery->whereHas('branch', function ($q) use ($facilityId) {
@@ -1569,13 +1662,13 @@ class DashboardService
                 ->each(function ($appointment) use (&$schedule) {
                     $residentName = 'Unknown';
                     if ($appointment->resident) {
-                        $name = trim(($appointment->resident->first_name ?? '') . ' ' . ($appointment->resident->last_name ?? ''));
-                        $residentName = !empty($name) ? $name : ($appointment->resident->name ?? 'Unknown');
+                        $name = trim(($appointment->resident->first_name ?? '').' '.($appointment->resident->last_name ?? ''));
+                        $residentName = ! empty($name) ? $name : ($appointment->resident->name ?? 'Unknown');
                     }
                     $time = $appointment->appointment_time ? Carbon::parse($appointment->appointment_time)->format('g:i A') : 'TBD';
                     $time24h = $appointment->appointment_time ? Carbon::parse($appointment->appointment_time)->format('H:i') : '00:00';
                     $schedule[] = [
-                        'id' => 'appointment_' . $appointment->id,
+                        'id' => 'appointment_'.$appointment->id,
                         'type' => 'appointment',
                         'title' => $appointment->title ?? ($appointment->appointmentType?->name ?? 'Appointment'),
                         'resident_name' => $residentName,
@@ -1591,45 +1684,47 @@ class DashboardService
                 });
         }
 
-        // 2. Vitals due today (for residents in context) - limit to 5
-        if (Schema::hasTable('vital_signs')) {
-            $vitalsQuery = Resident::withoutGlobalScopes()
-                ->where('is_active', true)
-                ->whereDoesntHave('vitalSigns', function ($q) {
-                    $q->whereDate('measurement_date', today());
-                });
+        // 2. Vitals due today (for residents in context) - DISABLED
+        // Removed automatic vital recording reminders from schedule since some facilities
+        // don't record vitals every day. Vitals can still be recorded manually via the Vitals module.
+        // if (Schema::hasTable('vital_signs')) {
+        //     $vitalsQuery = Resident::withoutGlobalScopes()
+        //         ->where('is_active', true)
+        //         ->whereDoesntHave('vitalSigns', function ($q) {
+        //             $q->whereDate('measurement_date', today());
+        //         });
 
-            if ($facilityBranchIds && !empty($facilityBranchIds)) {
-                $vitalsQuery->whereIn('branch_id', $facilityBranchIds);
-            } elseif ($facilityId) {
-                $vitalsQuery->whereHas('branch', function ($q) use ($facilityId) {
-                    $q->where('facility_id', $facilityId);
-                });
-            } elseif ($branchId) {
-                $vitalsQuery->where('branch_id', $branchId);
-            }
+        //     if ($facilityBranchIds && !empty($facilityBranchIds)) {
+        //         $vitalsQuery->whereIn('branch_id', $facilityBranchIds);
+        //     } elseif ($facilityId) {
+        //         $vitalsQuery->whereHas('branch', function ($q) use ($facilityId) {
+        //             $q->where('facility_id', $facilityId);
+        //         });
+        //     } elseif ($branchId) {
+        //         $vitalsQuery->where('branch_id', $branchId);
+        //     }
 
-            $vitalsQuery->limit(5)
-                ->get()
-                ->each(function ($resident) use (&$schedule) {
-                    $name = trim(($resident->first_name ?? '') . ' ' . ($resident->last_name ?? ''));
-                    $residentName = !empty($name) ? $name : ($resident->name ?? 'Unknown');
-                    // Use a default morning time (9:00 AM) for vitals so they appear in timeline
-                    $schedule[] = [
-                        'id' => 'vitals_resident_' . $resident->id,
-                        'type' => 'vitals',
-                        'title' => 'Record Vitals',
-                        'resident_name' => $residentName,
-                        'time' => '9:00 AM',
-                        'time_24h' => '09:00',
-                        'time_short' => '9:00 AM',
-                        'location' => $resident->room_number ?? $resident->room ?? 'N/A',
-                        'category' => 'Vitals',
-                        'category_color' => 'green',
-                        'link' => '/vitals?resident=' . $resident->id,
-                    ];
-                });
-        }
+        //     $vitalsQuery->limit(5)
+        //         ->get()
+        //         ->each(function ($resident) use (&$schedule) {
+        //             $name = trim(($resident->first_name ?? '') . ' ' . ($resident->last_name ?? ''));
+        //             $residentName = !empty($name) ? $name : ($resident->name ?? 'Unknown');
+        //             // Use a default morning time (9:00 AM) for vitals so they appear in timeline
+        //             $schedule[] = [
+        //                 'id' => 'vitals_resident_' . $resident->id,
+        //                 'type' => 'vitals',
+        //                 'title' => 'Record Vitals',
+        //                 'resident_name' => $residentName,
+        //                 'time' => '9:00 AM',
+        //                 'time_24h' => '09:00',
+        //                 'time_short' => '9:00 AM',
+        //                 'location' => $resident->room_number ?? $resident->room ?? 'N/A',
+        //                 'category' => 'Vitals',
+        //                 'category_color' => 'green',
+        //                 'link' => '/vitals?resident=' . $resident->id,
+        //             ];
+        //         });
+        // }
 
         // 3. Medications due today (for residents in context) - only show upcoming/not yet administered
         if (Schema::hasTable('medications')) {
@@ -1644,7 +1739,7 @@ class DashboardService
                     $q->whereNull('end_date')->orWhere('end_date', '>=', today());
                 });
 
-            if ($facilityBranchIds && !empty($facilityBranchIds)) {
+            if ($facilityBranchIds && ! empty($facilityBranchIds)) {
                 $medicationsQuery->whereHas('resident', function ($q) use ($facilityBranchIds) {
                     $q->whereIn('branch_id', $facilityBranchIds)->where('is_active', true);
                 });
@@ -1662,10 +1757,10 @@ class DashboardService
 
             $medicationsQuery->limit(20) // Get more to filter
                 ->get()
-                ->each(function ($medication) use (&$schedule, $now) {
+                ->each(function ($medication) use (&$schedule) {
                     $upcomingTimes = [];
                     $allTimes = [];
-                    
+
                     // Get all scheduled times for this medication
                     for ($i = 1; $i <= 4; $i++) {
                         if ($medication->{"time_{$i}"}) {
@@ -1676,7 +1771,7 @@ class DashboardService
                                 'time24h' => Carbon::parse($timeStr)->format('H:i'),
                                 'timeObj' => $timeToday,
                             ];
-                            
+
                             // Check if medication has been administered at this time today
                             $alreadyAdministered = false;
                             if (Schema::hasTable('medication_administrations')) {
@@ -1686,10 +1781,10 @@ class DashboardService
                                     ->where('status', 'completed')
                                     ->exists();
                             }
-                            
+
                             // Include if not yet administered (regardless of whether time has passed)
                             // This shows medications that still need to be given today
-                            if (!$alreadyAdministered) {
+                            if (! $alreadyAdministered) {
                                 $upcomingTimes[] = [
                                     'time' => Carbon::parse($timeStr)->format('g:i A'),
                                     'time24h' => Carbon::parse($timeStr)->format('H:i'),
@@ -1698,25 +1793,25 @@ class DashboardService
                             }
                         }
                     }
-                    
+
                     // Only add if there are upcoming times (not yet administered)
                     if (count($upcomingTimes) > 0) {
                         $residentName = 'Unknown';
                         if ($medication->resident) {
-                            $name = trim(($medication->resident->first_name ?? '') . ' ' . ($medication->resident->last_name ?? ''));
-                            $residentName = !empty($name) ? $name : ($medication->resident->name ?? 'Unknown');
+                            $name = trim(($medication->resident->first_name ?? '').' '.($medication->resident->last_name ?? ''));
+                            $residentName = ! empty($name) ? $name : ($medication->resident->name ?? 'Unknown');
                         }
-                        
+
                         // Use the earliest upcoming time for display
                         usort($upcomingTimes, function ($a, $b) {
                             return $a['timeObj']->gt($b['timeObj']) ? 1 : -1;
                         });
-                        
+
                         $displayTime = count($upcomingTimes) > 1 ? 'Multiple times' : $upcomingTimes[0]['time'];
                         $displayTime24h = count($upcomingTimes) > 1 ? '00:00' : $upcomingTimes[0]['time24h'];
-                        
+
                         $schedule[] = [
-                            'id' => 'medication_' . $medication->id,
+                            'id' => 'medication_'.$medication->id,
                             'type' => 'medication',
                             'title' => $medication->drug?->name ?? $medication->name ?? 'Medication',
                             'resident_name' => $residentName,
@@ -1742,12 +1837,25 @@ class DashboardService
             if ($timeB === '00:00' && $b['time'] !== 'TBD' && $b['time'] !== 'Anytime') {
                 $timeB = '23:59';
             }
+
             return strcmp($timeA, $timeB);
         });
 
         // Return limited results
         return array_slice($schedule, 0, $limit);
     }
+
+    /**
+     * Get facility branch IDs with caching for performance
+     */
+    private function getFacilityBranchIds(int $facilityId): array
+    {
+        $cacheKey = "facility.{$facilityId}.branches";
+
+        return Cache::remember($cacheKey, 3600, function () use ($facilityId) {
+            return \App\Models\Branch::where('facility_id', $facilityId)
+                ->pluck('id')
+                ->toArray();
+        });
+    }
 }
-
-

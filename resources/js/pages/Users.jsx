@@ -1,14 +1,22 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
+import logger from '../utils/logger';
 import { Users, Plus, Edit, Trash2, Search, Filter, Upload, X, Eye, Mail, Phone, Calendar, Briefcase, MapPin, Award, Shield, Clock, User as UserIcon, AlertCircle, Building2 } from 'lucide-react';
 import EmptyState from '../components/ui/EmptyState';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
+import Modal from '../components/ui/Modal';
+import Tooltip from '../components/ui/Tooltip';
+import EntityCardShell, { EntityCardHeader } from '../components/ui/EntityCardShell';
+import CardIconButton from '../components/ui/CardIconButton';
+import DataPill from '../components/ui/DataPill';
 import { formatPhoneNumber } from '../utils/phoneFormatter';
 
 export default function UsersPage() {
     const queryClient = useQueryClient();
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
     const [search, setSearch] = useState('');
     const [branchFilter, setBranchFilter] = useState('');
     const [facilityFilter, setFacilityFilter] = useState('');
@@ -17,6 +25,7 @@ export default function UsersPage() {
     const [editing, setEditing] = useState(null);
     const [viewingProfile, setViewingProfile] = useState(null);
     const [currentPage, setCurrentPage] = useState(1);
+    const [deleteConfirmUser, setDeleteConfirmUser] = useState(null);
 
     const { data, isLoading } = useQuery({
         queryKey: ['users', search, branchFilter, facilityFilter, activeFilter, currentPage],
@@ -95,11 +104,70 @@ export default function UsersPage() {
         toggleActiveMutation.mutate({ id: user.id, isActive: newStatus });
     };
 
-    const handleDelete = (user) => {
-        if (window.confirm(`Are you sure you want to delete ${user.name || user.email}? This action cannot be undone.`)) {
-            deleteMutation.mutate(user.id);
-        }
+    const handleConfirmDeleteUser = () => {
+        if (!deleteConfirmUser) return;
+        deleteMutation.mutate(deleteConfirmUser.id, { onSuccess: () => setDeleteConfirmUser(null) });
     };
+
+    const clearUserFormQuery = () => {
+        const next = new URLSearchParams(searchParams);
+        next.delete('create');
+        next.delete('editUserId');
+        next.delete('facility_id');
+        setSearchParams(next, { replace: true });
+    };
+
+    const handleCloseUserForm = () => {
+        setShowForm(false);
+        setEditing(null);
+        clearUserFormQuery();
+    };
+
+    const openUserCreate = () => {
+        setEditing(null);
+        setShowForm(true);
+        const next = new URLSearchParams(searchParams);
+        next.set('create', '1');
+        next.delete('editUserId');
+        setSearchParams(next, { replace: true });
+    };
+
+    const openUserEdit = async (user) => {
+        await handleEditFromProfile(user);
+        const next = new URLSearchParams(searchParams);
+        next.delete('create');
+        next.set('editUserId', String(user.id));
+        setSearchParams(next, { replace: true });
+    };
+
+    React.useEffect(() => {
+        const create = searchParams.get('create');
+        const editIdRaw = searchParams.get('editUserId');
+        if (editIdRaw) {
+            const id = parseInt(editIdRaw, 10);
+            if (Number.isNaN(id)) return;
+            let cancelled = false;
+            (async () => {
+                try {
+                    const response = await api.get(`/users/${id}`);
+                    if (!cancelled) {
+                        setEditing(response.data);
+                        setShowForm(true);
+                    }
+                } catch (error) {
+                    logger.error('Error loading user for edit:', error);
+                    if (!cancelled) clearUserFormQuery();
+                }
+            })();
+            return () => {
+                cancelled = true;
+            };
+        }
+        if (create === '1') {
+            setEditing(null);
+            setShowForm(true);
+        }
+    }, [searchParams]);
 
     const handleEditFromProfile = async (user) => {
         try {
@@ -108,7 +176,7 @@ export default function UsersPage() {
             setEditing(response.data);
             setShowForm(true);
         } catch (error) {
-            console.error('Error fetching user details:', error);
+            logger.error('Error fetching user details:', error);
             // Fallback to using the user object from the list
             setEditing(user);
             setShowForm(true);
@@ -132,119 +200,143 @@ export default function UsersPage() {
 
     const renderUserCard = (user) => {
         const isInactive = !isUserActive(user);
-        const cardClass = `bg-white rounded-lg shadow-lg p-6 transition-all duration-200 hover:shadow-xl ${isInactive ? 'border border-red-200 bg-red-50/60 hover:border-red-300' : 'border border-gray-200 hover:border-[var(--theme-primary)]'
-            }`;
 
         return (
-            <div key={user.id} className={cardClass}>
-                <div className="flex items-start justify-between mb-6">
-                    <div className="flex items-center space-x-4 flex-1">
-                        {user.profile_image_url ? (
-                            <img
-                                src={user.profile_image_url}
-                                alt={user.name}
-                                className="w-16 h-16 rounded-full object-cover border-[3px] border-[var(--theme-primary)] shadow-md"
-                                onError={(e) => {
-                                    e.target.style.display = 'none';
-                                    if (e.target.nextElementSibling) {
-                                        e.target.nextElementSibling.style.display = 'flex';
-                                    }
-                                }}
-                            />
-                        ) : null}
-                        <div
-                            className={`w-16 h-16 rounded-full bg-gradient-to-br from-[var(--theme-primary)] to-[#4a7a2a] flex items-center justify-center shadow-md ${user.profile_image_url ? 'hidden' : ''
-                                }`}
-                        >
-                            <span className="text-white font-bold text-xl">
-                                {user.name?.charAt(0)?.toUpperCase() || 'U'}
-                            </span>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                                <h3 className="text-xl font-bold text-gray-900 mb-1 truncate">
-                                    {user.name || user.email}
-                                </h3>
-                                {isInactive && (
-                                    <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-red-100 text-red-700">
-                                        Deactivated
-                                    </span>
-                                )}
+            <EntityCardShell
+                key={user.id}
+                className={
+                    isInactive
+                        ? 'border-red-200/90 bg-red-50/60 hover:border-red-300/90'
+                        : ''
+                }
+            >
+                <EntityCardHeader
+                    left={
+                        <div className="flex flex-wrap items-start gap-3">
+                            <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full border-2 border-[var(--theme-primary)] shadow-sm">
+                                {user.profile_image_url ? (
+                                    <img
+                                        src={user.profile_image_url}
+                                        alt={user.name || ''}
+                                        className="h-full w-full object-cover"
+                                        onError={(e) => {
+                                            e.target.style.display = 'none';
+                                            const next = e.target.nextElementSibling;
+                                            if (next) next.style.display = 'flex';
+                                        }}
+                                    />
+                                ) : null}
+                                <div
+                                    className={`absolute inset-0 flex items-center justify-center bg-gradient-to-br from-[var(--theme-primary)] to-[#4a7a2a] text-lg font-bold text-white ${
+                                        user.profile_image_url ? 'hidden' : 'flex'
+                                    }`}
+                                >
+                                    {user.name?.charAt(0)?.toUpperCase() || 'U'}
+                                </div>
                             </div>
-                            <p className="text-sm text-gray-500 truncate">{user.email}</p>
-                            {isSuperAdmin && user.facility && (
-                                <p className="text-xs text-gray-400 mt-1 truncate flex items-center">
-                                    <Building2 className="w-3 h-3 mr-1" />
-                                    {user.facility.name}
-                                </p>
+                            <div className="min-w-0 space-y-2">
+                                <div className="flex flex-wrap gap-1.5">
+                                    <span
+                                        className={`inline-flex rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                                            isInactive
+                                                ? 'border-red-200 bg-red-50 text-red-800'
+                                                : 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                                        }`}
+                                    >
+                                        {isInactive ? 'Inactive' : 'Active'}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                    right={
+                        <>
+                            <Tooltip content="View profile" position="top">
+                                <CardIconButton
+                                    variant="view"
+                                    icon={Eye}
+                                    aria-label="View profile"
+                                    onClick={() => navigate(`/team/users/${user.id}`)}
+                                />
+                            </Tooltip>
+                            {canEdit && (
+                                <Tooltip content="Edit user" position="top">
+                                    <CardIconButton
+                                        variant="edit"
+                                        icon={Edit}
+                                        aria-label="Edit user"
+                                        onClick={() => void openUserEdit(user)}
+                                    />
+                                </Tooltip>
                             )}
-                        </div>
-                    </div>
-                    <div className="flex space-x-2 ml-2 flex-shrink-0">
-                        <button
-                            onClick={() => setViewingProfile(user)}
-                            className="p-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] hover:bg-[var(--theme-primary-hover)] rounded-lg transition-all duration-200 border-2 border-[var(--theme-primary)] shadow-md hover:shadow-lg transform hover:scale-105"
-                            title="View Profile"
-                        >
-                            <Eye className="w-4 h-4" />
-                        </button>
-                        {canEdit && (
-                            <button
-                                onClick={() => navigate(`/administration/users/${user.id}/edit`)}
-                                className="p-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] hover:bg-[var(--theme-primary-hover)] rounded-lg transition-all duration-200 border-2 border-[var(--theme-primary)] shadow-md hover:shadow-lg transform hover:scale-105"
-                                title="Edit User"
-                            >
-                                <Edit className="w-4 h-4" />
-                            </button>
-                        )}
-                        {canDelete && (
-                            <button
-                                onClick={() => handleDelete(user)}
-                                className="p-2 bg-red-600 text-white hover:bg-red-700 rounded-lg transition-all duration-200 border-2 border-red-600 shadow-md hover:shadow-lg transform hover:scale-105"
-                                title="Delete User"
-                            >
-                                <Trash2 className="w-4 h-4" />
-                            </button>
-                        )}
-                    </div>
-                </div>
-                <div className="space-y-3 text-sm border-t border-gray-100 pt-4">
+                            {canDelete && (
+                                <Tooltip content="Delete user" position="top">
+                                    <CardIconButton
+                                        variant="delete"
+                                        icon={Trash2}
+                                        aria-label="Delete user"
+                                        onClick={() => setDeleteConfirmUser(user)}
+                                    />
+                                </Tooltip>
+                            )}
+                        </>
+                    }
+                />
+
+                <h3 className="text-lg font-bold leading-snug text-slate-900 sm:text-xl truncate">
+                    {user.name || user.email}
+                </h3>
+                <p className="mt-1 truncate text-sm text-slate-500">{user.email}</p>
+                {isSuperAdmin && user.facility && (
+                    <p className="mt-1 flex items-center truncate text-xs text-slate-400">
+                        <Building2 className="mr-1 h-3 w-3 shrink-0" />
+                        {user.facility.name}
+                    </p>
+                )}
+
+                <div className="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                     {user.assigned_branch && (
-                        <div className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg">
-                            <span className="text-gray-600 font-medium">Branch:</span>
-                            <span className="font-semibold text-gray-900">{user.assigned_branch.name}</span>
-                        </div>
+                        <DataPill icon={MapPin}>
+                            <span className="font-normal text-slate-600">{user.assigned_branch.name}</span>
+                        </DataPill>
                     )}
                     {user.roles && user.roles.length > 0 && (
-                        <div className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg">
-                            <span className="text-gray-600 font-medium">Roles:</span>
-                            <span className="font-semibold text-gray-900">
+                        <DataPill icon={Shield} className="sm:col-span-2">
+                            <span className="font-normal text-slate-600 line-clamp-2">
                                 {user.roles.map((r) => r.name).join(', ')}
                             </span>
-                        </div>
+                        </DataPill>
                     )}
-                    <div className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg">
-                        <span className="text-gray-600 font-medium">Status:</span>
-                        <span
-                            className={`font-semibold px-3 py-1 rounded-full text-xs ${user.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                                }`}
-                        >
-                            {user.is_active ? 'Active' : 'Inactive'}
-                        </span>
-                    </div>
                     {user.phone_number && (
-                        <div className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg">
-                            <span className="text-gray-600 font-medium">Phone:</span>
-                            <span className="font-semibold text-gray-900">{user.phone_number}</span>
-                        </div>
+                        <DataPill icon={Phone}>
+                            <span className="font-normal text-slate-600">
+                                {formatPhoneNumber(user.phone_number) || user.phone_number}
+                            </span>
+                        </DataPill>
                     )}
                 </div>
-            </div>
+            </EntityCardShell>
         );
     };
 
 
     return (
+        <>
+            <ConfirmDialog
+                isOpen={deleteConfirmUser != null}
+                onClose={() => !deleteMutation.isPending && setDeleteConfirmUser(null)}
+                onConfirm={handleConfirmDeleteUser}
+                title="Delete this user?"
+                description={
+                    deleteConfirmUser
+                        ? `Delete ${deleteConfirmUser.name || deleteConfirmUser.email}? This cannot be undone.`
+                        : ''
+                }
+                confirmLabel="Delete"
+                cancelLabel="Cancel"
+                variant="danger"
+                isPending={deleteMutation.isPending}
+            />
         <div>
             <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
@@ -254,7 +346,8 @@ export default function UsersPage() {
                     </div>
                     {canCreate && (
                         <button
-                            onClick={() => navigate('/administration/users/create')}
+                            type="button"
+                            onClick={openUserCreate}
                             className="w-full sm:w-auto px-4 py-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] rounded-lg hover:bg-[var(--theme-primary-hover)] transition-colors flex items-center justify-center space-x-2 text-sm md:text-base"
                         >
                             <Plus className="w-4 h-4" />
@@ -399,11 +492,35 @@ export default function UsersPage() {
                 </div>
             )}
         </div>
+
+            <Modal
+                isOpen={showForm}
+                onClose={handleCloseUserForm}
+                title={editing ? 'Edit User' : 'Add User'}
+                size="xl"
+            >
+                <UserForm
+                    key={editing?.id ?? 'new'}
+                    inModal
+                    prefillFacilityId={searchParams.get('facility_id') || undefined}
+                    record={editing}
+                    branches={branchesData?.data || []}
+                    roles={rolesData?.data || []}
+                    facilities={facilitiesData?.data || []}
+                    isSuperAdmin={isSuperAdmin}
+                    onClose={handleCloseUserForm}
+                    onSuccess={() => {
+                        handleCloseUserForm();
+                        queryClient.invalidateQueries({ queryKey: ['users'] });
+                    }}
+                />
+            </Modal>
+        </>
     );
 }
 
 // User Form Component
-function UserForm({ record, branches, roles, facilities, isSuperAdmin, onClose, onSuccess }) {
+function UserForm({ record, branches, roles, facilities, isSuperAdmin, onClose, onSuccess, inModal = false, prefillFacilityId }) {
     const queryClient = useQueryClient();
 
     // Format date helper function
@@ -453,21 +570,16 @@ function UserForm({ record, branches, roles, facilities, isSuperAdmin, onClose, 
     const [errors, setErrors] = useState({});
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // Track when formData.role changes
     React.useEffect(() => {
-        console.log('formData.role changed to:', formData.role);
-    }, [formData.role]);
+        if (!record && prefillFacilityId && isSuperAdmin) {
+            setFormData((prev) => ({ ...prev, facility_id: String(prefillFacilityId) }));
+        }
+    }, [record, prefillFacilityId, isSuperAdmin]);
 
     // Update form when record changes (for editing)
     React.useEffect(() => {
         if (record) {
-            // Debug: Log the record to see what we're getting
-            console.log('UserForm record:', record);
-            console.log('Role from record.role:', record.role);
-            console.log('Role from record.roles:', record.roles);
-
             const roleValue = getRoleValue(record);
-            console.log('Setting role to:', roleValue);
 
             // Use functional update to ensure state is set correctly
             setFormData(prevFormData => {
@@ -493,7 +605,6 @@ function UserForm({ record, branches, roles, facilities, isSuperAdmin, onClose, 
                     is_active: record.is_active ?? true,
                     notes: record.notes || '',
                 };
-                console.log('Setting formData with role:', roleValue, 'Full formData:', newFormData);
                 return newFormData;
             });
         } else {
@@ -604,9 +715,6 @@ function UserForm({ record, branches, roles, facilities, isSuperAdmin, onClose, 
         setErrors({});
         setIsSubmitting(true);
 
-        console.log('Form submitted with data:', formData);
-        console.log('Is new user?', !record);
-
         try {
             // Auto-generate name from first, middle, last name
             const nameParts = [
@@ -654,20 +762,8 @@ function UserForm({ record, branches, roles, facilities, isSuperAdmin, onClose, 
                 // Handle profile image
                 if (profileImage) {
                     formDataToSend.append('profile_image', profileImage);
-                    console.log('Profile image file added to FormData:', profileImage.name, profileImage.type, profileImage.size);
                 } else if (imageRemoved && record) {
                     formDataToSend.append('remove_profile_image', '1');
-                    console.log('Profile image removal requested');
-                }
-
-                // Debug: Log FormData contents
-                console.log('FormData contents:');
-                for (let pair of formDataToSend.entries()) {
-                    if (pair[0] === 'profile_image') {
-                        console.log(pair[0] + ': [File]', pair[1].name, pair[1].size, 'bytes');
-                    } else {
-                        console.log(pair[0] + ': ' + pair[1]);
-                    }
                 }
 
                 // Don't set Content-Type - let browser set it automatically for FormData
@@ -677,16 +773,13 @@ function UserForm({ record, branches, roles, facilities, isSuperAdmin, onClose, 
                     // For file uploads with PUT, use POST with _method override (like residents)
                     formDataToSend.append('_method', 'PUT');
                     response = await api.post(`/users/${record.id}`, formDataToSend, config);
-                    console.log('User updated successfully (with FormData):', response.data);
                 } else {
                     if (!formData.password) {
                         setErrors({ password: ['Password is required for new users'] });
                         setIsSubmitting(false);
                         return;
                     }
-                    console.log('Creating new user...');
                     response = await api.post('/users', formDataToSend, config);
-                    console.log('User created successfully:', response.data);
                 }
             } else {
                 // No image, use JSON payload (like residents do)
@@ -718,24 +811,19 @@ function UserForm({ record, branches, roles, facilities, isSuperAdmin, onClose, 
 
                 if (record) {
                     response = await api.put(`/users/${record.id}`, payload);
-                    console.log('User updated successfully (with JSON):', response.data);
                 } else {
                     if (!formData.password) {
                         setErrors({ password: ['Password is required for new users'] });
                         setIsSubmitting(false);
                         return;
                     }
-                    console.log('Creating new user...');
                     response = await api.post('/users', payload);
-                    console.log('User created successfully:', response.data);
                 }
             }
 
-            console.log('Profile image URL:', response.data?.profile_image_url);
-
             // Invalidate queries to refresh the user list BEFORE showing alert
             await queryClient.invalidateQueries({ queryKey: ['users'] });
-            
+
             // If user was created/updated with a facility_id, invalidate the facility-users query for that facility
             const userFacilityId = response.data?.facility_id || record?.facility_id || formData?.facility_id;
             if (userFacilityId) {
@@ -751,7 +839,7 @@ function UserForm({ record, branches, roles, facilities, isSuperAdmin, onClose, 
             // Close form and refresh
             onSuccess();
         } catch (error) {
-            console.error('User creation/update error:', error);
+            logger.error('User creation/update error:', error);
             if (error.response?.data?.errors) {
                 setErrors(error.response.data.errors);
                 // Scroll to top to show errors
@@ -768,726 +856,747 @@ function UserForm({ record, branches, roles, facilities, isSuperAdmin, onClose, 
     };
 
     return (
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className={inModal ? '' : 'bg-white rounded-lg shadow p-6'}>
+            {!inModal && (
             <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-semibold text-gray-900">
                     {record ? 'Edit User' : 'Add User'}
                 </h2>
                 <button
+                    type="button"
                     onClick={onClose}
                     className="text-gray-400 hover:text-gray-600"
                 >
                     <X className="w-6 h-6" />
                 </button>
             </div>
+            )}
 
-                    {errors.general && (
-                        <div className="mb-4 p-4 bg-red-50 border-2 border-red-300 rounded-lg">
-                            <div className="flex items-start">
-                                <AlertCircle className="w-5 h-5 text-red-600 mr-2 mt-0.5" />
-                                <div>
-                                    <p className="text-sm font-semibold text-red-800">Error</p>
-                                    <p className="text-sm text-red-700 mt-1">{errors.general}</p>
-                                </div>
-                            </div>
+            {errors.general && (
+                <div className="mb-4 p-4 bg-red-50 border-2 border-red-300 rounded-lg">
+                    <div className="flex items-start">
+                        <AlertCircle className="w-5 h-5 text-red-600 mr-2 mt-0.5" />
+                        <div>
+                            <p className="text-sm font-semibold text-red-800">Error</p>
+                            <p className="text-sm text-red-700 mt-1">{errors.general}</p>
                         </div>
-                    )}
+                    </div>
+                </div>
+            )}
 
-                    {Object.keys(errors).filter(key => key !== 'general').length > 0 && (
-                        <div className="mb-4 p-4 bg-yellow-50 border-2 border-yellow-300 rounded-lg">
-                            <div className="flex items-start">
-                                <AlertCircle className="w-5 h-5 text-yellow-600 mr-2 mt-0.5" />
-                                <div>
-                                    <p className="text-sm font-semibold text-yellow-800">Please fix the following errors:</p>
-                                    <ul className="text-sm text-yellow-700 mt-2 list-disc list-inside">
-                                        {Object.entries(errors).filter(([key]) => key !== 'general').map(([key, messages]) => (
-                                            <li key={key}>{key}: {Array.isArray(messages) ? messages.join(', ') : messages}</li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            </div>
+            {Object.keys(errors).filter(key => key !== 'general').length > 0 && (
+                <div className="mb-4 p-4 bg-yellow-50 border-2 border-yellow-300 rounded-lg">
+                    <div className="flex items-start">
+                        <AlertCircle className="w-5 h-5 text-yellow-600 mr-2 mt-0.5" />
+                        <div>
+                            <p className="text-sm font-semibold text-yellow-800">Please fix the following errors:</p>
+                            <ul className="text-sm text-yellow-700 mt-2 list-disc list-inside">
+                                {Object.entries(errors).filter(([key]) => key !== 'general').map(([key, messages]) => (
+                                    <li key={key}>{key}: {Array.isArray(messages) ? messages.join(', ') : messages}</li>
+                                ))}
+                            </ul>
                         </div>
-                    )}
+                    </div>
+                </div>
+            )}
 
-                    <form onSubmit={handleSubmit} className="space-y-6">
-                        {/* Personal Information Section */}
-                        <div className="border-b border-gray-200 pb-6">
-                            <h3 className="text-lg font-semibold text-gray-900 mb-4">Personal Information</h3>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="col-span-2">
-                                    <label className="block text-sm font-medium text-gray-900 mb-2">
-                                        Email *
-                                    </label>
-                                    <input
-                                        type="email"
-                                        value={formData.email}
-                                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                        required
-                                        placeholder="staff@serenityafh.com"
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
-                                    />
-                                    <p className="text-xs text-gray-500 mt-1">This will be used for login</p>
-                                    {errors.email && <p className="text-xs text-red-600 mt-1">{errors.email[0]}</p>}
-                                </div>
+            <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Personal Information Section */}
+                <div className="border-b border-gray-200 pb-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Personal Information</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="col-span-2">
+                            <label className="block text-sm font-medium text-gray-900 mb-2">
+                                Email *
+                            </label>
+                            <input
+                                type="email"
+                                value={formData.email}
+                                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                required
+                                placeholder="staff@serenityafh.com"
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">This will be used for login</p>
+                            {errors.email && <p className="text-xs text-red-600 mt-1">{errors.email[0]}</p>}
+                        </div>
 
-                                <div className="col-span-2">
-                                    <label className="block text-sm font-medium text-gray-900 mb-2">
-                                        Profile Picture
-                                    </label>
-                                    <div className="space-y-3">
-                                        {profileImagePreview && (
-                                            <div className="relative inline-block">
-                                                <img
-                                                    src={profileImagePreview}
-                                                    alt="Profile preview"
-                                                    className="h-32 w-32 rounded-full object-cover border-4 border-gray-200"
-                                                />
-                                                <button
-                                                    type="button"
-                                                    onClick={handleRemoveImage}
-                                                    className="absolute top-0 right-0 bg-red-600 text-white rounded-full p-1 hover:bg-red-700 transition-colors"
-                                                    title="Remove image"
-                                                >
-                                                    <X className="w-4 h-4" />
-                                                </button>
-                                            </div>
-                                        )}
-                                        <div className="flex items-center space-x-3">
-                                            <label
-                                                htmlFor="profile_image"
-                                                className="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
+                        <div className="col-span-2">
+                            <label className="block text-sm font-medium text-gray-900 mb-2">
+                                Profile Picture
+                            </label>
+                            <div className="space-y-3">
+                                {profileImagePreview && (
+                                    <div className="relative inline-block">
+                                        <img
+                                            src={profileImagePreview}
+                                            alt="Profile preview"
+                                            className="h-32 w-32 rounded-full object-cover border-4 border-gray-200"
+                                        />
+                                        <Tooltip content="Remove image" position="top">
+                                            <button
+                                                type="button"
+                                                onClick={handleRemoveImage}
+                                                className="absolute top-0 right-0 bg-red-600 text-white rounded-full p-1 hover:bg-red-700 transition-colors"
+                                                aria-label="Remove image"
                                             >
-                                                <Upload className="w-4 h-4 text-gray-500" />
-                                                <span className="text-sm text-gray-700">
-                                                    {profileImagePreview ? 'Change Picture' : 'Upload Picture'}
-                                                </span>
-                                            </label>
-                                            <input
-                                                id="profile_image"
-                                                type="file"
-                                                accept="image/*"
-                                                onChange={handleFileChange}
-                                                className="hidden"
-                                            />
-                                        </div>
-                                        <p className="text-xs text-gray-500">
-                                            Upload a profile picture (max 5MB). Supported formats: JPG, PNG, GIF
-                                        </p>
-                                        {errors.profile_image && <p className="text-xs text-red-600 mt-1">{errors.profile_image[0]}</p>}
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-900 mb-2">
-                                        First Name *
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={formData.first_name}
-                                        onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
-                                        required
-                                        placeholder="Enter first name"
-                                        maxLength={255}
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
-                                    />
-                                    {errors.first_name && <p className="text-xs text-red-600 mt-1">{errors.first_name[0]}</p>}
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-900 mb-2">
-                                        Middle Names
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={formData.middle_names}
-                                        onChange={(e) => setFormData({ ...formData, middle_names: e.target.value })}
-                                        placeholder="Enter middle names (optional)"
-                                        maxLength={255}
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-900 mb-2">
-                                        Last Name *
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={formData.last_name}
-                                        onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
-                                        required
-                                        placeholder="Enter last name"
-                                        maxLength={255}
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
-                                    />
-                                    {errors.last_name && <p className="text-xs text-red-600 mt-1">{errors.last_name[0]}</p>}
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-900 mb-2">
-                                        Phone Number *
-                                    </label>
-                                    <input
-                                        type="tel"
-                                        value={formData.phone_number || ''}
-                                        onChange={(e) => {
-                                            const formatted = formatPhoneNumber(e.target.value);
-                                            setFormData({ ...formData, phone_number: formatted });
-                                        }}
-                                        required
-                                        placeholder="(425) 555-0123"
-                                        maxLength={14}
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
-                                    />
-                                    {errors.phone_number && <p className="text-xs text-red-600 mt-1">{errors.phone_number[0]}</p>}
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-900 mb-2">
-                                        Date of Birth *
-                                    </label>
-                                    <input
-                                        type="date"
-                                        value={formData.date_of_birth}
-                                        onChange={(e) => setFormData({ ...formData, date_of_birth: e.target.value })}
-                                        required
-                                        max={new Date(Date.now() - 18 * 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
-                                    />
-                                    <p className="text-xs text-gray-500 mt-1">Format: MM/DD/YYYY - Must be 18+ years old</p>
-                                    {errors.date_of_birth && <p className="text-xs text-red-600 mt-1">{errors.date_of_birth[0]}</p>}
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-900 mb-2">
-                                        Marital Status
-                                    </label>
-                                    <select
-                                        value={formData.marital_status}
-                                        onChange={(e) => setFormData({ ...formData, marital_status: e.target.value })}
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
-                                    >
-                                        <option value="">Choose marital status</option>
-                                        <option value="single">Single</option>
-                                        <option value="married">Married</option>
-                                        <option value="divorced">Divorced</option>
-                                        <option value="widowed">Widowed</option>
-                                        <option value="separated">Separated</option>
-                                        <option value="n/a">N/A</option>
-                                    </select>
-                                </div>
-
-                                <div className="col-span-2">
-                                    <label className="block text-sm font-medium text-gray-900 mb-2">
-                                        Sex *
-                                    </label>
-                                    <div className="flex space-x-6">
-                                        <label className="flex items-center space-x-2 cursor-pointer">
-                                            <input
-                                                type="radio"
-                                                name="sex"
-                                                value="male"
-                                                checked={formData.sex === 'male'}
-                                                onChange={(e) => setFormData({ ...formData, sex: e.target.value })}
-                                                required
-                                                className="w-4 h-4 text-[var(--theme-primary)] border-gray-300 focus:ring-[var(--theme-primary)]"
-                                            />
-                                            <span className="text-sm text-gray-700">Male</span>
-                                        </label>
-                                        <label className="flex items-center space-x-2 cursor-pointer">
-                                            <input
-                                                type="radio"
-                                                name="sex"
-                                                value="female"
-                                                checked={formData.sex === 'female'}
-                                                onChange={(e) => setFormData({ ...formData, sex: e.target.value })}
-                                                required
-                                                className="w-4 h-4 text-[var(--theme-primary)] border-gray-300 focus:ring-[var(--theme-primary)]"
-                                            />
-                                            <span className="text-sm text-gray-700">Female</span>
-                                        </label>
-                                        <label className="flex items-center space-x-2 cursor-pointer">
-                                            <input
-                                                type="radio"
-                                                name="sex"
-                                                value="other"
-                                                checked={formData.sex === 'other'}
-                                                onChange={(e) => setFormData({ ...formData, sex: e.target.value })}
-                                                required
-                                                className="w-4 h-4 text-[var(--theme-primary)] border-gray-300 focus:ring-[var(--theme-primary)]"
-                                            />
-                                            <span className="text-sm text-gray-700">Other</span>
-                                        </label>
-                                    </div>
-                                    {errors.sex && <p className="text-xs text-red-600 mt-1">{errors.sex[0]}</p>}
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Employment Details Section */}
-                        <div className="border-b border-gray-200 pb-6">
-                            <h3 className="text-lg font-semibold text-gray-900 mb-4">Employment Details</h3>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-900 mb-2">
-                                        Credentials
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={formData.credentials}
-                                        onChange={(e) => setFormData({ ...formData, credentials: e.target.value })}
-                                        placeholder="e.g., RN, LPN, CNA, etc."
-                                        maxLength={255}
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-900 mb-2">
-                                        Credential Details
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={formData.credential_details}
-                                        onChange={(e) => setFormData({ ...formData, credential_details: e.target.value })}
-                                        placeholder="Additional credential information (optional)"
-                                        maxLength={255}
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-900 mb-2">
-                                        Date Employed *
-                                    </label>
-                                    <input
-                                        type="date"
-                                        value={formData.date_employed}
-                                        onChange={(e) => setFormData({ ...formData, date_employed: e.target.value })}
-                                        required
-                                        max={new Date().toISOString().split('T')[0]}
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
-                                    />
-                                    <p className="text-xs text-gray-500 mt-1">Format: MM/DD/YYYY - Cannot be in the future</p>
-                                    {errors.date_employed && <p className="text-xs text-red-600 mt-1">{errors.date_employed[0]}</p>}
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-900 mb-2">
-                                        Supervisor Name
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={formData.supervisor_name}
-                                        onChange={(e) => setFormData({ ...formData, supervisor_name: e.target.value })}
-                                        placeholder="Enter supervisor name"
-                                        maxLength={255}
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-900 mb-2">
-                                        Role *
-                                    </label>
-                                    <select
-                                        key={`role-select-${record?.id || 'new'}-${formData.role}`}
-                                        value={formData.role || ''}
-                                        onChange={(e) => {
-                                            console.log('Role changed to:', e.target.value);
-                                            setFormData({ ...formData, role: e.target.value });
-                                        }}
-                                        required
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
-                                    >
-                                        <option value="">Choose role</option>
-                                        <option value="administrator">Administrator</option>
-                                        <option value="caregiver">Caregiver</option>
-                                        <option value="care_giver">Care Giver</option>
-                                        <option value="nurse">Nurse</option>
-                                        <option value="registered_nurse">Registered Nurse</option>
-                                        <option value="licensed_nurse">Licensed Nurse</option>
-                                    </select>
-                                    {errors.role && <p className="text-xs text-red-600 mt-1">{errors.role[0]}</p>}
-                                    <p className="text-xs text-gray-500 mt-1">
-                                        {formData.role ? `Current role: ${formData.role}` : 'No role selected'}
-                                    </p>
-                                </div>
-
-                                {isSuperAdmin && (
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-900 mb-2">
-                                            Facility *
-                                        </label>
-                                        <select
-                                            value={formData.facility_id}
-                                            onChange={(e) => {
-                                                setFormData({
-                                                    ...formData,
-                                                    facility_id: e.target.value,
-                                                    assigned_branch_id: '' // Reset branch when facility changes
-                                                });
-                                            }}
-                                            required
-                                            className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
-                                        >
-                                            <option value="">Select facility</option>
-                                            {facilities.map(facility => (
-                                                <option key={facility.id} value={facility.id}>{facility.name}</option>
-                                            ))}
-                                        </select>
-                                        {errors.facility_id && <p className="text-xs text-red-600 mt-1">{errors.facility_id[0]}</p>}
+                                                <X className="w-4 h-4" />
+                                            </button>
+                                        </Tooltip>
                                     </div>
                                 )}
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-900 mb-2">
-                                        Assigned Branch
-                                    </label>
-                                    <select
-                                        value={formData.assigned_branch_id}
-                                        onChange={(e) => setFormData({ ...formData, assigned_branch_id: e.target.value })}
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
+                                <div className="flex items-center space-x-3">
+                                    <label
+                                        htmlFor="profile_image"
+                                        className="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
                                     >
-                                        <option value="">Select branch assignment</option>
-                                        {branches
-                                            .filter(branch => !isSuperAdmin || !formData.facility_id || branch.facility_id == formData.facility_id)
-                                            .map(branch => (
-                                                <option key={branch.id} value={branch.id}>{branch.name}</option>
-                                            ))
-                                        }
-                                    </select>
-                                </div>
-
-                                <div className="col-span-2">
-                                    <label className="flex items-center space-x-2 cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            checked={formData.is_active}
-                                            onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                                            className="w-4 h-4 text-[var(--theme-primary)] border-gray-300 rounded focus:ring-[var(--theme-primary)]"
-                                        />
-                                        <span className="text-sm font-medium text-gray-700">Active Employee</span>
+                                        <Upload className="w-4 h-4 text-gray-500" />
+                                        <span className="text-sm text-gray-700">
+                                            {profileImagePreview ? 'Change Picture' : 'Upload Picture'}
+                                        </span>
                                     </label>
-                                    <p className="text-xs text-gray-500 mt-1">Enable this staff member for work assignments</p>
+                                    <input
+                                        id="profile_image"
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={handleFileChange}
+                                        className="hidden"
+                                    />
                                 </div>
+                                <p className="text-xs text-gray-500">
+                                    Upload a profile picture (max 5MB). Supported formats: JPG, PNG, GIF
+                                </p>
+                                {errors.profile_image && <p className="text-xs text-red-600 mt-1">{errors.profile_image[0]}</p>}
                             </div>
                         </div>
 
-                        {/* Account Security Section */}
-                        <div className="border-b border-gray-200 pb-6">
-                            <h3 className="text-lg font-semibold text-gray-900 mb-4">Account Security</h3>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Password {record ? '(leave blank to keep current)' : '*'}
-                                </label>
-                                <input
-                                    type="password"
-                                    value={formData.password}
-                                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                    required={!record}
-                                    placeholder="Enter secure password"
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
-                                />
-                                <p className="text-xs text-gray-500 mt-1">Minimum 8 characters, include numbers and special characters</p>
-                                {errors.password && <p className="text-xs text-red-600 mt-1">{errors.password[0]}</p>}
-                            </div>
-                        </div>
-
-                        {/* Additional Information Section */}
                         <div>
-                            <h3 className="text-lg font-semibold text-gray-900 mb-4">Additional Information</h3>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Notes
-                                </label>
-                                <textarea
-                                    value={formData.notes}
-                                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                                    rows={3}
-                                    placeholder="Any additional notes about this staff member..."
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
-                                />
-                            </div>
+                            <label className="block text-sm font-medium text-gray-900 mb-2">
+                                First Name *
+                            </label>
+                            <input
+                                type="text"
+                                value={formData.first_name}
+                                onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
+                                required
+                                placeholder="Enter first name"
+                                maxLength={255}
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
+                            />
+                            {errors.first_name && <p className="text-xs text-red-600 mt-1">{errors.first_name[0]}</p>}
                         </div>
 
-                        <div className="flex items-center justify-end space-x-3 pt-4 border-t">
-                            <button
-                                type="button"
-                                onClick={onClose}
-                                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="submit"
-                                disabled={isSubmitting}
-                                className="px-4 py-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] rounded-lg hover:bg-[var(--theme-primary-hover)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                {isSubmitting ? 'Saving...' : (record ? 'Update' : 'Create')}
-                            </button>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-900 mb-2">
+                                Middle Names
+                            </label>
+                            <input
+                                type="text"
+                                value={formData.middle_names}
+                                onChange={(e) => setFormData({ ...formData, middle_names: e.target.value })}
+                                placeholder="Enter middle names (optional)"
+                                maxLength={255}
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
+                            />
                         </div>
-                    </form>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-900 mb-2">
+                                Last Name *
+                            </label>
+                            <input
+                                type="text"
+                                value={formData.last_name}
+                                onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+                                required
+                                placeholder="Enter last name"
+                                maxLength={255}
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
+                            />
+                            {errors.last_name && <p className="text-xs text-red-600 mt-1">{errors.last_name[0]}</p>}
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-900 mb-2">
+                                Phone Number *
+                            </label>
+                            <input
+                                type="tel"
+                                value={formData.phone_number || ''}
+                                onChange={(e) => {
+                                    const formatted = formatPhoneNumber(e.target.value);
+                                    setFormData({ ...formData, phone_number: formatted });
+                                }}
+                                required
+                                placeholder="(425) 555-0123"
+                                maxLength={14}
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
+                            />
+                            {errors.phone_number && <p className="text-xs text-red-600 mt-1">{errors.phone_number[0]}</p>}
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-900 mb-2">
+                                Date of Birth *
+                            </label>
+                            <input
+                                type="date"
+                                value={formData.date_of_birth}
+                                onChange={(e) => setFormData({ ...formData, date_of_birth: e.target.value })}
+                                required
+                                max={new Date(Date.now() - 18 * 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Format: MM/DD/YYYY - Must be 18+ years old</p>
+                            {errors.date_of_birth && <p className="text-xs text-red-600 mt-1">{errors.date_of_birth[0]}</p>}
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-900 mb-2">
+                                Marital Status
+                            </label>
+                            <select
+                                value={formData.marital_status}
+                                onChange={(e) => setFormData({ ...formData, marital_status: e.target.value })}
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
+                            >
+                                <option value="">Choose marital status</option>
+                                <option value="single">Single</option>
+                                <option value="married">Married</option>
+                                <option value="divorced">Divorced</option>
+                                <option value="widowed">Widowed</option>
+                                <option value="separated">Separated</option>
+                                <option value="n/a">N/A</option>
+                            </select>
+                        </div>
+
+                        <div className="col-span-2">
+                            <label className="block text-sm font-medium text-gray-900 mb-2">
+                                Sex *
+                            </label>
+                            <div className="flex space-x-6">
+                                <label className="flex items-center space-x-2 cursor-pointer">
+                                    <input
+                                        type="radio"
+                                        name="sex"
+                                        value="male"
+                                        checked={formData.sex === 'male'}
+                                        onChange={(e) => setFormData({ ...formData, sex: e.target.value })}
+                                        required
+                                        className="w-4 h-4 text-[var(--theme-primary)] border-gray-300 focus:ring-[var(--theme-primary)]"
+                                    />
+                                    <span className="text-sm text-gray-700">Male</span>
+                                </label>
+                                <label className="flex items-center space-x-2 cursor-pointer">
+                                    <input
+                                        type="radio"
+                                        name="sex"
+                                        value="female"
+                                        checked={formData.sex === 'female'}
+                                        onChange={(e) => setFormData({ ...formData, sex: e.target.value })}
+                                        required
+                                        className="w-4 h-4 text-[var(--theme-primary)] border-gray-300 focus:ring-[var(--theme-primary)]"
+                                    />
+                                    <span className="text-sm text-gray-700">Female</span>
+                                </label>
+                                <label className="flex items-center space-x-2 cursor-pointer">
+                                    <input
+                                        type="radio"
+                                        name="sex"
+                                        value="other"
+                                        checked={formData.sex === 'other'}
+                                        onChange={(e) => setFormData({ ...formData, sex: e.target.value })}
+                                        required
+                                        className="w-4 h-4 text-[var(--theme-primary)] border-gray-300 focus:ring-[var(--theme-primary)]"
+                                    />
+                                    <span className="text-sm text-gray-700">Other</span>
+                                </label>
+                            </div>
+                            {errors.sex && <p className="text-xs text-red-600 mt-1">{errors.sex[0]}</p>}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Employment Details Section */}
+                <div className="border-b border-gray-200 pb-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Employment Details</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-900 mb-2">
+                                Credentials
+                            </label>
+                            <input
+                                type="text"
+                                value={formData.credentials}
+                                onChange={(e) => setFormData({ ...formData, credentials: e.target.value })}
+                                placeholder="e.g., RN, LPN, CNA, etc."
+                                maxLength={255}
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-900 mb-2">
+                                Credential Details
+                            </label>
+                            <input
+                                type="text"
+                                value={formData.credential_details}
+                                onChange={(e) => setFormData({ ...formData, credential_details: e.target.value })}
+                                placeholder="Additional credential information (optional)"
+                                maxLength={255}
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-900 mb-2">
+                                Date Employed *
+                            </label>
+                            <input
+                                type="date"
+                                value={formData.date_employed}
+                                onChange={(e) => setFormData({ ...formData, date_employed: e.target.value })}
+                                required
+                                max={new Date().toISOString().split('T')[0]}
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Format: MM/DD/YYYY - Cannot be in the future</p>
+                            {errors.date_employed && <p className="text-xs text-red-600 mt-1">{errors.date_employed[0]}</p>}
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-900 mb-2">
+                                Supervisor Name
+                            </label>
+                            <input
+                                type="text"
+                                value={formData.supervisor_name}
+                                onChange={(e) => setFormData({ ...formData, supervisor_name: e.target.value })}
+                                placeholder="Enter supervisor name"
+                                maxLength={255}
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-900 mb-2">
+                                Role *
+                            </label>
+                            <select
+                                key={`role-select-${record?.id || 'new'}-${formData.role}`}
+                                value={formData.role || ''}
+                                onChange={(e) => {
+                                    setFormData({ ...formData, role: e.target.value });
+                                }}
+                                required
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
+                            >
+                                <option value="">Choose role</option>
+                                <option value="administrator">Administrator (Facility-wide)</option>
+                                <option value="admin">Admin (Branch-level)</option>
+                                <option value="caregiver">Caregiver</option>
+                                <option value="care_giver">Care Giver</option>
+                                <option value="nurse">Nurse</option>
+                                <option value="registered_nurse">Registered Nurse</option>
+                                <option value="licensed_nurse">Licensed Nurse</option>
+                            </select>
+                            {errors.role && <p className="text-xs text-red-600 mt-1">{errors.role[0]}</p>}
+                            <p className="text-xs text-gray-500 mt-1">
+                                {formData.role ? `Current role: ${formData.role}` : 'No role selected'}
+                            </p>
+                        </div>
+
+                        {isSuperAdmin && (
+                            <div>
+                                <label className="block text-sm font-medium text-gray-900 mb-2">
+                                    Facility *
+                                </label>
+                                <select
+                                    value={formData.facility_id}
+                                    onChange={(e) => {
+                                        setFormData({
+                                            ...formData,
+                                            facility_id: e.target.value,
+                                            assigned_branch_id: '' // Reset branch when facility changes
+                                        });
+                                    }}
+                                    required
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
+                                >
+                                    <option value="">Select facility</option>
+                                    {facilities.map(facility => (
+                                        <option key={facility.id} value={facility.id}>{facility.name}</option>
+                                    ))}
+                                </select>
+                                {errors.facility_id && <p className="text-xs text-red-600 mt-1">{errors.facility_id[0]}</p>}
+                            </div>
+                        )}
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-900 mb-2">
+                                Assigned Branch
+                            </label>
+                            <select
+                                value={formData.assigned_branch_id}
+                                onChange={(e) => setFormData({ ...formData, assigned_branch_id: e.target.value })}
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
+                            >
+                                <option value="">Select branch assignment</option>
+                                {branches
+                                    .filter(branch => !isSuperAdmin || !formData.facility_id || branch.facility_id == formData.facility_id)
+                                    .map(branch => (
+                                        <option key={branch.id} value={branch.id}>{branch.name}</option>
+                                    ))
+                                }
+                            </select>
+                        </div>
+
+                        <div className="col-span-2">
+                            <label className="flex items-center space-x-2 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={formData.is_active}
+                                    onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                                    className="w-4 h-4 text-[var(--theme-primary)] border-gray-300 rounded focus:ring-[var(--theme-primary)]"
+                                />
+                                <span className="text-sm font-medium text-gray-700">Active Employee</span>
+                            </label>
+                            <p className="text-xs text-gray-500 mt-1">Enable this staff member for work assignments</p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Account Security Section */}
+                <div className="border-b border-gray-200 pb-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Account Security</h3>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Password {record ? '(leave blank to keep current)' : '*'}
+                        </label>
+                        <input
+                            type="password"
+                            value={formData.password}
+                            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                            required={!record}
+                            placeholder="Enter secure password"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Minimum 8 characters, include numbers and special characters</p>
+                        {errors.password && <p className="text-xs text-red-600 mt-1">{errors.password[0]}</p>}
+                    </div>
+                </div>
+
+                {/* Additional Information Section */}
+                <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Additional Information</h3>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Notes
+                        </label>
+                        <textarea
+                            value={formData.notes}
+                            onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                            rows={3}
+                            placeholder="Any additional notes about this staff member..."
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
+                        />
+                    </div>
+                </div>
+
+                <div className="flex items-center justify-end space-x-3 pt-4 border-t">
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="submit"
+                        disabled={isSubmitting}
+                        className="px-4 py-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] rounded-lg hover:bg-[var(--theme-primary-hover)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {isSubmitting ? 'Saving...' : (record ? 'Update' : 'Create')}
+                    </button>
+                </div>
+            </form>
         </div>
     );
 }
 
 // User Profile Viewer Component
 function UserProfileViewer({ user, onClose, onEdit, onToggleActive }) {
-    const [isDeactivating, setIsDeactivating] = React.useState(false);
+    const [toggleConfirm, setToggleConfirm] = React.useState(null);
+
     return (
+        <>
+            <ConfirmDialog
+                isOpen={toggleConfirm != null}
+                onClose={() => setToggleConfirm(null)}
+                onConfirm={() => {
+                    if (toggleConfirm == null) return;
+                    onToggleActive(user, toggleConfirm.nextActive);
+                    setToggleConfirm(null);
+                }}
+                title={toggleConfirm?.nextActive ? 'Activate this user?' : 'Deactivate this user?'}
+                description={
+                    toggleConfirm?.nextActive
+                        ? 'This user will be able to sign in again.'
+                        : 'This user will not be able to sign in until reactivated.'
+                }
+                confirmLabel={toggleConfirm?.nextActive ? 'Activate' : 'Deactivate'}
+                cancelLabel="Cancel"
+                variant={toggleConfirm?.nextActive ? 'primary' : 'danger'}
+            />
         <div className="bg-white rounded-lg shadow p-6">
             {/* Header */}
             <div className="bg-gradient-to-r from-[var(--theme-primary)] to-[#4a7a2a] p-4 md:p-8 text-white rounded-t-xl mb-6">
-                    <div className="flex flex-col md:flex-row md:items-start md:justify-between space-y-4 md:space-y-0">
-                        <div className="flex flex-col md:flex-row md:items-center md:space-x-6 space-y-4 md:space-y-0">
-                            {/* Profile Picture */}
-                            {user.profile_image_url ? (
-                                <img
-                                    src={user.profile_image_url}
-                                    alt={user.name}
-                                    className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-white shadow-lg mx-auto md:mx-0"
-                                    onError={(e) => {
-                                        e.target.style.display = 'none';
-                                        e.target.nextElementSibling.style.display = 'flex';
-                                    }}
-                                />
-                            ) : null}
-                            <div className={`w-24 h-24 md:w-32 md:h-32 rounded-full bg-white flex items-center justify-center border-4 border-white shadow-lg ${user.profile_image_url ? 'hidden' : ''} mx-auto md:mx-0`}>
-                                <span className="text-[var(--theme-primary)] font-bold text-4xl md:text-5xl">
-                                    {user.name?.charAt(0)?.toUpperCase() || 'U'}
+                <div className="flex flex-col md:flex-row md:items-start md:justify-between space-y-4 md:space-y-0">
+                    <div className="flex flex-col md:flex-row md:items-center md:space-x-6 space-y-4 md:space-y-0">
+                        {/* Profile Picture */}
+                        {user.profile_image_url ? (
+                            <img
+                                src={user.profile_image_url}
+                                alt={user.name}
+                                className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-white shadow-lg mx-auto md:mx-0"
+                                onError={(e) => {
+                                    e.target.style.display = 'none';
+                                    e.target.nextElementSibling.style.display = 'flex';
+                                }}
+                            />
+                        ) : null}
+                        <div className={`w-24 h-24 md:w-32 md:h-32 rounded-full bg-white flex items-center justify-center border-4 border-white shadow-lg ${user.profile_image_url ? 'hidden' : ''} mx-auto md:mx-0`}>
+                            <span className="text-[var(--theme-primary)] font-bold text-4xl md:text-5xl">
+                                {user.name?.charAt(0)?.toUpperCase() || 'U'}
+                            </span>
+                        </div>
+                        <div className="text-center md:text-left">
+                            <h2 className="text-2xl md:text-3xl font-bold mb-2">{user.name || user.email}</h2>
+                            {user.email && (
+                                <div className="flex items-center justify-center md:justify-start space-x-2 mt-2 text-sm md:text-base text-green-50">
+                                    <Mail className="w-4 h-4" />
+                                    <span className="break-all">{user.email}</span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                    <button
+                        onClick={onClose}
+                        className="text-white hover:text-green-200 transition-colors absolute top-4 right-4 md:relative md:top-0 md:right-0"
+                    >
+                        <X className="w-6 h-6" />
+                    </button>
+                </div>
+            </div>
+
+            {/* Body */}
+            <div className="p-4 md:p-8 overflow-y-auto flex-1">
+                {/* Personal Information */}
+                <div className="mb-6 md:mb-8">
+                    <h3 className="text-lg md:text-xl font-bold text-gray-900 mb-4 flex items-center">
+                        <UserIcon className="w-5 h-5 mr-2 text-[var(--theme-primary)]" />
+                        Personal Information
+                    </h3>
+                    <div className="bg-gray-50 rounded-lg p-4 md:p-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {user.first_name && (
+                                <div>
+                                    <p className="text-sm text-gray-600 mb-1">First Name</p>
+                                    <p className="font-semibold text-gray-900">{user.first_name}</p>
+                                </div>
+                            )}
+                            {user.middle_names && (
+                                <div>
+                                    <p className="text-sm text-gray-600 mb-1">Middle Names</p>
+                                    <p className="font-semibold text-gray-900">{user.middle_names}</p>
+                                </div>
+                            )}
+                            {user.last_name && (
+                                <div>
+                                    <p className="text-sm text-gray-600 mb-1">Last Name</p>
+                                    <p className="font-semibold text-gray-900">{user.last_name}</p>
+                                </div>
+                            )}
+                            {user.date_of_birth && (
+                                <div>
+                                    <p className="text-sm text-gray-600 mb-1 flex items-center">
+                                        <Calendar className="w-4 h-4 mr-1" />
+                                        Date of Birth
+                                    </p>
+                                    <p className="font-semibold text-gray-900">
+                                        {new Date(user.date_of_birth).toLocaleDateString('en-US', {
+                                            month: 'long',
+                                            day: 'numeric',
+                                            year: 'numeric'
+                                        })}
+                                    </p>
+                                </div>
+                            )}
+                            {user.marital_status && (
+                                <div>
+                                    <p className="text-sm text-gray-600 mb-1">Marital Status</p>
+                                    <p className="font-semibold text-gray-900 capitalize">{user.marital_status}</p>
+                                </div>
+                            )}
+                            {user.sex && (
+                                <div>
+                                    <p className="text-sm text-gray-600 mb-1">Sex</p>
+                                    <p className="font-semibold text-gray-900 capitalize">{user.sex}</p>
+                                </div>
+                            )}
+                            {user.phone_number && (
+                                <div>
+                                    <p className="text-sm text-gray-600 mb-1 flex items-center">
+                                        <Phone className="w-4 h-4 mr-1" />
+                                        Phone Number
+                                    </p>
+                                    <p className="font-semibold text-gray-900">{user.phone_number}</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Employment Details */}
+                <div className="mb-6 md:mb-8">
+                    <h3 className="text-lg md:text-xl font-bold text-gray-900 mb-4 flex items-center">
+                        <Briefcase className="w-5 h-5 mr-2 text-[var(--theme-primary)]" />
+                        Employment Details
+                    </h3>
+                    <div className="bg-gray-50 rounded-lg p-4 md:p-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {user.role && (
+                                <div>
+                                    <p className="text-sm text-gray-600 mb-1 flex items-center">
+                                        <Shield className="w-4 h-4 mr-1" />
+                                        Role
+                                    </p>
+                                    <p className="font-semibold text-gray-900 capitalize">{user.role.replace('_', ' ')}</p>
+                                </div>
+                            )}
+                            {user.facility && (
+                                <div>
+                                    <p className="text-sm text-gray-600 mb-1 flex items-center">
+                                        <Building2 className="w-4 h-4 mr-1" />
+                                        Facility
+                                    </p>
+                                    <p className="font-semibold text-gray-900">{user.facility.name}</p>
+                                </div>
+                            )}
+                            {user.assigned_branch && (
+                                <div>
+                                    <p className="text-sm text-gray-600 mb-1 flex items-center">
+                                        <MapPin className="w-4 h-4 mr-1" />
+                                        Assigned Branch
+                                    </p>
+                                    <p className="font-semibold text-gray-900">{user.assigned_branch.name}</p>
+                                </div>
+                            )}
+                            {user.credentials && (
+                                <div>
+                                    <p className="text-sm text-gray-600 mb-1 flex items-center">
+                                        <Award className="w-4 h-4 mr-1" />
+                                        Credentials
+                                    </p>
+                                    <p className="font-semibold text-gray-900">{user.credentials}</p>
+                                </div>
+                            )}
+                            {user.credential_details && (
+                                <div>
+                                    <p className="text-sm text-gray-600 mb-1">Credential Details</p>
+                                    <p className="font-semibold text-gray-900">{user.credential_details}</p>
+                                </div>
+                            )}
+                            {user.date_employed && (
+                                <div>
+                                    <p className="text-sm text-gray-600 mb-1 flex items-center">
+                                        <Clock className="w-4 h-4 mr-1" />
+                                        Date Employed
+                                    </p>
+                                    <p className="font-semibold text-gray-900">
+                                        {new Date(user.date_employed).toLocaleDateString('en-US', {
+                                            month: 'long',
+                                            day: 'numeric',
+                                            year: 'numeric'
+                                        })}
+                                    </p>
+                                </div>
+                            )}
+                            {user.supervisor_name && (
+                                <div>
+                                    <p className="text-sm text-gray-600 mb-1">Supervisor</p>
+                                    <p className="font-semibold text-gray-900">{user.supervisor_name}</p>
+                                </div>
+                            )}
+                            <div>
+                                <p className="text-sm text-gray-600 mb-1">Status</p>
+                                <span className={`inline-flex px-3 py-1 rounded-full text-sm font-medium ${user.is_active
+                                    ? 'bg-green-100 text-green-800'
+                                    : 'bg-red-100 text-red-800'
+                                    }`}>
+                                    {user.is_active ? 'Active' : 'Inactive'}
                                 </span>
                             </div>
-                            <div className="text-center md:text-left">
-                                <h2 className="text-2xl md:text-3xl font-bold mb-2">{user.name || user.email}</h2>
-                                {user.email && (
-                                    <div className="flex items-center justify-center md:justify-start space-x-2 mt-2 text-sm md:text-base text-green-50">
-                                        <Mail className="w-4 h-4" />
-                                        <span className="break-all">{user.email}</span>
-                                    </div>
-                                )}
-                            </div>
                         </div>
+                    </div>
+                </div>
+
+                {/* Additional Information */}
+                {user.notes && (
+                    <div>
+                        <h3 className="text-lg md:text-xl font-bold text-gray-900 mb-4">Additional Notes</h3>
+                        <div className="bg-gray-50 rounded-lg p-4 md:p-6">
+                            <p className="text-gray-700 whitespace-pre-wrap">{user.notes}</p>
+                        </div>
+                    </div>
+                )}
+
+                {/* Action Buttons */}
+                <div className="mt-6 md:mt-8 flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0 md:space-x-0">
+                    <div className="flex items-center space-x-4">
+                        <span className="text-sm text-gray-600">Account Status:</span>
+                        <label className="flex items-center cursor-pointer">
+                            <div className="relative">
+                                <input
+                                    type="checkbox"
+                                    checked={user.is_active}
+                                    readOnly
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        setToggleConfirm({ nextActive: !user.is_active });
+                                    }}
+                                    className="sr-only peer"
+                                />
+                                <div className="w-14 h-7 bg-gray-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-[var(--theme-primary)] rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-[var(--theme-primary)]"></div>
+                            </div>
+                            <span className="ml-3 text-sm font-medium text-gray-700">
+                                {user.is_active ? 'Active' : 'Inactive'}
+                            </span>
+                        </label>
+                    </div>
+                    <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 w-full md:w-auto">
                         <button
                             onClick={onClose}
-                            className="text-white hover:text-green-200 transition-colors absolute top-4 right-4 md:relative md:top-0 md:right-0"
+                            className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors w-full sm:w-auto"
                         >
-                            <X className="w-6 h-6" />
+                            Close
+                        </button>
+                        <button
+                            onClick={() => {
+                                onClose();
+                                if (onEdit) onEdit(user);
+                            }}
+                            className="px-6 py-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] rounded-lg hover:bg-[var(--theme-primary-hover)] transition-colors flex items-center justify-center space-x-2 w-full sm:w-auto"
+                        >
+                            <Edit className="w-4 h-4" />
+                            <span>Edit User</span>
                         </button>
                     </div>
                 </div>
-
-                {/* Body */}
-                <div className="p-4 md:p-8 overflow-y-auto flex-1">
-                    {/* Personal Information */}
-                    <div className="mb-6 md:mb-8">
-                        <h3 className="text-lg md:text-xl font-bold text-gray-900 mb-4 flex items-center">
-                            <UserIcon className="w-5 h-5 mr-2 text-[var(--theme-primary)]" />
-                            Personal Information
-                        </h3>
-                        <div className="bg-gray-50 rounded-lg p-4 md:p-6">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {user.first_name && (
-                                    <div>
-                                        <p className="text-sm text-gray-600 mb-1">First Name</p>
-                                        <p className="font-semibold text-gray-900">{user.first_name}</p>
-                                    </div>
-                                )}
-                                {user.middle_names && (
-                                    <div>
-                                        <p className="text-sm text-gray-600 mb-1">Middle Names</p>
-                                        <p className="font-semibold text-gray-900">{user.middle_names}</p>
-                                    </div>
-                                )}
-                                {user.last_name && (
-                                    <div>
-                                        <p className="text-sm text-gray-600 mb-1">Last Name</p>
-                                        <p className="font-semibold text-gray-900">{user.last_name}</p>
-                                    </div>
-                                )}
-                                {user.date_of_birth && (
-                                    <div>
-                                        <p className="text-sm text-gray-600 mb-1 flex items-center">
-                                            <Calendar className="w-4 h-4 mr-1" />
-                                            Date of Birth
-                                        </p>
-                                        <p className="font-semibold text-gray-900">
-                                            {new Date(user.date_of_birth).toLocaleDateString('en-US', {
-                                                month: 'long',
-                                                day: 'numeric',
-                                                year: 'numeric'
-                                            })}
-                                        </p>
-                                    </div>
-                                )}
-                                {user.marital_status && (
-                                    <div>
-                                        <p className="text-sm text-gray-600 mb-1">Marital Status</p>
-                                        <p className="font-semibold text-gray-900 capitalize">{user.marital_status}</p>
-                                    </div>
-                                )}
-                                {user.sex && (
-                                    <div>
-                                        <p className="text-sm text-gray-600 mb-1">Sex</p>
-                                        <p className="font-semibold text-gray-900 capitalize">{user.sex}</p>
-                                    </div>
-                                )}
-                                {user.phone_number && (
-                                    <div>
-                                        <p className="text-sm text-gray-600 mb-1 flex items-center">
-                                            <Phone className="w-4 h-4 mr-1" />
-                                            Phone Number
-                                        </p>
-                                        <p className="font-semibold text-gray-900">{user.phone_number}</p>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Employment Details */}
-                    <div className="mb-6 md:mb-8">
-                        <h3 className="text-lg md:text-xl font-bold text-gray-900 mb-4 flex items-center">
-                            <Briefcase className="w-5 h-5 mr-2 text-[var(--theme-primary)]" />
-                            Employment Details
-                        </h3>
-                        <div className="bg-gray-50 rounded-lg p-4 md:p-6">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {user.role && (
-                                    <div>
-                                        <p className="text-sm text-gray-600 mb-1 flex items-center">
-                                            <Shield className="w-4 h-4 mr-1" />
-                                            Role
-                                        </p>
-                                        <p className="font-semibold text-gray-900 capitalize">{user.role.replace('_', ' ')}</p>
-                                    </div>
-                                )}
-                                {user.facility && (
-                                    <div>
-                                        <p className="text-sm text-gray-600 mb-1 flex items-center">
-                                            <Building2 className="w-4 h-4 mr-1" />
-                                            Facility
-                                        </p>
-                                        <p className="font-semibold text-gray-900">{user.facility.name}</p>
-                                    </div>
-                                )}
-                                {user.assigned_branch && (
-                                    <div>
-                                        <p className="text-sm text-gray-600 mb-1 flex items-center">
-                                            <MapPin className="w-4 h-4 mr-1" />
-                                            Assigned Branch
-                                        </p>
-                                        <p className="font-semibold text-gray-900">{user.assigned_branch.name}</p>
-                                    </div>
-                                )}
-                                {user.credentials && (
-                                    <div>
-                                        <p className="text-sm text-gray-600 mb-1 flex items-center">
-                                            <Award className="w-4 h-4 mr-1" />
-                                            Credentials
-                                        </p>
-                                        <p className="font-semibold text-gray-900">{user.credentials}</p>
-                                    </div>
-                                )}
-                                {user.credential_details && (
-                                    <div>
-                                        <p className="text-sm text-gray-600 mb-1">Credential Details</p>
-                                        <p className="font-semibold text-gray-900">{user.credential_details}</p>
-                                    </div>
-                                )}
-                                {user.date_employed && (
-                                    <div>
-                                        <p className="text-sm text-gray-600 mb-1 flex items-center">
-                                            <Clock className="w-4 h-4 mr-1" />
-                                            Date Employed
-                                        </p>
-                                        <p className="font-semibold text-gray-900">
-                                            {new Date(user.date_employed).toLocaleDateString('en-US', {
-                                                month: 'long',
-                                                day: 'numeric',
-                                                year: 'numeric'
-                                            })}
-                                        </p>
-                                    </div>
-                                )}
-                                {user.supervisor_name && (
-                                    <div>
-                                        <p className="text-sm text-gray-600 mb-1">Supervisor</p>
-                                        <p className="font-semibold text-gray-900">{user.supervisor_name}</p>
-                                    </div>
-                                )}
-                                <div>
-                                    <p className="text-sm text-gray-600 mb-1">Status</p>
-                                    <span className={`inline-flex px-3 py-1 rounded-full text-sm font-medium ${user.is_active
-                                        ? 'bg-green-100 text-green-800'
-                                        : 'bg-red-100 text-red-800'
-                                        }`}>
-                                        {user.is_active ? 'Active' : 'Inactive'}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Additional Information */}
-                    {user.notes && (
-                        <div>
-                            <h3 className="text-lg md:text-xl font-bold text-gray-900 mb-4">Additional Notes</h3>
-                            <div className="bg-gray-50 rounded-lg p-4 md:p-6">
-                                <p className="text-gray-700 whitespace-pre-wrap">{user.notes}</p>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Action Buttons */}
-                    <div className="mt-6 md:mt-8 flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0 md:space-x-0">
-                        <div className="flex items-center space-x-4">
-                            <span className="text-sm text-gray-600">Account Status:</span>
-                            <label className="flex items-center cursor-pointer">
-                                <div className="relative">
-                                    <input
-                                        type="checkbox"
-                                        checked={user.is_active}
-                                        onChange={(e) => {
-                                            if (window.confirm(
-                                                user.is_active
-                                                    ? 'Are you sure you want to deactivate this user?'
-                                                    : 'Are you sure you want to activate this user?'
-                                            )) {
-                                                onToggleActive(user, !user.is_active);
-                                            }
-                                        }}
-                                        disabled={isDeactivating}
-                                        className="sr-only peer"
-                                    />
-                                    <div className="w-14 h-7 bg-gray-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-[var(--theme-primary)] rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-[var(--theme-primary)]"></div>
-                                </div>
-                                <span className="ml-3 text-sm font-medium text-gray-700">
-                                    {user.is_active ? 'Active' : 'Inactive'}
-                                </span>
-                            </label>
-                        </div>
-                        <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 w-full md:w-auto">
-                            <button
-                                onClick={onClose}
-                                className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors w-full sm:w-auto"
-                            >
-                                Close
-                            </button>
-                            <button
-                                onClick={() => {
-                                    onClose();
-                                    if (onEdit) onEdit(user);
-                                }}
-                                className="px-6 py-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] rounded-lg hover:bg-[var(--theme-primary-hover)] transition-colors flex items-center justify-center space-x-2 w-full sm:w-auto"
-                            >
-                                <Edit className="w-4 h-4" />
-                                <span>Edit User</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
+            </div>
         </div>
+        </>
     );
 }
 

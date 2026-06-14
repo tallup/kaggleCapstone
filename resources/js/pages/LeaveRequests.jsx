@@ -1,8 +1,15 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
-import { Calendar, Plus, Edit, Trash2 } from 'lucide-react';
+import logger from '../utils/logger';
+import { Calendar, Plus, Edit, Trash2, CheckCircle, XCircle } from 'lucide-react';
 import SectionCard from '../components/SectionCard';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
+import Modal from '../components/ui/Modal';
+import Tooltip from '../components/ui/Tooltip';
+import EntityCardShell, { EntityCardHeader } from '../components/ui/EntityCardShell';
+import CardIconButton from '../components/ui/CardIconButton';
+import DataPill, { DataPillSection } from '../components/ui/DataPill';
 
 export default function LeaveRequests() {
   const queryClient = useQueryClient();
@@ -10,6 +17,8 @@ export default function LeaveRequests() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
+  const [approveConfirmId, setApproveConfirmId] = useState(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
   // Fetch current user
   React.useEffect(() => {
@@ -18,7 +27,7 @@ export default function LeaveRequests() {
         const response = await api.get('/user');
         setCurrentUser(response.data);
       } catch (err) {
-        console.error('Failed to fetch current user:', err);
+        logger.error('Failed to fetch current user:', err);
       }
     };
     fetchUser();
@@ -30,6 +39,14 @@ export default function LeaveRequests() {
     const role = currentUser.role?.toLowerCase().trim() || '';
     const roleNormalized = role.replace(/[\s_]/g, '');
     return roleNormalized === 'caregiver' || (role.includes('care') && role.includes('giver'));
+  }, [currentUser]);
+
+  // Check if user is an admin (can approve/reject)
+  const isAdmin = React.useMemo(() => {
+    if (!currentUser) return false;
+    const role = currentUser.role?.toLowerCase().trim() || '';
+    return role === 'administrator' || role === 'admin' || role === 'super_admin' || 
+           currentUser.isFacilityAdministrator?.() || currentUser.isBranchAdmin?.();
   }, [currentUser]);
 
   const { data: users } = useQuery({
@@ -54,29 +71,73 @@ export default function LeaveRequests() {
     },
   });
 
+  const approveMutation = useMutation({
+    mutationFn: async (id) => {
+      return api.put(`/leave-requests/${id}`, {
+        status: 'approved',
+        approved_by: currentUser?.id,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['leave-requests']);
+    },
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: async ({ id, declineReason }) => {
+      return api.put(`/leave-requests/${id}`, {
+        status: 'declined',
+        decline_reason: declineReason || 'Request declined by administrator',
+        approved_by: currentUser?.id,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['leave-requests']);
+    },
+  });
+
+  const handleReject = (id) => {
+    const declineReason = window.prompt('Please provide a reason for declining this request (optional):');
+    if (declineReason !== null) { // User didn't cancel
+      rejectMutation.mutate({ id, declineReason });
+    }
+  };
+
   const handleCloseForm = () => {
     setShowForm(false);
     setEditing(null);
   };
 
-  if (showForm) {
-    return (
-      <div>
-        <LeaveForm
-          record={editing}
-          currentUser={currentUser}
-          isCaregiver={isCaregiver}
-          onClose={handleCloseForm}
-          onSuccess={() => {
-            handleCloseForm();
-            queryClient.invalidateQueries(['leave-requests']);
-          }}
-        />
-      </div>
-    );
-  }
-
   return (
+    <>
+      <ConfirmDialog
+        isOpen={approveConfirmId != null}
+        onClose={() => !approveMutation.isPending && setApproveConfirmId(null)}
+        onConfirm={() => {
+          if (approveConfirmId == null) return;
+          approveMutation.mutate(approveConfirmId, { onSuccess: () => setApproveConfirmId(null) });
+        }}
+        title="Approve this leave request?"
+        description="The request will be marked as approved."
+        confirmLabel="Approve"
+        cancelLabel="Cancel"
+        variant="primary"
+        isPending={approveMutation.isPending}
+      />
+      <ConfirmDialog
+        isOpen={deleteConfirmId != null}
+        onClose={() => !deleteMutation.isPending && setDeleteConfirmId(null)}
+        onConfirm={() => {
+          if (deleteConfirmId == null) return;
+          deleteMutation.mutate(deleteConfirmId, { onSuccess: () => setDeleteConfirmId(null) });
+        }}
+        title="Delete this leave request?"
+        description="This request will be permanently removed."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        isPending={deleteMutation.isPending}
+      />
     <div>
       <div className="bg-white rounded-lg shadow p-6 mb-6">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
@@ -117,42 +178,93 @@ export default function LeaveRequests() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {data?.data?.length ? (
             data.data.map((lr) => (
-              <div key={lr.id} className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-6">
-                <div className="flex flex-col h-full">
-                  {/* Header */}
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1">
-                      <h3 className="text-lg font-bold text-gray-900 mb-1">{lr.staff?.name || 'Staff'}</h3>
-                      <div className="flex items-center space-x-2 text-sm text-gray-600 mb-2">
-                        <Calendar className="w-4 h-4" />
-                        <span>{new Date(lr.start_date).toLocaleDateString()} - {new Date(lr.end_date).toLocaleDateString()}</span>
-                      </div>
-                      <span className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold ${lr.status === 'approved' ? 'bg-green-100 text-green-800' : lr.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>
+              <EntityCardShell key={lr.id}>
+                <EntityCardHeader
+                  left={
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span
+                        className={`inline-flex rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                          lr.status === 'approved'
+                              ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                              : lr.status === 'pending'
+                                ? 'border-amber-200 bg-amber-50 text-amber-800'
+                                : 'border-red-200 bg-red-50 text-red-800'
+                        }`}
+                      >
                         {lr.status.charAt(0).toUpperCase() + lr.status.slice(1)}
                       </span>
                     </div>
-                    {/* Actions */}
-                    {(!isCaregiver || lr.staff_id === currentUser?.id) && (
-                      <div className="flex space-x-1">
-                        <button onClick={() => { setEditing(lr); setShowForm(true); }} className="p-2 text-[var(--theme-primary)] hover:bg-green-50 rounded-lg transition-colors" title="Edit">
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button onClick={() => window.confirm('Delete leave request?') && deleteMutation.mutate(lr.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                  }
+                  right={
+                    <>
+                      {isAdmin && lr.status === 'pending' && (
+                        <>
+                          <Tooltip content="Approve" position="top">
+                            <CardIconButton
+                              variant="resolve"
+                              icon={CheckCircle}
+                              aria-label="Approve"
+                              disabled={approveMutation.isPending}
+                              onClick={() => setApproveConfirmId(lr.id)}
+                            />
+                          </Tooltip>
+                          <Tooltip content="Reject" position="top">
+                            <CardIconButton
+                              variant="delete"
+                              icon={XCircle}
+                              aria-label="Reject"
+                              disabled={rejectMutation.isPending}
+                              onClick={() => handleReject(lr.id)}
+                            />
+                          </Tooltip>
+                        </>
+                      )}
+                      {(!isCaregiver || lr.staff_id === currentUser?.id) && (
+                        <>
+                          <Tooltip content="Edit" position="top">
+                            <CardIconButton
+                              variant="edit"
+                              icon={Edit}
+                              aria-label="Edit"
+                              onClick={() => {
+                                setEditing(lr);
+                                setShowForm(true);
+                              }}
+                            />
+                          </Tooltip>
+                          <Tooltip content="Delete" position="top">
+                            <CardIconButton
+                              variant="delete"
+                              icon={Trash2}
+                              aria-label="Delete"
+                              onClick={() => setDeleteConfirmId(lr.id)}
+                            />
+                          </Tooltip>
+                        </>
+                      )}
+                    </>
+                  }
+                />
 
-                  {/* Reason */}
-                  {lr.reason && (
-                    <div className="mt-auto pt-4 border-t border-gray-100">
-                      <p className="text-xs font-medium text-gray-500 uppercase mb-1">Reason</p>
-                      <p className="text-sm text-gray-700 line-clamp-2">{lr.reason}</p>
-                    </div>
-                  )}
+                <h3 className="text-lg font-bold leading-snug text-slate-900 sm:text-xl">
+                  {lr.staff?.name || 'Staff'}
+                </h3>
+
+                <div className="mt-4 grid grid-cols-1 gap-2.5">
+                  <DataPill icon={Calendar}>
+                    <span className="font-normal text-slate-600">
+                      {new Date(lr.start_date).toLocaleDateString()} –{' '}
+                      {new Date(lr.end_date).toLocaleDateString()}
+                    </span>
+                  </DataPill>
                 </div>
-              </div>
+
+                {lr.reason ? (
+                  <DataPillSection label="Reason">
+                    <p className="line-clamp-3 text-sm">{lr.reason}</p>
+                  </DataPillSection>
+                ) : null}
+              </EntityCardShell>
             ))
           ) : (
             <div className="col-span-2 bg-white rounded-lg shadow p-12 text-center">
@@ -163,10 +275,31 @@ export default function LeaveRequests() {
         </div>
       )}
     </div>
+
+      <Modal
+        isOpen={showForm}
+        onClose={handleCloseForm}
+        title={editing ? 'Edit Leave Request' : 'New Leave Request'}
+        size="xl"
+      >
+        <LeaveForm
+          key={editing?.id ?? 'new'}
+          inModal
+          record={editing}
+          currentUser={currentUser}
+          isCaregiver={isCaregiver}
+          onClose={handleCloseForm}
+          onSuccess={() => {
+            handleCloseForm();
+            queryClient.invalidateQueries(['leave-requests']);
+          }}
+        />
+      </Modal>
+    </>
   );
 }
 
-function LeaveForm({ record, currentUser, isCaregiver, onClose, onSuccess }) {
+function LeaveForm({ record, currentUser, isCaregiver, onClose, onSuccess, inModal = false }) {
   // Format date helper function
   const formatDateForInput = (dateString) => {
     if (!dateString) return '';
@@ -205,19 +338,15 @@ function LeaveForm({ record, currentUser, isCaregiver, onClose, onSuccess }) {
     }
 
     try {
-      console.log('Submitting leave request:', form);
       let response;
       if (record) {
         response = await api.put(`/leave-requests/${record.id}`, form);
       } else {
         response = await api.post('/leave-requests', form);
       }
-      console.log('Leave request saved successfully:', response.data);
       onSuccess();
     } catch (e) {
-      console.error('Leave request error:', e);
-      console.error('Error response:', e.response);
-      console.error('Error data:', e.response?.data);
+      logger.error('Leave request error:', e);
       const errorData = e.response?.data;
 
       // Handle validation errors
@@ -238,27 +367,14 @@ function LeaveForm({ record, currentUser, isCaregiver, onClose, onSuccess }) {
         // Handle general errors
         const errorMessage = errorData?.message || e.message || 'Failed to save request. Please try again.';
         setErrors({ general: errorMessage });
-        console.error('Error message:', errorMessage);
       }
     } finally {
       setSubmitting(false);
     }
   };
 
-  return (
-    <div>
-      <SectionCard>
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold text-gray-900">
-            {record ? 'Edit Leave Request' : 'New Leave Request'}
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-gray-500 hover:text-gray-700"
-          >
-            ✕
-          </button>
-        </div>
+  const body = (
+    <>
           {errors.general && (
             <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
               <p className="text-sm text-red-800 font-medium">{errors.general}</p>
@@ -333,7 +449,7 @@ function LeaveForm({ record, currentUser, isCaregiver, onClose, onSuccess }) {
             )}
           </form>
 
-        <div className="flex justify-end space-x-3 mt-6">
+        <div className={`flex justify-end space-x-3 ${inModal ? 'mt-6 pt-4 border-t border-gray-200' : 'mt-6'}`}>
           <button
             type="button"
             onClick={onClose}
@@ -350,6 +466,29 @@ function LeaveForm({ record, currentUser, isCaregiver, onClose, onSuccess }) {
             {submitting ? 'Saving...' : (record ? 'Update' : 'Create')}
           </button>
         </div>
+    </>
+  );
+
+  if (inModal) {
+    return <div className="space-y-2">{body}</div>;
+  }
+
+  return (
+    <div>
+      <SectionCard>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-semibold text-gray-900">
+            {record ? 'Edit Leave Request' : 'New Leave Request'}
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-700"
+          >
+            ✕
+          </button>
+        </div>
+        {body}
       </SectionCard>
     </div>
   );

@@ -27,6 +27,11 @@ export default defineConfig({
         hmr: {
             host: 'localhost',
         },
+        // Avoid ENOSPC when fs.inotify.max_user_watches is low (common on Linux with large trees)
+        watch: {
+            usePolling: true,
+            interval: 1000,
+        },
     },
     optimizeDeps: {
         include: ['animejs'],
@@ -38,6 +43,8 @@ export default defineConfig({
         },
     },
     build: {
+        // Clear cache before build to ensure fresh builds
+        emptyOutDir: true,
         commonjsOptions: {
             include: [/node_modules/],
             transformMixedEsModules: true,
@@ -52,28 +59,43 @@ export default defineConfig({
                 chunkFileNames: 'assets/[name]-[hash].js',
                 entryFileNames: 'assets/[name]-[hash].js',
                 assetFileNames: 'assets/[name]-[hash].[ext]',
-                // Simplified chunking to avoid TDZ issues
-                // Let Vite handle chunking automatically to avoid initialization order problems
-                manualChunks: undefined,
+                // Split large vendors for parallel cache/load (entry still loads first)
+                manualChunks(id) {
+                    if (id.includes('node_modules/react-dom') || id.includes('node_modules/react/')) {
+                        return 'react-vendor';
+                    }
+                    if (id.includes('node_modules/chart.js') || id.includes('node_modules/react-chartjs')) {
+                        return 'chart-vendor';
+                    }
+                    if (id.includes('node_modules/lucide-react')) {
+                        return 'icons-vendor';
+                    }
+                    if (id.includes('node_modules/@tanstack')) {
+                        return 'query-vendor';
+                    }
+                    if (id.includes('node_modules/date-fns')) {
+                        return 'datefns-vendor';
+                    }
+                    if (id.includes('node_modules/@radix-ui')) {
+                        return 'radix-vendor';
+                    }
+                    return undefined;
+                },
             },
         },
-        // Warn if chunk exceeds 1000KB
-        chunkSizeWarningLimit: 1000, // Increase limit since we're not minifying
+        chunkSizeWarningLimit: 500,
         // Disable sourcemaps for production
         sourcemap: false,
         // Use esbuild with minimal settings - only compress whitespace
         minify: 'esbuild',
         // Target modern browsers
         target: 'es2020',
-        // Configure esbuild to be extremely conservative
         esbuild: {
             legalComments: 'none',
-            // CRITICAL: Don't rename or transform anything
-            minifyIdentifiers: false,
-            minifySyntax: false,
-            minifyWhitespace: true, // Only remove whitespace
-            // Don't do any code transformations
-            treeShaking: false,
+            minifyIdentifiers: true,
+            minifySyntax: true,
+            minifyWhitespace: true,
+            treeShaking: true,
         },
         // CSS handling - ensure CSS is properly extracted and linked
         cssCodeSplit: true, // Enable CSS code splitting - it works better with Laravel Vite plugin

@@ -54,6 +54,7 @@ class ProductionSeeder extends Seeder
             'view_facilities', 'create_facilities', 'edit_facilities', 'delete_facilities',
             'view_branches', 'create_branches', 'edit_branches', 'delete_branches',
             'view_cleaning_areas', 'create_cleaning_areas', 'edit_cleaning_areas', 'delete_cleaning_areas',
+            'assign_cleaning_tasks',
             'view_roles', 'create_roles', 'edit_roles', 'delete_roles',
             'view_permissions', 'create_permissions', 'edit_permissions', 'delete_permissions',
             'view_reports', 'create_reports', 'export_reports',
@@ -104,7 +105,7 @@ class ProductionSeeder extends Seeder
         $caregiverPermissions = Permission::whereIn('name', [
             'view_residents', 'view_medications', 'view_appointments', 'view_assessments',
             'create_vital_signs', 'view_vital_signs', 'view_assignments', 'create_leave_requests',
-            'view_leave_requests', 'view_incidents', 'create_incidents'
+            'view_leave_requests', 'view_incidents', 'create_incidents', 'assign_cleaning_tasks'
         ])->pluck('id');
         $caregiverRole->permissions()->sync($caregiverPermissions);
 
@@ -117,7 +118,8 @@ class ProductionSeeder extends Seeder
             'view_vital_signs', 'create_vital_signs', 'edit_vital_signs',
             'view_assignments', 'create_assignments', 'edit_assignments',
             'view_reports', 'create_reports',
-            'view_incidents', 'create_incidents', 'edit_incidents'
+            'view_incidents', 'create_incidents', 'edit_incidents',
+            'assign_cleaning_tasks'
         ])->pluck('id');
         $nurseRole->permissions()->sync($nursePermissions);
 

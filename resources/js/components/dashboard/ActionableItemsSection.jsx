@@ -8,16 +8,16 @@ import {
 /**
  * ActionableItemsSection - Main section displaying items requiring action
  */
-export default function ActionableItemsSection({ items = [], onItemClick }) {
+export default function ActionableItemsSection({ items = [], onItemClick, dense = false }) {
     const navigate = useNavigate();
 
     if (!items || items.length === 0) {
         return (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <div className="text-center py-8">
-                    <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-3" />
-                    <p className="text-gray-600 font-medium">All caught up!</p>
-                    <p className="text-sm text-gray-500 mt-1">No items requiring immediate attention.</p>
+            <div className={`bg-white ${dense ? 'rounded-lg' : 'rounded-xl'} shadow-sm border border-gray-200 ${dense ? 'p-4' : 'p-6'}`}>
+                <div className={`text-center ${dense ? 'py-5' : 'py-8'}`}>
+                    <CheckCircle className={`${dense ? 'w-8 h-8 mb-2' : 'w-12 h-12 mb-3'} text-green-500 mx-auto`} />
+                    <p className={`text-gray-600 font-medium ${dense ? 'text-sm' : ''}`}>All caught up!</p>
+                    <p className={`text-gray-500 mt-1 ${dense ? 'text-xs' : 'text-sm'}`}>No items requiring immediate attention.</p>
                 </div>
             </div>
         );
@@ -59,10 +59,10 @@ export default function ActionableItemsSection({ items = [], onItemClick }) {
     };
 
     return (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200">
-                <h2 className="text-lg font-semibold text-gray-900">Action Required</h2>
-                <p className="text-sm text-gray-500 mt-1">Items that need your attention</p>
+        <div className={`bg-white ${dense ? 'rounded-lg' : 'rounded-xl'} shadow-sm border border-gray-200 overflow-hidden`}>
+            <div className={`border-b border-gray-200 ${dense ? 'px-3 py-2.5' : 'px-6 py-4'}`}>
+                <h2 className={`font-semibold text-gray-900 ${dense ? 'text-sm' : 'text-lg'}`}>Action Required</h2>
+                <p className={`text-gray-500 ${dense ? 'text-[11px] mt-0.5' : 'text-sm mt-1'}`}>Items that need your attention</p>
             </div>
             <div className="divide-y divide-gray-200">
                 {items.map((item, index) => {
@@ -79,26 +79,26 @@ export default function ActionableItemsSection({ items = [], onItemClick }) {
                         <div
                             key={item.id || index}
                             onClick={handleClick}
-                            className={`p-4 hover:bg-gray-50 transition-colors cursor-pointer border-l-4 ${getItemColor(item.priority || 'info')}`}
+                            className={`${dense ? 'p-2.5 sm:p-3' : 'p-4'} hover:bg-gray-50 transition-colors cursor-pointer border-l-4 ${getItemColor(item.priority || 'info')}`}
                         >
-                            <div className="flex items-start justify-between gap-3">
-                                <div className="flex items-start gap-3 flex-1 min-w-0">
-                                    <div className={`p-2 rounded-lg ${
+                            <div className="flex items-start justify-between gap-2 sm:gap-3">
+                                <div className={`flex items-start ${dense ? 'gap-2' : 'gap-3'} flex-1 min-w-0`}>
+                                    <div className={`${dense ? 'p-1.5' : 'p-2'} rounded-lg ${
                                         item.priority === 'urgent' ? 'bg-red-100 text-red-600' :
                                         item.priority === 'soon' ? 'bg-yellow-100 text-yellow-600' :
-                                        'bg-blue-100 text-blue-600'
+                                        'bg-[var(--theme-primary-bg)] text-[var(--theme-primary)]'
                                     }`}>
-                                        <Icon className="w-5 h-5" />
+                                        <Icon className={dense ? 'w-4 h-4' : 'w-5 h-5'} />
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <p className="text-sm font-semibold text-gray-900 truncate">
+                                        <div className={`flex items-center gap-2 ${dense ? 'mb-0.5' : 'mb-1'} flex-wrap`}>
+                                            <p className={`${dense ? 'text-xs' : 'text-sm'} font-semibold text-gray-900 truncate`}>
                                                 {item.title}
                                             </p>
                                             {getPriorityBadge(item.priority || 'info')}
                                         </div>
                                         {item.description && (
-                                            <p className="text-xs text-gray-600 line-clamp-2">
+                                            <p className={`text-gray-600 line-clamp-2 ${dense ? 'text-[11px] leading-snug' : 'text-xs'}`}>
                                                 {item.description}
                                             </p>
                                         )}
@@ -118,14 +118,14 @@ export default function ActionableItemsSection({ items = [], onItemClick }) {
                                         )}
                                     </div>
                                 </div>
-                                <ArrowRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                                <ArrowRight className={`${dense ? 'w-4 h-4' : 'w-5 h-5'} text-gray-400 flex-shrink-0`} />
                             </div>
                         </div>
                     );
                 })}
             </div>
             {items.length > 5 && (
-                <div className="px-6 py-3 bg-gray-50 border-t border-gray-200">
+                <div className={`bg-gray-50 border-t border-gray-200 ${dense ? 'px-3 py-2' : 'px-6 py-3'}`}>
                     <button
                         onClick={() => navigate('/dashboard/actionable')}
                         className="text-sm font-medium text-[var(--theme-primary)] hover:text-[var(--theme-primary-hover)] flex items-center gap-1"

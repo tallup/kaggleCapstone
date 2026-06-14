@@ -2,6 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import { FileText, Plus, Edit, Trash2, Search, Filter, Download, Calendar, AlertCircle, X } from 'lucide-react';
+import logger from '../utils/logger';
+import ConfirmDialog from './ui/ConfirmDialog';
+import Tooltip from './ui/Tooltip';
+import CardIconButton from './ui/CardIconButton';
 
 const documentTypeOptions = {
     insurance: 'Insurance',
@@ -28,9 +32,9 @@ export default function ResidentDocuments({ residentId }) {
     const [showForm, setShowForm] = useState(false);
     const [editing, setEditing] = useState(null);
     const [currentPage, setCurrentPage] = useState(1);
+    const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
-
-    const { data, isLoading } = useQuery({
+    const { data, isLoading, refetch } = useQuery({
         queryKey: ['resident-documents', residentId, search, typeFilter, currentPage],
         queryFn: async () => {
             const params = {
@@ -67,21 +71,49 @@ export default function ResidentDocuments({ residentId }) {
         },
     });
 
-    const handleDelete = (id) => {
-        if (window.confirm('Are you sure you want to delete this document?')) {
-            deleteMutation.mutate(id);
-        }
+    const handleConfirmDelete = () => {
+        if (deleteConfirmId == null) return;
+        deleteMutation.mutate(deleteConfirmId, { onSuccess: () => setDeleteConfirmId(null) });
     };
 
-    const handleDownload = (document) => {
-        const url = `/api/v1/resident-documents/${document.id}/download`;
-        window.open(url, '_blank');
+    const handleDownload = async (doc) => {
+        try {
+            const response = await api.get(
+                `/resident-documents/${doc.id}/download`,
+                { responseType: 'blob' }
+            );
+            
+            // Create a blob URL and trigger download
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = window.document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', doc.file_name || doc.document_name || 'document');
+            window.document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            logger.error('Error downloading document:', error);
+            alert(error.response?.data?.message || 'Failed to download document. Please try again.');
+        }
     };
 
     const documents = data?.data || [];
     const pagination = data?.meta || {};
 
     return (
+        <>
+            <ConfirmDialog
+                isOpen={deleteConfirmId != null}
+                onClose={() => !deleteMutation.isPending && setDeleteConfirmId(null)}
+                onConfirm={handleConfirmDelete}
+                title="Delete this document?"
+                description="The file will be permanently removed."
+                confirmLabel="Delete"
+                cancelLabel="Cancel"
+                variant="danger"
+                isPending={deleteMutation.isPending}
+            />
         <div className="space-y-6">
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -95,7 +127,7 @@ export default function ResidentDocuments({ residentId }) {
                         e.preventDefault();
                         e.stopPropagation();
                         if (!residentId) {
-                            console.error('Cannot add document: residentId is missing!');
+                            logger.error('Cannot add document: residentId is missing!');
                             alert('Error: Resident ID is missing. Please refresh the page.');
                             return;
                         }
@@ -123,14 +155,21 @@ export default function ResidentDocuments({ residentId }) {
                         residentId={residentId}
                         appointments={appointments}
                         record={editing}
+                        queryClient={queryClient}
+                        search={search}
+                        typeFilter={typeFilter}
+                        currentPage={currentPage}
                         onClose={() => {
                             setShowForm(false);
                             setEditing(null);
                         }}
-                        onSuccess={() => {
+                        onSuccess={async () => {
                             setShowForm(false);
                             setEditing(null);
-                            queryClient.invalidateQueries(['resident-documents']);
+                            // Invalidate and refetch all resident-documents queries
+                            await queryClient.invalidateQueries({ queryKey: ['resident-documents'] });
+                            // Force refetch all matching queries
+                            await queryClient.refetchQueries({ queryKey: ['resident-documents'] });
                         }}
                     />
                 </div>
@@ -241,81 +280,86 @@ export default function ResidentDocuments({ residentId }) {
                                     </tr>
                                 </thead>
                                 <tbody className="bg-white divide-y divide-gray-200">
-                                    {documents.map((document) => (
-                                        <tr key={document.id} className="hover:bg-gray-50">
+                                    {documents.map((doc) => (
+                                        <tr key={doc.id} className="hover:bg-gray-50">
                                             <td className="px-6 py-4">
                                                 <div className="text-sm font-medium text-gray-900 truncate">
-                                                    {document.document_name}
+                                                    {doc.document_name}
                                                 </div>
-                                                {document.notes && (
+                                                {doc.notes && (
                                                     <div className="text-xs text-gray-500 mt-1 truncate">
-                                                        {document.notes}
+                                                        {doc.notes}
                                                     </div>
                                                 )}
                                             </td>
                                             <td className="px-6 py-4">
-                                                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${documentTypeColors[document.document_type] || documentTypeColors.other}`}>
-                                                    {documentTypeOptions[document.document_type] || 'Other'}
+                                                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${documentTypeColors[doc.document_type] || documentTypeColors.other}`}>
+                                                    {documentTypeOptions[doc.document_type] || 'Other'}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="text-sm text-gray-900 truncate">
-                                                    {document.file_name || 'N/A'}
+                                                    {doc.file_name || 'N/A'}
                                                 </div>
-                                                {document.file_size && (
+                                                {doc.file_size && (
                                                     <div className="text-xs text-gray-500">
-                                                        {(document.file_size / 1024).toFixed(2)} KB
+                                                        {(doc.file_size / 1024).toFixed(2)} KB
                                                     </div>
                                                 )}
                                             </td>
                                             <td className="px-6 py-4">
-                                                {document.appointment ? (
+                                                {doc.appointment ? (
                                                     <div className="text-sm text-gray-900">
-                                                        {new Date(document.appointment.appointment_date).toLocaleDateString()}
+                                                        {new Date(doc.appointment.appointment_date).toLocaleDateString()}
                                                     </div>
                                                 ) : (
                                                     <span className="text-sm text-gray-400">—</span>
                                                 )}
                                             </td>
                                             <td className="px-6 py-4 text-sm text-gray-500">
-                                                {document.created_at ? new Date(document.created_at).toLocaleDateString() : 'N/A'}
+                                                {doc.created_at ? new Date(doc.created_at).toLocaleDateString() : 'N/A'}
                                             </td>
                                             <td className="px-6 py-4 text-right text-sm font-medium">
                                                 <div className="flex items-center justify-end gap-2">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleDownload(document)}
-                                                        className="p-2 rounded-md bg-[var(--theme-primary-bg)] text-[var(--theme-primary)] hover:bg-[var(--theme-primary)] hover:text-white transition-colors border border-[var(--theme-primary-light)]"
-                                                        title="Download"
-                                                    >
-                                                        <Download className="h-5 w-5" />
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            setEditing(document);
-                                                            setShowForm(true);
-                                                            // Scroll to form
-                                                            setTimeout(() => {
-                                                                const formElement = document.querySelector('[data-document-form]');
-                                                                if (formElement) {
-                                                                    formElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                                                                }
-                                                            }, 100);
-                                                        }}
-                                                        className="p-2 rounded-md bg-blue-50 text-blue-700 hover:bg-blue-600 hover:text-white transition-colors border border-blue-200"
-                                                        title="Edit"
-                                                    >
-                                                        <Edit className="h-5 w-5" />
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleDelete(document.id)}
-                                                        className="p-2 rounded-md bg-red-50 text-red-700 hover:bg-red-600 hover:text-white transition-colors border border-red-200"
-                                                        title="Delete"
-                                                    >
-                                                        <Trash2 className="h-5 w-5" />
-                                                    </button>
+                                                    <Tooltip content="Download">
+                                                        <CardIconButton
+                                                            variant="resolve"
+                                                            type="button"
+                                                            onClick={() => handleDownload(doc)}
+                                                            aria-label="Download"
+                                                        >
+                                                            <Download className="h-4 w-4" strokeWidth={2.5} />
+                                                        </CardIconButton>
+                                                    </Tooltip>
+                                                    <Tooltip content="Edit">
+                                                        <CardIconButton
+                                                            variant="edit"
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setEditing(doc);
+                                                                setShowForm(true);
+                                                                setTimeout(() => {
+                                                                    const formElement = window.document.querySelector('[data-document-form]');
+                                                                    if (formElement) {
+                                                                        formElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                                                    }
+                                                                }, 100);
+                                                            }}
+                                                            aria-label="Edit"
+                                                        >
+                                                            <Edit className="h-4 w-4" strokeWidth={2.5} />
+                                                        </CardIconButton>
+                                                    </Tooltip>
+                                                    <Tooltip content="Delete">
+                                                        <CardIconButton
+                                                            variant="delete"
+                                                            type="button"
+                                                            onClick={() => setDeleteConfirmId(doc.id)}
+                                                            aria-label="Delete"
+                                                        >
+                                                            <Trash2 className="h-4 w-4" strokeWidth={2.5} />
+                                                        </CardIconButton>
+                                                    </Tooltip>
                                                 </div>
                                             </td>
                                         </tr>
@@ -353,15 +397,15 @@ export default function ResidentDocuments({ residentId }) {
             )}
 
         </div>
+        </>
     );
 }
 
-function DocumentFormInline({ residentId, appointments, record, onClose, onSuccess }) {
+function DocumentFormInline({ residentId, appointments, record, onClose, onSuccess, queryClient, search, typeFilter, currentPage }) {
     // Log and validate residentId
     useEffect(() => {
-        console.log('DocumentFormModal received residentId:', residentId, typeof residentId);
         if (!residentId) {
-            console.error('DocumentFormModal: residentId is missing or undefined!');
+            logger.error('DocumentFormModal: residentId is missing or undefined!');
         }
     }, [residentId]);
 
@@ -374,6 +418,28 @@ function DocumentFormInline({ residentId, appointments, record, onClose, onSucce
     const [file, setFile] = useState(null);
     const [errors, setErrors] = useState({});
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Update form data when record changes (for editing)
+    useEffect(() => {
+        if (record) {
+            setFormData({
+                document_name: record.document_name || '',
+                document_type: record.document_type || '',
+                appointment_id: record.appointment_id || null,
+                notes: record.notes || '',
+            });
+            setFile(null); // Reset file when editing
+        } else {
+            // Reset form for new document
+            setFormData({
+                document_name: '',
+                document_type: '',
+                appointment_id: null,
+                notes: '',
+            });
+            setFile(null);
+        }
+    }, [record]);
 
     const handleFileChange = (e) => {
         if (e.target.files && e.target.files[0]) {
@@ -394,27 +460,28 @@ function DocumentFormInline({ residentId, appointments, record, onClose, onSucce
                 return;
             }
 
+            // Validate required fields
+            if (!formData.document_name || !formData.document_name.trim()) {
+                setErrors({ document_name: ['The document name field is required.'] });
+                setIsSubmitting(false);
+                return;
+            }
+
+            if (!formData.document_type || !formData.document_type.trim()) {
+                setErrors({ document_type: ['The document type field is required.'] });
+                setIsSubmitting(false);
+                return;
+            }
+
             const formDataToSend = new FormData();
             formDataToSend.append('resident_id', String(residentId));
-            formDataToSend.append('document_name', formData.document_name);
-            formDataToSend.append('document_type', formData.document_type);
+            formDataToSend.append('document_name', formData.document_name.trim());
+            formDataToSend.append('document_type', formData.document_type.trim());
             if (formData.appointment_id) {
                 formDataToSend.append('appointment_id', String(formData.appointment_id));
             }
             formDataToSend.append('notes', formData.notes || '');
             
-            // Debug: Log what we're sending
-            console.log('Sending document data:', {
-                resident_id: residentId,
-                resident_id_type: typeof residentId,
-                document_name: formData.document_name,
-                document_type: formData.document_type,
-                appointment_id: formData.appointment_id,
-                file: file?.name,
-                file_size: file?.size,
-                file_type: file?.type,
-            });
-
             if (file) {
                 formDataToSend.append('file_path', file);
             } else if (!record) {
@@ -423,21 +490,39 @@ function DocumentFormInline({ residentId, appointments, record, onClose, onSucce
                 return;
             }
 
+            let response;
             if (record) {
-                await api.put(`/resident-documents/${record.id}`, formDataToSend);
+                // Use POST for updates with FormData (file uploads)
+                response = await api.post(`/resident-documents/${record.id}/update`, formDataToSend);
+                
+                // The API returns the document directly in response.data
+                const updatedDoc = response.data;
+                
+                // Update the cache optimistically with the response data
+                queryClient.setQueryData(['resident-documents', residentId, search, typeFilter, currentPage], (oldData) => {
+                    if (!oldData || !oldData.data) {
+                        return oldData;
+                    }
+                    const newData = {
+                        ...oldData,
+                        data: oldData.data.map(doc => {
+                            if (doc.id === record.id) {
+                                return updatedDoc;
+                            }
+                            return doc;
+                        })
+                    };
+                    return newData;
+                });
             } else {
-                await api.post('/resident-documents', formDataToSend);
+                response = await api.post('/resident-documents', formDataToSend);
             }
             onSuccess();
         } catch (error) {
-            console.error('Document upload error:', error);
-            console.error('Error response:', error.response?.data);
-            console.error('Error response errors:', error.response?.data?.errors);
-            console.error('Full error object:', JSON.stringify(error.response?.data, null, 2));
+            logger.error('Document upload error:', error);
             
             if (error.response?.data?.errors) {
                 const validationErrors = error.response.data.errors;
-                console.log('Setting validation errors:', validationErrors);
                 setErrors(validationErrors);
                 // Also show general message if available
                 if (error.response.data.message) {

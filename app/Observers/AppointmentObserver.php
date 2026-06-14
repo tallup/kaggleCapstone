@@ -5,6 +5,7 @@ namespace App\Observers;
 use App\Models\Appointment;
 use App\Models\Notification;
 use App\Models\User;
+use App\Services\NotificationService;
 use Carbon\Carbon;
 
 class AppointmentObserver
@@ -48,6 +49,8 @@ class AppointmentObserver
         foreach ($recipients as $user) {
             Notification::create([
                 'user_id' => $user->id,
+                'facility_id' => $appointment->resident?->branch?->facility_id ?? null,
+                'branch_id' => $appointment->branch_id ?? $appointment->resident?->branch_id ?? null,
                 'type' => 'appointment_completed',
                 'title' => 'Appointment Completed',
                 'message' => "{$residentName}'s {$appointmentType} appointment on {$date} was marked completed.",
@@ -62,6 +65,10 @@ class AppointmentObserver
                 ],
             ]);
         }
+
+        // Send email notifications
+        $notificationService = app(NotificationService::class);
+        $notificationService->sendAppointmentEmail($appointment, $recipients, 'completed');
     }
 
     /**
@@ -130,6 +137,8 @@ class AppointmentObserver
             
             Notification::create([
                 'user_id' => $caregiver->id,
+                'facility_id' => $appointment->resident?->branch?->facility_id ?? null,
+                'branch_id' => $appointment->branch_id ?? $appointment->resident?->branch_id ?? null,
                 'type' => 'appointment_upcoming',
                 'title' => $title,
                 'message' => "{$residentName} has a {$appointmentType} appointment on " . 
@@ -146,6 +155,10 @@ class AppointmentObserver
                 ],
             ]);
         }
+
+        // Send email notifications
+        $notificationService = app(NotificationService::class);
+        $notificationService->sendAppointmentEmail($appointment, $caregivers, 'created');
     }
 }
 

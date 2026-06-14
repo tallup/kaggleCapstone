@@ -34,22 +34,41 @@ class ResidentResource extends JsonResource
             'diagnosis' => $this->diagnosis,
             'allergies' => $this->allergies,
             'medical_conditions' => $this->medical_conditions,
+            'code_status' => $this->code_status,
+            'primary_language' => $this->primary_language,
+            'language' => $this->primary_language,
+            'diet' => $this->dietary_restrictions,
+            'dietary_restrictions' => $this->dietary_restrictions,
+            'pharmacy_name' => $this->pharmacy_name,
+            'pharmacy' => $this->pharmacy_name
+                ? ['name' => $this->pharmacy_name]
+                : null,
+            'general_medication_instructions' => $this->general_medication_instructions,
             'physician_name' => $this->physician_name,
             'medicare_number' => $this->medicare_number,
             'primary_care_doctor' => $this->primary_care_doctor,
+            'pep_or_doctor' => $this->pep_or_doctor,
             'care_plan' => $this->care_plan,
             'special_instructions' => $this->special_instructions,
             'notes' => $this->notes,
             'status' => $this->status,
             'is_active' => $this->is_active,
+            'lifecycle_status' => $this->lifecycle_status ?? ($this->is_active ? 'active' : 'discharged'),
+            'lifecycle_status_changed_at' => $this->lifecycle_status_changed_at?->toISOString(),
+            'temporary_status' => $this->temporary_status,
+            'temporary_status_started_at' => $this->temporary_status_started_at?->toISOString(),
+            'temporary_status_note' => $this->temporary_status_note,
+            'discharge_reason' => $this->discharge_reason,
+            'discharge_destination' => $this->discharge_destination,
+            'discharge_notes' => $this->discharge_notes,
             'profile_image' => $this->profile_image,
             'profile_image_url' => $this->profile_image_url,
             'appointments' => AppointmentResource::collection($this->whenLoaded('appointments')),
             'vital_signs' => VitalSignResource::collection($this->whenLoaded('vitalSigns')),
             'sleep_records' => SleepRecordResource::collection($this->whenLoaded('sleepRecords')),
             'sleep_patterns' => SleepPatternResource::collection($this->whenLoaded('sleepPatterns')),
-            'medications' => $this->whenLoaded('medications', function() {
-                return $this->medications->map(function($medication) {
+            'medications' => $this->whenLoaded('medicationOrders', function() {
+                return $this->medicationOrders->map(function($medication) {
                     return [
                         'id' => $medication->id,
                         'name' => $medication->name,

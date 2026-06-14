@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
 use App\Models\Permission;
 use App\Models\Role;
 use Illuminate\Http\JsonResponse;
@@ -12,21 +11,61 @@ class RoleController extends BaseApiController
 {
     public function index(Request $request): JsonResponse
     {
+        if (auth()->user()?->isSuperAdmin()) {
+            // Only platform admins may mutate global role records during a read.
+            $this->ensureRequiredRolesExist();
+        }
+
         $query = Role::with('permissions');
-        
-        // Filter to only show allowed roles: administrator, caregiver, and nurse
-        $allowedRoles = ['administrator', 'caregiver', 'nurse', 'registered_nurse', 'licensed_nurse', 'care_giver'];
+
+        // Filter to only show allowed roles: administrator, admin, caregiver, and nurse
+        $allowedRoles = ['administrator', 'admin', 'caregiver', 'nurse', 'registered_nurse', 'licensed_nurse', 'care_giver'];
         $query->whereIn('name', $allowedRoles);
-        
-        // Exclude 'admin' and 'duty roster' roles
-        $query->whereNotIn('name', ['admin', 'duty_roster', 'duty roster']);
-        
+
+        // Exclude 'duty roster' roles
+        $query->whereNotIn('name', ['duty_roster', 'duty roster']);
+
         if ($request->has('search')) {
             $search = $request->get('search');
             $query->where('name', 'like', "%{$search}%");
         }
         $roles = $query->orderBy('name')->paginate($request->get('per_page', 20));
+
         return response()->json($roles);
+    }
+
+    /**
+     * Ensure required roles exist in the database
+     */
+    private function ensureRequiredRolesExist(): void
+    {
+        // Check if administrator role exists
+        $administratorRole = Role::where('name', 'administrator')->first();
+        if (! $administratorRole) {
+            // Create administrator role if it doesn't exist
+            $administratorRole = Role::create([
+                'name' => 'administrator',
+                'guard_name' => 'web',
+            ]);
+
+            // Sync all permissions to administrator role
+            $permissions = Permission::all();
+            if ($permissions->count() > 0) {
+                $administratorRole->permissions()->sync($permissions->pluck('id'));
+            }
+        }
+
+        // Ensure other required roles exist
+        $requiredRoles = ['admin', 'caregiver', 'nurse'];
+        foreach ($requiredRoles as $roleName) {
+            $role = Role::where('name', $roleName)->first();
+            if (! $role) {
+                Role::create([
+                    'name' => $roleName,
+                    'guard_name' => 'web',
+                ]);
+            }
+        }
     }
 
     public function permissions(): JsonResponse
@@ -36,17 +75,8 @@ class RoleController extends BaseApiController
 
     public function store(Request $request): JsonResponse
     {
-        $user = auth()->user();
-        
-        // Allow administrators and super admins to create roles even without specific permission
-        $isSuperAdmin = $user && ($user->role === 'super_admin' || $user->hasRole('super_admin'));
-        $isAdmin = $user && ($user->role === 'administrator' || $user->role === 'admin');
-        
-        // Check permission only if user is not an admin or super admin
-        if (!$isSuperAdmin && !$isAdmin) {
-        if ($error = $this->requirePermission('create_roles')) {
+        if ($error = $this->requireSuperAdmin()) {
             return $error;
-            }
         }
 
         $validated = $request->validate([
@@ -54,30 +84,22 @@ class RoleController extends BaseApiController
             'permissions' => 'array',
         ]);
         $role = Role::create(['name' => $validated['name']]);
-        if (!empty($validated['permissions'])) {
+        if (! empty($validated['permissions'])) {
             $role->permissions()->sync(Permission::whereIn('name', $validated['permissions'])->pluck('id'));
         }
+
         return response()->json($role->load('permissions'), 201);
     }
 
     public function update(Request $request, $id): JsonResponse
     {
-        $user = auth()->user();
-        
-        // Allow administrators and super admins to edit roles even without specific permission
-        $isSuperAdmin = $user && ($user->role === 'super_admin' || $user->hasRole('super_admin'));
-        $isAdmin = $user && ($user->role === 'administrator' || $user->role === 'admin');
-        
-        // Check permission only if user is not an admin or super admin
-        if (!$isSuperAdmin && !$isAdmin) {
-        if ($error = $this->requirePermission('edit_roles')) {
+        if ($error = $this->requireSuperAdmin()) {
             return $error;
-            }
         }
 
         $role = Role::findOrFail($id);
         $validated = $request->validate([
-            'name' => 'sometimes|required|string|max:255|unique:roles,name,' . $role->id,
+            'name' => 'sometimes|required|string|max:255|unique:roles,name,'.$role->id,
             'permissions' => 'array',
         ]);
         if (isset($validated['name'])) {
@@ -87,27 +109,20 @@ class RoleController extends BaseApiController
         if (isset($validated['permissions'])) {
             $role->permissions()->sync(Permission::whereIn('name', $validated['permissions'])->pluck('id'));
         }
+
         return response()->json($role->load('permissions'));
     }
 
     public function destroy($id): JsonResponse
     {
-        $user = auth()->user();
-        
-        // Allow administrators and super admins to delete roles even without specific permission
-        $isSuperAdmin = $user && ($user->role === 'super_admin' || $user->hasRole('super_admin'));
-        $isAdmin = $user && ($user->role === 'administrator' || $user->role === 'admin');
-        
-        // Check permission only if user is not an admin or super admin
-        if (!$isSuperAdmin && !$isAdmin) {
-        if ($error = $this->requirePermission('delete_roles')) {
+        if ($error = $this->requireSuperAdmin()) {
             return $error;
-            }
         }
 
         $role = Role::findOrFail($id);
         $role->permissions()->detach();
         $role->delete();
+
         return response()->json(['message' => 'Role deleted']);
     }
 
@@ -116,6 +131,10 @@ class RoleController extends BaseApiController
      */
     public function ensureRolesExist(): JsonResponse
     {
+        if ($error = $this->requireSuperAdmin()) {
+            return $error;
+        }
+
         try {
             // Check if permissions exist first
             $permissionCount = Permission::count();
@@ -244,10 +263,11 @@ class RoleController extends BaseApiController
                 'total_permissions_in_db' => $permissionCount,
             ]);
         } catch (\Exception $e) {
-            \Log::error('Error ensuring roles exist: ' . $e->getMessage(), [
-                'trace' => $e->getTraceAsString()
+            \Log::error('Error ensuring roles exist: '.$e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
             ]);
-            return $this->error('Failed to ensure roles exist: ' . $e->getMessage(), 500);
+
+            return $this->error('Failed to ensure roles exist: '.$e->getMessage(), 500);
         }
     }
 
@@ -256,23 +276,27 @@ class RoleController extends BaseApiController
      */
     public function diagnostic(): JsonResponse
     {
+        if ($error = $this->requireSuperAdmin()) {
+            return $error;
+        }
+
         try {
-            $administratorRole = Role::where(function($query) {
+            $administratorRole = Role::where(function ($query) {
                 $query->where('name', 'administrator')->orWhere('name', 'admin');
             })->first();
-            
+
             $caregiverRole = Role::where('name', 'caregiver')->first();
-            
+
             $permissionCount = Permission::count();
             $adminPermissionCount = $administratorRole ? $administratorRole->permissions()->count() : 0;
             $caregiverPermissionCount = $caregiverRole ? $caregiverRole->permissions()->count() : 0;
-            
+
             return $this->success([
                 'permissions' => [
                     'total_in_database' => $permissionCount,
                     'status' => $permissionCount > 0 ? 'ok' : 'missing',
-                    'message' => $permissionCount > 0 
-                        ? "Found {$permissionCount} permissions in database" 
+                    'message' => $permissionCount > 0
+                        ? "Found {$permissionCount} permissions in database"
                         : 'No permissions found. Run: php artisan db:seed --class=PermissionSeeder',
                 ],
                 'roles' => [
@@ -294,37 +318,51 @@ class RoleController extends BaseApiController
                 'recommendations' => $this->getRecommendations($permissionCount, $administratorRole, $caregiverRole, $adminPermissionCount, $caregiverPermissionCount),
             ]);
         } catch (\Exception $e) {
-            \Log::error('Error in diagnostic: ' . $e->getMessage());
-            return $this->error('Failed to run diagnostic: ' . $e->getMessage(), 500);
+            \Log::error('Error in diagnostic: '.$e->getMessage());
+
+            return $this->error('Failed to run diagnostic: '.$e->getMessage(), 500);
         }
     }
 
     private function getRecommendations($permissionCount, $administratorRole, $caregiverRole, $adminPermissionCount, $caregiverPermissionCount): array
     {
         $recommendations = [];
-        
+
         if ($permissionCount === 0) {
             $recommendations[] = 'Run PermissionSeeder: php artisan db:seed --class=PermissionSeeder';
         }
-        
-        if (!$administratorRole) {
+
+        if (! $administratorRole) {
             $recommendations[] = 'Administrator role is missing. Click "Create Required Roles" button or run: php artisan roles:ensure-exist';
         } elseif ($adminPermissionCount === 0) {
             $recommendations[] = 'Administrator role exists but has no permissions. Click "Create Required Roles" button or run: php artisan roles:ensure-exist';
         }
-        
-        if (!$caregiverRole) {
+
+        if (! $caregiverRole) {
             $recommendations[] = 'Caregiver role is missing. Click "Create Required Roles" button or run: php artisan roles:ensure-exist';
         } elseif ($caregiverPermissionCount === 0) {
             $recommendations[] = 'Caregiver role exists but has no permissions. Click "Create Required Roles" button or run: php artisan roles:ensure-exist';
         }
-        
+
         if (empty($recommendations)) {
             $recommendations[] = 'All roles and permissions are properly configured!';
         }
-        
+
         return $recommendations;
     }
+
+    private function requireSuperAdmin(): ?JsonResponse
+    {
+        $user = auth()->user();
+
+        if (! $user) {
+            return $this->error('Unauthorized.', 401);
+        }
+
+        if (! $user->isSuperAdmin()) {
+            return $this->error('Unauthorized. Super admin access required.', 403);
+        }
+
+        return null;
+    }
 }
-
-

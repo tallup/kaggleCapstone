@@ -1,6 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
+import logger from '../utils/logger';
+import {
+    subscribeToPush,
+    unsubscribeFromPush,
+    isSubscribed,
+    isVapidConfigured,
+} from '../services/pushNotifications';
 import {
     User as UserIcon,
     Mail,
@@ -28,7 +35,11 @@ import {
     AlertCircle,
     TrendingUp,
     FileText,
-    Star
+    Star,
+    Bell,
+    BellOff,
+    Smartphone,
+    Filter
 } from 'lucide-react';
 
 export default function Profile() {
@@ -51,7 +62,16 @@ export default function Profile() {
     });
     const [successMessage, setSuccessMessage] = useState(null);
     const [errorMessage, setErrorMessage] = useState(null);
-    
+    const [disableSuccessToasts, setDisableSuccessToasts] = useState(() => {
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem('disable_success_toasts') === 'true';
+        }
+        return false;
+    });
+    const [pushEnabled, setPushEnabled] = useState(false);
+    const [pushLoading, setPushLoading] = useState(false);
+    const [pushSupported] = useState(() => typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window);
+
     // Get current user from local storage or API
     const { data: user, isLoading, error } = useQuery({
         queryKey: ['current-user'],
@@ -72,6 +92,16 @@ export default function Profile() {
             setIsImageErrored(false);
         }
     }, [user]);
+
+    // Check push subscription status when profile loads
+    useEffect(() => {
+        if (!pushSupported) return;
+        let cancelled = false;
+        isSubscribed().then((subscribed) => {
+            if (!cancelled) setPushEnabled(!!subscribed);
+        });
+        return () => { cancelled = true; };
+    }, [pushSupported]);
 
     const handleFileChange = (e) => {
         if (e.target.files && e.target.files[0]) {
@@ -143,6 +173,53 @@ export default function Profile() {
         },
     });
 
+    const handleToggleSuccessToasts = (enabled) => {
+        setDisableSuccessToasts(!enabled);
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('disable_success_toasts', (!enabled).toString());
+        }
+        setSuccessMessage(enabled ? 'Success notifications disabled' : 'Success notifications enabled');
+        setTimeout(() => setSuccessMessage(null), 3000);
+    };
+
+    const handleTogglePush = async (enable) => {
+        if (!pushSupported || pushLoading) return;
+        if (enable && !isVapidConfigured()) {
+            setErrorMessage(
+                'Push is not configured on this server. Add VAPID keys: run php artisan webpush:vapid, set VAPID_* and VITE_VAPID_PUBLIC_KEY in .env, then npm run build and deploy.',
+            );
+            setTimeout(() => setErrorMessage(null), 12000);
+            return;
+        }
+        setPushLoading(true);
+        setErrorMessage(null);
+        try {
+            if (enable) {
+                const subscription = await subscribeToPush();
+                if (!subscription) {
+                    setPushEnabled(false);
+                    setErrorMessage(
+                        'Could not enable push (permission denied, or browser blocked notifications). Check site settings and try again.',
+                    );
+                    setTimeout(() => setErrorMessage(null), 8000);
+                    return;
+                }
+                setPushEnabled(true);
+                setSuccessMessage('Push notifications enabled. You’ll get alerts even when the app is closed.');
+            } else {
+                await unsubscribeFromPush();
+                setPushEnabled(false);
+                setSuccessMessage('Push notifications disabled.');
+            }
+            setTimeout(() => setSuccessMessage(null), 3000);
+        } catch (err) {
+            setErrorMessage(err?.message || 'Could not update push notifications.');
+            if (enable) setPushEnabled(false);
+        } finally {
+            setPushLoading(false);
+        }
+    };
+
     const handleSave = async () => {
         try {
             const formDataToSend = new FormData();
@@ -176,7 +253,7 @@ export default function Profile() {
             
             await updateMutation.mutateAsync(formDataToSend);
         } catch (error) {
-            console.error('Failed to update profile:', error);
+            logger.error('Failed to update profile:', error);
         }
     };
 
@@ -588,6 +665,209 @@ export default function Profile() {
                                 )}
                         </div>
                     </div>
+                </div>
+            </div>
+
+            {/* Preferences Section */}
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden border-l-4 border-l-indigo-500 hover:shadow-xl transition-shadow mb-6">
+                <div className="p-6">
+                    <h3 className="text-lg font-bold text-[var(--theme-primary)] mb-4 flex items-center">
+                        <Bell className="w-5 h-5 mr-2" />
+                        Notification Preferences
+                    </h3>
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+                            <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                    {disableSuccessToasts ? (
+                                        <BellOff className="w-5 h-5 text-gray-500" />
+                                    ) : (
+                                        <Bell className="w-5 h-5 text-[var(--theme-primary)]" />
+                                    )}
+                                    <label className="text-sm font-semibold text-gray-900">
+                                        Success Task Notifications
+                                    </label>
+                                </div>
+                                <p className="text-xs text-gray-600 mt-1">
+                                    {disableSuccessToasts 
+                                        ? 'Success notifications are disabled for routine operations. Form submissions will still show success messages.'
+                                        : 'Show success notifications after completing tasks (create, update, delete). Form submissions always show success messages.'}
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => handleToggleSuccessToasts(!disableSuccessToasts)}
+                                className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)] focus:ring-offset-2 ${
+                                    disableSuccessToasts ? 'bg-gray-300' : 'bg-[var(--theme-primary)]'
+                                }`}
+                                role="switch"
+                                aria-checked={!disableSuccessToasts}
+                            >
+                                <span
+                                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                                        disableSuccessToasts ? 'translate-x-0' : 'translate-x-5'
+                                    }`}
+                                />
+                            </button>
+                        </div>
+                        {pushSupported && (
+                            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+                                <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <Smartphone className="w-5 h-5 text-[var(--theme-primary)]" />
+                                        <label className="text-sm font-semibold text-gray-900">
+                                            App push notifications (PWA)
+                                        </label>
+                                    </div>
+                                    <p className="text-xs text-gray-600 mt-1">
+                                        {pushEnabled
+                                            ? 'Receive notifications on this device when the app is in the background or closed.'
+                                            : 'Enable to get alerts (e.g. new incidents, reminders) on your device.'}
+                                    </p>
+                                    {!isVapidConfigured() && (
+                                        <p className="text-xs text-amber-800 mt-1">
+                                            Not available until the server sets VAPID keys (see .env.example:{' '}
+                                            <code className="text-[11px]">webpush:vapid</code>).
+                                        </p>
+                                    )}
+                                    {errorMessage && (
+                                        <p className="text-xs text-red-600 mt-1">{errorMessage}</p>
+                                    )}
+                                </div>
+                                <button
+                                    onClick={() => handleTogglePush(!pushEnabled)}
+                                    disabled={
+                                        pushLoading ||
+                                        (!isVapidConfigured() && !pushEnabled)
+                                    }
+                                    className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)] focus:ring-offset-2 disabled:opacity-50 ${
+                                        pushEnabled ? 'bg-[var(--theme-primary)]' : 'bg-gray-300'
+                                    }`}
+                                    role="switch"
+                                    aria-checked={pushEnabled}
+                                >
+                                    <span
+                                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                                            pushEnabled ? 'translate-x-5' : 'translate-x-0'
+                                        }`}
+                                    />
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {/* Notification Category Preferences */}
+            <NotificationCategoryPreferences />
+        </div>
+    );
+}
+
+function NotificationCategoryPreferences() {
+    const { data, isLoading } = useQuery({
+        queryKey: ['notification-settings'],
+        queryFn: async () => {
+            const res = await api.get('/notification-settings');
+            return res.data.preferences;
+        },
+    });
+
+    const queryClient = useQueryClient();
+    const [localPrefs, setLocalPrefs] = React.useState(null);
+    const [saving, setSaving] = React.useState(false);
+
+    React.useEffect(() => {
+        if (data && !localPrefs) setLocalPrefs(data);
+    }, [data]);
+
+    const prefs = localPrefs || data || [];
+
+    const togglePref = (key, channel) => {
+        setLocalPrefs(prev => prev.map(p =>
+            p.key === key ? { ...p, [channel]: !p[channel] } : p
+        ));
+    };
+
+    const handleSave = async () => {
+        setSaving(true);
+        try {
+            await api.put('/notification-settings', {
+                preferences: prefs.map(p => ({
+                    key: p.key,
+                    in_app_enabled: p.in_app_enabled,
+                    email_enabled: p.email_enabled,
+                    push_enabled: p.push_enabled,
+                })),
+            });
+            queryClient.invalidateQueries({ queryKey: ['notification-settings'] });
+        } catch (err) {
+            // silently fail
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    if (isLoading) return null;
+
+    const hasChanges = JSON.stringify(prefs) !== JSON.stringify(data);
+
+    return (
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden border-l-4 border-l-purple-500 hover:shadow-xl transition-shadow mb-6">
+            <div className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-bold text-[var(--theme-primary)] flex items-center">
+                        <Filter className="w-5 h-5 mr-2" />
+                        Notification Categories
+                    </h3>
+                    {hasChanges && (
+                        <button
+                            onClick={handleSave}
+                            disabled={saving}
+                            className="px-4 py-1.5 bg-[var(--theme-primary)] text-white text-sm font-medium rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+                        >
+                            {saving ? 'Saving...' : 'Save Changes'}
+                        </button>
+                    )}
+                </div>
+                <p className="text-xs text-gray-500 mb-4">Choose which notification types you want to receive.</p>
+
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                        <thead>
+                            <tr className="border-b border-gray-200">
+                                <th className="text-left py-2 pr-4 font-semibold text-gray-700">Category</th>
+                                <th className="text-center py-2 px-3 font-semibold text-gray-700">In-App</th>
+                                <th className="text-center py-2 px-3 font-semibold text-gray-700">Email</th>
+                                <th className="text-center py-2 px-3 font-semibold text-gray-700">Push</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {prefs.map(pref => (
+                                <tr key={pref.key} className="border-b border-gray-100 last:border-0">
+                                    <td className="py-3 pr-4">
+                                        <p className="font-medium text-gray-900">{pref.label}</p>
+                                        <p className="text-xs text-gray-500">{pref.description}</p>
+                                    </td>
+                                    {['in_app_enabled', 'email_enabled', 'push_enabled'].map(channel => (
+                                        <td key={channel} className="text-center py-3 px-3">
+                                            <button
+                                                onClick={() => togglePref(pref.key, channel)}
+                                                className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ${
+                                                    pref[channel] ? 'bg-[var(--theme-primary)]' : 'bg-gray-300'
+                                                }`}
+                                                role="switch"
+                                                aria-checked={pref[channel]}
+                                            >
+                                                <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow transition duration-200 ${
+                                                    pref[channel] ? 'translate-x-4' : 'translate-x-0'
+                                                }`} />
+                                            </button>
+                                        </td>
+                                    ))}
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>

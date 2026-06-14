@@ -33,7 +33,7 @@ class AdminSystemHealthWidget extends Widget
             // Data completeness
             $residentsWithCompleteData = Resident::where('is_active', true)
                 ->whereHas('vitalSigns')
-                ->whereHas('medications')
+                ->whereHas('medicationOrders')
                 ->count();
             $totalActiveResidents = Resident::where('is_active', true)->count();
             $dataCompleteness = $totalActiveResidents > 0 

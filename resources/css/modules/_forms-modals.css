@@ -1,0 +1,56 @@
+/* Labels in modals and forms */
+div[class*="bg-gray-50"] label,
+div[class*="bg-white"] label,
+.bg-gray-50 label,
+.bg-white label,
+form label,
+label[for],
+label[htmlFor],
+[role="dialog"] label,
+.fixed label,
+.z-50 label,
+.fixed div.bg-white label,
+.fixed .bg-white label,
+div[class*="backdrop-blur"] label {
+    color: #111827 !important;
+    font-weight: 600 !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+/* Inputs in white/gray containers */
+div[class*="bg-gray-50"] input[type="text"],
+div[class*="bg-gray-50"] input[type="date"],
+div[class*="bg-gray-50"] input[type="email"],
+div[class*="bg-gray-50"] input[type="tel"],
+div[class*="bg-gray-50"] input[type="password"],
+div[class*="bg-gray-50"] textarea,
+div[class*="bg-gray-50"] select,
+div[class*="bg-white"] input[type="text"],
+div[class*="bg-white"] input[type="date"],
+div[class*="bg-white"] input[type="email"],
+div[class*="bg-white"] input[type="tel"],
+div[class*="bg-white"] input[type="password"],
+div[class*="bg-white"] textarea,
+div[class*="bg-white"] select,
+.bg-gray-50 input,
+.bg-gray-50 textarea,
+.bg-gray-50 select,
+.bg-white input,
+.bg-white textarea,
+.bg-white select {
+    color: #000000 !important;
+}
+
+/* Placeholder colors */
+div[class*="bg-gray-50"] input::placeholder,
+div[class*="bg-gray-50"] textarea::placeholder,
+div[class*="bg-white"] input::placeholder,
+div[class*="bg-white"] textarea::placeholder,
+.bg-gray-50 input::placeholder,
+.bg-gray-50 textarea::placeholder,
+.bg-white input::placeholder,
+.bg-white textarea::placeholder {
+    color: #000000 !important;
+    opacity: 0.6;
+}

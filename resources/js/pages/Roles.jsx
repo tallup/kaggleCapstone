@@ -3,6 +3,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import { Shield, Plus, Edit, Trash2 } from 'lucide-react';
 import FacilityPermissions from './FacilityPermissions';
+import logger from '../utils/logger';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
+import Modal from '../components/ui/Modal';
+import Tooltip from '../components/ui/Tooltip';
+import EntityCardShell, { EntityCardHeader } from '../components/ui/EntityCardShell';
+import CardIconButton from '../components/ui/CardIconButton';
+import { DataPillSection } from '../components/ui/DataPill';
 
 export default function Roles() {
   const queryClient = useQueryClient();
@@ -45,6 +52,8 @@ export default function Roles() {
     onSuccess: () => queryClient.invalidateQueries(['roles']),
   });
 
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+
   // For facility admin, load their facility using useQuery
   const { data: facilityData, isLoading: facilityLoading, error: facilityError } = useQuery({
     queryKey: ['facility', currentUser?.facility_id],
@@ -59,7 +68,7 @@ export default function Roles() {
         }
         return res;
       } catch (error) {
-        console.error('Error fetching facility:', error);
+        logger.error('Error fetching facility:', error);
         throw error;
       }
     },
@@ -119,6 +128,21 @@ export default function Roles() {
   }
 
   return (
+    <>
+      <ConfirmDialog
+        isOpen={deleteConfirmId != null}
+        onClose={() => !deleteMutation.isPending && setDeleteConfirmId(null)}
+        onConfirm={() => {
+          if (deleteConfirmId == null) return;
+          deleteMutation.mutate(deleteConfirmId, { onSuccess: () => setDeleteConfirmId(null) });
+        }}
+        title="Delete this role?"
+        description="Users assigned this role may be affected."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        isPending={deleteMutation.isPending}
+      />
     <div>
       <div className="bg-white rounded-lg shadow p-6 mb-6">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
@@ -139,20 +163,44 @@ export default function Roles() {
         <div className="space-y-4">
           {rolesData?.data?.length ? (
             rolesData.data.map((role) => (
-              <div key={role.id} className="bg-white rounded-lg shadow p-6">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start space-x-3">
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900">{role.name}</h3>
-                      <p className="text-sm text-gray-500 mt-1">{role.permissions?.map(p => p.name).join(', ') || 'No permissions'}</p>
+              <EntityCardShell key={role.id}>
+                <EntityCardHeader
+                  left={
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Shield className="h-6 w-6 shrink-0 text-[var(--theme-primary)]" />
                     </div>
-                  </div>
-                  <div className="flex space-x-2">
-                    <button onClick={() => { setEditing(role); setShowForm(true); }} className="p-2 text-[var(--theme-primary)] hover:bg-green-50 rounded-lg" title="Edit"><Edit className="w-4 h-4" /></button>
-                    <button onClick={() => window.confirm('Delete role?') && deleteMutation.mutate(role.id)} className="p-2 text-[var(--theme-secondary)] hover:bg-amber-50 rounded-lg" title="Delete"><Trash2 className="w-4 h-4" /></button>
-                  </div>
-                </div>
-              </div>
+                  }
+                  right={
+                    <>
+                      <Tooltip content="Edit role" position="top">
+                        <CardIconButton
+                          variant="edit"
+                          icon={Edit}
+                          aria-label="Edit role"
+                          onClick={() => {
+                            setEditing(role);
+                            setShowForm(true);
+                          }}
+                        />
+                      </Tooltip>
+                      <Tooltip content="Delete role" position="top">
+                        <CardIconButton
+                          variant="delete"
+                          icon={Trash2}
+                          aria-label="Delete role"
+                          onClick={() => setDeleteConfirmId(role.id)}
+                        />
+                      </Tooltip>
+                    </>
+                  }
+                />
+                <h3 className="text-lg font-bold leading-snug text-slate-900 sm:text-xl">{role.name}</h3>
+                <DataPillSection label="Permissions" className="mt-4">
+                  <p className="text-sm text-slate-600">
+                    {role.permissions?.map((p) => p.name).join(', ') || 'No permissions assigned'}
+                  </p>
+                </DataPillSection>
+              </EntityCardShell>
             ))
           ) : (
             <div className="bg-white rounded-lg shadow p-12 text-center">
@@ -163,15 +211,22 @@ export default function Roles() {
         </div>
       )}
 
-      {showForm && (
+      <Modal
+        isOpen={showForm}
+        onClose={() => { setShowForm(false); setEditing(null); }}
+        title={editing ? 'Edit Role' : 'Add Role'}
+        size="xl"
+      >
         <RoleForm
+          key={editing?.id ?? 'new'}
           record={editing}
           permissions={permissions || []}
           onClose={() => { setShowForm(false); setEditing(null); }}
           onSuccess={() => { setShowForm(false); setEditing(null); queryClient.invalidateQueries(['roles']); }}
         />
-      )}
+      </Modal>
     </div>
+    </>
   );
 }
 
@@ -210,79 +265,65 @@ function RoleForm({ record, permissions, onClose, onSuccess }) {
     }
   };
 
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col">
-        {/* Header - Fixed */}
-        <div className="flex-shrink-0 p-6 border-b border-gray-200">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold text-gray-900">
-              {record ? 'Edit Role' : 'Add Role'}
-            </h2>
-            <button
-              onClick={onClose}
-              className="text-gray-500 hover:text-gray-700"
-            >
-              ✕
-            </button>
-          </div>
+  const formBlock = (
+    <>
+      {errors.general && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg"><p className="text-sm text-red-800">{errors.general}</p></div>}
+      <form id="role-form" onSubmit={handleSubmit} className="space-y-6">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Role Name *
+          </label>
+          <input
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            required
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
+          />
+          {errors.name && <p className="text-xs text-red-600 mt-1">{errors.name[0]}</p>}
         </div>
-        
-        {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto p-6">
-          {errors.general && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg"><p className="text-sm text-red-800">{errors.general}</p></div>}
-          <form id="role-form" onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Role Name *
+        <div>
+          <p className="text-sm font-medium text-gray-700 mb-2">Permissions</p>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-72 overflow-y-auto p-2 border rounded">
+            {permissions.map((perm) => (
+              <label key={perm.id} className="flex items-center space-x-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={form.permissions.includes(perm.name)}
+                  onChange={() => togglePermission(perm.name)}
+                />
+                <span>{perm.name}</span>
               </label>
-              <input
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
-              />
-              {errors.name && <p className="text-xs text-red-600 mt-1">{errors.name[0]}</p>}
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-700 mb-2">Permissions</p>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-72 overflow-y-auto p-2 border rounded">
-                {permissions.map((perm) => (
-                  <label key={perm.id} className="flex items-center space-x-2 text-sm text-gray-700">
-                    <input
-                      type="checkbox"
-                      checked={form.permissions.includes(perm.name)}
-                      onChange={() => togglePermission(perm.name)}
-                    />
-                    <span>{perm.name}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          </form>
-        </div>
-        
-        {/* Footer - Fixed */}
-        <div className="flex-shrink-0 p-6 border-t border-gray-200">
-          <div className="flex justify-end space-x-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              form="role-form"
-              disabled={submitting}
-              className="px-4 py-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] rounded-lg hover:bg-[var(--theme-primary-hover)] transition-colors disabled:opacity-50"
-            >
-              {submitting ? 'Saving...' : (record ? 'Update' : 'Create')}
-            </button>
+            ))}
           </div>
         </div>
-      </div>
+      </form>
+    </>
+  );
+
+  const footer = (
+    <div className={`flex justify-end space-x-3 ${inModal ? 'pt-4 border-t border-gray-200 mt-4' : 'flex-shrink-0 p-6 border-t border-gray-200'}`}>
+      <button
+        type="button"
+        onClick={onClose}
+        className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+      >
+        Cancel
+      </button>
+      <button
+        type="submit"
+        form="role-form"
+        disabled={submitting}
+        className="px-4 py-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] rounded-lg hover:bg-[var(--theme-primary-hover)] transition-colors disabled:opacity-50"
+      >
+        {submitting ? 'Saving...' : (record ? 'Update' : 'Create')}
+      </button>
+    </div>
+  );
+
+  return (
+    <div className="space-y-2">
+      {formBlock}
+      {footer}
     </div>
   );
 }

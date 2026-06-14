@@ -2,6 +2,13 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { UserX, RefreshCcw, Home, Building, Mail, Phone, Calendar, Repeat2 } from 'lucide-react';
 import api from '../services/api';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
+import Tooltip from '../components/ui/Tooltip';
+import EntityCardShell, { EntityCardHeader } from '../components/ui/EntityCardShell';
+import CardIconButton from '../components/ui/CardIconButton';
+import DataPill from '../components/ui/DataPill';
+import ResidentAvatarInline from '../components/ui/ResidentAvatarInline';
+import ResidentStatusBadges from '../components/residents/ResidentStatusBadges';
 
 function EmptyState({ title, description }) {
     return (
@@ -15,6 +22,7 @@ function EmptyState({ title, description }) {
 
 export default function DeactivatedRecords() {
     const [activeTab, setActiveTab] = useState('residents');
+    const [reactivateConfirm, setReactivateConfirm] = useState(null);
     const queryClient = useQueryClient();
 
     const {
@@ -42,7 +50,7 @@ export default function DeactivatedRecords() {
     });
 
     const reactivateResidentMutation = useMutation({
-        mutationFn: async (residentId) => api.put(`/residents/${residentId}`, { is_active: true }),
+        mutationFn: async (residentId) => api.post(`/residents/${residentId}/status`, { lifecycle_status: 'active' }),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['deactivated-residents'] });
             queryClient.invalidateQueries({ queryKey: ['residents'] });
@@ -61,15 +69,25 @@ export default function DeactivatedRecords() {
 
     const handleReactivateResident = (resident) => {
         if (!resident?.id) return;
-        if (window.confirm(`Reactivate ${resident.first_name || resident.name || 'this resident'}?`)) {
-            reactivateResidentMutation.mutate(resident.id);
-        }
+        const label =
+            `${resident.first_name || ''} ${resident.last_name || ''}`.trim() ||
+            resident.name ||
+            'this resident';
+        setReactivateConfirm({ type: 'resident', id: resident.id, label });
     };
 
     const handleReactivateUser = (user) => {
         if (!user?.id) return;
-        if (window.confirm(`Reactivate ${user.name || user.email}?`)) {
-            reactivateUserMutation.mutate(user.id);
+        setReactivateConfirm({ type: 'user', id: user.id, label: user.name || user.email || 'this user' });
+    };
+
+    const handleConfirmReactivate = () => {
+        if (!reactivateConfirm) return;
+        const done = () => setReactivateConfirm(null);
+        if (reactivateConfirm.type === 'resident') {
+            reactivateResidentMutation.mutate(reactivateConfirm.id, { onSuccess: done });
+        } else {
+            reactivateUserMutation.mutate(reactivateConfirm.id, { onSuccess: done });
         }
     };
 
@@ -96,66 +114,75 @@ export default function DeactivatedRecords() {
         if (!residents.length) {
             return (
                 <EmptyState
-                    title="No deactivated residents"
-                    description="All residents are currently active. When a resident is deactivated, they will appear here for quick review and reactivation."
+                    title="No non-active residents"
+                    description="All residents are currently active. Discharged, transferred, deceased, or inactive residents will appear here for review."
                 />
             );
         }
 
         return (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {residents.map((resident) => (
-                    <div key={resident.id} className="bg-white border border-gray-200 rounded-xl shadow-sm p-5 flex flex-col gap-4">
-                        <div className="flex items-start justify-between">
-                            <div>
-                                <h3 className="text-lg font-semibold text-gray-900">
-                                    {resident.first_name || resident.last_name
-                                        ? `${resident.first_name || ''} ${resident.last_name || ''}`.trim()
-                                        : resident.name || 'Resident'}
-                                </h3>
-                                {resident.status && (
-                                    <p className="text-xs uppercase tracking-wide text-gray-500 mt-1">Status: {resident.status}</p>
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                {residents.map((resident) => {
+                    const displayName =
+                        resident.first_name || resident.last_name
+                            ? `${resident.first_name || ''} ${resident.last_name || ''}`.trim()
+                            : resident.name || 'Resident';
+                    return (
+                        <EntityCardShell
+                            key={resident.id}
+                            className="border-red-200/90 bg-red-50/60 hover:border-red-300/90"
+                        >
+                            <EntityCardHeader
+                                left={
+                                    <div className="flex flex-wrap items-start gap-3">
+                                        <ResidentAvatarInline resident={resident} className="h-10 w-10 text-xs" />
+                                        <div className="space-y-2">
+                                            <ResidentStatusBadges resident={resident} showCensus />
+                                        </div>
+                                    </div>
+                                }
+                                right={
+                                    <Tooltip content="Reactivate resident" position="top">
+                                        <CardIconButton
+                                            variant="primary"
+                                            icon={Repeat2}
+                                            aria-label="Reactivate resident"
+                                            disabled={
+                                                reactivateResidentMutation.isPending &&
+                                                reactivateResidentMutation.variables === resident.id
+                                            }
+                                            onClick={() => handleReactivateResident(resident)}
+                                        />
+                                    </Tooltip>
+                                }
+                            />
+                            <h3 className="text-lg font-bold leading-snug text-slate-900 sm:text-xl">{displayName}</h3>
+                            <div className="mt-4 grid grid-cols-1 gap-2.5">
+                                {resident.branch && (
+                                    <DataPill icon={Building}>
+                                        <span className="font-normal text-slate-600">{resident.branch.name}</span>
+                                    </DataPill>
+                                )}
+                                {resident.room_number && (
+                                    <DataPill icon={Home}>
+                                        <span className="font-normal text-slate-600">Room {resident.room_number}</span>
+                                    </DataPill>
+                                )}
+                                {resident.admission_date && (
+                                    <DataPill icon={Calendar}>
+                                        <span className="font-normal text-slate-600">
+                                            Admitted {new Date(resident.admission_date).toLocaleDateString()}
+                                        </span>
+                                    </DataPill>
                                 )}
                             </div>
-                            <span className="inline-flex items-center px-3 py-1 text-xs font-medium bg-red-100 text-red-700 rounded-full">
-                                Inactive
-                            </span>
-                        </div>
-                        <div className="grid grid-cols-1 gap-3 text-sm">
-                            {resident.branch && (
-                                <div className="flex items-center text-gray-600">
-                                    <Building className="w-4 h-4 mr-2 text-gray-400" />
-                                    <span>{resident.branch.name}</span>
-                                </div>
-                            )}
-                            {resident.room_number && (
-                                <div className="flex items-center text-gray-600">
-                                    <Home className="w-4 h-4 mr-2 text-gray-400" />
-                                    <span>Room {resident.room_number}</span>
-                                </div>
-                            )}
-                            {resident.admission_date && (
-                                <div className="flex items-center text-gray-600">
-                                    <Calendar className="w-4 h-4 mr-2 text-gray-400" />
-                                    <span>Admitted {new Date(resident.admission_date).toLocaleDateString()}</span>
-                                </div>
-                            )}
-                        </div>
-                        <div className="flex items-center justify-between pt-2">
-                            <div className="text-xs text-gray-500">
-                                Last updated {resident.updated_at ? new Date(resident.updated_at).toLocaleDateString() : 'N/A'}
-                            </div>
-                            <button
-                                onClick={() => handleReactivateResident(resident)}
-                                disabled={reactivateResidentMutation.isPending && reactivateResidentMutation.variables === resident.id}
-                                className="inline-flex items-center px-3 py-2 text-sm font-medium rounded-lg bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] hover:bg-[var(--theme-primary-hover)] transition"
-                            >
-                                <Repeat2 className="w-4 h-4 mr-2" />
-                                Reactivate
-                            </button>
-                        </div>
-                    </div>
-                ))}
+                            <p className="mt-4 text-xs text-slate-400">
+                                Last updated{' '}
+                                {resident.updated_at ? new Date(resident.updated_at).toLocaleDateString() : 'N/A'}
+                            </p>
+                        </EntityCardShell>
+                    );
+                })}
             </div>
         );
     };
@@ -190,52 +217,68 @@ export default function DeactivatedRecords() {
         }
 
         return (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                 {users.map((user) => (
-                    <div key={user.id} className="bg-white border border-gray-200 rounded-xl shadow-sm p-5 flex flex-col gap-4">
-                        <div className="flex items-start justify-between">
-                            <div>
-                                <h3 className="text-lg font-semibold text-gray-900">{user.name || 'User'}</h3>
-                                <p className="text-sm text-gray-500 capitalize">{user.role?.replace(/_/g, ' ') || 'Role not set'}</p>
-                            </div>
-                            <span className="inline-flex items-center px-3 py-1 text-xs font-medium bg-red-100 text-red-700 rounded-full">
-                                Inactive
-                            </span>
-                        </div>
-                        <div className="grid grid-cols-1 gap-3 text-sm">
-                            {user.email && (
-                                <div className="flex items-center text-gray-600">
-                                    <Mail className="w-4 h-4 mr-2 text-gray-400" />
-                                    <span className="truncate">{user.email}</span>
+                    <EntityCardShell
+                        key={user.id}
+                        className="border-red-200/90 bg-red-50/60 hover:border-red-300/90"
+                    >
+                        <EntityCardHeader
+                            left={
+                                <div className="flex flex-wrap items-start gap-3">
+                                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-200 text-sm font-bold uppercase text-slate-700">
+                                        {user.name?.charAt(0)?.toUpperCase() || user.email?.charAt(0)?.toUpperCase() || 'U'}
+                                    </div>
+                                    <div className="space-y-2">
+                                        <span className="inline-flex rounded-full border border-red-200 bg-red-50 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-red-800">
+                                            Inactive
+                                        </span>
+                                    </div>
                                 </div>
+                            }
+                            right={
+                                <Tooltip content="Reactivate user" position="top">
+                                    <CardIconButton
+                                        variant="primary"
+                                        icon={Repeat2}
+                                        aria-label="Reactivate user"
+                                        disabled={
+                                            reactivateUserMutation.isPending &&
+                                            reactivateUserMutation.variables === user.id
+                                        }
+                                        onClick={() => handleReactivateUser(user)}
+                                    />
+                                </Tooltip>
+                            }
+                        />
+                        <h3 className="text-lg font-bold leading-snug text-slate-900 sm:text-xl">
+                            {user.name || 'User'}
+                        </h3>
+                        <p className="mt-1 text-sm capitalize text-slate-500">
+                            {user.role?.replace(/_/g, ' ') || 'Role not set'}
+                        </p>
+                        <div className="mt-4 grid grid-cols-1 gap-2.5">
+                            {user.email && (
+                                <DataPill icon={Mail}>
+                                    <span className="truncate font-normal text-slate-600">{user.email}</span>
+                                </DataPill>
                             )}
                             {user.phone_number && (
-                                <div className="flex items-center text-gray-600">
-                                    <Phone className="w-4 h-4 mr-2 text-gray-400" />
-                                    <span>{user.phone_number}</span>
-                                </div>
+                                <DataPill icon={Phone}>
+                                    <span className="font-normal text-slate-600">{user.phone_number}</span>
+                                </DataPill>
                             )}
                             {user.assigned_branch && (
-                                <div className="flex items-center text-gray-600">
-                                    <Building className="w-4 h-4 mr-2 text-gray-400" />
-                                    <span>{user.assigned_branch.name}</span>
-                                </div>
+                                <DataPill icon={Building}>
+                                    <span className="font-normal text-slate-600">{user.assigned_branch.name}</span>
+                                </DataPill>
                             )}
                         </div>
-                        <div className="flex items-center justify-between pt-2">
-                            <div className="text-xs text-gray-500">
-                                Last updated {user.updated_at ? new Date(user.updated_at).toLocaleDateString() : 'N/A'}
-                            </div>
-                            <button
-                                onClick={() => handleReactivateUser(user)}
-                                disabled={reactivateUserMutation.isPending && reactivateUserMutation.variables === user.id}
-                                className="inline-flex items-center px-3 py-2 text-sm font-medium rounded-lg bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] hover:bg-[var(--theme-primary-hover)] transition"
-                            >
-                                <Repeat2 className="w-4 h-4 mr-2" />
-                                Reactivate
-                            </button>
-                        </div>
-                    </div>
+                        <p className="mt-4 text-xs text-slate-400">
+                            Last updated{' '}
+                            {user.updated_at ? new Date(user.updated_at).toLocaleDateString() : 'N/A'}
+                        </p>
+                    </EntityCardShell>
                 ))}
             </div>
         );
@@ -243,12 +286,27 @@ export default function DeactivatedRecords() {
 
     return (
         <div className="space-y-6">
+            <ConfirmDialog
+                isOpen={reactivateConfirm != null}
+                onClose={() =>
+                    !reactivateResidentMutation.isPending &&
+                    !reactivateUserMutation.isPending &&
+                    setReactivateConfirm(null)
+                }
+                onConfirm={handleConfirmReactivate}
+                title="Reactivate this record?"
+                description={reactivateConfirm ? `Reactivate ${reactivateConfirm.label}?` : ''}
+                confirmLabel="Reactivate"
+                cancelLabel="Cancel"
+                variant="primary"
+                isPending={reactivateResidentMutation.isPending || reactivateUserMutation.isPending}
+            />
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     <div>
-                        <h1 className="text-2xl font-semibold text-gray-900">Inactive Records</h1>
+                        <h1 className="text-2xl font-semibold text-gray-900">Non-active Records</h1>
                         <p className="text-sm text-gray-600 mt-1">
-                            Review all deactivated residents and staff members in one place and quickly reactivate them when needed.
+                            Review non-active residents and deactivated staff members in one place and reactivate them when needed.
                         </p>
                     </div>
                     <div className="flex items-center space-x-2 text-xs text-gray-500">

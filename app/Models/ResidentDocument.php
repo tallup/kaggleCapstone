@@ -2,10 +2,9 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Support\Facades\Storage;
 
 class ResidentDocument extends Model
 {
@@ -45,16 +44,16 @@ class ResidentDocument extends Model
 
     public function getFileUrlAttribute(): ?string
     {
-        if (!$this->file_path) {
+        if (! $this->file_path) {
             return null;
         }
 
-        return Storage::disk('public')->url($this->file_path);
+        return $this->id ? "/api/v1/resident-documents/{$this->id}/download" : null;
     }
 
     public function getFileSizeHumanAttribute(): ?string
     {
-        if (!$this->file_size) {
+        if (! $this->file_size) {
             return null;
         }
 
@@ -67,8 +66,6 @@ class ResidentDocument extends Model
             $unit++;
         }
 
-        return round($size, 2) . ' ' . $units[$unit];
+        return round($size, 2).' '.$units[$unit];
     }
 }
-
-

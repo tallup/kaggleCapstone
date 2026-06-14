@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import api from '../services/api';
+import api, { clearStoredAuth } from '../services/api';
+import { clearCachedCurrentUser, clearFacilityBrandingStash } from '../queries/currentUser';
 import { Clock, MapPin, CheckCircle, AlertCircle, TrendingUp } from 'lucide-react';
 import { getUserLocation } from '../utils/location';
 import SectionCard from '../components/SectionCard';
+import logger from '../utils/logger';
 
 export default function StaffClock() {
     const queryClient = useQueryClient();
@@ -58,7 +60,7 @@ export default function StaffClock() {
                     setLocation(loc);
                 }
             } catch (err) {
-                console.warn('Failed to get location:', err);
+                logger.warn('Failed to get location:', err);
             } finally {
                 setLocationLoading(false);
             }
@@ -106,11 +108,21 @@ export default function StaffClock() {
                 longitude: location?.longitude || null,
             });
         },
-        onSuccess: () => {
+        onSuccess: async () => {
             queryClient.invalidateQueries(['staff-clock-in-current']);
             queryClient.invalidateQueries(['staff-clock-ins-stats']);
             queryClient.invalidateQueries(['staff-clock-ins']);
             setError('');
+            try {
+                await api.post('/logout');
+            } catch (err) {
+                logger.error('Logout after clock-out failed:', err);
+            } finally {
+                clearCachedCurrentUser(queryClient);
+                clearStoredAuth();
+                clearFacilityBrandingStash();
+                window.location.href = '/login';
+            }
         },
         onError: (err) => {
             setError(err.response?.data?.message || 'Failed to clock out');

@@ -1,8 +1,11 @@
 import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Sparkles, CalendarDays, RefreshCcw, CheckCircle2, XCircle, Loader2, StickyNote, Info } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import { Sparkles, CalendarDays, RefreshCcw, CheckCircle2, XCircle, Loader2, StickyNote, Info, Building2 } from 'lucide-react';
 import api from '../services/api';
 import { getLocalDateString } from '../utils/pacificTime';
+import BranchSelector from '../components/BranchSelector';
+import Modal from '../components/ui/Modal';
 
 const getStatusStyles = (status) => {
     switch (status) {
@@ -17,18 +20,34 @@ const getStatusStyles = (status) => {
 };
 
 export default function Housekeeping() {
+    const [searchParams] = useSearchParams();
+    const selectedBranchId = searchParams.get('branch');
     const queryClient = useQueryClient();
     const [selectedDate, setSelectedDate] = React.useState(() => getLocalDateString());
     const [skipNotesModal, setSkipNotesModal] = React.useState({ open: false, taskId: null, notes: '' });
+    const [expandedSkipTask, setExpandedSkipTask] = React.useState(null); // Track which task is showing skip input
+    const [skipNotes, setSkipNotes] = React.useState({}); // Store skip notes per task
 
-    const { data, isLoading, error, isFetching } = useQuery({
-        queryKey: ['cleaning-checklists', selectedDate],
+    const { data: currentUser } = useQuery({
+        queryKey: ['current-user'],
         queryFn: async () => {
-            const response = await api.get('/cleaning/checklists', {
-                params: { date: selectedDate },
-            });
+            const response = await api.get('/user');
             return response.data;
         },
+        staleTime: 5 * 60 * 1000,
+    });
+
+    const { data, isLoading, error, isFetching } = useQuery({
+        queryKey: ['cleaning-checklists', selectedDate, selectedBranchId],
+        queryFn: async () => {
+            const params = { date: selectedDate };
+            if (selectedBranchId) {
+                params.branch_id = selectedBranchId;
+            }
+            const response = await api.get('/cleaning/checklists', { params });
+            return response.data;
+        },
+        enabled: !!selectedBranchId, // Only fetch if branch is selected
         staleTime: 30 * 1000, // Cache for 30 seconds - checklist data changes frequently
         keepPreviousData: true,
     });
@@ -59,6 +78,8 @@ export default function Housekeeping() {
             await mutation.mutateAsync({ taskId, status, notes });
             if (status === 'skipped') {
                 setSkipNotesModal({ open: false, taskId: null, notes: '' });
+                setExpandedSkipTask(null);
+                setSkipNotes({ ...skipNotes, [taskId]: '' });
             }
         } catch (err) {
             const apiMessage = err?.response?.data?.message ?? err?.message ?? 'Unable to update task.';
@@ -67,13 +88,28 @@ export default function Housekeeping() {
     };
 
     const handleSkipClick = (taskId) => {
-        setSkipNotesModal({ open: true, taskId, notes: '' });
+        // Toggle inline skip input for this task
+        if (expandedSkipTask === taskId) {
+            setExpandedSkipTask(null);
+        } else {
+            setExpandedSkipTask(taskId);
+            // Initialize notes if not already set
+            if (!skipNotes[taskId]) {
+                setSkipNotes({ ...skipNotes, [taskId]: '' });
+            }
+        }
     };
 
-    const handleSkipSubmit = () => {
-        if (skipNotesModal.taskId) {
-            handleStatusUpdate(skipNotesModal.taskId, 'skipped', skipNotesModal.notes);
-        }
+    const handleSkipSubmit = (taskId) => {
+        const notes = skipNotes[taskId] || '';
+        handleStatusUpdate(taskId, 'skipped', notes);
+        setExpandedSkipTask(null);
+        setSkipNotes({ ...skipNotes, [taskId]: '' });
+    };
+
+    const handleSkipCancel = (taskId) => {
+        setExpandedSkipTask(null);
+        setSkipNotes({ ...skipNotes, [taskId]: '' });
     };
 
     const isToday = React.useMemo(() => {
@@ -110,11 +146,12 @@ export default function Housekeeping() {
         const completedOnSelectedDate =
             Boolean(task.completed_at) && String(task.completed_at).slice(0, 10) === selectedDate;
         const disabled = mutation.isLoading || completedOnSelectedDate || !windowOk;
+        const isSkipExpanded = expandedSkipTask === task.id;
 
         return (
             <div key={task.id} className="rounded-2xl border border-gray-100 bg-white/80 p-4 shadow-sm">
                 <div className="flex items-start justify-between gap-4">
-                    <div>
+                    <div className="flex-1">
                         <div className="flex items-center gap-3">
                             <h4 className="text-base font-semibold text-gray-900">{task.title}</h4>
                             <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1" style={badgeStyles}>
@@ -142,6 +179,56 @@ export default function Housekeeping() {
                                 <span>Completed at {new Date(task.completed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                             ) : null}
                         </div>
+                        
+                        {/* Inline Skip Reason Input */}
+                        {isSkipExpanded && (
+                            <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4">
+                                <label htmlFor={`skip-reason-${task.id}`} className="block text-sm font-semibold text-gray-900 mb-2">
+                                    Reason for skipping <span className="text-gray-500 font-normal text-xs">(optional)</span>
+                                </label>
+                                <textarea
+                                    id={`skip-reason-${task.id}`}
+                                    value={skipNotes[task.id] || ''}
+                                    onChange={(e) => setSkipNotes({ ...skipNotes, [task.id]: e.target.value })}
+                                    placeholder="Enter reason for skipping this task..."
+                                    rows={3}
+                                    maxLength={1000}
+                                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                                />
+                                <div className="mt-2 flex items-center justify-between">
+                                    <p className="text-xs text-gray-500">
+                                        {(skipNotes[task.id] || '').length}/1000 characters
+                                    </p>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => handleSkipCancel(task.id)}
+                                            className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => handleSkipSubmit(task.id)}
+                                            disabled={mutation.isLoading}
+                                            className="px-3 py-1.5 text-sm font-semibold text-white bg-amber-500 rounded-lg hover:bg-amber-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1.5"
+                                        >
+                                            {mutation.isLoading ? (
+                                                <>
+                                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                    Skipping...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <XCircle className="h-3.5 w-3.5" />
+                                                    Skip Task
+                                                </>
+                                            )}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
                     <div className="flex flex-col gap-2">
                         <button
@@ -156,12 +243,12 @@ export default function Housekeeping() {
                         </button>
                         <button
                             type="button"
-                            disabled={disabled}
+                            disabled={disabled || isSkipExpanded}
                             onClick={() => handleSkipClick(task.id)}
-                            className="inline-flex items-center justify-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-700 ring-1 ring-amber-200 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:bg-amber-50 disabled:text-amber-300"
+                            className="inline-flex items-center justify-center gap-2 rounded-lg bg-amber-500 px-3 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-amber-600 disabled:cursor-not-allowed disabled:bg-amber-300 disabled:text-amber-100"
                         >
                             <XCircle className="h-4 w-4" />
-                            Skip
+                            {isSkipExpanded ? 'Cancel' : 'Skip'}
                         </button>
                     </div>
                 </div>
@@ -169,8 +256,23 @@ export default function Housekeeping() {
         );
     };
 
+    // Show branch selector and wait for branch selection
+    if (!selectedBranchId) {
+        return (
+            <div className="space-y-6">
+                <BranchSelector currentUser={currentUser} />
+                <div className="rounded-xl bg-white p-8 text-center shadow-sm ring-1 ring-gray-100">
+                    <Building2 className="mx-auto h-12 w-12 text-gray-400" />
+                    <p className="mt-4 text-sm font-semibold text-gray-700">Please select a branch to continue</p>
+                    <p className="mt-2 text-xs text-gray-500">Select a branch from the dropdown above to view and manage housekeeping checklists.</p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-6">
+            <BranchSelector currentUser={currentUser} />
             <header 
                 className="rounded-3xl p-6 text-white shadow-lg" 
                 style={{ 
@@ -266,68 +368,63 @@ export default function Housekeeping() {
                 ))
             )}
 
-            {/* Skip Notes Modal */}
-            {skipNotesModal.open && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-                    <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
-                        <div className="mb-6">
-                            <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--theme-primary)' }}>
-                                Skip Task
-                            </p>
-                            <h3 className="text-xl font-semibold text-gray-900">Enter reason for skipping</h3>
-                            <p className="mt-1 text-sm text-gray-500">
-                                Add a note explaining why this task is being skipped (optional)
-                            </p>
-                        </div>
-                        <div className="space-y-2">
-                            <label htmlFor="skip-reason" className="block text-sm font-bold text-gray-900" style={{ color: '#111827' }}>
-                                Reason <span className="text-gray-400 font-normal text-xs">(optional)</span>
-                            </label>
-                            <textarea
-                                id="skip-reason"
-                                value={skipNotesModal.notes}
-                                onChange={(e) => setSkipNotesModal({ ...skipNotesModal, notes: e.target.value })}
-                                placeholder="Enter reason for skipping..."
-                                rows={4}
-                                className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:border-[var(--theme-primary)]"
-                                style={{ '--tw-ring-color': 'var(--theme-primary-bg)' }}
-                                maxLength={1000}
-                            />
-                            <p className="text-xs text-gray-500">
-                                {skipNotesModal.notes.length}/1000 characters
-                            </p>
-                        </div>
-                        <div className="mt-6 flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
-                            <button
-                                type="button"
-                                onClick={() => setSkipNotesModal({ open: false, taskId: null, notes: '' })}
-                                className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="button"
-                                onClick={handleSkipSubmit}
-                                disabled={mutation.isLoading}
-                                className="inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[var(--theme-primary-hover)] disabled:opacity-50 disabled:cursor-not-allowed"
-                                style={{ backgroundColor: 'var(--theme-primary)' }}
-                            >
-                                {mutation.isLoading ? (
-                                    <>
-                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                        Skipping...
-                                    </>
-                                ) : (
-                                    <>
-                                        <XCircle className="h-4 w-4" />
-                                        Skip Task
-                                    </>
-                                )}
-                            </button>
-                        </div>
-                    </div>
+            <Modal
+                isOpen={skipNotesModal.open}
+                onClose={() => !mutation.isLoading && setSkipNotesModal({ open: false, taskId: null, notes: '' })}
+                title="Skip task"
+                size="md"
+            >
+                <p className="text-sm text-gray-500 mb-4">
+                    Add a note explaining why this task is being skipped (optional).
+                </p>
+                <div className="space-y-2">
+                    <label htmlFor="skip-reason" className="block text-sm font-bold text-gray-900" style={{ color: '#111827' }}>
+                        Reason <span className="text-gray-400 font-normal text-xs">(optional)</span>
+                    </label>
+                    <textarea
+                        id="skip-reason"
+                        value={skipNotesModal.notes}
+                        onChange={(e) => setSkipNotesModal({ ...skipNotesModal, notes: e.target.value })}
+                        placeholder="Enter reason for skipping..."
+                        rows={4}
+                        className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:border-[var(--theme-primary)]"
+                        style={{ '--tw-ring-color': 'var(--theme-primary-bg)' }}
+                        maxLength={1000}
+                    />
+                    <p className="text-xs text-gray-500">
+                        {skipNotesModal.notes.length}/1000 characters
+                    </p>
                 </div>
-            )}
+                <div className="mt-6 flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
+                    <button
+                        type="button"
+                        onClick={() => setSkipNotesModal({ open: false, taskId: null, notes: '' })}
+                        disabled={mutation.isLoading}
+                        className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="button"
+                        onClick={handleSkipSubmit}
+                        disabled={mutation.isLoading}
+                        className="inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[var(--theme-primary-hover)] disabled:opacity-50 disabled:cursor-not-allowed"
+                        style={{ backgroundColor: 'var(--theme-primary)' }}
+                    >
+                        {mutation.isLoading ? (
+                            <>
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                Skipping...
+                            </>
+                        ) : (
+                            <>
+                                <XCircle className="h-4 w-4" />
+                                Skip Task
+                            </>
+                        )}
+                    </button>
+                </div>
+            </Modal>
         </div>
     );
 }

@@ -2,9 +2,14 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import { Clock, CheckCircle, XCircle, Search, Eye, Check, X, Building2, Mail, Phone, MapPin } from 'lucide-react';
+import { Clock, CheckCircle, XCircle, Search, Check, X, Building2, Mail, Phone, MapPin } from 'lucide-react';
 import { DashboardSkeleton } from '../components/ui/SkeletonLoader';
 import { useToastContext } from '../contexts/ToastContext';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
+import Tooltip from '../components/ui/Tooltip';
+import EntityCardShell, { EntityCardHeader } from '../components/ui/EntityCardShell';
+import CardIconButton from '../components/ui/CardIconButton';
+import DataPill, { DataPillSection } from '../components/ui/DataPill';
 
 export default function FacilityRegistrations() {
   const queryClient = useQueryClient();
@@ -12,6 +17,7 @@ export default function FacilityRegistrations() {
   const { showToast } = useToastContext();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('pending');
+  const [rejectConfirmId, setRejectConfirmId] = useState(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['facility-registrations', statusFilter, search],
@@ -56,6 +62,20 @@ export default function FacilityRegistrations() {
 
   return (
     <div className="space-y-6">
+      <ConfirmDialog
+        isOpen={rejectConfirmId != null}
+        onClose={() => !rejectMutation.isPending && setRejectConfirmId(null)}
+        onConfirm={() => {
+          if (rejectConfirmId == null) return;
+          rejectMutation.mutate(rejectConfirmId, { onSuccess: () => setRejectConfirmId(null) });
+        }}
+        title="Reject this registration?"
+        description="The applicant will be notified that their request was rejected."
+        confirmLabel="Reject"
+        cancelLabel="Cancel"
+        variant="danger"
+        isPending={rejectMutation.isPending}
+      />
       {/* Header */}
       <div className="bg-white rounded-lg shadow p-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
@@ -98,73 +118,74 @@ export default function FacilityRegistrations() {
       {data?.data?.length ? (
         <div className="grid grid-cols-1 gap-6">
           {data.data.map((registration) => (
-            <div key={registration.id} className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-6">
-              <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-                <div className="flex-1">
-                  <div className="flex items-start justify-between mb-4">
-                    <div>
-                      <div className="flex items-center gap-3 mb-2">
-                        <Building2 className="w-6 h-6 text-[var(--theme-primary)]" />
-                        <h3 className="text-xl font-bold text-gray-900">{registration.facility_name}</h3>
-                        {getStatusBadge(registration.status)}
-                      </div>
-                      <p className="text-sm text-gray-600 mb-3">Requested on {new Date(registration.created_at).toLocaleDateString()}</p>
-                    </div>
+            <EntityCardShell key={registration.id}>
+              <EntityCardHeader
+                left={
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Building2 className="h-6 w-6 shrink-0 text-[var(--theme-primary)]" />
+                    {getStatusBadge(registration.status)}
                   </div>
+                }
+                right={
+                  registration.status === 'pending' ? (
+                    <>
+                      <Tooltip content="Approve and set up facility" position="top">
+                        <CardIconButton
+                          variant="primary"
+                          icon={Check}
+                          aria-label="Approve and set up"
+                          onClick={() =>
+                            navigate(`/super-admin/facility-registrations/${registration.id}/approve`)
+                          }
+                        />
+                      </Tooltip>
+                      <Tooltip content="Reject registration" position="top">
+                        <CardIconButton
+                          variant="delete"
+                          icon={X}
+                          aria-label="Reject"
+                          onClick={() => setRejectConfirmId(registration.id)}
+                        />
+                      </Tooltip>
+                    </>
+                  ) : null
+                }
+              />
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                    <div className="flex items-center gap-2 text-gray-700">
-                      <Mail className="w-4 h-4 text-gray-400" />
-                      <span className="text-sm">{registration.email}</span>
-                    </div>
-                    {registration.phone && (
-                      <div className="flex items-center gap-2 text-gray-700">
-                        <Phone className="w-4 h-4 text-gray-400" />
-                        <span className="text-sm">{registration.phone}</span>
-                      </div>
-                    )}
-                    <div className="flex items-start gap-2 text-gray-700 md:col-span-2">
-                      <MapPin className="w-4 h-4 text-gray-400 mt-0.5" />
-                      <span className="text-sm">{registration.address || 'No address provided'}</span>
-                    </div>
-                    {registration.requested_subdomain && (
-                      <div className="flex items-center gap-2 text-gray-700">
-                        <span className="text-sm font-medium">Subdomain:</span>
-                        <span className="text-sm text-[var(--theme-primary)] font-mono">{registration.requested_subdomain}</span>
-                      </div>
-                    )}
-                  </div>
+              <h3 className="text-lg font-bold leading-snug text-slate-900 sm:text-xl">
+                {registration.facility_name}
+              </h3>
+              <p className="mt-1 text-sm text-slate-500">
+                Requested on {new Date(registration.created_at).toLocaleDateString()}
+              </p>
 
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <span>Contact:</span>
-                    <span className="font-medium">{registration.contact_name}</span>
-                  </div>
-                </div>
-
-                {registration.status === 'pending' && (
-                  <div className="flex gap-2 lg:flex-col">
-                    <button
-                      onClick={() => navigate(`/super-admin/facility-registrations/${registration.id}/approve`)}
-                      className="px-4 py-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] rounded-lg hover:bg-[var(--theme-primary-hover)] transition-colors flex items-center gap-2 whitespace-nowrap"
-                    >
-                      <Check className="w-4 h-4" />
-                      Approve & Setup
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (window.confirm('Are you sure you want to reject this registration?')) {
-                          rejectMutation.mutate(registration.id);
-                        }
-                      }}
-                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2 whitespace-nowrap"
-                    >
-                      <X className="w-4 h-4" />
-                      Reject
-                    </button>
-                  </div>
+              <div className="mt-4 grid grid-cols-1 gap-2.5 md:grid-cols-2">
+                <DataPill icon={Mail}>
+                  <span className="truncate font-normal text-slate-600">{registration.email}</span>
+                </DataPill>
+                {registration.phone && (
+                  <DataPill icon={Phone}>
+                    <span className="font-normal text-slate-600">{registration.phone}</span>
+                  </DataPill>
+                )}
+                <DataPill icon={MapPin} className="md:col-span-2">
+                  <span className="font-normal text-slate-600">
+                    {registration.address || 'No address provided'}
+                  </span>
+                </DataPill>
+                {registration.requested_subdomain && (
+                  <DataPill className="md:col-span-2">
+                    <span className="font-mono text-sm text-[var(--theme-primary)]">
+                      {registration.requested_subdomain}
+                    </span>
+                  </DataPill>
                 )}
               </div>
-            </div>
+
+              <DataPillSection label="Contact">
+                <p className="text-sm font-medium text-slate-800">{registration.contact_name}</p>
+              </DataPillSection>
+            </EntityCardShell>
           ))}
         </div>
       ) : (

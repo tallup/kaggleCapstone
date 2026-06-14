@@ -75,6 +75,7 @@ class UnifiedProductionSeeder extends Seeder
 
             // Housekeeping management
             'view_cleaning_areas', 'create_cleaning_areas', 'edit_cleaning_areas', 'delete_cleaning_areas',
+            'assign_cleaning_tasks',
             
             // Role and permission management
             'view_roles', 'create_roles', 'edit_roles', 'delete_roles',
@@ -86,8 +87,14 @@ class UnifiedProductionSeeder extends Seeder
             // Leave request management
             'view_leave_requests', 'create_leave_requests', 'edit_leave_requests', 'approve_leave_requests',
             
+            // Staff scheduling
+            'view_schedules', 'manage_schedules',
+            
             // Employee document management
             'view_employee_documents', 'create_employee_documents', 'edit_employee_documents', 'delete_employee_documents',
+
+            // Audit / activity logs (Filament + SPA navigation)
+            'view_activity_logs', 'delete_activity_logs',
             
             // Reports and exports
             'view_reports', 'create_reports', 'export_reports',
@@ -132,6 +139,11 @@ class UnifiedProductionSeeder extends Seeder
             'guard_name' => 'web'
         ]);
 
+        $familyRole = Role::firstOrCreate([
+            'name' => 'family',
+            'guard_name' => 'web'
+        ]);
+
         // Assign ALL permissions to administrator role
         $allPermissions = Permission::all();
         $adminRole->permissions()->sync($allPermissions->pluck('id'));
@@ -143,8 +155,9 @@ class UnifiedProductionSeeder extends Seeder
             'view_residents', 'view_medications', 'view_appointments',
             'view_assessments', 'view_vital_signs', 'create_vital_signs',
             'view_assignments', 'create_leave_requests', 'view_leave_requests',
+            'view_schedules',
             'view_incidents', 'create_incidents', 'view_behaviors', 'create_behaviors',
-            'view_sleep_records', 'create_sleep_records'
+            'view_sleep_records', 'create_sleep_records', 'assign_cleaning_tasks'
         ])->pluck('id');
         $caregiverRole->permissions()->sync($caregiverPermissions);
 
@@ -158,11 +171,19 @@ class UnifiedProductionSeeder extends Seeder
             'view_assessments', 'create_assessments', 'edit_assessments',
             'view_vital_signs', 'create_vital_signs', 'edit_vital_signs',
             'view_assignments', 'create_assignments', 'edit_assignments',
+            'view_schedules',
             'view_reports', 'create_reports', 'view_incidents', 'create_incidents', 'edit_incidents',
             'view_behaviors', 'create_behaviors', 'edit_behaviors',
-            'view_sleep_records', 'create_sleep_records', 'edit_sleep_records'
+            'view_sleep_records', 'create_sleep_records', 'edit_sleep_records',
+            'assign_cleaning_tasks'
         ])->pluck('id');
         $nurseRole->permissions()->sync($nursePermissions);
+
+        $familyPermissions = Permission::whereIn('name', [
+            'view_own_profile',
+            'edit_own_profile'
+        ])->pluck('id');
+        $familyRole->permissions()->sync($familyPermissions);
 
         $this->command->info("✅ Created roles and assigned permissions");
     }

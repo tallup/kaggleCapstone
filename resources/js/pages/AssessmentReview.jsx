@@ -1,35 +1,30 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import api from '../services/api';
+import logger from '../utils/logger';
 import { ArrowLeft, ClipboardList, Calendar, User, CheckCircle, FileText, TrendingUp, Award } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
+import { isCaregiverRole } from '../utils/userRoles';
 
 export default function AssessmentReview() {
     const { id } = useParams();
     const queryClient = useQueryClient();
+    const [completeConfirmOpen, setCompleteConfirmOpen] = useState(false);
+
+    const { data: currentUser } = useQuery({
+        queryKey: ['current-user'],
+        queryFn: async () => (await api.get('/user')).data,
+        staleTime: 60_000,
+    });
+
+    const readOnly = isCaregiverRole(currentUser?.role);
 
     const { data, isLoading, error } = useQuery({
         queryKey: ['assessment-review', id],
         queryFn: async () => {
             const response = await api.get(`/assessments/${id}`);
-            console.log('Assessment Review Data:', response.data);
-            if (response.data?.sections) {
-                console.log('Sections count:', response.data.sections.length);
-                response.data.sections.forEach((section, idx) => {
-                    console.log(`Section ${idx + 1}:`, {
-                        id: section.id,
-                        title: section.title || section.section_title,
-                        questionsCount: section.questions?.length || 0,
-                        questions: section.questions?.map(q => ({
-                            id: q.id,
-                            question_text: q.question_text,
-                            response_value: q.response_value,
-                            response_type: q.response_type
-                        }))
-                    });
-                });
-            }
             return response.data;
         },
         refetchOnWindowFocus: true,
@@ -44,7 +39,7 @@ export default function AssessmentReview() {
             alert('Assessment marked as complete!');
         },
         onError: (error) => {
-            console.error('Failed to mark assessment as complete:', error);
+            logger.error('Failed to mark assessment as complete:', error);
             alert('Failed to mark assessment as complete. Please try again.');
         },
     });
@@ -108,6 +103,22 @@ export default function AssessmentReview() {
     ];
 
     return (
+        <>
+            <ConfirmDialog
+                isOpen={completeConfirmOpen}
+                onClose={() => !markCompleteMutation.isPending && setCompleteConfirmOpen(false)}
+                onConfirm={() =>
+                    markCompleteMutation.mutate('completed', {
+                        onSuccess: () => setCompleteConfirmOpen(false),
+                    })
+                }
+                title="Mark assessment as complete?"
+                description="Once marked complete, this assessment will be finalized."
+                confirmLabel="Mark complete"
+                cancelLabel="Cancel"
+                variant="primary"
+                isPending={markCompleteMutation.isPending}
+            />
         <div className="min-h-screen bg-white">
             {/* Header */}
             <div className="bg-white border-b border-gray-200 shadow-sm mb-6">
@@ -348,7 +359,7 @@ export default function AssessmentReview() {
                     )}
 
                     {/* Mark as Complete Button */}
-                    {assessment.sections?.length > 0 && assessment.status !== 'approved' && assessment.status !== 'archived' && (
+                    {!readOnly && assessment.sections?.length > 0 && assessment.status !== 'approved' && assessment.status !== 'archived' && (
                         <div className="bg-white rounded-xl shadow-lg p-6 border-2 border-[var(--theme-primary-light)]">
                             <div className="flex items-center justify-between">
                                 <div>
@@ -358,11 +369,8 @@ export default function AssessmentReview() {
                                     </p>
                                 </div>
                                 <button
-                                    onClick={() => {
-                                        if (window.confirm('Are you sure you want to mark this assessment as complete?')) {
-                                            markCompleteMutation.mutate('completed');
-                                        }
-                                    }}
+                                    type="button"
+                                    onClick={() => setCompleteConfirmOpen(true)}
                                     disabled={markCompleteMutation.isPending || assessment.status === 'completed'}
                                     className="px-6 py-3 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] rounded-lg hover:bg-[var(--theme-primary-hover)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 font-medium"
                                 >
@@ -375,5 +383,6 @@ export default function AssessmentReview() {
                 </div>
             </div>
         </div>
+        </>
     );
 }

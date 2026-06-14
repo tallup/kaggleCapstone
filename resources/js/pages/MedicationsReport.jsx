@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { FileText, Pill, ClipboardList, User as UserIcon, Building2, Calendar, Download, AlertCircle } from 'lucide-react';
 import api from '../services/api';
 import SectionCard from '../components/SectionCard';
+import PrintableReportLayout from '../components/reports/PrintableReportLayout';
 import {
     Chart as ChartJS,
     CategoryScale,
@@ -176,23 +177,24 @@ export default function MedicationsReport() {
     };
 
     return (
-        <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Medication Report</h1>
-                    <p className="text-gray-600">View administered and missed medications with filters and KPIs.</p>
+        <PrintableReportLayout
+            title="Medication Report"
+            subtitle="View administered and missed medications with filters and KPIs."
+        >
+            <div className="space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-end gap-4 no-print">
+                    <button
+                        onClick={handleExport}
+                        type="button"
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 text-sm font-semibold transition-colors"
+                        disabled={!administrations.length}
+                    >
+                        <Download className="w-4 h-4" />
+                        Export CSV
+                    </button>
                 </div>
-                <button
-                    onClick={handleExport}
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 text-sm font-semibold transition-colors"
-                    disabled={!administrations.length}
-                >
-                    <Download className="w-4 h-4" />
-                    Export CSV
-                </button>
-            </div>
 
-            <SectionCard>
+                <SectionCard>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Date From</label>
@@ -374,7 +376,7 @@ export default function MedicationsReport() {
 
                                                 if (r.id) {
                                                     return (
-                                                        <a href={`/medications/residents/${r.id}`} className="inline-flex items-center gap-2 group" title={name} aria-label={name}>
+                                                        <a href={`/my-residents/${r.id}/medications/list`} className="inline-flex items-center gap-2 group" title={name} aria-label={name}>
                                                             {avatar}
                                                             <span className="font-medium text-gray-900 group-hover:text-[var(--theme-primary)]">{name}</span>
                                                         </a>
@@ -455,6 +457,7 @@ export default function MedicationsReport() {
                     </div>
                 )}
             </SectionCard>
-        </div>
+            </div>
+        </PrintableReportLayout>
     );
 }

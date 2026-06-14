@@ -4,6 +4,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Outbound mail (notifications)
+    |--------------------------------------------------------------------------
+    |
+    | When false, the default mailer is forced to "array" so nothing is delivered.
+    | Facility-level SES/SMTP overrides are skipped. Use while building locally.
+    |
+    */
+
+    'notifications_enabled' => env('MAIL_NOTIFICATIONS_ENABLED', false),
+
+    /*
+    |--------------------------------------------------------------------------
     | Default Mailer
     |--------------------------------------------------------------------------
     |

@@ -4,11 +4,19 @@ namespace App\Http\Controllers\Api;
 
 use App\Models\Medication;
 use App\Models\MedicationAdministration;
-use Illuminate\Http\Request;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class MedicationController extends BaseApiController
 {
+    protected $medicationService;
+
+    public function __construct(\App\Services\MedicationService $medicationService)
+    {
+        $this->medicationService = $medicationService;
+    }
+
     public function index(Request $request): JsonResponse
     {
         $query = Medication::with(['resident', 'drug', 'branch', 'createdBy']);
@@ -31,13 +39,13 @@ class MedicationController extends BaseApiController
         // Search
         if ($request->has('search')) {
             $search = $request->get('search');
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('instructions', 'like', "%{$search}%")
-                  ->orWhereHas('resident', function($q) use ($search) {
-                      $q->where('first_name', 'like', "%{$search}%")
-                        ->orWhere('last_name', 'like', "%{$search}%");
-                  });
+                    ->orWhere('instructions', 'like', "%{$search}%")
+                    ->orWhereHas('resident', function ($q) use ($search) {
+                        $q->where('first_name', 'like', "%{$search}%")
+                            ->orWhere('last_name', 'like', "%{$search}%");
+                    });
             });
         }
 
@@ -48,8 +56,56 @@ class MedicationController extends BaseApiController
             });
         }
 
-        $perPage = (int) $request->get('per_page', 20);
-        $perPage = max(1, min(100, $perPage));
+        // Administration-specific logic: Sorting and Visibility
+        if ($request->has('for_administration') && $request->get('for_administration') === 'true') {
+            // The `administered_at` column stores Pacific time as a bare datetime string (Y-m-d H:i:s)
+            // without timezone info. Use plain date strings so the comparison matches stored values.
+            $tz = config('app.timezone');
+            $adminDateStr = Carbon::now($tz)->toDateString();
+            if ($request->filled('administration_date')) {
+                $request->validate([
+                    'administration_date' => ['required', 'date_format:Y-m-d'],
+                ]);
+                $adminDateStr = Carbon::createFromFormat('Y-m-d', $request->string('administration_date')->toString(), $tz)
+                    ->toDateString();
+            }
+            $dayStart = $adminDateStr.' 00:00:00';
+            $dayEnd = $adminDateStr.' 23:59:59';
+            $query->with(['administrations' => function ($q) use ($dayStart, $dayEnd) {
+                $q->whereBetween('administered_at', [$dayStart, $dayEnd])
+                    ->whereIn('status', ['completed', 'refused', 'hospital_admission', 'pharmacy_administration_confirm']);
+            }]);
+
+            $medications = $query->get();
+            $medications = $this->medicationService->getMedicationsWithStatus($medications, $adminDateStr);
+
+            // Filter out fully administered meds if requested
+            if ($request->get('hide_administered') === 'true') {
+                $medications = $medications->filter(function ($med) {
+                    return ! $med->is_fully_administered_today;
+                })->values();
+            }
+
+            // Custom Sorting:
+            $medications = $this->medicationService->sortMedicationsByPriority($medications);
+
+            // Simple pagination for the collection
+            $perPage = min(100, max(1, (int) $request->get('per_page', 20)));
+            $page = (int) $request->get('page', 1);
+            $paginatedItems = $medications->forPage($page, $perPage)->values();
+
+            $result = new \Illuminate\Pagination\LengthAwarePaginator(
+                $paginatedItems,
+                $medications->count(),
+                $perPage,
+                $page,
+                ['path' => $request->url(), 'query' => $request->query()]
+            );
+
+            return response()->json($result);
+        }
+
+        $perPage = min(100, max(1, (int) $request->get('per_page', 20)));
 
         $medications = $query->orderBy('start_date', 'desc')
             ->paginate($perPage);
@@ -68,13 +124,13 @@ class MedicationController extends BaseApiController
     public function store(Request $request): JsonResponse
     {
         $user = auth()->user();
-        
+
         // Allow administrators and super admins to create medications even without specific permission
         $isSuperAdmin = $user && ($user->role === 'super_admin' || $user->hasRole('super_admin'));
         $isAdmin = $user && ($user->role === 'administrator' || $user->role === 'admin');
-        
+
         // Check permission only if user is not an admin or super admin
-        if (!$isSuperAdmin && !$isAdmin) {
+        if (! $isSuperAdmin && ! $isAdmin) {
             if ($error = $this->requirePermission('create_medications')) {
                 return $error;
             }
@@ -100,7 +156,7 @@ class MedicationController extends BaseApiController
         ]);
 
         // If branch_id not provided, infer from resident
-        if (!isset($validated['branch_id'])) {
+        if (! isset($validated['branch_id'])) {
             $resident = \App\Models\Resident::find($validated['resident_id']);
             if ($resident) {
                 $validated['branch_id'] = $resident->branch_id;
@@ -110,10 +166,10 @@ class MedicationController extends BaseApiController
         // If user is a caregiver, ensure they can only create medications for residents in their assigned branch
         if (auth()->user()->hasRole('caregiver')) {
             $resident = \App\Models\Resident::find($validated['resident_id']);
-            if (!$resident || $resident->branch_id !== auth()->user()->assigned_branch_id) {
+            if (! $resident || $resident->branch_id !== auth()->user()->assigned_branch_id) {
                 return response()->json([
                     'message' => 'Unauthorized: You can only create medications for residents in your assigned branch.',
-                    'errors' => ['resident_id' => ['You can only create medications for residents in your assigned branch.']]
+                    'errors' => ['resident_id' => ['You can only create medications for residents in your assigned branch.']],
                 ], 403);
             }
             // Force branch_id to caregiver's assigned branch
@@ -121,7 +177,7 @@ class MedicationController extends BaseApiController
         }
 
         // Auto-generate name from drug if drug_id is provided but name is not
-        if (isset($validated['drug_id']) && !isset($validated['name'])) {
+        if (isset($validated['drug_id']) && ! isset($validated['name'])) {
             $drug = \App\Models\Drug::find($validated['drug_id']);
             if ($drug) {
                 $validated['name'] = $drug->name;
@@ -129,7 +185,7 @@ class MedicationController extends BaseApiController
         }
 
         $validated['created_by'] = auth()->id();
-        if (!isset($validated['is_active'])) {
+        if (! isset($validated['is_active'])) {
             $validated['is_active'] = true;
         }
 
@@ -141,17 +197,10 @@ class MedicationController extends BaseApiController
     public function update(Request $request, $id): JsonResponse
     {
         $user = auth()->user();
-        
+
         // Allow administrators and super admins to edit medications even without specific permission
         $isSuperAdmin = $user && ($user->role === 'super_admin' || $user->hasRole('super_admin'));
         $isAdmin = $user && ($user->role === 'administrator' || $user->role === 'admin');
-        
-        // Check permission only if user is not an admin or super admin
-        if (!$isSuperAdmin && !$isAdmin) {
-            if ($error = $this->requirePermission('edit_medications')) {
-                return $error;
-            }
-        }
 
         $medication = Medication::with('resident')->findOrFail($id);
 
@@ -183,13 +232,28 @@ class MedicationController extends BaseApiController
             'time_4' => 'nullable',
         ]);
 
+        // Permission: full edit requires edit_medications; deactivating only (is_active false) allows edit OR delete permission
+        if (! $isSuperAdmin && ! $isAdmin) {
+            $onlyDeactivate = count($validated) === 1
+                && array_key_exists('is_active', $validated)
+                && $validated['is_active'] === false;
+
+            if ($onlyDeactivate) {
+                if (! $user->hasPermission('delete_medications') && ! $user->hasPermission('edit_medications')) {
+                    return $this->error('Unauthorized. You do not have permission to perform this action.', 403);
+                }
+            } elseif ($error = $this->requirePermission('edit_medications')) {
+                return $error;
+            }
+        }
+
         // If user is a caregiver and trying to change resident_id, validate it's in their branch
         if (auth()->user()->hasRole('caregiver') && isset($validated['resident_id'])) {
             $resident = \App\Models\Resident::find($validated['resident_id']);
-            if (!$resident || $resident->branch_id !== auth()->user()->assigned_branch_id) {
+            if (! $resident || $resident->branch_id !== auth()->user()->assigned_branch_id) {
                 return response()->json([
                     'message' => 'Unauthorized: You can only update medications for residents in your assigned branch.',
-                    'errors' => ['resident_id' => ['You can only update medications for residents in your assigned branch.']]
+                    'errors' => ['resident_id' => ['You can only update medications for residents in your assigned branch.']],
                 ], 403);
             }
             // Force branch_id to caregiver's assigned branch
@@ -197,7 +261,7 @@ class MedicationController extends BaseApiController
         }
 
         // Auto-generate name from drug if drug_id is provided but name is not
-        if (isset($validated['drug_id']) && !isset($validated['name'])) {
+        if (isset($validated['drug_id']) && ! isset($validated['name'])) {
             $drug = \App\Models\Drug::find($validated['drug_id']);
             if ($drug) {
                 $validated['name'] = $drug->name;
@@ -212,13 +276,13 @@ class MedicationController extends BaseApiController
     public function destroy($id): JsonResponse
     {
         $user = auth()->user();
-        
+
         // Allow administrators and super admins to delete medications even without specific permission
         $isSuperAdmin = $user && ($user->role === 'super_admin' || $user->hasRole('super_admin'));
         $isAdmin = $user && ($user->role === 'administrator' || $user->role === 'admin');
-        
+
         // Check permission only if user is not an admin or super admin
-        if (!$isSuperAdmin && !$isAdmin) {
+        if (! $isSuperAdmin && ! $isAdmin) {
             if ($error = $this->requirePermission('delete_medications')) {
                 return $error;
             }
@@ -253,10 +317,10 @@ class MedicationController extends BaseApiController
             $query->where('resident_id', $request->get('resident_id'));
         }
 
+        $perPage = min(100, max(1, (int) $request->get('per_page', 15)));
         $administrations = $query->orderBy('administered_at', 'desc')
-            ->paginate($request->get('per_page', 15));
+            ->paginate($perPage);
 
         return response()->json($administrations);
     }
 }
-

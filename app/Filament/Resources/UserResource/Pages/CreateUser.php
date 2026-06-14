@@ -42,19 +42,34 @@ class CreateUser extends CreateRecord
             }
         }
 
+        // Branch admins must have an assigned_branch_id
+        if (($data['role'] ?? '') === 'admin') {
+            if (empty($data['assigned_branch_id'])) {
+                throw new \Illuminate\Validation\ValidationException(
+                    validator([], []),
+                    ['assigned_branch_id' => ['Branch admins must have an assigned branch.']]
+                );
+            }
+        }
+
         return $data;
     }
 
     protected function afterCreate(): void
     {
-        // Automatically assign administrator role if user role is 'admin' or 'administrator'
+        // Automatically assign the appropriate role based on user role field
         $user = $this->record;
         $role = $user->role ?? null;
         
-        if (in_array($role, ['admin', 'administrator'])) {
+        if ($role === 'administrator') {
             $adminRole = Role::where('name', 'administrator')->first();
             if ($adminRole && !$user->hasRole('administrator')) {
                 $user->assignRole('administrator');
+            }
+        } elseif ($role === 'admin') {
+            $adminRole = Role::where('name', 'admin')->first();
+            if ($adminRole && !$user->hasRole('admin')) {
+                $user->assignRole('admin');
             }
         }
 

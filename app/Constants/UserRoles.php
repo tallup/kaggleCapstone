@@ -20,7 +20,8 @@ class UserRoles
      */
     public const ROLES = [
         'super_admin' => 'Super Admin',
-        'administrator' => 'Administrator',
+        'administrator' => 'Administrator (Facility-wide)',
+        'admin' => 'Admin (Branch-level)',
         'clinical_supervisor' => 'Clinical Supervisor',
         'caregiver' => 'Caregiver',
         'care_giver' => 'Care Giver',

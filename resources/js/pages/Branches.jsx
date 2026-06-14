@@ -1,13 +1,30 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
-import { Building2, Plus, Search, Edit, Trash2, MapPin, Phone, Mail, Building, Navigation } from 'lucide-react';
+import { Building2, Plus, Search, Edit, Trash2, MapPin, Phone, Mail, Building, Navigation, Users } from 'lucide-react';
 import SectionCard from '../components/SectionCard';
 import { getUserLocation } from '../utils/location';
 import { formatPhoneNumber, unformatPhoneNumber } from '../utils/phoneFormatter';
+import { useToastContext } from '../contexts/ToastContext';
+import logger from '../utils/logger';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
+import Modal from '../components/ui/Modal';
+import Tooltip from '../components/ui/Tooltip';
+import EntityCardShell, { EntityCardHeader } from '../components/ui/EntityCardShell';
+import CardIconButton from '../components/ui/CardIconButton';
+import DataPill from '../components/ui/DataPill';
+
+const COORDINATE_DECIMALS = 6;
+const normalizeCoordinateInput = (value) => {
+  if (value === null || value === undefined || String(value).trim() === '') return '';
+  const num = Number(value);
+  if (Number.isNaN(num)) return '';
+  return num.toFixed(COORDINATE_DECIMALS);
+};
 
 export default function Branches() {
   const queryClient = useQueryClient();
+  const toast = useToastContext();
   const [search, setSearch] = useState('');
   const [facilityFilter, setFacilityFilter] = useState('');
   const [showForm, setShowForm] = useState(false);
@@ -51,18 +68,47 @@ export default function Branches() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id) => api.delete(`/branches/${id}`),
-    onSuccess: () => queryClient.invalidateQueries(['branches']),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['branches'] });
+      toast.showToast('Branch deleted successfully', 'success');
+    },
+    onError: (error) => {
+      toast.showToast(error?.response?.data?.message || 'Failed to delete branch', 'error');
+    },
   });
+
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
   const handleCloseForm = () => {
     setShowForm(false);
     setEditing(null);
   };
 
-  if (showForm) {
-    return (
-      <div>
+  return (
+    <>
+      <ConfirmDialog
+        isOpen={deleteConfirmId != null}
+        onClose={() => !deleteMutation.isPending && setDeleteConfirmId(null)}
+        onConfirm={() => {
+          if (deleteConfirmId == null) return;
+          deleteMutation.mutate(deleteConfirmId, { onSuccess: () => setDeleteConfirmId(null) });
+        }}
+        title="Delete this branch?"
+        description="This branch will be permanently removed."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        isPending={deleteMutation.isPending}
+      />
+      <Modal
+        isOpen={showForm}
+        onClose={handleCloseForm}
+        title={editing ? 'Edit Branch' : 'Add Branch'}
+        size="xl"
+      >
         <BranchForm
+          key={editing?.id ?? 'new'}
+          inModal
           record={editing}
           facilities={facilities?.data || []}
           currentUser={currentUser}
@@ -71,14 +117,11 @@ export default function Branches() {
           onClose={handleCloseForm}
           onSuccess={() => {
             handleCloseForm();
-            queryClient.invalidateQueries(['branches']);
+            queryClient.invalidateQueries({ queryKey: ['branches'] });
+            queryClient.refetchQueries({ queryKey: ['branches'] });
           }}
         />
-      </div>
-    );
-  }
-
-  return (
+      </Modal>
     <div>
       <div className="bg-white rounded-lg shadow p-6 mb-6">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
@@ -129,68 +172,104 @@ export default function Branches() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {data?.data?.length ? (
             data.data.map((b) => (
-              <div key={b.id} className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-6">
-                <div className="flex flex-col h-full">
-                  {/* Header */}
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-2 mb-2">
-                        <Building className="w-5 h-5 text-[var(--theme-primary)]" />
-                        <h3 className="text-lg font-bold text-gray-900">{b.name}</h3>
-                      </div>
-                      {b.facility?.name && (
-                        <div className="flex items-center space-x-2 text-sm text-gray-500">
-                          <Building2 className="w-4 h-4" />
-                          <span>{b.facility.name}</span>
-                        </div>
-                      )}
+              <EntityCardShell key={b.id}>
+                <EntityCardHeader
+                  left={
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Building className="h-6 w-6 shrink-0 text-[var(--theme-primary)]" />
                     </div>
-                    {/* Actions */}
-                    <div className="flex items-center gap-2">
+                  }
+                  right={
+                    <>
                       {canEdit && (
-                        <button
-                          onClick={() => { setEditing(b); setShowForm(true); }}
-                          className="p-2 rounded-lg bg-blue-100 text-blue-600 hover:bg-blue-600 hover:text-white transition-colors"
-                          title="Edit"
-                        >
-                          <Edit className="w-5 h-5" />
-                        </button>
+                        <Tooltip content="Edit branch" position="top">
+                          <CardIconButton
+                            variant="edit"
+                            icon={Edit}
+                            aria-label="Edit branch"
+                            onClick={() => {
+                              setEditing(b);
+                              setShowForm(true);
+                            }}
+                          />
+                        </Tooltip>
                       )}
                       {canDelete && (
-                        <button
-                          onClick={() => window.confirm('Delete branch?') && deleteMutation.mutate(b.id)}
-                          className="p-2 rounded-lg bg-red-100 text-red-600 hover:bg-red-600 hover:text-white transition-colors"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-5 h-5" />
-                        </button>
+                        <Tooltip content="Delete branch" position="top">
+                          <CardIconButton
+                            variant="delete"
+                            icon={Trash2}
+                            aria-label="Delete branch"
+                            onClick={() => setDeleteConfirmId(b.id)}
+                          />
+                        </Tooltip>
                       )}
-                    </div>
-                  </div>
-                  
-                  {/* Details */}
-                  <div className="space-y-2 flex-1">
-                    {b.address && (
-                      <div className="flex items-start space-x-2 text-sm text-gray-600">
-                        <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                        <span className="line-clamp-2">{b.address}</span>
-                      </div>
-                    )}
-                    {b.phone && (
-                      <div className="flex items-center space-x-2 text-sm text-gray-600">
-                        <Phone className="w-4 h-4 flex-shrink-0" />
-                        <span>{b.phone}</span>
-                      </div>
-                    )}
-                    {b.email && (
-                      <div className="flex items-center space-x-2 text-sm text-gray-600">
-                        <Mail className="w-4 h-4 flex-shrink-0" />
-                        <span className="truncate">{b.email}</span>
-                      </div>
-                    )}
-                  </div>
+                    </>
+                  }
+                />
+
+                <h3 className="text-lg font-bold leading-snug text-slate-900 sm:text-xl">{b.name}</h3>
+                {b.facility?.name && (
+                  <p className="mt-1 flex items-center gap-2 text-sm text-slate-500">
+                    <Building2 className="h-4 w-4 shrink-0" />
+                    {b.facility.name}
+                  </p>
+                )}
+
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  {b.is_active === false && (
+                    <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-800">
+                      Inactive
+                    </span>
+                  )}
+                  <DataPill icon={Building2} className="!inline-flex w-auto max-w-full shrink-0 py-1.5 text-xs">
+                    <span className="font-normal">
+                      <span className="font-semibold text-slate-800">{Number(b.residents_count) || 0}</span>
+                      {' '}residents
+                    </span>
+                  </DataPill>
+                  <DataPill icon={Users} className="!inline-flex w-auto max-w-full shrink-0 py-1.5 text-xs">
+                    <span className="font-normal">
+                      <span className="font-semibold text-slate-800">{Number(b.caregivers_count) || 0}</span>
+                      {' '}staff
+                    </span>
+                  </DataPill>
                 </div>
-              </div>
+
+                <div className="mt-4 grid grid-cols-1 gap-2.5">
+                  {b.address && (
+                    <DataPill icon={MapPin}>
+                      <span className="line-clamp-2 font-normal text-slate-600">{b.address}</span>
+                    </DataPill>
+                  )}
+                  {b.phone && (
+                    <DataPill icon={Phone}>
+                      <span className="font-normal text-slate-600">{formatPhoneNumber(b.phone) || b.phone}</span>
+                    </DataPill>
+                  )}
+                  {b.email && (
+                    <DataPill icon={Mail}>
+                      <span className="truncate font-normal text-slate-600">{b.email}</span>
+                    </DataPill>
+                  )}
+                  {b.latitude != null && b.latitude !== '' && b.longitude != null && b.longitude !== '' && (
+                    <DataPill icon={Navigation}>
+                      <span className="font-normal text-slate-600">
+                        Geofence coordinates{' '}
+                        <span className="tabular-nums text-slate-500">
+                          ({Number(b.latitude).toFixed(4)}, {Number(b.longitude).toFixed(4)})
+                        </span>
+                      </span>
+                    </DataPill>
+                  )}
+                  {!b.address && !b.phone && !b.email
+                    && (b.latitude == null || b.latitude === '' || b.longitude == null || b.longitude === '') && (
+                    <p className="rounded-lg border border-dashed border-slate-200 bg-slate-50/50 px-3 py-2.5 text-xs leading-snug text-slate-500">
+                      No address, phone, or email on file. Use <span className="font-semibold text-slate-600">Edit</span> to add branch details.
+                    </p>
+                  )}
+                </div>
+              </EntityCardShell>
             ))
           ) : (
             <div className="col-span-2 bg-white rounded-lg shadow p-12 text-center">
@@ -201,10 +280,11 @@ export default function Branches() {
         </div>
       )}
     </div>
+    </>
   );
 }
 
-function BranchForm({ record, facilities, currentUser, isSuperAdmin, isFacilityAdmin, onClose, onSuccess }) {
+function BranchForm({ record, facilities, currentUser, isSuperAdmin, isFacilityAdmin, onClose, onSuccess, inModal = false }) {
   // For facility admins, automatically use their facility_id
   const initialFacilityId = React.useMemo(() => {
     if (record?.facility_id) return record.facility_id;
@@ -219,13 +299,14 @@ function BranchForm({ record, facilities, currentUser, isSuperAdmin, isFacilityA
     phone: record?.phone || '',
     email: record?.email || '',
     is_active: record?.is_active ?? true,
-    latitude: record?.latitude || '',
-    longitude: record?.longitude || '',
+    latitude: normalizeCoordinateInput(record?.latitude),
+    longitude: normalizeCoordinateInput(record?.longitude),
   });
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [geocoding, setGeocoding] = useState(false);
   const [gettingLocation, setGettingLocation] = useState(false);
+  const toast = useToastContext();
 
   // Update facility_id when initialFacilityId changes (when currentUser loads)
   React.useEffect(() => {
@@ -262,36 +343,41 @@ function BranchForm({ record, facilities, currentUser, isSuperAdmin, isFacilityA
         is_active: Boolean(form.is_active),
       };
 
-      // Add optional fields only if they have values
-      if (form.address?.trim()) {
-        submitData.address = form.address.trim();
-      }
-      if (form.phone) {
-        const unformatted = unformatPhoneNumber(form.phone);
-        if (unformatted) {
-          submitData.phone = unformatted;
-        }
-      }
-      if (form.email?.trim()) {
-        submitData.email = form.email.trim();
-      }
-      if (form.latitude && !isNaN(parseFloat(form.latitude))) {
-        submitData.latitude = parseFloat(form.latitude);
-      }
-      if (form.longitude && !isNaN(parseFloat(form.longitude))) {
-        submitData.longitude = parseFloat(form.longitude);
+      // Always send optional fields so clearing values persists on update.
+      const addressRaw = String(form.address ?? '').trim();
+      submitData.address = addressRaw === '' ? null : addressRaw;
+
+      const phoneRaw = String(form.phone ?? '').trim();
+      submitData.phone = phoneRaw === '' ? null : (unformatPhoneNumber(phoneRaw) || null);
+
+      const emailRaw = String(form.email ?? '').trim();
+      submitData.email = emailRaw === '' ? null : emailRaw;
+
+      const latitudeRaw = String(form.latitude ?? '').trim();
+      const longitudeRaw = String(form.longitude ?? '').trim();
+
+      if (latitudeRaw === '') {
+        submitData.latitude = null;
+      } else if (!Number.isNaN(Number(latitudeRaw))) {
+        submitData.latitude = parseFloat(latitudeRaw);
       }
 
-      console.log('Submitting branch data:', submitData);
-      
+      if (longitudeRaw === '') {
+        submitData.longitude = null;
+      } else if (!Number.isNaN(Number(longitudeRaw))) {
+        submitData.longitude = parseFloat(longitudeRaw);
+      }
+
       if (record) {
         await api.put(`/branches/${record.id}`, submitData);
+        toast.showToast('Branch updated successfully', 'success', { isFormSubmission: true });
       } else {
         await api.post('/branches', submitData);
+        toast.showToast('Branch created successfully', 'success', { isFormSubmission: true });
       }
       onSuccess();
     } catch (e) {
-      console.error('Branch save error:', e.response?.data);
+      logger.error('Branch save error:', e.response?.data);
       const errorData = e.response?.data;
       if (errorData?.errors) {
         // Handle Laravel validation errors format
@@ -312,21 +398,8 @@ function BranchForm({ record, facilities, currentUser, isSuperAdmin, isFacilityA
     }
   };
 
-  return (
-    <div>
-      <SectionCard>
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold text-gray-900">
-            {record ? 'Edit Branch' : 'Add Branch'}
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-gray-500 hover:text-gray-700"
-          >
-            ✕
-          </button>
-        </div>
-
+  const formInner = (
+        <>
         {errors.general && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
             <p className="text-sm text-red-800">{errors.general}</p>
@@ -384,70 +457,72 @@ function BranchForm({ record, facilities, currentUser, isSuperAdmin, isFacilityA
                   Location Coordinates
                 </label>
                 <div className="flex items-center space-x-2">
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      setGettingLocation(true);
-                      try {
-                        const location = await getUserLocation({
-                          timeout: 10000,
-                          maximumAge: 0, // Always get fresh location
-                          enableHighAccuracy: true,
-                        });
-                        if (location) {
-                          setForm({
-                            ...form,
-                            latitude: location.latitude,
-                            longitude: location.longitude,
+                  <Tooltip content="Use your current GPS location" position="bottom">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        setGettingLocation(true);
+                        try {
+                          const location = await getUserLocation({
+                            timeout: 10000,
+                            maximumAge: 0, // Always get fresh location
+                            enableHighAccuracy: true,
                           });
-                        } else {
-                          alert('Unable to get your current location. Please allow location access or enter coordinates manually.');
+                          if (location) {
+                            setForm((prev) => ({
+                              ...prev,
+                              latitude: normalizeCoordinateInput(location.latitude),
+                              longitude: normalizeCoordinateInput(location.longitude),
+                            }));
+                          } else {
+                            alert('Unable to get your current location. Please allow location access or enter coordinates manually.');
+                          }
+                        } catch (err) {
+                          alert('Failed to get current location. Please enter coordinates manually.');
+                        } finally {
+                          setGettingLocation(false);
                         }
-                      } catch (err) {
-                        alert('Failed to get current location. Please enter coordinates manually.');
-                      } finally {
-                        setGettingLocation(false);
-                      }
-                    }}
-                    disabled={gettingLocation}
-                    className="text-sm px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1"
-                    title="Use your current GPS location"
-                  >
-                    <Navigation className="w-4 h-4" />
-                    <span>{gettingLocation ? 'Getting Location...' : 'Use Current Location'}</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      if (!form.address) {
-                        alert('Please enter an address first');
-                        return;
-                      }
-                      setGeocoding(true);
-                      try {
-                        const response = await api.post('/geocode', { address: form.address });
-                        if (response.data.success) {
-                          setForm({
-                            ...form,
-                            latitude: response.data.latitude,
-                            longitude: response.data.longitude,
-                          });
-                        } else {
-                          alert('Unable to geocode address. Please enter coordinates manually.');
+                      }}
+                      disabled={gettingLocation}
+                      className="text-sm px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1"
+                    >
+                      <Navigation className="w-4 h-4" />
+                      <span>{gettingLocation ? 'Getting Location...' : 'Use Current Location'}</span>
+                    </button>
+                  </Tooltip>
+                  <Tooltip content="Fill coordinates from the address field" position="bottom">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (!form.address) {
+                          alert('Please enter an address first');
+                          return;
                         }
-                      } catch (err) {
-                        alert('Geocoding failed. Please enter coordinates manually.');
-                      } finally {
-                        setGeocoding(false);
-                      }
-                    }}
-                    disabled={geocoding || !form.address}
-                    className="text-sm px-3 py-1 bg-[var(--theme-primary)] text-white rounded hover:bg-[var(--theme-primary-hover)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1"
-                    title="Geocode from address field"
-                  >
-                    <MapPin className="w-4 h-4" />
-                    <span>{geocoding ? 'Geocoding...' : 'Geocode from Address'}</span>
-                  </button>
+                        setGeocoding(true);
+                        try {
+                          const response = await api.post('/geocode', { address: form.address });
+                          if (response.data.success) {
+                            setForm((prev) => ({
+                              ...prev,
+                              latitude: normalizeCoordinateInput(response.data.latitude),
+                              longitude: normalizeCoordinateInput(response.data.longitude),
+                            }));
+                          } else {
+                            alert('Unable to geocode address. Please enter coordinates manually.');
+                          }
+                        } catch (err) {
+                          alert('Geocoding failed. Please enter coordinates manually.');
+                        } finally {
+                          setGeocoding(false);
+                        }
+                      }}
+                      disabled={geocoding || !form.address}
+                      className="text-sm px-3 py-1 bg-[var(--theme-primary)] text-white rounded hover:bg-[var(--theme-primary-hover)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1"
+                    >
+                      <MapPin className="w-4 h-4" />
+                      <span>{geocoding ? 'Geocoding...' : 'Geocode from Address'}</span>
+                    </button>
+                  </Tooltip>
                 </div>
               </div>
               <p className="text-xs text-gray-500 mb-3">Coordinates are used for location-based login restrictions (50 meters).</p>
@@ -458,11 +533,12 @@ function BranchForm({ record, facilities, currentUser, isSuperAdmin, isFacilityA
                   </label>
                   <input
                     type="number"
-                    step="0.00000001"
+                    step="0.000001"
                     min="-90"
                     max="90"
                     value={form.latitude}
                     onChange={(e) => setForm({ ...form, latitude: e.target.value })}
+                    onBlur={() => setForm((prev) => ({ ...prev, latitude: normalizeCoordinateInput(prev.latitude) }))}
                     placeholder="e.g., 47.6062"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent text-sm"
                   />
@@ -473,11 +549,12 @@ function BranchForm({ record, facilities, currentUser, isSuperAdmin, isFacilityA
                   </label>
                   <input
                     type="number"
-                    step="0.00000001"
+                    step="0.000001"
                     min="-180"
                     max="180"
                     value={form.longitude}
                     onChange={(e) => setForm({ ...form, longitude: e.target.value })}
+                    onBlur={() => setForm((prev) => ({ ...prev, longitude: normalizeCoordinateInput(prev.longitude) }))}
                     placeholder="e.g., -122.3321"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent text-sm"
                   />
@@ -529,6 +606,25 @@ function BranchForm({ record, facilities, currentUser, isSuperAdmin, isFacilityA
             {submitting ? 'Saving...' : (record ? 'Update' : 'Create')}
           </button>
         </div>
+        </>
+  );
+
+  if (inModal) {
+    return <div className="space-y-4">{formInner}</div>;
+  }
+
+  return (
+    <div>
+      <SectionCard>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-semibold text-gray-900">
+            {record ? 'Edit Branch' : 'Add Branch'}
+          </h2>
+          <button type="button" onClick={onClose} className="text-gray-500 hover:text-gray-700">
+            ✕
+          </button>
+        </div>
+        {formInner}
       </SectionCard>
     </div>
   );

@@ -173,14 +173,14 @@ class AdminPanelProvider extends PanelProvider
                                 document.addEventListener("DOMContentLoaded", applyBorderHighlightDesign);
                             }
                             
-                            // Run after delays to catch dynamically loaded content
-                            setTimeout(applyBorderHighlightDesign, 100);
-                            setTimeout(applyBorderHighlightDesign, 500);
-                            setTimeout(applyBorderHighlightDesign, 1000);
-                            
-                            // Use MutationObserver to watch for changes in the sidebar
-                            const observer = new MutationObserver(function(mutations) {
-                                applyBorderHighlightDesign();
+                            // Single delayed run for dynamically loaded content
+                            setTimeout(applyBorderHighlightDesign, 200);
+
+                            // Debounced MutationObserver to avoid excessive DOM traversal
+                            let debounceTimer = null;
+                            const observer = new MutationObserver(function() {
+                                if (debounceTimer) clearTimeout(debounceTimer);
+                                debounceTimer = setTimeout(applyBorderHighlightDesign, 50);
                             });
                             
                             // Observe the sidebar for changes

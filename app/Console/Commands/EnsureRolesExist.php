@@ -111,6 +111,53 @@ class EnsureRolesExist extends Command
             $this->warn("   ⚠️  No caregiver permissions found. Run PermissionSeeder first.");
         }
 
+        // Create nurse role if it doesn't exist
+        $nurseRole = Role::firstOrCreate(
+            ['name' => 'nurse'],
+            ['guard_name' => 'web']
+        );
+
+        if ($nurseRole->wasRecentlyCreated) {
+            $this->info('✅ Created nurse role');
+        } else {
+            $this->info('✅ Nurse role already exists');
+        }
+        
+        // Always sync permissions to nurse role (even if role already existed)
+        $nursePermissions = Permission::whereIn('name', [
+            'view_admin_panel',
+            'view_dashboard',
+            'view_own_profile',
+            'edit_own_profile',
+            'view_residents',
+            'edit_residents',
+            'view_medications',
+            'create_medications',
+            'edit_medications',
+            'view_appointments',
+            'create_appointments',
+            'edit_appointments',
+            'view_assessments',
+            'create_assessments',
+            'edit_assessments',
+            'view_vital_signs',
+            'create_vital_signs',
+            'edit_vital_signs',
+            'view_drugs',
+            'create_drugs',
+            'edit_drugs',
+            'view_incidents',
+            'create_incidents',
+            'edit_incidents',
+        ])->pluck('id');
+        
+        if ($nursePermissions->count() > 0) {
+            $nurseRole->permissions()->sync($nursePermissions);
+            $this->info("   Synced {$nursePermissions->count()} permissions to nurse role");
+        } else {
+            $this->warn("   ⚠️  No nurse permissions found. Run PermissionSeeder first.");
+        }
+
         $this->line('');
         $this->info('✅ All required roles are now present in the database!');
         
@@ -120,6 +167,7 @@ class EnsureRolesExist extends Command
         $this->line('  👤 Administrator: ' . ($administratorRole ? '✅' : '❌'));
         $this->line('  👤 Admin (alias): ' . ($adminRole ? '✅' : '❌'));
         $this->line('  👤 Caregiver: ' . ($caregiverRole ? '✅' : '❌'));
+        $this->line('  👤 Nurse: ' . ($nurseRole ? '✅' : '❌'));
 
         return 0;
     }

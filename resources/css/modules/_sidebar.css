@@ -1,0 +1,240 @@
+/* Sidebar base text color */
+aside[class*="bg-\[var\(--theme-primary\)\]"]:not([class*="bg-white"]) {
+    color: var(--theme-text-on-primary, #FFFFFF) !important;
+}
+
+/* Sidebar child text elements */
+aside[class*="bg-\[var\(--theme-primary\)\]"] p:not([class*="bg-white"]),
+aside[class*="bg-\[var\(--theme-primary\)\]"] span:not([class*="bg-white"]):not([class*="text-\[var\(--theme-primary\)\"]"]),
+aside[class*="bg-\[var\(--theme-primary\)\]"] div:not([class*="bg-white"]):not([class*="text-\[var\(--theme-primary\)\"]"]),
+aside[class*="bg-\[var\(--theme-primary\)\]"] a:not([class*="bg-white"]):not([class*="text-\[var\(--theme-primary\)\"]"]),
+aside[class*="bg-\[var\(--theme-primary\)\]"] button:not([class*="bg-white"]):not([class*="text-\[var\(--theme-primary\)\"]"]),
+aside[class*="bg-\[var\(--theme-primary\)\]"] li:not([class*="bg-white"]) {
+    color: var(--theme-text-on-primary, #FFFFFF) !important;
+}
+
+/* Gray text on dark sidebar */
+aside[class*="bg-\[var\(--theme-primary\)\]"] .text-gray-300:not([class*="bg-white"]),
+aside[class*="bg-\[var\(--theme-primary\)\]"] .text-gray-400:not([class*="bg-white"]),
+aside[class*="bg-\[var\(--theme-primary\)\]"] .text-gray-500:not([class*="bg-white"]),
+aside[class*="bg-\[var\(--theme-primary\)\]"] .text-gray-600:not([class*="bg-white"]) {
+    color: var(--theme-text-on-primary, #FFFFFF) !important;
+    opacity: 0.9;
+}
+
+/* Active navigation items with white background - text-on-white color */
+aside nav a[class*="bg-white"],
+aside nav button[class*="bg-white"],
+aside a[class*="bg-white"],
+aside button[class*="bg-white"] {
+    color: var(--theme-text-on-white, #000000) !important;
+}
+
+aside a[class*="bg-white"] *,
+aside button[class*="bg-white"] *,
+aside nav a[class*="bg-white"] *,
+aside nav button[class*="bg-white"] * {
+    color: var(--theme-text-on-white, #000000) !important;
+}
+
+aside a[class*="bg-white"] svg,
+aside button[class*="bg-white"] svg,
+aside nav a[class*="bg-white"] svg,
+aside nav button[class*="bg-white"] svg {
+    stroke: var(--theme-text-on-white, #000000) !important;
+    fill: var(--theme-text-on-white, #000000) !important;
+}
+
+/* High-specificity overrides for sidebar with primary bg */
+aside[class*="bg-\[var\(--theme-primary\)\]"] nav a[class*="bg-white"],
+aside[class*="bg-\[var\(--theme-primary\)\]"] nav button[class*="bg-white"],
+aside[class*="bg-\[var\(--theme-primary\)\]"] a[class*="bg-white"],
+aside[class*="bg-\[var\(--theme-primary\)\]"] button[class*="bg-white"] {
+    color: var(--theme-text-on-white, #000000) !important;
+}
+
+aside[class*="bg-\[var\(--theme-primary\)\]"] nav a[class*="bg-white"] *,
+aside[class*="bg-\[var\(--theme-primary\)\]"] nav button[class*="bg-white"] *,
+aside[class*="bg-\[var\(--theme-primary\)\]"] a[class*="bg-white"] *,
+aside[class*="bg-\[var\(--theme-primary\)\]"] button[class*="bg-white"] * {
+    color: var(--theme-text-on-white, #000000) !important;
+}
+
+aside[class*="bg-\[var\(--theme-primary\)\]"] nav a[class*="bg-white"] svg,
+aside[class*="bg-\[var\(--theme-primary\)\]"] nav button[class*="bg-white"] svg,
+aside[class*="bg-\[var\(--theme-primary\)\]"] a[class*="bg-white"] svg,
+aside[class*="bg-\[var\(--theme-primary\)\]"] button[class*="bg-white"] svg {
+    color: var(--theme-text-on-white, #000000) !important;
+    stroke: var(--theme-text-on-white, #000000) !important;
+    fill: var(--theme-text-on-white, #000000) !important;
+}
+
+/* Active navigation - border highlight design */
+.fi-sidebar nav a[aria-current="page"],
+.fi-sidebar nav button[aria-current="page"],
+.fi-sidebar nav a[data-active="true"],
+.fi-sidebar nav button[data-active="true"],
+aside nav a[aria-current="page"],
+aside nav button[aria-current="page"],
+aside nav a[data-active="true"],
+aside nav button[data-active="true"] {
+    background-color: rgba(255, 255, 255, 0.15) !important;
+    color: var(--theme-text-on-primary, #FFFFFF) !important;
+    font-weight: 600 !important;
+    border-left: 4px solid var(--theme-text-on-primary, #FFFFFF) !important;
+    box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.1) !important;
+    padding-left: calc(1rem - 4px) !important;
+    position: relative;
+}
+
+.fi-sidebar nav a[aria-current="page"] *,
+.fi-sidebar nav button[aria-current="page"] *,
+.fi-sidebar nav a[data-active="true"] *,
+.fi-sidebar nav button[data-active="true"] *,
+aside nav a[aria-current="page"] *,
+aside nav button[aria-current="page"] *,
+aside nav a[data-active="true"] *,
+aside nav button[data-active="true"] * {
+    color: var(--theme-text-on-primary, #FFFFFF) !important;
+}
+
+.fi-sidebar nav a[aria-current="page"] svg,
+.fi-sidebar nav button[aria-current="page"] svg,
+.fi-sidebar nav a[data-active="true"] svg,
+.fi-sidebar nav button[data-active="true"] svg,
+aside nav a[aria-current="page"] svg,
+aside nav button[aria-current="page"] svg,
+aside nav a[data-active="true"] svg,
+aside nav button[data-active="true"] svg {
+    color: var(--theme-text-on-primary, #FFFFFF) !important;
+    stroke: var(--theme-text-on-primary, #FFFFFF) !important;
+    fill: var(--theme-text-on-primary, #FFFFFF) !important;
+}
+
+/* Class-based active states (fi-active, etc.) */
+.fi-sidebar nav a.fi-active,
+.fi-sidebar nav button.fi-active,
+aside nav a.fi-active,
+aside nav button.fi-active,
+.fi-sidebar nav a[class*="active"],
+.fi-sidebar nav button[class*="active"],
+aside nav a[class*="active"],
+aside nav button[class*="active"] {
+    background-color: rgba(255, 255, 255, 0.15) !important;
+    color: var(--theme-text-on-primary, #FFFFFF) !important;
+    font-weight: 600 !important;
+    border-left: 4px solid var(--theme-text-on-primary, #FFFFFF) !important;
+    box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.1) !important;
+    padding-left: calc(1rem - 4px) !important;
+}
+
+.fi-sidebar nav a.fi-active *,
+.fi-sidebar nav button.fi-active *,
+aside nav a.fi-active *,
+aside nav button.fi-active *,
+.fi-sidebar nav a[class*="active"] *,
+.fi-sidebar nav button[class*="active"] *,
+aside nav a[class*="active"] *,
+aside nav button[class*="active"] * {
+    color: var(--theme-text-on-primary, #FFFFFF) !important;
+}
+
+/* Override white bg nav items to use border highlight instead */
+aside nav a[class*="bg-white"],
+aside nav button[class*="bg-white"],
+.fi-sidebar nav a[class*="bg-white"],
+.fi-sidebar nav button[class*="bg-white"] {
+    background-color: rgba(255, 255, 255, 0.15) !important;
+    color: var(--theme-text-on-primary, #FFFFFF) !important;
+    font-weight: 600 !important;
+    border-left: 4px solid var(--theme-text-on-primary, #FFFFFF) !important;
+    box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.1) !important;
+    padding-left: calc(1rem - 4px) !important;
+}
+
+aside nav a[class*="bg-white"] *,
+aside nav button[class*="bg-white"] *,
+.fi-sidebar nav a[class*="bg-white"] *,
+.fi-sidebar nav button[class*="bg-white"] * {
+    color: var(--theme-text-on-primary, #FFFFFF) !important;
+}
+
+aside nav a[class*="bg-white"] svg,
+aside nav button[class*="bg-white"] svg,
+.fi-sidebar nav a[class*="bg-white"] svg,
+.fi-sidebar nav button[class*="bg-white"] svg {
+    color: var(--theme-text-on-primary, #FFFFFF) !important;
+    stroke: var(--theme-text-on-primary, #FFFFFF) !important;
+    fill: var(--theme-text-on-primary, #FFFFFF) !important;
+}
+
+/* Filament nav items with white background via class */
+.fi-sidebar a[class*="bg-white"],
+.fi-sidebar button[class*="bg-white"],
+.fi-sidebar nav li a[class*="bg-white"],
+.fi-sidebar nav li button[class*="bg-white"] {
+    color: #000000 !important;
+}
+
+.fi-sidebar a[class*="bg-white"] *,
+.fi-sidebar button[class*="bg-white"] *,
+.fi-sidebar nav li a[class*="bg-white"] *,
+.fi-sidebar nav li button[class*="bg-white"] * {
+    color: #000000 !important;
+}
+
+/* Filament nav items with white background via inline style */
+.fi-sidebar nav a[style*="background"]:not([style*="transparent"]),
+.fi-sidebar nav button[style*="background"]:not([style*="transparent"]),
+.fi-sidebar nav li a[style*="background"]:not([style*="transparent"]),
+.fi-sidebar nav li button[style*="background"]:not([style*="transparent"]),
+aside[class*="bg-"] nav a[style*="background"],
+aside[class*="bg-"] nav button[style*="background"] {
+    color: #000000 !important;
+}
+
+.fi-sidebar nav a[style*="background"]:not([style*="transparent"]) *,
+.fi-sidebar nav button[style*="background"]:not([style*="transparent"]) *,
+.fi-sidebar nav li a[style*="background"]:not([style*="transparent"]) *,
+.fi-sidebar nav li button[style*="background"]:not([style*="transparent"]) *,
+aside[class*="bg-"] nav a[style*="background"] *,
+aside[class*="bg-"] nav button[style*="background"] * {
+    color: #000000 !important;
+}
+
+/* Active nav indicator bar */
+.fi-sidebar nav a[aria-current="page"]::before,
+.fi-sidebar nav button[aria-current="page"]::before,
+aside nav a[aria-current="page"]::before,
+aside nav button[aria-current="page"]::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background-color: #000000;
+    border-radius: 0 2px 2px 0;
+}
+
+/* Navigation transitions */
+.fi-sidebar nav a,
+.fi-sidebar nav button,
+.fi-sidebar nav li a,
+.fi-sidebar nav li button,
+aside nav a,
+aside nav button {
+    transition: all 0.2s ease;
+}
+
+/* Light sidebar background active state */
+aside[style*="background-color"] nav a[aria-current="page"],
+aside[style*="background-color"] nav button[aria-current="page"],
+aside[style*="background"] nav a[aria-current="page"],
+aside[style*="background"] nav button[aria-current="page"] {
+    background-color: rgba(255, 255, 255, 0.95) !important;
+    color: #000000 !important;
+    font-weight: 600 !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2) !important;
+    border-left: 4px solid #000000 !important;
+}

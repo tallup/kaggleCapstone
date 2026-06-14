@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import { Line } from 'react-chartjs-2';
 import {
@@ -10,11 +10,16 @@ import {
     PointElement,
     LineElement,
     Title,
-    Tooltip,
+    Tooltip as ChartTooltipPlugin,
     Legend,
     Filler
 } from 'chart.js';
 import { Download, Plus, MoreVertical, Calendar, User, Building2, ChevronLeft, ChevronRight, CheckCircle, XCircle } from 'lucide-react';
+import logger from '../utils/logger';
+import { useToastContext } from '../contexts/ToastContext';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
+import Tooltip from '../components/ui/Tooltip';
+import { RESIDENT_CONTEXT_QUERY_KEY } from '../utils/headerResidentSwitcher';
 
 ChartJS.register(
     CategoryScale,
@@ -22,7 +27,7 @@ ChartJS.register(
     PointElement,
     LineElement,
     Title,
-    Tooltip,
+    ChartTooltipPlugin,
     Legend,
     Filler
 );
@@ -32,7 +37,9 @@ const currentYear = new Date().getFullYear();
 const years = Array.from({ length: 10 }, (_, i) => currentYear - i);
 
 export default function ViewVitals() {
+    const toast = useToastContext();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const queryClient = useQueryClient();
     const [branchId, setBranchId] = useState('');
     const [residentId, setResidentId] = useState('');
@@ -41,6 +48,7 @@ export default function ViewVitals() {
     const [currentPage, setCurrentPage] = useState(1);
     const [perPage] = useState(10);
     const [openMenuId, setOpenMenuId] = useState(null);
+    const [approveConfirmId, setApproveConfirmId] = useState(null);
     const menuRefs = useRef({});
 
     const { data: currentUser } = useQuery({
@@ -170,6 +178,14 @@ export default function ViewVitals() {
         }
     }, [isCaregiver, caregiverBranchId, branchId]);
 
+    useEffect(() => {
+        const b = searchParams.get('branch') || '';
+        const rid =
+            searchParams.get(RESIDENT_CONTEXT_QUERY_KEY) || searchParams.get('resident_id') || '';
+        if (b) setBranchId(b);
+        if (rid) setResidentId(rid);
+    }, [searchParams]);
+
     // Fetch branches
     const { data: branchesData } = useQuery({
         queryKey: ['branches-list'],
@@ -264,8 +280,8 @@ export default function ViewVitals() {
             setOpenMenuId(null);
         },
         onError: (error) => {
-            console.error('Failed to update vital status:', error);
-            alert('Failed to update vital status. Please try again.');
+            logger.error('Failed to update vital status:', error);
+            toast.error('Error', 'Failed to update vital status. Please try again.');
         },
     });
 
@@ -295,10 +311,13 @@ export default function ViewVitals() {
         }
     }, [openMenuId]);
 
-    const handleApprove = (vitalId) => {
-        if (window.confirm('Are you sure you want to approve this vital sign?')) {
-            updateStatusMutation.mutate({ id: vitalId, status: 'approved' });
-        }
+    const handleApproveConfirm = () => {
+        if (approveConfirmId == null) return;
+        const id = approveConfirmId;
+        updateStatusMutation.mutate(
+            { id, status: 'approved' },
+            { onSuccess: () => setApproveConfirmId(null) }
+        );
     };
 
     // Fetch vitals data
@@ -319,13 +338,10 @@ export default function ViewVitals() {
 
             try {
                 const response = await api.get('/vitals', { params });
-                console.log('Vitals API Response:', response.data);
-                console.log('Vitals data array:', response.data?.data);
-                console.log('Total vitals:', response.data?.total);
                 return response.data;
             } catch (err) {
-                console.error('Error fetching vitals:', err);
-                console.error('Error response:', err.response?.data);
+                logger.error('Error fetching vitals:', err);
+                logger.error('Error response:', err.response?.data);
                 throw err;
             }
         },
@@ -483,7 +499,7 @@ export default function ViewVitals() {
     // Handle download vitals
     const handleDownload = () => {
         if (!vitalsData?.data || vitalsData.data.length === 0) {
-            alert('No vitals data available to download');
+            toast.warning('No data', 'No vitals data available to download');
             return;
         }
 
@@ -586,6 +602,18 @@ export default function ViewVitals() {
     const totalPages = vitalsData?.last_page || 1;
 
     return (
+        <>
+            <ConfirmDialog
+                isOpen={approveConfirmId != null}
+                onClose={() => !updateStatusMutation.isPending && setApproveConfirmId(null)}
+                onConfirm={handleApproveConfirm}
+                title="Approve this vital sign?"
+                description="This will mark the reading as approved."
+                confirmLabel="Approve"
+                cancelLabel="Cancel"
+                variant="primary"
+                isPending={updateStatusMutation.isPending}
+            />
         <div className="min-h-screen bg-gray-50">
             <div className="p-6">
                 {/* Filters Section */}
@@ -645,8 +673,7 @@ export default function ViewVitals() {
                         <div>
                             <button 
                                 onClick={() => {
-                                    console.log('Refetching vitals data...', { branchId, residentId, year, month, startDate, endDate });
-                                    refetch();
+                                                    refetch();
                                 }}
                                 className="px-4 py-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] rounded-lg hover:bg-[var(--theme-primary-hover)] transition-colors mt-6"
                             >
@@ -735,8 +762,8 @@ export default function ViewVitals() {
                 </div>
 
                 {/* Table */}
-                <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-                    <div className="overflow-x-auto">
+                <div className="bg-white rounded-lg shadow-lg overflow-hidden" style={{ position: 'relative', zIndex: 1 }}>
+                    <div className="overflow-x-auto" style={{ position: 'relative' }}>
                         <table className="w-full">
                             <thead className="bg-gray-50">
                                 <tr>
@@ -769,7 +796,7 @@ export default function ViewVitals() {
                                             vitalsData.data.map((vital) => {
                                                 const date = new Date(vital.measurement_date);
                                                 return (
-                                                    <tr key={vital.id} className="hover:bg-gray-50">
+                                                    <tr key={vital.id} className="hover:bg-gray-50" style={{ position: 'relative', zIndex: openMenuId === vital.id ? 10 : 1 }}>
                                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                                             {date.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' })}
                                                         </td>
@@ -798,41 +825,51 @@ export default function ViewVitals() {
                                                         {vital.status || 'approved'}
                                                     </span>
                                                 </td>
-                                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 relative">
+                                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                                             <div className="relative" ref={(el) => (menuRefs.current[vital.id] = el)}>
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={(e) => {
-                                                                        e.preventDefault();
-                                                                        e.stopPropagation();
-                                                                        setOpenMenuId(openMenuId === vital.id ? null : vital.id);
-                                                                    }}
-                                                                    className="p-2 hover:bg-gray-100 rounded text-gray-600 hover:text-gray-900 transition-colors"
-                                                                    title="Actions"
-                                                                >
-                                                                    <MoreVertical className="w-5 h-5" />
-                                                                </button>
+                                                                <Tooltip content="Actions" position="left">
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={(e) => {
+                                                                            e.preventDefault();
+                                                                            e.stopPropagation();
+                                                                            setOpenMenuId(openMenuId === vital.id ? null : vital.id);
+                                                                        }}
+                                                                        className="p-2 hover:bg-gray-100 rounded text-gray-600 hover:text-gray-900 transition-colors"
+                                                                        aria-label="Row actions"
+                                                                    >
+                                                                        <MoreVertical className="w-5 h-5" strokeWidth={2.25} />
+                                                                    </button>
+                                                                </Tooltip>
                                                                 {openMenuId === vital.id && (
-                                                                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 z-50" style={{ zIndex: 9999 }}>
-                                                                        <div className="py-1">
-                                                                            {vital.status === 'pending_review' && (
-                                                                                <button
-                                                                                    type="button"
-                                                                                    onClick={(e) => {
-                                                                                        e.preventDefault();
-                                                                                        e.stopPropagation();
-                                                                                        handleApprove(vital.id);
-                                                                                        setOpenMenuId(null);
-                                                                                    }}
-                                                                                    disabled={updateStatusMutation.isPending}
-                                                                                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                                                                >
-                                                                                    <CheckCircle className="w-4 h-4 text-green-600" />
-                                                                                    Approve
-                                                                                </button>
-                                                                            )}
+                                                                    <>
+                                                                        {/* Backdrop to close menu when clicking outside */}
+                                                                        <div
+                                                                            className="fixed inset-0 z-[190]"
+                                                                            onClick={() => setOpenMenuId(null)}
+                                                                            aria-hidden
+                                                                        />
+                                                                        <div className="absolute right-0 z-[191] mt-2 w-48 rounded-lg border border-gray-200 bg-white shadow-xl">
+                                                                            <div className="py-1">
+                                                                                {vital.status === 'pending_review' && (
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={(e) => {
+                                                                                            e.preventDefault();
+                                                                                            e.stopPropagation();
+                                                                                            setApproveConfirmId(vital.id);
+                                                                                            setOpenMenuId(null);
+                                                                                        }}
+                                                                                        disabled={updateStatusMutation.isPending}
+                                                                                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                                                                    >
+                                                                                        <CheckCircle className="w-4 h-4 text-green-600" />
+                                                                                        Approve
+                                                                                    </button>
+                                                                                )}
+                                                                            </div>
                                                                         </div>
-                                                                    </div>
+                                                                    </>
                                                                 )}
                                                             </div>
                                                         </td>
@@ -877,6 +914,7 @@ export default function ViewVitals() {
                 </div>
             </div>
         </div>
+        </>
     );
 }
 

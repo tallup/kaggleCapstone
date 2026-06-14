@@ -1,5 +1,6 @@
 import React from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import Tooltip from './ui/Tooltip';
 
 /**
  * Weekly Calendar View Component
@@ -115,13 +116,16 @@ export default function WeeklyCalendarView({
         <div className={`bg-white rounded-lg shadow-sm p-4 ${className}`}>
             {/* Week Navigation */}
             <div className="flex items-center justify-between mb-4">
-                <button
-                    onClick={handlePrevWeek}
-                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                    title="Previous Week"
-                >
-                    <ChevronLeft className="w-5 h-5 text-gray-600" />
-                </button>
+                <Tooltip content="Previous week" position="bottom">
+                    <button
+                        type="button"
+                        onClick={handlePrevWeek}
+                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                        aria-label="Previous week"
+                    >
+                        <ChevronLeft className="w-5 h-5 text-gray-600" strokeWidth={2.25} />
+                    </button>
+                </Tooltip>
                 <div className="flex items-center gap-4">
                     <h3 className="text-lg font-semibold text-gray-900">
                         {formatWeekRange()}
@@ -133,13 +137,16 @@ export default function WeeklyCalendarView({
                         Today
                     </button>
                 </div>
-                <button
-                    onClick={handleNextWeek}
-                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                    title="Next Week"
-                >
-                    <ChevronRight className="w-5 h-5 text-gray-600" />
-                </button>
+                <Tooltip content="Next week" position="bottom">
+                    <button
+                        type="button"
+                        onClick={handleNextWeek}
+                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                        aria-label="Next week"
+                    >
+                        <ChevronRight className="w-5 h-5 text-gray-600" strokeWidth={2.25} />
+                    </button>
+                </Tooltip>
             </div>
 
             {/* Week Days Grid */}

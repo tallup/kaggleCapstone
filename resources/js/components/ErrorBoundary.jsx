@@ -1,5 +1,6 @@
 import React from 'react';
 import { AlertTriangle, RefreshCw, Home, ArrowLeft } from 'lucide-react';
+import { hardReloadWithCacheBust } from '../utils/hardReload';
 
 class ErrorBoundary extends React.Component {
     constructor(props) {
@@ -10,7 +11,13 @@ class ErrorBoundary extends React.Component {
 
     static getDerivedStateFromError(error) {
         // For module loading errors, delay showing the error to allow retries to succeed
-        const isModuleLoadError = error?.message?.includes('Failed to fetch dynamically imported module');
+        const isModuleLoadError = 
+            error?.message?.includes('Failed to fetch dynamically imported module') ||
+            error?.message?.includes('error loading dynamically imported module') ||
+            error?.message?.includes('Loading chunk') ||
+            error?.name === 'ChunkLoadError' ||
+            (error?.name === 'TypeError' && error?.message?.includes('dynamically imported'));
+        
         return { 
             hasError: true, 
             error,
@@ -22,13 +29,35 @@ class ErrorBoundary extends React.Component {
         console.error('React Error:', error, errorInfo);
         this.setState({ errorInfo });
         
-        // If it's a module loading error, wait 2 seconds before showing error
-        // This gives the retry logic time to succeed
-        const isModuleLoadError = error?.message?.includes('Failed to fetch dynamically imported module');
+        // If it's a module loading error, wait longer before showing error
+        // This gives the retry logic more time to succeed
+        const isModuleLoadError = 
+            error?.message?.includes('Failed to fetch dynamically imported module') ||
+            error?.message?.includes('error loading dynamically imported module') ||
+            error?.message?.includes('Loading chunk') ||
+            error?.name === 'ChunkLoadError' ||
+            (error?.name === 'TypeError' && error?.message?.includes('dynamically imported'));
+        
         if (isModuleLoadError) {
+            // Wait 5 seconds to allow retries to complete
             this.errorTimeout = setTimeout(() => {
-                this.setState({ showError: true });
-            }, 2000);
+                // Check if we've already reloaded
+                const hasReloaded = sessionStorage.getItem('module_reload_attempted');
+                if (hasReloaded) {
+                    // If reload already attempted, show error after delay
+                    this.setState({ showError: true });
+                } else {
+                    // Try one more reload before showing error
+                    console.warn('Module still failing, attempting final reload...');
+                    sessionStorage.setItem('module_reload_attempted', 'true');
+                    setTimeout(() => {
+                        hardReloadWithCacheBust();
+                    }, 500);
+                }
+            }, 5000);
+        } else {
+            // For non-module errors, show immediately
+            this.setState({ showError: true });
         }
     }
 
@@ -54,7 +83,7 @@ class ErrorBoundary extends React.Component {
                     error={this.state.error}
                     errorInfo={this.state.errorInfo}
                     onReset={this.handleReset}
-                    onReload={() => window.location.reload()}
+                    onReload={() => hardReloadWithCacheBust()}
                     onGoToDashboard={this.handleGoToDashboard}
                 />
             );
@@ -104,9 +133,13 @@ function ErrorFallback({ error, errorInfo, onReset, onReload, onGoToDashboard })
                         <p className="text-sm font-medium text-red-800 mb-1">
                             Error: {error.toString()}
                         </p>
-                        {error.message && error.message.includes('Failed to fetch dynamically imported module') && (
+                        {(error.message?.includes('Failed to fetch dynamically imported module') ||
+                          error.message?.includes('error loading dynamically imported module') ||
+                          error.message?.includes('Loading chunk') ||
+                          error.name === 'ChunkLoadError') && (
                             <p className="text-xs text-red-700 mt-2">
-                                This error usually occurs when a module fails to load. The page will automatically reload to retry loading the module.
+                                This error usually occurs when a module fails to load. The page will automatically reload to retry loading the module. 
+                                If this persists, try clearing your browser cache or contact support.
                             </p>
                         )}
                     </div>

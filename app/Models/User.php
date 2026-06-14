@@ -13,6 +13,7 @@ use Filament\Panel;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Hash;
 use App\Models\Notification;
+use App\Notifications\PasswordResetLinkNotification;
 use App\Traits\Loggable;
 use App\Traits\FormatsPhoneNumbers;
 
@@ -59,7 +60,8 @@ class User extends Authenticatable implements FilamentUser
      *
      * @var array<int, string>
      */
-    protected $appends = ['profile_image_url', 'is_caregiver'];
+    protected $appends = ['profile_image_url', 'is_caregiver', 'is_any_admin', 'is_facility_administrator', 'is_branch_admin'];
+
 
     /**
      * The attributes that should be hidden for serialization.
@@ -219,6 +221,20 @@ class User extends Authenticatable implements FilamentUser
         return $this->hasOne(StaffClockIn::class, 'staff_id')->where('is_active', true);
     }
 
+    public function residentContacts()
+    {
+        return $this->hasMany(ResidentContact::class);
+    }
+
+    public function isFamily(): bool
+    {
+        $role = $this->role ? strtolower(trim($this->role)) : '';
+        if ($role === 'family' || $role === 'family_member') {
+            return true;
+        }
+        return $this->hasRole('family') || $this->hasRole('family_member');
+    }
+
     public function roles()
     {
         return $this->morphToMany(Role::class, 'model', 'model_has_roles');
@@ -245,16 +261,56 @@ class User extends Authenticatable implements FilamentUser
         }
     }
 
+    /**
+     * Roles for permission checks: Spatie pivot when present, otherwise legacy `users.role` mapped to `roles` table.
+     *
+     * @return \Illuminate\Support\Collection<int, Role>
+     */
+    public function rolesForPermissionResolution(): \Illuminate\Support\Collection
+    {
+        if ($this->relationLoaded('roles') && $this->roles->isNotEmpty()) {
+            return $this->roles->loadMissing('permissions');
+        }
+
+        $roles = $this->roles()->with('permissions')->get();
+        if ($roles->isNotEmpty()) {
+            return $roles;
+        }
+
+        $raw = $this->role ? strtolower(trim((string) $this->role)) : '';
+        if ($raw === '') {
+            return collect();
+        }
+
+        $aliases = [
+            'care_giver' => 'caregiver',
+            'registered_nurse' => 'nurse',
+            'licensed_nurse' => 'nurse',
+            'rn' => 'nurse',
+        ];
+        $name = $aliases[$raw] ?? $raw;
+
+        $role = Role::where('name', $name)->first()
+            ?? Role::where('name', $raw)->first();
+
+        if (! $role) {
+            return collect();
+        }
+
+        return collect([$role->load('permissions')]);
+    }
+
     public function hasPermission(string $permission): bool
     {
-        // Super admins bypass all restrictions
-        if ($this->role === 'super_admin' || $this->hasRole('super_admin')) {
+        // Both administrator and admin bypass permission checks
+        // But they have different data access scopes (handled elsewhere)
+        $adminRoles = ['super_admin', 'administrator', 'admin'];
+        if (in_array($this->role, $adminRoles) || $this->roles()->whereIn('name', $adminRoles)->exists()) {
             return true;
         }
 
-        // Get user's roles
-        $userRoles = $this->roles()->get();
-        
+        $userRoles = $this->rolesForPermissionResolution();
+
         if ($userRoles->isEmpty()) {
             return false;
         }
@@ -322,14 +378,18 @@ class User extends Authenticatable implements FilamentUser
             return true;
         }
 
-        // Facility admins (admin/administrator) should have full module access within their facility
-        $isFacilityAdmin = $this->role === 'administrator'
-            || $this->role === 'admin'
-            || $this->hasRole('administrator')
-            || $this->hasRole('admin');
-
-        if ($isFacilityAdmin) {
+        // Facility administrators have full module access within their facility
+        if ($this->isFacilityAdministrator()) {
             return true;
+        }
+
+        // Branch admins have module access within their facility (but data scoped to branch)
+        if ($this->isBranchAdmin()) {
+            // Check if user's facility has access to this module
+            if (!$this->facility_id || !$this->facility) {
+                return false;
+            }
+            return $this->facility->hasModuleAccess($module);
         }
 
         // If user doesn't have a facility, deny access
@@ -344,6 +404,67 @@ class User extends Authenticatable implements FilamentUser
     {
         return $this->roles()->whereIn('name', $roles)->exists();
     }
+
+    /**
+     * Platform super admin — must not receive facility-originated notification emails.
+     */
+    public function isSuperAdmin(): bool
+    {
+        if ($this->role === 'super_admin') {
+            return true;
+        }
+
+        return $this->hasRole('super_admin');
+    }
+
+    /**
+     * Check if user is a facility administrator (sees all branches in facility)
+     */
+    public function isFacilityAdministrator(): bool
+    {
+        return $this->role === 'administrator' 
+            || $this->hasRole('administrator');
+    }
+
+    /**
+     * Check if user is a branch admin (sees only their assigned branch)
+     */
+    public function isBranchAdmin(): bool
+    {
+        return $this->role === 'admin' 
+            || $this->hasRole('admin');
+    }
+
+    /**
+     * Check if user is any type of admin (facility or branch)
+     */
+    public function isAnyAdmin(): bool
+    {
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+
+        return $this->isFacilityAdministrator()
+            || $this->isBranchAdmin()
+            || $this->role === 'facility_admin'
+            || $this->role === 'manager';
+    }
+
+    public function getIsAnyAdminAttribute(): bool
+    {
+        return $this->isAnyAdmin();
+    }
+
+    public function getIsFacilityAdministratorAttribute(): bool
+    {
+        return $this->isFacilityAdministrator();
+    }
+
+    public function getIsBranchAdminAttribute(): bool
+    {
+        return $this->isBranchAdmin();
+    }
+
 
     // Scopes
     public function scopeCaregivers($query)
@@ -470,10 +591,11 @@ class User extends Authenticatable implements FilamentUser
     public static function getRoleOptions()
     {
         return [
+            'administrator' => 'Administrator (Facility-wide)',
+            'admin' => 'Admin (Branch-level)',
             'care_giver' => 'Care Giver',
             'registered_nurse' => 'Registered Nurse',
             'licensed_nurse' => 'Licensed Nurse',
-            'administrator' => 'Administrator',
             'manager' => 'Manager',
             'support_staff' => 'Support Staff',
         ];
@@ -508,6 +630,14 @@ class User extends Authenticatable implements FilamentUser
         }
 
         return Hash::check($pin, $this->clock_pin);
+    }
+
+    /**
+     * Send password reset notification with SPA reset URL.
+     */
+    public function sendPasswordResetNotification($token): void
+    {
+        $this->notify(new PasswordResetLinkNotification($token));
     }
 
     /**

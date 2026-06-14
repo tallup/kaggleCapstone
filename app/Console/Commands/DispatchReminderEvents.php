@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\Notification;
 use App\Models\ReminderEvent;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class DispatchReminderEvents extends Command
@@ -32,19 +33,43 @@ class DispatchReminderEvents extends Command
         foreach ($dueEvents as $event) {
             $reminder = $event->reminder;
 
-            if (!$reminder || $reminder->status !== 'active') {
+            if (! $reminder || $reminder->status !== 'active') {
                 $event->update(['status' => 'cancelled']);
+
                 continue;
             }
 
             try {
-                $this->dispatchInAppNotification($event);
-                $event->update([
-                    'status' => 'delivered',
-                    'delivered_at' => now(),
-                ]);
+                DB::transaction(function () use ($event): void {
+                    $lockedEvent = ReminderEvent::query()
+                        ->whereKey($event->id)
+                        ->lockForUpdate()
+                        ->first();
+
+                    if (! $lockedEvent || ! in_array($lockedEvent->status, ['pending', 'snoozed'], true)) {
+                        return;
+                    }
+
+                    $lockedEvent->loadMissing('reminder');
+                    $reminder = $lockedEvent->reminder;
+
+                    if (! $reminder || $reminder->status !== 'active') {
+                        $lockedEvent->update(['status' => 'cancelled']);
+
+                        return;
+                    }
+
+                    if (! $this->notificationAlreadyDispatched($lockedEvent)) {
+                        $this->dispatchInAppNotification($lockedEvent);
+                    }
+
+                    $lockedEvent->update([
+                        'status' => 'delivered',
+                        'delivered_at' => $lockedEvent->delivered_at ?? now(),
+                    ]);
+                });
             } catch (\Throwable $e) {
-                $event->update([
+                $event->refresh()->update([
                     'status' => 'failed',
                     'error_message' => $e->getMessage(),
                 ]);
@@ -58,6 +83,21 @@ class DispatchReminderEvents extends Command
         }
 
         return Command::SUCCESS;
+    }
+
+    private function notificationAlreadyDispatched(ReminderEvent $event): bool
+    {
+        $reminder = $event->reminder;
+
+        if (! $reminder) {
+            return false;
+        }
+
+        return Notification::query()
+            ->where('user_id', $reminder->user_id)
+            ->where('type', 'reminder')
+            ->where('metadata->reminder_event_id', $event->id)
+            ->exists();
     }
 
     private function dispatchInAppNotification(ReminderEvent $event): void
@@ -89,7 +129,6 @@ class DispatchReminderEvents extends Command
         $when = $event->scheduled_for?->format('M j, g:ia');
         $category = $category ?: 'reminder';
 
-        return ucfirst($category) . ' due ' . ($when ?? 'soon');
+        return ucfirst($category).' due '.($when ?? 'soon');
     }
 }
-

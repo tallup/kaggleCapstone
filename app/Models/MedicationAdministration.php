@@ -53,6 +53,8 @@ class MedicationAdministration extends Model
             'completed' => 'Completed',
             'missed' => 'Missed',
             'refused' => 'Refused',
+            'hospital_admission' => 'Hospital Admission',
+            'pharmacy_administration_confirm' => 'Pharmacy Administration Confirm',
             default => ucfirst($this->status),
         };
     }

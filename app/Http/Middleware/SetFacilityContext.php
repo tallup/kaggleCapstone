@@ -55,28 +55,25 @@ class SetFacilityContext
                 }
             }
             
-            // If no facility found from subdomain (or no subdomain), try user's facility_id then branch
+            // If no facility found from subdomain (or no subdomain), try user's facility_id then branch.
+            // Apex domains (e.g. homelogic360.net) have no subdomain — this path is normal, not an error.
             if (!$facility) {
-                \Illuminate\Support\Facades\Log::info('SetFacilityContext: No facility from subdomain, trying fallback', [
-                    'user_id' => $user->id,
-                    'facility_id' => $user->facility_id,
-                    'assigned_branch_id' => $user->assigned_branch_id,
-                ]);
-
                 if ($user->facility_id) {
                     $facility = Cache::remember("facility.{$user->facility_id}", 3600, function () use ($user) {
                         return $user->facility;
                     });
                 } elseif ($user->assigned_branch_id) {
-                    // Fallback: Try to get facility from assigned branch
                     $facility = Cache::remember("facility.branch.{$user->assigned_branch_id}", 3600, function () use ($user) {
                         $branch = \App\Models\Branch::find($user->assigned_branch_id);
                         return $branch ? $branch->facility : null;
                     });
-                    
-                    \Illuminate\Support\Facades\Log::info('SetFacilityContext: Branch fallback result', [
-                        'branch_id' => $user->assigned_branch_id,
-                        'facility_found' => $facility ? $facility->id : 'null',
+                }
+
+                if (!$facility && $user->role !== 'super_admin') {
+                    \Illuminate\Support\Facades\Log::warning('SetFacilityContext: Could not resolve facility for user', [
+                        'user_id' => $user->id,
+                        'facility_id' => $user->facility_id,
+                        'assigned_branch_id' => $user->assigned_branch_id,
                     ]);
                 }
             }
@@ -96,16 +93,38 @@ class SetFacilityContext
      */
     private function extractSubdomain(Request $request): ?string
     {
-        $host = $request->getHost();
-        $parts = explode('.', $host);
-        
-        // If we have more than 2 parts, the first is likely the subdomain
-        // e.g., evergreen.yourapp.com -> evergreen
-        if (count($parts) > 2) {
-            return $parts[0];
+        $host = strtolower($request->getHost());
+        $base = config('app.facility_base_domain');
+        $candidate = null;
+
+        if (is_string($base) && $base !== '') {
+            $base = strtolower($base);
+            if ($host !== $base && str_ends_with($host, '.'.$base)) {
+                $candidate = substr($host, 0, -strlen('.'.$base));
+            }
         }
 
-        return null;
+        if ($candidate === null) {
+            $parts = explode('.', $host);
+            if (count($parts) > 2) {
+                $candidate = $parts[0];
+            }
+        }
+
+        if ($candidate === null || $candidate === '') {
+            return null;
+        }
+
+        if (str_contains($candidate, '.')) {
+            return null;
+        }
+
+        $reserved = ['www', 'app', 'api', 'admin', 'mail', 'ftp', 'cdn', 'static'];
+        if (in_array($candidate, $reserved, true)) {
+            return null;
+        }
+
+        return $candidate;
     }
 
     /**

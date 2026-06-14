@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Models\LeaveRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Carbon\Carbon;
 
 class ChartController extends BaseApiController
@@ -39,8 +40,44 @@ class ChartController extends BaseApiController
     {
         $branchId = $request->get('branch_id');
         $residentId = $request->get('resident_id');
+        $user = $request->user();
         
         $query = VitalSign::query();
+        
+        // Apply facility filtering for non-super admins
+        if ($user && $user->role !== 'super_admin') {
+            if ($user->facility_id) {
+                // Use optimized whereIn pattern instead of nested whereHas for better performance
+                $branchIds = $this->getFacilityBranchIds($user->facility_id);
+                if (!empty($branchIds)) {
+                    $query->whereHas('resident', function($q) use ($branchIds) {
+                        $q->whereIn('branch_id', $branchIds)->where('is_active', true);
+                    });
+                } else {
+                    // No branches for facility, return empty results
+                    return response()->json([
+                        'total_vitals' => 0,
+                        'today_vitals' => 0,
+                        'week_vitals' => 0,
+                        'month_vitals' => 0,
+                        'trends' => [],
+                        'blood_pressure' => ['labels' => [], 'systolic' => [], 'diastolic' => []],
+                        'temperature' => ['labels' => [], 'temperature' => []],
+                    ]);
+                }
+            } else {
+                // User has no facility assigned, return empty results
+                return response()->json([
+                    'total_vitals' => 0,
+                    'today_vitals' => 0,
+                    'week_vitals' => 0,
+                    'month_vitals' => 0,
+                    'trends' => [],
+                    'blood_pressure' => ['labels' => [], 'systolic' => [], 'diastolic' => []],
+                    'temperature' => ['labels' => [], 'temperature' => []],
+                ]);
+            }
+        }
         
         if ($branchId) {
             $query->whereHas('resident', function($q) use ($branchId) {
@@ -54,23 +91,44 @@ class ChartController extends BaseApiController
         
         $stats = [
             'total_vitals' => $query->count(),
-            'today_vitals' => $query->whereDate('measurement_date', today())->count(),
-            'week_vitals' => $query->whereBetween('measurement_date', [Carbon::now()->startOfWeek(), Carbon::now()->endOfWeek()])->count(),
-            'month_vitals' => $query->whereMonth('measurement_date', Carbon::now()->month)->count(),
-            'trends' => $this->getVitalsTrends($branchId, $residentId),
-            'blood_pressure' => $this->getBloodPressureData($branchId, $residentId),
-            'temperature' => $this->getTemperatureData($branchId, $residentId),
+            'today_vitals' => (clone $query)->whereDate('measurement_date', today())->count(),
+            'week_vitals' => (clone $query)->whereBetween('measurement_date', [Carbon::now()->startOfWeek(), Carbon::now()->endOfWeek()])->count(),
+            'month_vitals' => (clone $query)->whereMonth('measurement_date', Carbon::now()->month)->count(),
+            'trends' => $this->getVitalsTrends($branchId, $residentId, $user),
+            'blood_pressure' => $this->getBloodPressureData($branchId, $residentId, $user),
+            'temperature' => $this->getTemperatureData($branchId, $residentId, $user),
         ];
 
         return response()->json($stats);
     }
 
-    private function getVitalsTrends($branchId = null, $residentId = null): array
+    private function getVitalsTrends($branchId = null, $residentId = null, $user = null): array
     {
         $last7Days = [];
+        // Pre-fetch branch IDs if facility filtering is needed
+        $branchIds = null;
+        if ($user && $user->role !== 'super_admin' && $user->facility_id) {
+            $branchIds = $this->getFacilityBranchIds($user->facility_id);
+        }
+        
         for ($i = 6; $i >= 0; $i--) {
             $date = Carbon::now()->subDays($i);
             $query = VitalSign::whereDate('measurement_date', $date);
+            
+            // Apply facility filtering for non-super admins
+            if ($user && $user->role !== 'super_admin' && $user->facility_id && !empty($branchIds)) {
+                // Use optimized whereIn pattern instead of nested whereHas for better performance
+                $query->whereHas('resident', function($q) use ($branchIds) {
+                    $q->whereIn('branch_id', $branchIds)->where('is_active', true);
+                });
+            } elseif ($user && $user->role !== 'super_admin' && $user->facility_id && empty($branchIds)) {
+                // No branches for facility, skip this date
+                $last7Days[] = [
+                    'date' => $date->format('M j'),
+                    'count' => 0
+                ];
+                continue;
+            }
             
             if ($branchId) {
                 $query->whereHas('resident', function($q) use ($branchId) {
@@ -91,10 +149,28 @@ class ChartController extends BaseApiController
         return $last7Days;
     }
 
-    private function getBloodPressureData($branchId = null, $residentId = null): array
+    private function getBloodPressureData($branchId = null, $residentId = null, $user = null): array
     {
         $query = VitalSign::whereNotNull('systolic')
             ->whereNotNull('diastolic');
+        
+        // Apply facility filtering for non-super admins
+        if ($user && $user->role !== 'super_admin' && $user->facility_id) {
+            // Use optimized whereIn pattern instead of nested whereHas for better performance
+            $branchIds = $this->getFacilityBranchIds($user->facility_id);
+            if (!empty($branchIds)) {
+                $query->whereHas('resident', function($q) use ($branchIds) {
+                    $q->whereIn('branch_id', $branchIds)->where('is_active', true);
+            });
+            } else {
+                // No branches for facility, return empty data
+                return [
+                    'labels' => [],
+                    'systolic' => [],
+                    'diastolic' => [],
+                ];
+            }
+        }
         
         if ($branchId) {
             $query->whereHas('resident', function($q) use ($branchId) {
@@ -117,9 +193,26 @@ class ChartController extends BaseApiController
         ];
     }
 
-    private function getTemperatureData($branchId = null, $residentId = null): array
+    private function getTemperatureData($branchId = null, $residentId = null, $user = null): array
     {
         $query = VitalSign::whereNotNull('temperature');
+        
+        // Apply facility filtering for non-super admins
+        if ($user && $user->role !== 'super_admin' && $user->facility_id) {
+            // Use optimized whereIn pattern instead of nested whereHas for better performance
+            $branchIds = $this->getFacilityBranchIds($user->facility_id);
+            if (!empty($branchIds)) {
+                $query->whereHas('resident', function($q) use ($branchIds) {
+                    $q->whereIn('branch_id', $branchIds)->where('is_active', true);
+            });
+            } else {
+                // No branches for facility, return empty data
+                return [
+                    'labels' => [],
+                    'temperature' => [],
+                ];
+            }
+        }
         
         if ($branchId) {
             $query->whereHas('resident', function($q) use ($branchId) {
@@ -146,8 +239,42 @@ class ChartController extends BaseApiController
     {
         $branchId = $request->get('branch_id');
         $residentId = $request->get('resident_id');
+        $user = $request->user();
         
         $query = Assessment::query();
+        
+        // Apply facility filtering for non-super admins
+        if ($user && $user->role !== 'super_admin') {
+            if ($user->facility_id) {
+                // Use optimized whereIn pattern instead of nested whereHas for better performance
+                $branchIds = $this->getFacilityBranchIds($user->facility_id);
+                if (!empty($branchIds)) {
+                    $query->whereHas('resident', function($q) use ($branchIds) {
+                        $q->whereIn('branch_id', $branchIds)->where('is_active', true);
+                });
+                } else {
+                    // No branches for facility, return empty results
+                    return response()->json([
+                        'total_assessments' => 0,
+                        'completed_assessments' => 0,
+                        'pending_assessments' => 0,
+                        'this_month' => 0,
+                        'by_type' => [],
+                        'completion_trends' => [],
+                    ]);
+                }
+            } else {
+                // User has no facility assigned, return empty results
+                return response()->json([
+                    'total_assessments' => 0,
+                    'completed_assessments' => 0,
+                    'pending_assessments' => 0,
+                    'this_month' => 0,
+                    'by_type' => [],
+                    'completion_trends' => [],
+                ]);
+            }
+        }
         
         if ($branchId) {
             $query->whereHas('resident', function($q) use ($branchId) {
@@ -161,24 +288,45 @@ class ChartController extends BaseApiController
         
         $stats = [
             'total_assessments' => $query->count(),
-            'completed_assessments' => $query->where('status', 'approved')->count(),
+            'completed_assessments' => (clone $query)->where('status', 'approved')->count(),
             'pending_assessments' => (clone $query)->whereNotIn('status', ['approved', 'archived'])->count(),
             'this_month' => (clone $query)->whereMonth('created_at', Carbon::now()->month)->count(),
             'by_type' => (clone $query)->selectRaw('assessment_type, COUNT(*) as count')
                 ->groupBy('assessment_type')
                 ->get(),
-            'completion_trends' => $this->getAssessmentTrends($branchId, $residentId),
+            'completion_trends' => $this->getAssessmentTrends($branchId, $residentId, $user),
         ];
 
         return response()->json($stats);
     }
 
-    private function getAssessmentTrends($branchId = null, $residentId = null): array
+    private function getAssessmentTrends($branchId = null, $residentId = null, $user = null): array
     {
         $last7Days = [];
+        // Pre-fetch branch IDs if facility filtering is needed
+        $branchIds = null;
+        if ($user && $user->role !== 'super_admin' && $user->facility_id) {
+            $branchIds = $this->getFacilityBranchIds($user->facility_id);
+        }
+        
         for ($i = 6; $i >= 0; $i--) {
             $date = Carbon::now()->subDays($i);
             $query = Assessment::whereDate('assessment_date', $date);
+            
+            // Apply facility filtering for non-super admins
+            if ($user && $user->role !== 'super_admin' && $user->facility_id && !empty($branchIds)) {
+                // Use optimized whereIn pattern instead of nested whereHas for better performance
+                $query->whereHas('resident', function($q) use ($branchIds) {
+                    $q->whereIn('branch_id', $branchIds)->where('is_active', true);
+                });
+            } elseif ($user && $user->role !== 'super_admin' && $user->facility_id && empty($branchIds)) {
+                // No branches for facility, skip this date
+                $last7Days[] = [
+                    'date' => $date->format('M j'),
+                    'count' => 0
+                ];
+                continue;
+            }
             
             if ($branchId) {
                 $query->whereHas('resident', function($q) use ($branchId) {
@@ -204,13 +352,43 @@ class ChartController extends BaseApiController
     {
         $branchId = $request->get('branch_id');
         $residentId = $request->get('resident_id');
+        $user = $request->user();
         
         $query = Appointment::query();
         
+        // Apply facility filtering for non-super admins
+        if ($user && $user->role !== 'super_admin') {
+            if ($user->facility_id) {
+                // Use optimized whereIn pattern instead of whereHas for better performance
+                $branchIds = $this->getFacilityBranchIds($user->facility_id);
+                if (!empty($branchIds)) {
+                    $query->whereIn('branch_id', $branchIds);
+                } else {
+                    // No branches for facility, return empty results
+                    return response()->json([
+                        'total_appointments' => 0,
+                        'upcoming' => 0,
+                        'completed' => 0,
+                        'pending' => 0,
+                        'by_status' => [],
+                        'trends' => [],
+                    ]);
+                }
+            } else {
+                // User has no facility assigned, return empty results
+                return response()->json([
+                    'total_appointments' => 0,
+                    'upcoming' => 0,
+                    'completed' => 0,
+                    'pending' => 0,
+                    'by_status' => [],
+                    'trends' => [],
+                ]);
+            }
+        }
+        
         if ($branchId) {
-            $query->whereHas('resident', function($q) use ($branchId) {
-                $q->where('branch_id', $branchId);
-            });
+            $query->where('branch_id', $branchId);
         }
         
         if ($residentId) {
@@ -225,23 +403,28 @@ class ChartController extends BaseApiController
             'by_status' => (clone $query)->selectRaw('status, COUNT(*) as count')
                 ->groupBy('status')
                 ->get(),
-            'trends' => $this->getAppointmentTrends($branchId, $residentId),
+            'trends' => $this->getAppointmentTrends($branchId, $residentId, $user),
         ];
 
         return response()->json($stats);
     }
 
-    private function getAppointmentTrends($branchId = null, $residentId = null): array
+    private function getAppointmentTrends($branchId = null, $residentId = null, $user = null): array
     {
         $last7Days = [];
         for ($i = 6; $i >= 0; $i--) {
             $date = Carbon::now()->subDays($i);
             $query = Appointment::whereDate('appointment_date', $date);
             
-            if ($branchId) {
-                $query->whereHas('resident', function($q) use ($branchId) {
-                    $q->where('branch_id', $branchId);
+            // Apply facility filtering for non-super admins
+            if ($user && $user->role !== 'super_admin' && $user->facility_id) {
+                $query->whereHas('branch', function($q) use ($user) {
+                    $q->where('facility_id', $user->facility_id);
                 });
+            }
+            
+            if ($branchId) {
+                $query->where('branch_id', $branchId);
             }
             
             if ($residentId) {
@@ -260,6 +443,7 @@ class ChartController extends BaseApiController
     // Sleep Charts
     public function sleepStats(Request $request): JsonResponse
     {
+        $user = $request->user();
         $dateFrom = $request->input('date_from') 
             ? Carbon::parse($request->input('date_from'))->startOfDay()
             : Carbon::now()->subDays(30)->startOfDay();
@@ -270,8 +454,22 @@ class ChartController extends BaseApiController
 
         $query = SleepRecord::whereBetween('sleep_date', [$dateFrom, $dateTo]);
         
+        // Apply facility filtering for non-super admins
+        $this->applyFacilityFilter($query, $user);
+        
+        // Apply branch filtering
+        $this->applyBranchFilter($query, $request, $user);
+        
         if ($request->has('resident_id')) {
             $query->where('resident_id', $request->input('resident_id'));
+        }
+
+        // Get branch_id for helper methods
+        $branchId = null;
+        if ($this->isCaregiver($user) && $user->assigned_branch_id) {
+            $branchId = $user->assigned_branch_id;
+        } elseif ($request->has('branch_id')) {
+            $branchId = $request->input('branch_id');
         }
 
         $stats = [
@@ -281,18 +479,27 @@ class ChartController extends BaseApiController
             'min_sleep_hours' => round($query->min('total_sleep_hours') ?? 0, 1),
             'max_sleep_hours' => round($query->max('total_sleep_hours') ?? 0, 1),
             'total_sleep_hours' => round($query->sum('total_sleep_hours') ?? 0, 1),
-            'sleep_duration_trends' => $this->getSleepDurationTrends($dateFrom, $dateTo, $request->input('resident_id')),
-            'quality_distribution' => $this->getSleepQualityDistribution($dateFrom, $dateTo, $request->input('resident_id')),
-            'quality_over_time' => $this->getQualityOverTime($dateFrom, $dateTo, $request->input('resident_id')),
-            'weekly_average' => $this->getWeeklyAverage($dateFrom, $dateTo, $request->input('resident_id')),
+            'sleep_duration_trends' => $this->getSleepDurationTrends($dateFrom, $dateTo, $request->input('resident_id'), $user, $branchId),
+            'quality_distribution' => $this->getSleepQualityDistribution($dateFrom, $dateTo, $request->input('resident_id'), $user, $branchId),
+            'quality_over_time' => $this->getQualityOverTime($dateFrom, $dateTo, $request->input('resident_id'), $user, $branchId),
+            'weekly_average' => $this->getWeeklyAverage($dateFrom, $dateTo, $request->input('resident_id'), $user, $branchId),
         ];
 
         return response()->json($stats);
     }
 
-    private function getSleepDurationTrends($dateFrom, $dateTo, $residentId = null): array
+    private function getSleepDurationTrends($dateFrom, $dateTo, $residentId = null, $user = null, $branchId = null): array
     {
         $query = SleepRecord::whereBetween('sleep_date', [$dateFrom, $dateTo]);
+        
+        // Apply facility filtering
+        $this->applyFacilityFilter($query, $user);
+        
+        // Apply branch filtering
+        if ($branchId) {
+            $query->where('branch_id', $branchId);
+        }
+        
         if ($residentId) {
             $query->where('resident_id', $residentId);
         }
@@ -313,8 +520,8 @@ class ChartController extends BaseApiController
             }
             return $trends;
         } else {
-            return $query->selectRaw('DATE(sleep_date) as date, AVG(total_sleep_hours) as avg_hours')
-                ->groupBy('date')
+            return $query->selectRaw('DATE(sleep_records.sleep_date) as date, AVG(sleep_records.total_sleep_hours) as avg_hours')
+                ->groupByRaw('DATE(sleep_records.sleep_date)')
                 ->orderBy('date')
                 ->get()
                 ->map(fn($r) => [
@@ -325,10 +532,18 @@ class ChartController extends BaseApiController
         }
     }
 
-    private function getSleepQualityDistribution($dateFrom, $dateTo, $residentId = null): array
+    private function getSleepQualityDistribution($dateFrom, $dateTo, $residentId = null, $user = null, $branchId = null): array
     {
         $query = SleepRecord::whereBetween('sleep_date', [$dateFrom, $dateTo])
             ->whereNotNull('sleep_quality');
+        
+        // Apply facility filtering
+        $this->applyFacilityFilter($query, $user);
+        
+        // Apply branch filtering
+        if ($branchId) {
+            $query->where('branch_id', $branchId);
+        }
         
         if ($residentId) {
             $query->where('resident_id', $residentId);
@@ -342,10 +557,18 @@ class ChartController extends BaseApiController
             ->toArray();
     }
 
-    private function getQualityOverTime($dateFrom, $dateTo, $residentId = null): array
+    private function getQualityOverTime($dateFrom, $dateTo, $residentId = null, $user = null, $branchId = null): array
     {
         $query = SleepRecord::whereBetween('sleep_date', [$dateFrom, $dateTo])
             ->whereNotNull('sleep_quality');
+        
+        // Apply facility filtering
+        $this->applyFacilityFilter($query, $user);
+        
+        // Apply branch filtering
+        if ($branchId) {
+            $query->where('branch_id', $branchId);
+        }
         
         if ($residentId) {
             $query->where('resident_id', $residentId);
@@ -367,8 +590,8 @@ class ChartController extends BaseApiController
             }
             return $trends;
         } else {
-            return $query->selectRaw('DATE(sleep_date) as date, AVG(sleep_quality) as avg_quality')
-                ->groupBy('date')
+            return $query->selectRaw('DATE(sleep_records.sleep_date) as date, AVG(sleep_records.sleep_quality) as avg_quality')
+                ->groupByRaw('DATE(sleep_records.sleep_date)')
                 ->orderBy('date')
                 ->get()
                 ->map(fn($r) => [
@@ -379,9 +602,17 @@ class ChartController extends BaseApiController
         }
     }
 
-    private function getWeeklyAverage($dateFrom, $dateTo, $residentId = null): array
+    private function getWeeklyAverage($dateFrom, $dateTo, $residentId = null, $user = null, $branchId = null): array
     {
         $query = SleepRecord::whereBetween('sleep_date', [$dateFrom, $dateTo]);
+        
+        // Apply facility filtering
+        $this->applyFacilityFilter($query, $user);
+        
+        // Apply branch filtering
+        if ($branchId) {
+            $query->where('branch_id', $branchId);
+        }
         
         if ($residentId) {
             $query->where('resident_id', $residentId);
@@ -411,18 +642,251 @@ class ChartController extends BaseApiController
     }
 
     // Staff Charts
-    public function staffStats(): JsonResponse
+    public function staffStats(Request $request): JsonResponse
     {
+        $user = $request->user();
+        $facilityBranchIds = [];
+        
+        // Build staff queries with facility filtering
+        $staffQuery = User::where('is_active', true);
+        $caregiverQuery = User::whereHas('roles', function($q) {
+            $q->where('name', 'caregiver');
+        })->where('is_active', true);
+        
+        // Apply facility filtering for non-super admins (matching UserController logic)
+        if ($user && $user->role !== 'super_admin') {
+            $hasFacilityIdColumn = Schema::hasColumn('users', 'facility_id');
+            
+            if ($user->facility_id) {
+                $facilityBranchIds = \App\Models\Branch::where('facility_id', $user->facility_id)->pluck('id')->toArray();
+                
+                if ($hasFacilityIdColumn) {
+                    // Match UserController: filter by facility_id directly
+                    // But also include users with assigned_branch_id in facility branches (for users without facility_id set)
+                    $staffQuery->where(function($q) use ($user, $facilityBranchIds) {
+                        $q->where('facility_id', $user->facility_id);
+                        if (!empty($facilityBranchIds)) {
+                            $q->orWhereIn('assigned_branch_id', $facilityBranchIds);
+                        }
+                    });
+                    $caregiverQuery->where(function($q) use ($user, $facilityBranchIds) {
+                        $q->where('facility_id', $user->facility_id);
+                        if (!empty($facilityBranchIds)) {
+                            $q->orWhereIn('assigned_branch_id', $facilityBranchIds);
+                        }
+                    });
+                } else {
+                    // Fallback: filter by assigned_branch_id if facility_id column doesn't exist
+                    if (!empty($facilityBranchIds)) {
+                        $staffQuery->whereIn('assigned_branch_id', $facilityBranchIds);
+                        $caregiverQuery->whereIn('assigned_branch_id', $facilityBranchIds);
+                    } else {
+                        // No branches for this facility, return zero counts
+                        return response()->json([
+                            'total_staff' => 0,
+                            'total_caregivers' => 0,
+                            'active_assignments' => 0,
+                            'pending_leave' => 0,
+                            'leave_by_status' => [],
+                        ]);
+                    }
+                }
+            } else {
+                // User has no facility assigned, return zero counts
+                return response()->json([
+                    'total_staff' => 0,
+                    'total_caregivers' => 0,
+                    'active_assignments' => 0,
+                    'pending_leave' => 0,
+                    'leave_by_status' => [],
+                ]);
+            }
+        }
+        
+        // Build assignment query with facility filtering
+        $assignmentQuery = \App\Models\Assignment::where('is_active', true);
+        if ($user && $user->role !== 'super_admin' && $user->facility_id) {
+            $facilityBranchIds = \App\Models\Branch::where('facility_id', $user->facility_id)->pluck('id')->toArray();
+            if (!empty($facilityBranchIds)) {
+                $assignmentQuery->whereHas('resident', function($q) use ($facilityBranchIds) {
+                    $q->whereIn('branch_id', $facilityBranchIds);
+                });
+            } else {
+                $assignmentQuery->whereRaw('1 = 0'); // No results
+            }
+        }
+        
+        // Build leave request query with facility filtering
+        $leaveQuery = LeaveRequest::where('status', 'pending');
+        if ($user && $user->role !== 'super_admin' && $user->facility_id) {
+            $facilityBranchIds = \App\Models\Branch::where('facility_id', $user->facility_id)->pluck('id')->toArray();
+            if (!empty($facilityBranchIds)) {
+                $leaveQuery->whereHas('staff', function($q) use ($user, $facilityBranchIds) {
+                    if (Schema::hasColumn('users', 'facility_id')) {
+                        $q->where(function($subQ) use ($user, $facilityBranchIds) {
+                            $subQ->where('facility_id', $user->facility_id);
+                            $subQ->orWhereIn('assigned_branch_id', $facilityBranchIds);
+                        });
+                    } else {
+                        $q->whereIn('assigned_branch_id', $facilityBranchIds);
+                    }
+                });
+            } else {
+                $leaveQuery->whereRaw('1 = 0'); // No results
+            }
+        }
+        
+        $leaveByStatusQuery = LeaveRequest::selectRaw('status, COUNT(*) as count');
+        if ($user && $user->role !== 'super_admin' && $user->facility_id) {
+            $facilityBranchIds = \App\Models\Branch::where('facility_id', $user->facility_id)->pluck('id')->toArray();
+            if (!empty($facilityBranchIds)) {
+                $leaveByStatusQuery->whereHas('staff', function($q) use ($user, $facilityBranchIds) {
+                    if (Schema::hasColumn('users', 'facility_id')) {
+                        $q->where(function($subQ) use ($user, $facilityBranchIds) {
+                            $subQ->where('facility_id', $user->facility_id);
+                            $subQ->orWhereIn('assigned_branch_id', $facilityBranchIds);
+                        });
+                    } else {
+                        $q->whereIn('assigned_branch_id', $facilityBranchIds);
+                    }
+                });
+            } else {
+                $leaveByStatusQuery->whereRaw('1 = 0'); // No results
+            }
+        }
+        
+        // Get counts
+        $totalStaff = $staffQuery->count();
+        $totalCaregivers = $caregiverQuery->count();
+        $activeAssignments = $assignmentQuery->count();
+        $pendingLeave = $leaveQuery->count();
+        $leaveByStatus = $leaveByStatusQuery->groupBy('status')->get();
+        
+        // Get detailed assignment breakdown
+        $assignmentsByBranch = \App\Models\Assignment::where('is_active', true);
+        if ($user && $user->role !== 'super_admin' && $user->facility_id) {
+            $facilityBranchIds = \App\Models\Branch::where('facility_id', $user->facility_id)->pluck('id')->toArray();
+            if (!empty($facilityBranchIds)) {
+                $assignmentsByBranch->whereIn('branch_id', $facilityBranchIds);
+            } else {
+                $assignmentsByBranch->whereRaw('1 = 0');
+            }
+        }
+        $assignmentsByBranch = $assignmentsByBranch->selectRaw('branch_id, COUNT(*) as count')
+            ->with('branch:id,name')
+            ->groupBy('branch_id')
+            ->get();
+        
+        // Get assignments by caregiver
+        $assignmentsByCaregiver = \App\Models\Assignment::where('is_active', true);
+        if ($user && $user->role !== 'super_admin' && $user->facility_id) {
+            $facilityBranchIds = \App\Models\Branch::where('facility_id', $user->facility_id)->pluck('id')->toArray();
+            if (!empty($facilityBranchIds)) {
+                $assignmentsByCaregiver->whereIn('branch_id', $facilityBranchIds);
+            } else {
+                $assignmentsByCaregiver->whereRaw('1 = 0');
+            }
+        }
+        $assignmentsByCaregiver = $assignmentsByCaregiver->selectRaw('caregiver_id, COUNT(*) as count')
+            ->with('caregiver:id,name')
+            ->groupBy('caregiver_id')
+            ->orderByDesc('count')
+            ->limit(5)
+            ->get();
+        
+        // Get recent pending leave requests with details
+        $recentPendingLeave = $leaveQuery->with(['staff:id,name,email', 'branch:id,name'])
+            ->orderBy('start_date', 'asc')
+            ->limit(5)
+            ->get();
+        
+        // Get staff by role breakdown
+        $staffByRoleQuery = User::where('is_active', true)
+            ->join('model_has_roles', 'users.id', '=', 'model_has_roles.model_id')
+            ->join('roles', 'model_has_roles.role_id', '=', 'roles.id')
+            ->where('model_has_roles.model_type', 'App\\Models\\User');
+        
+        // Apply same facility filtering
+        if ($user && $user->role !== 'super_admin' && $user->facility_id) {
+            $facilityBranchIds = \App\Models\Branch::where('facility_id', $user->facility_id)->pluck('id')->toArray();
+            if (Schema::hasColumn('users', 'facility_id')) {
+                $staffByRoleQuery->where(function($q) use ($user, $facilityBranchIds) {
+                    $q->where('users.facility_id', $user->facility_id);
+                    if (!empty($facilityBranchIds)) {
+                        $q->orWhereIn('users.assigned_branch_id', $facilityBranchIds);
+                    }
+                });
+            } else {
+                if (!empty($facilityBranchIds)) {
+                    $staffByRoleQuery->whereIn('users.assigned_branch_id', $facilityBranchIds);
+                }
+            }
+        }
+        
+        $staffByRole = $staffByRoleQuery->selectRaw('roles.name as role, COUNT(*) as count')
+            ->groupBy('roles.name')
+            ->get();
+        
+        // Get clock-in stats for today
+        $todayClockIns = \App\Models\StaffClockIn::whereDate('clock_in_at', today())
+            ->where('is_active', true);
+        if ($user && $user->role !== 'super_admin' && $user->facility_id) {
+            $todayClockIns->where('facility_id', $user->facility_id);
+        }
+        $todayClockInsCount = $todayClockIns->count();
+        
+        // Get active clock-ins (currently clocked in)
+        $activeClockIns = \App\Models\StaffClockIn::whereNull('clock_out_at')
+            ->where('is_active', true);
+        if ($user && $user->role !== 'super_admin' && $user->facility_id) {
+            $activeClockIns->where('facility_id', $user->facility_id);
+        }
+        $activeClockInsCount = $activeClockIns->count();
+        
+        // Get approved leave count
+        $approvedLeave = LeaveRequest::where('status', 'approved');
+        if ($user && $user->role !== 'super_admin' && $user->facility_id) {
+            $facilityBranchIds = \App\Models\Branch::where('facility_id', $user->facility_id)->pluck('id')->toArray();
+            if (!empty($facilityBranchIds)) {
+                $approvedLeave->whereHas('staff', function($q) use ($user, $facilityBranchIds) {
+                    if (Schema::hasColumn('users', 'facility_id')) {
+                        $q->where(function($subQ) use ($user, $facilityBranchIds) {
+                            $subQ->where('facility_id', $user->facility_id);
+                            $subQ->orWhereIn('assigned_branch_id', $facilityBranchIds);
+                        });
+                    } else {
+                        $q->whereIn('assigned_branch_id', $facilityBranchIds);
+                    }
+                });
+            }
+        }
+        $approvedLeaveCount = $approvedLeave->count();
+        
+        // Debug logging
+        \Illuminate\Support\Facades\Log::info('Staff Stats Query', [
+            'user_id' => $user?->id,
+            'user_facility_id' => $user?->facility_id,
+            'user_role' => $user?->role,
+            'facility_branch_ids' => $facilityBranchIds ?? [],
+            'total_staff' => $totalStaff,
+            'total_caregivers' => $totalCaregivers,
+            'active_assignments' => $activeAssignments,
+            'pending_leave' => $pendingLeave,
+        ]);
+        
         $stats = [
-            'total_staff' => User::where('is_active', true)->count(),
-            'total_caregivers' => User::whereHas('roles', function($q) {
-                $q->where('name', 'caregiver');
-            })->where('is_active', true)->count(),
-            'active_assignments' => \App\Models\Assignment::where('is_active', true)->count(),
-            'pending_leave' => LeaveRequest::where('status', 'pending')->count(),
-            'leave_by_status' => LeaveRequest::selectRaw('status, COUNT(*) as count')
-                ->groupBy('status')
-                ->get(),
+            'total_staff' => $totalStaff,
+            'total_caregivers' => $totalCaregivers,
+            'active_assignments' => $activeAssignments,
+            'pending_leave' => $pendingLeave,
+            'approved_leave' => $approvedLeaveCount,
+            'leave_by_status' => $leaveByStatus,
+            'assignments_by_branch' => $assignmentsByBranch,
+            'assignments_by_caregiver' => $assignmentsByCaregiver,
+            'recent_pending_leave' => $recentPendingLeave,
+            'staff_by_role' => $staffByRole,
+            'today_clock_ins' => $todayClockInsCount,
+            'active_clock_ins' => $activeClockInsCount,
         ];
 
         return response()->json($stats);

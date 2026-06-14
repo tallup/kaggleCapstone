@@ -122,8 +122,7 @@ export default function CookiePolicy() {
                   If you have questions about our use of cookies, please contact us at:
                 </p>
                 <p className="text-gray-700">
-                  Email: privacy@homelogic360.com<br />
-                  Address: 123 Healthcare Avenue, Suite 100, New York, NY 10001
+                  Email: support@homelogic360.com
                 </p>
               </section>
             </div>

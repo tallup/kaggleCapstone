@@ -108,8 +108,7 @@ export default function TermsOfService() {
                   If you have questions about these Terms of Service, please contact us at:
                 </p>
                 <p className="text-gray-700">
-                  Email: legal@homelogic360.com<br />
-                  Address: 123 Healthcare Avenue, Suite 100, New York, NY 10001
+                  Email: support@homelogic360.com
                 </p>
               </section>
             </div>

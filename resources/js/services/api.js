@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { reconnectEcho } from './echo';
 
 const api = axios.create({
     baseURL: '/api/v1',
@@ -9,20 +10,87 @@ const api = axios.create({
     withCredentials: true,
 });
 
-// Add CSRF token to requests
+const TOKEN_EXPIRY_MINUTES = 240;
+const REFRESH_BUFFER_MINUTES = 10;
+
+const getStoredAuthToken = () => {
+    const candidates = [
+        localStorage.getItem('auth_token'),
+        localStorage.getItem('token'),
+        localStorage.getItem('access_token'),
+    ];
+
+    const token = candidates.find((value) =>
+        typeof value === 'string' &&
+        value.trim() !== '' &&
+        value !== 'null' &&
+        value !== 'undefined'
+    );
+
+    return token || null;
+};
+
+const storeAuthToken = (token) => {
+    localStorage.setItem('auth_token', token);
+    localStorage.setItem('token', token);
+    localStorage.setItem('access_token', token);
+    localStorage.setItem('token_issued_at', new Date().toISOString());
+};
+
+const clearStoredAuth = () => {
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('token');
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('user_name');
+    localStorage.removeItem('user_role');
+    localStorage.removeItem('token_issued_at');
+    sessionStorage.removeItem('token_validated_at');
+};
+
+const isPublicPath = (path) => {
+    const publicPrefixes = [
+        '/', '/login', '/forgot-password', '/reset-password',
+        '/portal/accept-invite',
+        '/staff/clock-in', '/features', '/pricing', '/modules',
+        '/security', '/about', '/contact', '/support',
+        '/privacy-policy', '/terms-of-service', '/hipaa-compliance', '/cookie-policy',
+    ];
+
+    return publicPrefixes.some((prefix) => {
+        if (prefix === '/') return path === '/';
+        return path === prefix || path.startsWith(prefix + '/');
+    });
+};
+
+let isRefreshing = false;
+let refreshSubscribers = [];
+
+const onRefreshed = (newToken) => {
+    refreshSubscribers.forEach((cb) => cb(newToken));
+    refreshSubscribers = [];
+};
+
+const addRefreshSubscriber = (callback) => {
+    refreshSubscribers.push(callback);
+};
+
 api.interceptors.request.use((config) => {
     const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
     if (token) {
         config.headers['X-CSRF-TOKEN'] = token;
     }
     
-    // Add auth token if available
-    const authToken = localStorage.getItem('auth_token');
-    if (authToken) {
+    const authToken = getStoredAuthToken();
+    const path = typeof config.url === 'string' ? config.url : '';
+    // Never attach Bearer to auth endpoints — stale tokens after logout caused 401/500 confusion
+    const skipBearer =
+        /(^|\/)(login|forgot-password|reset-password)(\/|$|\?)/.test(path) ||
+        path === 'login' ||
+        path.startsWith('login?');
+    if (authToken && !skipBearer) {
         config.headers['Authorization'] = `Bearer ${authToken}`;
     }
     
-    // For FormData (file uploads), let browser set Content-Type automatically
     if (config.data instanceof FormData) {
         delete config.headers['Content-Type'];
     }
@@ -30,86 +98,106 @@ api.interceptors.request.use((config) => {
     return config;
 });
 
-// Handle 401 responses (unauthorized)
 api.interceptors.response.use(
     (response) => response,
-    (error) => {
+    async (error) => {
+        const originalRequest = error.config;
+
         if (error.response?.status === 401) {
-            // Don't redirect if we're on a public page
             const currentPath = window.location.pathname;
-            
-            // Define public paths - exact matches or specific prefixes
-            const isPublicPath = 
-                currentPath === '/' ||  // Root welcome page
-                currentPath === '/login' ||
-                currentPath.startsWith('/login/') ||
-                currentPath === '/staff/clock-in' ||
-                currentPath.startsWith('/staff/clock-in/') ||
-                currentPath === '/features' ||
-                currentPath.startsWith('/features/') ||
-                currentPath === '/pricing' ||
-                currentPath.startsWith('/pricing/') ||
-                currentPath === '/modules' ||
-                currentPath.startsWith('/modules/') ||
-                currentPath === '/security' ||
-                currentPath.startsWith('/security/') ||
-                currentPath === '/about' ||
-                currentPath.startsWith('/about/') ||
-                currentPath === '/contact' ||
-                currentPath.startsWith('/contact/') ||
-                currentPath === '/support' ||
-                currentPath.startsWith('/support/') ||
-                currentPath === '/privacy-policy' ||
-                currentPath.startsWith('/privacy-policy/') ||
-                currentPath === '/terms-of-service' ||
-                currentPath.startsWith('/terms-of-service/') ||
-                currentPath === '/hipaa-compliance' ||
-                currentPath.startsWith('/hipaa-compliance/') ||
-                currentPath === '/cookie-policy' ||
-                currentPath.startsWith('/cookie-policy/');
-            
-            // Check if we're on a protected route (not a public path)
-            // Protected routes are anything that's not in the public paths list above
-            const isOnProtectedRoute = !isPublicPath;
-            
-            // Check if we have a token BEFORE clearing it
-            const hasToken = localStorage.getItem('auth_token');
-            
-            // If we're on a protected route and have a token, don't redirect or clear token
-            // This might be a temporary API issue (e.g., endpoint doesn't exist, permission issue)
-            // Only clear token and redirect if we're on a protected route AND we don't have a token
-            if (isPublicPath || (isOnProtectedRoute && hasToken)) {
-                // Don't clear token or redirect - might be a temporary API issue
+
+            if (isPublicPath(currentPath)) {
                 return Promise.reject(error);
             }
-            
-            // Clear token only if we're going to redirect
-            localStorage.removeItem('auth_token');
-            localStorage.removeItem('user_name');
-            localStorage.removeItem('user_role');
-            
-            // Only redirect if not on a public path and not already redirecting
-            if (!isPublicPath && currentPath !== '/login' && !sessionStorage.getItem('redirecting_to_login')) {
-                sessionStorage.setItem('redirecting_to_login', 'true');
-                setTimeout(() => {
-                    sessionStorage.removeItem('redirecting_to_login');
-                    // Only redirect if still on a protected path
-                    const stillOnProtectedPath = !window.location.pathname.startsWith('/login') && 
-                                                 !window.location.pathname.startsWith('/staff/clock-in') &&
-                                                 !window.location.pathname.startsWith('/features') &&
-                                                 !window.location.pathname.startsWith('/pricing') &&
-                                                 !window.location.pathname.startsWith('/modules') &&
-                                                 !window.location.pathname.startsWith('/about') &&
-                                                 !window.location.pathname.startsWith('/contact');
-                    if (stillOnProtectedPath) {
-                        window.location.href = '/login';
-                    }
-                }, 100);
+
+            if (originalRequest.url === '/token/refresh' || originalRequest._retry) {
+                clearStoredAuth();
+                sessionStorage.setItem('session_expired', '1');
+                if (!sessionStorage.getItem('redirecting_to_login')) {
+                    sessionStorage.setItem('redirecting_to_login', 'true');
+                    setTimeout(() => {
+                        sessionStorage.removeItem('redirecting_to_login');
+                        if (!isPublicPath(window.location.pathname)) {
+                            window.location.href = '/login?reason=session-expired';
+                        }
+                    }, 100);
+                }
+                return Promise.reject(error);
+            }
+
+            if (isRefreshing) {
+                return new Promise((resolve) => {
+                    addRefreshSubscriber((newToken) => {
+                        originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
+                        originalRequest._retry = true;
+                        resolve(api(originalRequest));
+                    });
+                });
+            }
+
+            isRefreshing = true;
+            originalRequest._retry = true;
+
+            try {
+                const response = await axios.post('/api/v1/token/refresh', {}, {
+                    headers: {
+                        'Authorization': `Bearer ${getStoredAuthToken()}`,
+                        'Accept': 'application/json',
+                    },
+                    withCredentials: true,
+                });
+
+                const newToken = response.data.token;
+                storeAuthToken(newToken);
+                reconnectEcho();
+                isRefreshing = false;
+                onRefreshed(newToken);
+
+                originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
+                return api(originalRequest);
+            } catch (refreshError) {
+                isRefreshing = false;
+                refreshSubscribers = [];
+                clearStoredAuth();
+                sessionStorage.setItem('session_expired', '1');
+                if (!sessionStorage.getItem('redirecting_to_login')) {
+                    sessionStorage.setItem('redirecting_to_login', 'true');
+                    setTimeout(() => {
+                        sessionStorage.removeItem('redirecting_to_login');
+                        if (!isPublicPath(window.location.pathname)) {
+                            window.location.href = '/login?reason=session-expired';
+                        }
+                    }, 100);
+                }
+                return Promise.reject(refreshError);
             }
         }
         return Promise.reject(error);
     }
 );
 
-export default api;
+export const setupProactiveRefresh = () => {
+    const INTERVAL_MS = (TOKEN_EXPIRY_MINUTES - REFRESH_BUFFER_MINUTES) * 60 * 1000;
 
+    const tryRefresh = async () => {
+        const issuedAt = localStorage.getItem('token_issued_at');
+        if (!issuedAt || !getStoredAuthToken()) return;
+
+        const elapsed = Date.now() - new Date(issuedAt).getTime();
+        if (elapsed < INTERVAL_MS) return;
+
+        try {
+            const response = await api.post('/token/refresh');
+            storeAuthToken(response.data.token);
+            reconnectEcho();
+        } catch {
+            // Refresh failed; the 401 interceptor will handle it on the next real request
+        }
+    };
+
+    const intervalId = setInterval(tryRefresh, 5 * 60 * 1000);
+    return () => clearInterval(intervalId);
+};
+
+export { getStoredAuthToken, storeAuthToken, clearStoredAuth };
+export default api;

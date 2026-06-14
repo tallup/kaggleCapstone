@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Events\StaffClockInCreated;
 use App\Http\Controllers\Controller;
 use App\Models\StaffClockIn;
 use App\Models\User;
@@ -174,6 +175,8 @@ class PublicStaffClockInController extends Controller
             'ip' => $request->ip(),
         ]);
 
+        event(new StaffClockInCreated($clockIn, 'clock_in'));
+
         return response()->json([
             'message' => 'Successfully clocked in',
             'clock_in' => $clockIn->load(['staff', 'branch', 'facility']),
@@ -250,6 +253,8 @@ class PublicStaffClockInController extends Controller
             'clock_in_id' => $activeClockIn->id,
             'ip' => $request->ip(),
         ]);
+
+        event(new StaffClockInCreated($activeClockIn->fresh(), 'clock_out'));
 
         return response()->json([
             'message' => 'Successfully clocked out',

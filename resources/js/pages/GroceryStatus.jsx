@@ -1,21 +1,25 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
+import logger from '../utils/logger';
 import { toast } from 'sonner';
 import { ShoppingCart, Plus, Search, Filter, Edit, Trash2, Calendar, Clock, CheckCircle, AlertCircle, Package, List, Grid, TrendingUp, X, Sparkles } from 'lucide-react';
 import SectionCard from '../components/SectionCard';
 import Card from '../components/Card';
 import WeeklyCalendarView from '../components/WeeklyCalendarView';
 import Select from '../components/ui/radix/Select';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
+import Modal from '../components/ui/Modal';
+import Tooltip from '../components/ui/Tooltip';
 import { Doughnut } from 'react-chartjs-2';
 import {
     Chart as ChartJS,
     ArcElement,
-    Tooltip,
+    Tooltip as ChartTooltipPlugin,
     Legend,
 } from 'chart.js';
 
-ChartJS.register(ArcElement, Tooltip, Legend);
+ChartJS.register(ArcElement, ChartTooltipPlugin, Legend);
 
 export default function GroceryStatus() {
     const queryClient = useQueryClient();
@@ -28,6 +32,8 @@ export default function GroceryStatus() {
     const [showForm, setShowForm] = useState(false);
     const [editing, setEditing] = useState(null);
     const [currentUser, setCurrentUser] = useState(null);
+    const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+    const [completeConfirmId, setCompleteConfirmId] = useState(null);
 
     // Fetch current user
     React.useEffect(() => {
@@ -36,7 +42,7 @@ export default function GroceryStatus() {
                 const response = await api.get('/user');
                 setCurrentUser(response.data);
             } catch (err) {
-                console.error('Failed to fetch current user:', err);
+                logger.error('Failed to fetch current user:', err);
             }
         };
         fetchUser();
@@ -66,6 +72,20 @@ export default function GroceryStatus() {
         const roleNormalized = role.replace(/[\s_]/g, '');
         return roleNormalized === 'caregiver' || (role.includes('care') && role.includes('giver'));
     }, [currentUser]);
+    
+    // Check if user is a facility administrator (can access all branches in facility)
+    const isFacilityAdmin = React.useMemo(() => {
+        if (!currentUser) return false;
+        const role = currentUser.role?.toLowerCase().trim() || '';
+        return role === 'administrator';
+    }, [currentUser]);
+    
+    // Check if user is a branch-level admin (restricted to assigned branch)
+    const isBranchAdmin = React.useMemo(() => {
+        if (!currentUser) return false;
+        const role = currentUser.role?.toLowerCase().trim() || '';
+        return role === 'admin';
+    }, [currentUser]);
 
     // Auto-set branch filter for caregivers
     React.useEffect(() => {
@@ -93,7 +113,7 @@ export default function GroceryStatus() {
     const createTemplateMutation = useMutation({
         mutationFn: async (payload) => (await api.post('/grocery-item-templates', payload)).data,
         onSuccess: () => {
-            toast.success('Template saved');
+            toast.success('Template saved', '', { isFormSubmission: true });
             queryClient.invalidateQueries(['grocery-item-templates']);
         },
         onError: (error) => {
@@ -134,7 +154,7 @@ export default function GroceryStatus() {
             await api.patch(`/grocery-status-updates/{id}/status`.replace('{id}', id), { status });
         },
         onSuccess: () => {
-            toast.success('Status updated');
+            toast.success('Status updated', '', { isFormSubmission: true });
             queryClient.invalidateQueries(['grocery-status-updates']);
         },
         onError: (error) => {
@@ -184,12 +204,14 @@ export default function GroceryStatus() {
     }, [updates, search]);
 
     const handleDelete = (id) => {
-        if (window.confirm('Are you sure you want to delete this grocery status update?')) {
-            deleteMutation.mutate(id);
-        }
+        setDeleteConfirmId(id);
     };
 
     const handleQuickStatusUpdate = (id, newStatus) => {
+        if (newStatus === 'completed') {
+            setCompleteConfirmId(id);
+            return;
+        }
         updateStatusMutation.mutate({ id, status: newStatus });
     };
 
@@ -239,28 +261,43 @@ export default function GroceryStatus() {
         return weekUpdates.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0] || null;
     }, [updates, currentWeekMonday]);
 
-    if (showForm) {
-        return (
-            <div>
-                <GroceryStatusForm
-                    record={editing}
-                    branches={branches}
-                    templates={templates}
-                    isCaregiver={isCaregiver}
-                    caregiverBranchId={currentUser?.assigned_branch_id}
-                    onClose={handleCloseForm}
-                    onSaveTemplate={(payload) => createTemplateMutation.mutateAsync(payload)}
-                    onSuccess={() => {
-                        queryClient.invalidateQueries(['grocery-status-updates']);
-                        queryClient.invalidateQueries(['grocery-item-templates']);
-                        handleCloseForm();
-                    }}
-                />
-            </div>
-        );
-    }
-
     return (
+        <>
+            <ConfirmDialog
+                isOpen={deleteConfirmId != null}
+                onClose={() => !deleteMutation.isPending && setDeleteConfirmId(null)}
+                onConfirm={() => {
+                    if (deleteConfirmId == null) return;
+                    deleteMutation.mutate(deleteConfirmId, {
+                        onSuccess: () => setDeleteConfirmId(null),
+                    });
+                }}
+                title="Delete this update?"
+                description="This grocery status update will be permanently removed."
+                confirmLabel="Delete"
+                cancelLabel="Cancel"
+                variant="danger"
+                isPending={deleteMutation.isPending}
+            />
+            <ConfirmDialog
+                isOpen={completeConfirmId != null}
+                onClose={() => !updateStatusMutation.isPending && setCompleteConfirmId(null)}
+                onConfirm={() => {
+                    if (completeConfirmId == null) return;
+                    updateStatusMutation.mutate(
+                        { id: completeConfirmId, status: 'completed' },
+                        {
+                            onSuccess: () => setCompleteConfirmId(null),
+                        }
+                    );
+                }}
+                title="Mark as completed?"
+                description="You will not be able to set this update back to Pending afterward."
+                confirmLabel="Mark completed"
+                cancelLabel="Cancel"
+                variant="primary"
+                isPending={updateStatusMutation.isPending}
+            />
         <div>
             <SectionCard>
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
@@ -269,27 +306,15 @@ export default function GroceryStatus() {
                         <p className="text-gray-600">Track weekly grocery status updates for each branch.</p>
                     </div>
                     <div className="flex flex-col sm:flex-row gap-2">
-                    <button
-                        onClick={() => {
-                            setEditing(null);
-                            setShowForm(true);
-                        }}
-                        className="w-full sm:w-auto px-4 py-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] rounded-lg hover:bg-[var(--theme-primary-hover)] transition-colors flex items-center justify-center space-x-2"
-                    >
-                        <Plus className="w-4 h-4" />
-                        <span>Add Update</span>
-                    </button>
                         <button
                             onClick={() => {
-                                setEditing({
-                                    week_start_date: getCurrentWeekMonday().toISOString().split('T')[0],
-                                });
+                                setEditing(null);
                                 setShowForm(true);
                             }}
-                            className="w-full sm:w-auto px-4 py-2 border border-[var(--theme-primary)] text-[var(--theme-primary)] rounded-lg hover:bg-[var(--theme-primary-bg-light)] transition-colors flex items-center justify-center space-x-2"
+                            className="w-full sm:w-auto px-4 py-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] rounded-lg hover:bg-[var(--theme-primary-hover)] transition-colors flex items-center justify-center space-x-2"
                         >
-                            <Sparkles className="w-4 h-4" />
-                            <span>Use Template</span>
+                            <Plus className="w-4 h-4" />
+                            <span>Add Update</span>
                         </button>
                     </div>
                 </div>
@@ -377,7 +402,7 @@ export default function GroceryStatus() {
                                             <p className="text-2xl font-bold text-gray-900">{weeksCompleted}</p>
                                             <p className="text-xs text-gray-500 mt-1">This month</p>
                                         </div>
-                                        <CheckCircle className="w-8 h-8 text-green-600" />
+                                        <CheckCircle className="w-8 h-8 text-[var(--theme-primary)]" />
                                     </div>
                                 </Card>
                                 <Card className="p-4 bg-blue-50 border-blue-200">
@@ -387,7 +412,7 @@ export default function GroceryStatus() {
                                             <p className="text-2xl font-bold text-gray-900">{completionRate}%</p>
                                             <p className="text-xs text-gray-500 mt-1">This month</p>
                                         </div>
-                                        <TrendingUp className="w-8 h-8 text-blue-600" />
+                                        <TrendingUp className="w-8 h-8 text-[var(--theme-primary)]" />
                                     </div>
                                 </Card>
                                 <Card className="p-4 bg-purple-50 border-purple-200">
@@ -397,7 +422,7 @@ export default function GroceryStatus() {
                                             <p className="text-2xl font-bold text-gray-900">{avgCompletionDays}</p>
                                             <p className="text-xs text-gray-500 mt-1">Days</p>
                                         </div>
-                                        <Clock className="w-8 h-8 text-purple-600" />
+                                        <Clock className="w-8 h-8 text-[var(--theme-primary)]" />
                                     </div>
                                 </Card>
                             </div>
@@ -652,60 +677,114 @@ export default function GroceryStatus() {
                                                         
                                                         <div className="flex items-center gap-2 ml-4 flex-col sm:flex-row">
                                                             {/* Quick Status Update Buttons */}
-                                                            <div className="flex items-center gap-1 flex-wrap">
-                                                                {update.status !== 'pending' && (
-                                                                    <button
-                                                                        onClick={() => handleQuickStatusUpdate(update.id, 'pending')}
-                                                                        className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
-                                                                        title="Mark as Pending"
-                                                                    >
-                                                                        Pending
-                                                                    </button>
+                                                            <div className="flex items-center gap-2 flex-wrap">
+                                                                {update.status !== 'pending' && update.status !== 'completed' && (
+                                                                    <Tooltip content="Mark as pending" position="top">
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => handleQuickStatusUpdate(update.id, 'pending')}
+                                                                            className="px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors shadow-sm hover:shadow-md"
+                                                                            style={{
+                                                                                backgroundColor: 'var(--theme-primary-light)',
+                                                                                color: 'var(--theme-text-on-primary)',
+                                                                            }}
+                                                                            onMouseEnter={(e) => {
+                                                                                e.target.style.backgroundColor = 'var(--theme-primary)';
+                                                                            }}
+                                                                            onMouseLeave={(e) => {
+                                                                                e.target.style.backgroundColor = 'var(--theme-primary-light)';
+                                                                            }}
+                                                                        >
+                                                                            Pending
+                                                                        </button>
+                                                                    </Tooltip>
                                                                 )}
-                                                                {update.status !== 'in_progress' && (
-                                                                    <button
-                                                                        onClick={() => handleQuickStatusUpdate(update.id, 'in_progress')}
-                                                                        className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
-                                                                        title="Mark as In Progress"
-                                                                    >
-                                                                        In Progress
-                                                                    </button>
+                                                                {update.status !== 'in_progress' && update.status !== 'completed' && (
+                                                                    <Tooltip content="Mark as in progress" position="top">
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => handleQuickStatusUpdate(update.id, 'in_progress')}
+                                                                            className="px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors shadow-sm hover:shadow-md"
+                                                                            style={{
+                                                                                backgroundColor: 'var(--theme-primary)',
+                                                                                color: 'var(--theme-text-on-primary)',
+                                                                            }}
+                                                                            onMouseEnter={(e) => {
+                                                                                e.target.style.backgroundColor = 'var(--theme-primary-hover)';
+                                                                            }}
+                                                                            onMouseLeave={(e) => {
+                                                                                e.target.style.backgroundColor = 'var(--theme-primary)';
+                                                                            }}
+                                                                        >
+                                                                            In Progress
+                                                                        </button>
+                                                                    </Tooltip>
                                                                 )}
                                                                 {update.status !== 'completed' && (
-                                                                    <button
-                                                                        onClick={() => handleQuickStatusUpdate(update.id, 'completed')}
-                                                                        className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors"
-                                                                        title="Mark as Completed"
-                                                                    >
-                                                                        Complete
-                                                                    </button>
+                                                                    <Tooltip content="Mark as completed" position="top">
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => handleQuickStatusUpdate(update.id, 'completed')}
+                                                                            className="px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors shadow-sm hover:shadow-md"
+                                                                            style={{
+                                                                                backgroundColor: 'var(--theme-secondary)',
+                                                                                color: 'var(--theme-text-on-secondary)',
+                                                                            }}
+                                                                            onMouseEnter={(e) => {
+                                                                                e.target.style.backgroundColor = 'var(--theme-secondary-hover)';
+                                                                            }}
+                                                                            onMouseLeave={(e) => {
+                                                                                e.target.style.backgroundColor = 'var(--theme-secondary)';
+                                                                            }}
+                                                                        >
+                                                                            Complete
+                                                                        </button>
+                                                                    </Tooltip>
                                                                 )}
-                                                                {update.status !== 'needs_attention' && (
-                                                                    <button
-                                                                        onClick={() => handleQuickStatusUpdate(update.id, 'needs_attention')}
-                                                                        className="px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"
-                                                                        title="Mark as Needs Attention"
-                                                                    >
-                                                                        Needs Attention
-                                                                    </button>
+                                                                {update.status !== 'needs_attention' && update.status !== 'completed' && (
+                                                                    <Tooltip content="Mark as needs attention" position="top">
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => handleQuickStatusUpdate(update.id, 'needs_attention')}
+                                                                            className="px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors shadow-sm hover:shadow-md"
+                                                                            style={{
+                                                                                backgroundColor: 'var(--theme-primary-dark)',
+                                                                                color: 'var(--theme-text-on-primary)',
+                                                                            }}
+                                                                            onMouseEnter={(e) => {
+                                                                                e.target.style.backgroundColor = 'var(--theme-primary-hover)';
+                                                                            }}
+                                                                            onMouseLeave={(e) => {
+                                                                                e.target.style.backgroundColor = 'var(--theme-primary-dark)';
+                                                                            }}
+                                                                        >
+                                                                            Needs Attention
+                                                                        </button>
+                                                                    </Tooltip>
                                                                 )}
                                                             </div>
                                                             <div className="flex items-center gap-2">
-                                                                <button
-                                                                    onClick={() => handleEdit(update)}
-                                                                    className="p-2 text-gray-600 hover:text-[var(--theme-primary)] transition-colors"
-                                                                    title="Edit"
-                                                                >
-                                                                    <Edit className="w-4 h-4" />
-                                                                </button>
-                                                                {(!isCaregiver || update.updated_by?.id === currentUser?.id) && (
+                                                                <Tooltip content="Edit update" position="top">
                                                                     <button
-                                                                        onClick={() => handleDelete(update.id)}
-                                                                        className="p-2 text-gray-600 hover:text-red-600 transition-colors"
-                                                                        title="Delete"
+                                                                        type="button"
+                                                                        onClick={() => handleEdit(update)}
+                                                                        className="rounded-lg border border-amber-200 bg-amber-50 p-2 shadow-sm transition hover:border-amber-300 hover:bg-amber-100"
+                                                                        aria-label="Edit update"
                                                                     >
-                                                                        <Trash2 className="w-4 h-4" />
+                                                                        <Edit className="h-4 w-4 !text-amber-700" strokeWidth={2.5} />
                                                                     </button>
+                                                                </Tooltip>
+                                                                {(!isCaregiver || update.updated_by?.id === currentUser?.id) && (
+                                                                    <Tooltip content="Delete update" position="top">
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => handleDelete(update.id)}
+                                                                            className="rounded-lg border border-red-200 bg-red-50 p-2 shadow-sm transition hover:border-red-300 hover:bg-red-100"
+                                                                            aria-label="Delete update"
+                                                                        >
+                                                                            <Trash2 className="h-4 w-4 !text-red-600" strokeWidth={2.5} />
+                                                                        </button>
+                                                                    </Tooltip>
                                                                 )}
                                                             </div>
                                                         </div>
@@ -719,10 +798,38 @@ export default function GroceryStatus() {
                 )}
             </SectionCard>
         </div>
+
+            <Modal
+                isOpen={showForm}
+                onClose={handleCloseForm}
+                title={editing ? 'Edit Grocery Status Update' : 'Add Grocery Status Update'}
+                size="xl"
+            >
+                <GroceryStatusForm
+                    key={editing?.id ?? 'new'}
+                    inModal
+                    record={editing}
+                    branches={branches}
+                    templates={templates}
+                    isCaregiver={isCaregiver}
+                    caregiverBranchId={currentUser?.assigned_branch_id}
+                    currentUser={currentUser}
+                    isFacilityAdmin={isFacilityAdmin}
+                    isBranchAdmin={isBranchAdmin}
+                    onClose={handleCloseForm}
+                    onSaveTemplate={(payload) => createTemplateMutation.mutateAsync(payload)}
+                    onSuccess={() => {
+                        queryClient.invalidateQueries(['grocery-status-updates']);
+                        queryClient.invalidateQueries(['grocery-item-templates']);
+                        handleCloseForm();
+                    }}
+                />
+            </Modal>
+        </>
     );
 }
 
-function GroceryStatusForm({ record, branches, templates = [], isCaregiver, caregiverBranchId, onClose, onSuccess, onSaveTemplate }) {
+function GroceryStatusForm({ record, branches, templates = [], isCaregiver, caregiverBranchId, onClose, onSuccess, onSaveTemplate, currentUser, isFacilityAdmin, isBranchAdmin, inModal = false }) {
     // Get current Monday
     const getCurrentMonday = () => {
         const today = new Date();
@@ -733,26 +840,30 @@ function GroceryStatusForm({ record, branches, templates = [], isCaregiver, care
     };
 
     const [formData, setFormData] = useState({
-        branch_id: record?.branch_id || caregiverBranchId || null,
+        branch_id: record?.branch_id || caregiverBranchId || (isBranchAdmin && currentUser?.assigned_branch_id ? currentUser.assigned_branch_id : null),
         week_start_date: record?.week_start_date || getCurrentMonday(),
         status: record?.status || 'pending',
         items_needed: record?.items_needed || '',
         items_received: record?.items_received || '',
         notes: record?.notes || '',
     });
+    
+    // Auto-fill branch for admin users on mount
+    React.useEffect(() => {
+        if (isBranchAdmin && currentUser?.assigned_branch_id && !record && !formData.branch_id) {
+            setFormData(prev => ({ ...prev, branch_id: currentUser.assigned_branch_id }));
+        }
+    }, [isBranchAdmin, currentUser, record]);
 
     const [errors, setErrors] = useState({});
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [selectedTemplateId, setSelectedTemplateId] = useState('');
+    const [completeFormDialogOpen, setCompleteFormDialogOpen] = useState(false);
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setErrors({});
+    const performSave = async () => {
         setIsSubmitting(true);
-
         try {
             const payload = { ...formData };
-            
+
             if (record) {
                 await api.put(`/grocery-status-updates/${record.id}`, payload);
             } else {
@@ -761,7 +872,7 @@ function GroceryStatusForm({ record, branches, templates = [], isCaregiver, care
 
             onSuccess();
         } catch (error) {
-            console.error('Error saving grocery status update:', error);
+            logger.error('Error saving grocery status update:', error);
             if (error.response?.data?.errors) {
                 setErrors(error.response.data.errors);
             } else {
@@ -772,19 +883,47 @@ function GroceryStatusForm({ record, branches, templates = [], isCaregiver, care
         }
     };
 
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setErrors({});
+        if (formData.status === 'completed' && (!record || record.status !== 'completed')) {
+            setCompleteFormDialogOpen(true);
+            return;
+        }
+        await performSave();
+    };
+
     return (
-        <div className="bg-white rounded-lg shadow p-6">
+        <>
+            <ConfirmDialog
+                isOpen={completeFormDialogOpen}
+                onClose={() => !isSubmitting && setCompleteFormDialogOpen(false)}
+                onConfirm={async () => {
+                    setCompleteFormDialogOpen(false);
+                    await performSave();
+                }}
+                title="Mark as completed?"
+                description="You will not be able to set this update back to Pending afterward."
+                confirmLabel="Mark completed"
+                cancelLabel="Cancel"
+                variant="primary"
+                isPending={isSubmitting}
+            />
+        <div className={inModal ? '' : 'bg-white rounded-lg shadow p-6'}>
+            {!inModal && (
             <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-semibold text-gray-900">
                     {record ? 'Edit Grocery Status Update' : 'Add Grocery Status Update'}
                 </h2>
                 <button
+                    type="button"
                     onClick={onClose}
                     className="text-gray-400 hover:text-gray-600"
                 >
                     <X className="w-6 h-6" />
                 </button>
             </div>
+            )}
 
                     <form onSubmit={handleSubmit} className="space-y-4">
                         {errors.general && (
@@ -804,47 +943,10 @@ function GroceryStatusForm({ record, branches, templates = [], isCaregiver, care
                                         value: branch.id.toString(),
                                         label: branch.name,
                                     }))}
-                                    disabled={isCaregiver}
+                                    disabled={isCaregiver || (!isFacilityAdmin && isBranchAdmin && currentUser?.assigned_branch_id)}
                                     className="w-full"
                                 />
                                 {errors.branch_id && <p className="text-xs text-red-600 mt-1">{errors.branch_id[0]}</p>}
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Apply Template</label>
-                                <div className="flex gap-2">
-                                    <Select
-                                        value={selectedTemplateId}
-                                        onValueChange={(value) => setSelectedTemplateId(value || '')}
-                                        placeholder="Choose a template"
-                                        options={templates.map(t => ({
-                                            value: t.id.toString(),
-                                            label: t.name + (t.category ? ` (${t.category})` : ''),
-                                        }))}
-                                        className="w-full"
-                                        disabled={!templates.length}
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            if (!selectedTemplateId) return;
-                                            const tpl = templates.find(t => t.id === Number(selectedTemplateId));
-                                            if (tpl) {
-                                                setFormData((prev) => ({
-                                                    ...prev,
-                                                    branch_id: tpl.branch_id || prev.branch_id,
-                                                    items_needed: tpl.items_list || prev.items_needed,
-                                                }));
-                                                toast.success('Template applied');
-                                            }
-                                        }}
-                                        className="px-3 py-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] rounded-lg disabled:opacity-50"
-                                        disabled={!selectedTemplateId}
-                                    >
-                                        Apply
-                                    </button>
-                                </div>
-                                <p className="text-xs text-gray-500 mt-1">Templates prefill items needed for a week.</p>
                             </div>
 
                             <div>
@@ -875,7 +977,9 @@ function GroceryStatusForm({ record, branches, templates = [], isCaregiver, care
                                     required
                                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
                                 >
-                                    <option value="pending">Pending</option>
+                                    {record?.status !== 'completed' && (
+                                        <option value="pending">Pending</option>
+                                    )}
                                     <option value="in_progress">In Progress</option>
                                     <option value="completed">Completed</option>
                                     <option value="needs_attention">Needs Attention</option>
@@ -920,29 +1024,6 @@ function GroceryStatusForm({ record, branches, templates = [], isCaregiver, care
                             {errors.notes && <p className="text-xs text-red-600 mt-1">{errors.notes[0]}</p>}
                         </div>
 
-                        {!isCaregiver && onSaveTemplate && (
-                            <div className="flex items-center justify-end gap-3">
-                                <button
-                                    type="button"
-                                    onClick={async () => {
-                                        if (!formData.branch_id || !formData.items_needed) {
-                                            toast.error('Branch and items needed are required to save a template.');
-                                            return;
-                                        }
-                                        await onSaveTemplate({
-                                            branch_id: Number(formData.branch_id),
-                                            name: 'Grocery Template',
-                                            items_list: formData.items_needed,
-                                            category: 'general',
-                                        });
-                                    }}
-                                    className="px-4 py-2 border border-[var(--theme-primary)] text-[var(--theme-primary)] rounded-lg hover:bg-[var(--theme-primary-bg-light)]"
-                                >
-                                    Save as Template
-                                </button>
-                            </div>
-                        )}
-
                         <div className="flex items-center justify-end space-x-3 pt-4 border-t">
                             <button
                                 type="button"
@@ -961,6 +1042,7 @@ function GroceryStatusForm({ record, branches, templates = [], isCaregiver, care
                         </div>
                     </form>
         </div>
+        </>
     );
 }
 

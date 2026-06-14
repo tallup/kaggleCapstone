@@ -14,10 +14,21 @@ import {
     Edit,
     Save,
     X,
+    Languages,
+    Building2,
+    ShieldCheck,
+    Clock,
+    ExternalLink,
 } from 'lucide-react';
 import api from '../../services/api';
 import Breadcrumbs from '../../components/ui/Breadcrumbs';
 import ResidentDocuments from '../../components/ResidentDocuments';
+import ResidentSafetyStrip from '../../components/residents/ResidentSafetyStrip';
+import ResidentStatusBadges from '../../components/residents/ResidentStatusBadges';
+import logger from '../../utils/logger';
+import { canEditResidentCarePlan } from '../../utils/userRoles';
+import { formatPacificCalendarMedium, calculateAgeFromPacificBirthDate } from '../../utils/pacificTime';
+import { getResidentStatusSummary } from '../../utils/residentStatus';
 
 const tabs = [
     { id: 'profile', label: 'Profile Overview', icon: Users },
@@ -25,9 +36,21 @@ const tabs = [
     { id: 'medications', label: 'Medications', icon: Pill },
     { id: 'vitals', label: 'Vitals', icon: Heart },
     { id: 'appointments', label: 'Appointments', icon: Calendar },
+    { id: 'notes', label: 'T-Logs', icon: FileText },
     { id: 'documents', label: 'Documents', icon: FileText },
     { id: 'sleep', label: 'Sleep', icon: Moon },
 ];
+
+const PACIFIC_TZ = 'America/Los_Angeles';
+
+/** True when the API value is a calendar date (not a real instant with time-of-day). */
+function isCalendarOnlyDateString(value) {
+    if (typeof value !== 'string') return false;
+    const s = value.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return true;
+    // Laravel date columns often serialize as midnight UTC
+    return /^\d{4}-\d{2}-\d{2}T00:00:00(?:\.0+)?(?:Z|[+-]00:?00)$/.test(s);
+}
 
 function formatDate(value, options = { dateStyle: 'medium' }) {
     if (!value) {
@@ -36,27 +59,21 @@ function formatDate(value, options = { dateStyle: 'medium' }) {
 
     try {
         const dateOptions = typeof options === 'string' ? { dateStyle: options } : options;
-        return new Intl.DateTimeFormat('en-US', dateOptions).format(new Date(value));
+        const hasTime = typeof dateOptions === 'object' && dateOptions && 'timeStyle' in dateOptions;
+        // Calendar-only API dates: never shift the day via local timezone
+        if (!hasTime && isCalendarOnlyDateString(value)) {
+            return formatPacificCalendarMedium(value);
+        }
+        return new Intl.DateTimeFormat('en-US', { ...dateOptions, timeZone: PACIFIC_TZ }).format(new Date(value));
     } catch (error) {
-        console.warn('Failed to format date', value, error);
+        logger.warn('Failed to format date', value, error);
         return value;
     }
 }
 
 function calculateAge(date) {
-    if (!date) return 'N/A';
-    try {
-        const birth = new Date(date);
-        const now = new Date();
-        let age = now.getFullYear() - birth.getFullYear();
-        const monthDiff = now.getMonth() - birth.getMonth();
-        if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < birth.getDate())) {
-            age -= 1;
-        }
-        return `${age} yrs`;
-    } catch (error) {
-        return 'N/A';
-    }
+    const age = calculateAgeFromPacificBirthDate(date);
+    return age !== null ? `${age} yrs` : 'N/A';
 }
 
 function computeLengthOfStay(admissionDate) {
@@ -124,6 +141,16 @@ export default function ResidentDetailPage() {
         notes: '',
     });
 
+    const { data: currentUser } = useQuery({
+        queryKey: ['current-user'],
+        queryFn: async () => {
+            const res = await api.get('/user');
+            return res.data;
+        },
+    });
+
+    const canEditResident = canEditResidentCarePlan(currentUser);
+
     const { data, isLoading, error } = useQuery({
         queryKey: ['resident-detail', residentId],
         enabled: Boolean(residentId),
@@ -158,7 +185,7 @@ export default function ResidentDetailPage() {
                 const response = await api.put(`/residents/${residentId}`, data);
                 return response.data?.data || response.data;
             } catch (error) {
-                console.error('API Error:', error.response?.data || error.message);
+                logger.error('API Error:', error.response?.data || error.message);
                 throw error;
             }
         },
@@ -169,7 +196,7 @@ export default function ResidentDetailPage() {
             setEditingCarePlan(false);
         },
         onError: (error) => {
-            console.error('Failed to update care plan:', error);
+            logger.error('Failed to update care plan:', error);
             const errorMessage = error.response?.data?.message || error.response?.data?.error || 'Failed to update care plan. Please try again.';
             alert(errorMessage);
         },
@@ -190,15 +217,7 @@ export default function ResidentDetailPage() {
         setEditingCarePlan(false);
     };
 
-    const statusBadge = React.useMemo(() => {
-        const isActive = resident?.is_active === true || resident?.is_active === 1 || resident?.is_active === '1';
-        return {
-            label: isActive ? 'Active' : 'Inactive',
-            className: isActive
-                ? 'bg-emerald-50 text-emerald-600 ring-emerald-200'
-                : 'bg-amber-50 text-amber-600 ring-amber-200',
-        };
-    }, [resident?.is_active]);
+    const statusSummary = React.useMemo(() => getResidentStatusSummary(resident), [resident]);
 
     const medications = React.useMemo(() => {
         if (!resident?.medications) return [];
@@ -372,9 +391,7 @@ export default function ResidentDetailPage() {
                                 <span className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
                                     ID: {resident?.id ?? 'N/A'}
                                 </span>
-                                <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ring-1 ${statusBadge.className}`}>
-                                    {statusBadge.label}
-                                </span>
+                                <ResidentStatusBadges resident={resident} size="md" showCensus />
                             </div>
                             <p className="mt-2 text-sm text-gray-500">
                                 Branch: <span className="font-medium text-gray-900">{resident?.branch?.name || 'Unassigned'}</span>
@@ -393,13 +410,47 @@ export default function ResidentDetailPage() {
                     </div>
                     <div className="grid w-full gap-3 rounded-2xl bg-gray-50 p-4 text-sm text-gray-600 sm:grid-cols-2 lg:w-auto">
                         <div>
-                            <p className="text-xs uppercase tracking-wide text-gray-500">Length of stay</p>
+                            <p className="text-xs uppercase tracking-wide text-gray-500">Lifecycle</p>
+                            <p className="text-lg font-semibold text-gray-900">{statusSummary.lifecycleMeta.label}</p>
+                        </div>
+                        <div>
+                            <p className="text-xs uppercase tracking-wide text-gray-500">Temporary</p>
+                            <p className="text-lg font-semibold text-gray-900">{statusSummary.temporaryMeta?.label || 'None'}</p>
+                        </div>
+                        <div>
+                            <p className="text-xs uppercase tracking-wide text-gray-500">Length of Stay</p>
                             <p className="text-lg font-semibold text-gray-900">{computeLengthOfStay(resident.admission_date)}</p>
                         </div>
                         <div>
                             <p className="text-xs uppercase tracking-wide text-gray-500">Room</p>
                             <p className="text-lg font-semibold text-gray-900">{resident.room_number || resident.room || 'N/A'}</p>
                         </div>
+                        {resident.code_status && (
+                            <div>
+                                <p className="text-xs uppercase tracking-wide text-gray-500">Code Status</p>
+                                <p className="text-base font-semibold text-blue-700">{resident.code_status}</p>
+                            </div>
+                        )}
+                        {(resident.primary_language || resident.language) && (
+                            <div>
+                                <p className="text-xs uppercase tracking-wide text-gray-500">Language</p>
+                                <p className="text-base font-semibold text-gray-900">{resident.primary_language || resident.language}</p>
+                            </div>
+                        )}
+                        {(resident.pharmacy?.name || resident.pharmacy_name) && (
+                            <div className="sm:col-span-2">
+                                <p className="text-xs uppercase tracking-wide text-gray-500">Pharmacy</p>
+                                <p className="text-base font-semibold text-gray-900">{resident.pharmacy?.name || resident.pharmacy_name}</p>
+                            </div>
+                        )}
+                        {resident.updated_at && (
+                            <div className="sm:col-span-2 border-t border-gray-200 pt-2 mt-1">
+                                <p className="text-xs text-gray-400 flex items-center gap-1">
+                                    <Clock className="h-3 w-3" aria-hidden="true" />
+                                    Last updated {formatDate(resident.updated_at, { dateStyle: 'medium', timeStyle: 'short' })}
+                                </p>
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -411,7 +462,12 @@ export default function ResidentDetailPage() {
                 </div>
             </section>
 
-            <nav className="flex flex-wrap gap-2 rounded-2xl bg-white p-2 shadow-sm ring-1 ring-gray-100">
+            <ResidentSafetyStrip resident={resident} isLoading={isLoading} />
+
+            <nav
+                className="sticky top-0 z-10 flex flex-wrap gap-2 rounded-2xl bg-white p-2 shadow-sm ring-1 ring-gray-100"
+                aria-label="Resident record sections"
+            >
                 {tabs.map(({ id, label, icon: Icon }) => {
                     const isActive = activeTab === id;
                     return (
@@ -419,7 +475,8 @@ export default function ResidentDetailPage() {
                             key={id}
                             type="button"
                             onClick={() => setActiveTab(id)}
-                            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition ${
+                            aria-current={isActive ? 'true' : undefined}
+                            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--theme-primary)] ${
                                 isActive
                                     ? 'bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] shadow-sm'
                                     : 'text-gray-600 hover:bg-gray-50'
@@ -444,8 +501,29 @@ export default function ResidentDetailPage() {
                         <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                             <DefinitionItem label="Preferred Name">{resident.name || fullName}</DefinitionItem>
                             <DefinitionItem label="Gender">{resident.gender || 'N/A'}</DefinitionItem>
-                            <DefinitionItem label="Status">{resident.status || statusBadge.label}</DefinitionItem>
-                            <DefinitionItem label="Physician">{resident.physician_name || 'Not documented'}</DefinitionItem>
+                            <DefinitionItem label="Lifecycle Status">{statusSummary.lifecycleMeta.label}</DefinitionItem>
+                            <DefinitionItem label="Temporary Status">{statusSummary.temporaryMeta?.label || 'None'}</DefinitionItem>
+                            <DefinitionItem label="Census">{statusSummary.isInCensus ? 'In census' : 'Out of census'}</DefinitionItem>
+                            {resident.temporary_status_started_at && (
+                                <DefinitionItem label="Temporary Status Started">
+                                    {formatDate(resident.temporary_status_started_at, { dateStyle: 'medium', timeStyle: 'short' })}
+                                </DefinitionItem>
+                            )}
+                            {resident.temporary_status_note && (
+                                <DefinitionItem label="Temporary Status Note">{resident.temporary_status_note}</DefinitionItem>
+                            )}
+                            {resident.discharge_date && (
+                                <DefinitionItem label="Discharge Date">{formatDate(resident.discharge_date)}</DefinitionItem>
+                            )}
+                            {resident.discharge_reason && (
+                                <DefinitionItem label="Discharge Reason">{resident.discharge_reason}</DefinitionItem>
+                            )}
+                            {resident.discharge_destination && (
+                                <DefinitionItem label="Discharge Destination">{resident.discharge_destination}</DefinitionItem>
+                            )}
+                            <DefinitionItem label="Physician">
+                                {resident.primary_care_doctor || resident.physician_name || 'Not documented'}
+                            </DefinitionItem>
                             <DefinitionItem label="Primary Diagnosis">{resident.diagnosis || 'Not documented'}</DefinitionItem>
                             <DefinitionItem label="Allergies">
                                 {allergies.length ? allergies.join(', ') : 'No allergies recorded'}
@@ -458,8 +536,9 @@ export default function ResidentDetailPage() {
                     <div className="space-y-4">
                         <div className="flex items-center justify-between">
                             <h2 className="text-lg font-semibold text-gray-900">Care Plan & Notes</h2>
-                            {!editingCarePlan && (
+                            {canEditResident && !editingCarePlan && (
                                 <button
+                                    type="button"
                                     onClick={() => setEditingCarePlan(true)}
                                     className="inline-flex items-center gap-2 rounded-lg bg-[var(--theme-primary)] px-4 py-2 text-sm font-medium text-[var(--theme-text-on-primary)] hover:bg-[var(--theme-primary-hover)] transition-colors"
                                 >
@@ -555,7 +634,7 @@ export default function ResidentDetailPage() {
                                 </p>
                             </div>
                             <Link
-                                to={`/medications/residents/${resident.id}`}
+                                to={`/my-residents/${resident.id}/medications/list`}
                                 className="rounded-lg border-2 border-[var(--theme-primary)] bg-[var(--theme-primary)] px-4 py-2 text-sm font-semibold text-[var(--theme-text-on-primary)] hover:bg-[var(--theme-primary-hover)] transition-colors shadow-sm"
                             >
                                 Manage Medications
@@ -604,6 +683,10 @@ export default function ResidentDetailPage() {
                                                         <span>
                                                             Times: {[medication.time_1, medication.time_2, medication.time_3, medication.time_4]
                                                                 .filter(Boolean)
+                                                                .sort((a, b) => {
+                                                                    const toMin = (v) => { const [h, m] = v.split(':').map(Number); return h * 60 + (m || 0); };
+                                                                    return toMin(a) - toMin(b);
+                                                                })
                                                                 .join(', ')}
                                                         </span>
                                                     )}
@@ -744,6 +827,10 @@ export default function ResidentDetailPage() {
                     </div>
                 )}
 
+                {activeTab === 'notes' && (
+                    <ResidentProgressNotes residentId={residentId} />
+                )}
+
                 {activeTab === 'documents' && (
                     <div className="space-y-4">
                         <ResidentDocuments residentId={resident?.id || residentId} />
@@ -830,4 +917,112 @@ export default function ResidentDetailPage() {
     );
 }
 
+// ─── Progress Notes panel (used in the Notes tab) ──────────────────────────
 
+const NOTE_TYPE_COLORS = {
+    urgent: 'bg-red-50 text-red-700 ring-red-200',
+    high: 'bg-orange-50 text-orange-700 ring-orange-200',
+    health: 'bg-blue-50 text-blue-700 ring-blue-200',
+    behavior: 'bg-purple-50 text-purple-700 ring-purple-200',
+    'follow-up': 'bg-violet-50 text-violet-700 ring-violet-200',
+    contacts: 'bg-cyan-50 text-cyan-700 ring-cyan-200',
+    general: 'bg-green-50 text-green-700 ring-green-200',
+    notes: 'bg-gray-100 text-gray-700 ring-gray-200',
+};
+
+function ResidentProgressNotes({ residentId }) {
+    const { data, isLoading, error } = useQuery({
+        queryKey: ['resident-t-logs', residentId],
+        queryFn: async () => {
+            const response = await api.get('/t-logs', {
+                params: { resident_id: residentId, per_page: 10 },
+            });
+            return response.data;
+        },
+        enabled: Boolean(residentId),
+        staleTime: 2 * 60 * 1000,
+    });
+
+    const notes = React.useMemo(() => {
+        const rows = data?.data ?? data ?? [];
+        return Array.isArray(rows) ? rows : [];
+    }, [data]);
+
+    return (
+        <div className="space-y-4">
+            <div className="flex items-center justify-between">
+                <div>
+                    <h2 className="text-lg font-semibold text-gray-900">T-Logs</h2>
+                    <p className="text-sm text-gray-500">Recent caregiver observations and follow-ups.</p>
+                </div>
+                <Link
+                    to={`/t-logs?resident_id=${residentId}`}
+                    className="inline-flex items-center gap-2 rounded-lg border-2 border-[var(--theme-primary)] bg-[var(--theme-primary)] px-4 py-2 text-sm font-semibold text-[var(--theme-text-on-primary)] hover:bg-[var(--theme-primary-hover)] transition-colors shadow-sm"
+                >
+                    <ExternalLink className="h-4 w-4" aria-hidden="true" />
+                    View All T-Logs
+                </Link>
+            </div>
+
+            {isLoading ? (
+                <div className="space-y-3">
+                    {[1, 2, 3].map(i => (
+                        <div key={i} className="h-20 animate-pulse rounded-xl bg-gray-100" />
+                    ))}
+                </div>
+            ) : error ? (
+                <EmptyState
+                    icon={AlertCircle}
+                    title="Could not load notes"
+                    description="Please try refreshing the page."
+                />
+            ) : notes.length === 0 ? (
+                <EmptyState
+                    icon={FileText}
+                    title="No T-Logs yet"
+                    description="Caregiver observations and notes logged for this resident will appear here."
+                />
+            ) : (
+                <ul className="space-y-3" role="list">
+                    {notes.map(note => {
+                        const typeKey = (note.type || 'general').toLowerCase();
+                        const levelKey = (note.notification_level || '').toLowerCase();
+                        const badgeColor = NOTE_TYPE_COLORS[levelKey] || NOTE_TYPE_COLORS[typeKey] || NOTE_TYPE_COLORS.general;
+                        return (
+                            <li
+                                key={note.id}
+                                className="rounded-xl border border-gray-100 bg-gray-50/70 p-4 text-sm text-gray-700"
+                            >
+                                <div className="flex flex-wrap items-start justify-between gap-2">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        {(note.type || note.notification_level) && (
+                                            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ${badgeColor}`}>
+                                                {note.type || note.notification_level}
+                                            </span>
+                                        )}
+                                        {note.subject && (
+                                            <span className="font-semibold text-gray-900 text-sm">{note.subject}</span>
+                                        )}
+                                    </div>
+                                    <span className="text-xs text-gray-400 flex-shrink-0">
+                                        {formatDate(note.created_at, { dateStyle: 'medium', timeStyle: 'short' })}
+                                    </span>
+                                </div>
+                                {note.description && (
+                                    <p className="mt-2 text-sm text-gray-600 line-clamp-3 whitespace-pre-wrap">
+                                        {note.description}
+                                    </p>
+                                )}
+                                {note.caregiver_name || note.user?.name ? (
+                                    <p className="mt-2 text-xs text-gray-400">
+                                        By {note.caregiver_name || note.user?.name}
+                                    </p>
+                                ) : null}
+                            </li>
+                        );
+                    })}
+                </ul>
+            )}
+        </div>
+    );
+}

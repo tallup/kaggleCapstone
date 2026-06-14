@@ -19,9 +19,20 @@ class VitalSignController extends BaseApiController
         if ($currentUser && $currentUser->role !== 'super_admin') {
             // Filter vital signs by branches that belong to the user's facility
             if ($currentUser->facility_id) {
-                $query->whereHas('branch', function($q) use ($currentUser) {
-                    $q->where('facility_id', $currentUser->facility_id);
-                });
+                // Use optimized whereIn pattern instead of whereHas for better performance
+                $branchIds = $this->getFacilityBranchIds($currentUser->facility_id);
+                if (!empty($branchIds)) {
+                    $query->whereIn('branch_id', $branchIds);
+                } else {
+                    // No branches for facility, return empty results
+                    return response()->json([
+                        'data' => [],
+                        'current_page' => 1,
+                        'last_page' => 1,
+                        'per_page' => $request->get('per_page', 25),
+                        'total' => 0
+                    ]);
+                }
             } else {
                 // User has no facility assigned, return empty results
                 return response()->json([
@@ -172,6 +183,23 @@ class VitalSignController extends BaseApiController
         }
 
         $vital = VitalSign::create($validated);
+
+        // Notify admins
+        try {
+            $admins = \App\Models\User::where(function($query) {
+                    $query->whereIn('role', ['admin', 'administrator', 'super_admin']);
+                })
+                ->orWhereHas('roles', fn($q) => $q->whereIn('name', ['admin', 'administrator', 'super_admin']))
+                ->get();
+                
+            app(\App\Services\NotificationService::class)->sendVitalSignEmail(
+                $vital, 
+                $admins,
+                $vital->status === 'critical'
+            );
+        } catch (\Exception $e) {
+            \Log::error('Failed to trigger vital sign notification', ['error' => $e->getMessage()]);
+        }
 
         return response()->json($vital->load(['resident', 'takenBy']), 201);
     }

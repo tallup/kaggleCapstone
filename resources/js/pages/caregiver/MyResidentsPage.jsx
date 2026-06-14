@@ -1,39 +1,40 @@
 import React from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
-import { Users, Search, MapPin, Calendar, Phone, Activity } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Users, Search, MapPin, Calendar, Phone, Activity, Edit, Eye, LayoutGrid, List, DoorOpen, Pill } from 'lucide-react';
 import api from '../../services/api';
+import ResidentForm from '../../components/ResidentForm';
+import Modal from '../../components/ui/Modal';
+import Tooltip from '../../components/ui/Tooltip';
+import EntityCardShell, { EntityCardHeader } from '../../components/ui/EntityCardShell';
+import CardIconButton from '../../components/ui/CardIconButton';
+import DataPill from '../../components/ui/DataPill';
+import ResidentAvatarInline from '../../components/ui/ResidentAvatarInline';
+import ResidentStatusBadges from '../../components/residents/ResidentStatusBadges';
+import { isCaregiverRole } from '../../utils/userRoles';
+import {
+    formatPacificCalendarMedium,
+    formatPacificDateTimeShort,
+    calculateAgeFromPacificBirthDate,
+} from '../../utils/pacificTime';
+import { RESIDENT_CONTEXT_QUERY_KEY } from '../../utils/headerResidentSwitcher';
+import { isResidentLifecycleActive } from '../../utils/residentStatus';
 
 const initialStats = [
     { key: 'active', label: 'Active Residents', icon: Users },
-    { key: 'inactive', label: 'Inactive Residents', icon: Activity },
+    { key: 'inactive', label: 'Non-active Residents', icon: Activity },
 ];
-
-function getInitials(first = '', last = '') {
-    return `${first?.[0] ?? ''}${last?.[0] ?? ''}`.toUpperCase();
-}
-
-function formatDate(value) {
-    if (!value) {
-        return 'N/A';
-    }
-
-    try {
-        return new Intl.DateTimeFormat('en-US', {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric',
-        }).format(new Date(value));
-    } catch (err) {
-        console.warn('Failed to format date', value, err);
-        return value;
-    }
-}
 
 export default function MyResidentsPage() {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const queryClient = useQueryClient();
     const [search, setSearch] = React.useState('');
     const [debouncedSearch, setDebouncedSearch] = React.useState('');
+    const [statusFilter, setStatusFilter] = React.useState('all'); // 'all' | 'active' | 'inactive'
+    const [viewMode, setViewMode] = React.useState('grid'); // 'grid' | 'list'
+    const [showForm, setShowForm] = React.useState(false);
+    const [editing, setEditing] = React.useState(null);
 
     // Current user query (to get assigned branch)
     const { data: currentUser, isLoading: isLoadingUser } = useQuery({
@@ -42,6 +43,11 @@ export default function MyResidentsPage() {
             const res = await api.get('/user');
             return res.data;
         },
+    });
+
+    const { data: branchesData } = useQuery({
+        queryKey: ['branches-options'],
+        queryFn: async () => (await api.get('/branches', { params: { per_page: 100 } })).data,
     });
 
 
@@ -63,21 +69,39 @@ export default function MyResidentsPage() {
             if (debouncedSearch) {
                 params.search = debouncedSearch;
             }
-            // Don't pass branch_id - backend will automatically filter by caregiver's branch
+            // For caregivers, backend automatically filters by assigned branch
+            // For administrators with assigned branch, explicitly pass branch_id to ensure correct filtering
+            if (currentUser?.assigned_branch_id) {
+                params.branch_id = currentUser.assigned_branch_id;
+            }
             const response = await api.get('/residents', { params });
             return response.data;
         },
         enabled: !isLoadingUser, // Wait for user data to load first
     });
 
-    const residents = React.useMemo(() => data?.data ?? [], [data?.data]);
+    const allResidents = React.useMemo(() => data?.data ?? [], [data?.data]);
+
+    const residents = React.useMemo(() => {
+        if (statusFilter === 'all') return allResidents;
+        return allResidents.filter(r => {
+            const active = isResidentLifecycleActive(r);
+            return statusFilter === 'active' ? active : !active;
+        });
+    }, [allResidents, statusFilter]);
+
+    const scopeId = searchParams.get(RESIDENT_CONTEXT_QUERY_KEY) || '';
+    const displayedResidents = React.useMemo(() => {
+        if (!scopeId) return residents;
+        return residents.filter((r) => String(r.id) === scopeId);
+    }, [residents, scopeId]);
+
+    const canEditResidents = !isCaregiverRole(currentUser?.role);
 
     const stats = React.useMemo(() => {
         const totals = { active: 0, inactive: 0 };
-        residents.forEach((resident) => {
-            const activeValue = resident?.is_active;
-            const isActive = activeValue === true || activeValue === 1 || activeValue === '1';
-            if (isActive) {
+        allResidents.forEach((resident) => {
+            if (isResidentLifecycleActive(resident)) {
                 totals.active += 1;
             } else {
                 totals.inactive += 1;
@@ -88,110 +112,173 @@ export default function MyResidentsPage() {
             ...item,
             value: totals[item.key],
         }));
-    }, [residents]);
-
-    // Derive the caregiver's branch name from the residents list (caregivers are scoped to one branch)
-    const branchName = React.useMemo(() => {
-        const withBranch = residents.find((r) => r?.branch?.name);
-        if (withBranch?.branch?.name) return withBranch.branch.name;
-        if (currentUser?.assigned_branch?.name) return currentUser.assigned_branch.name;
-        return null;
-    }, [residents, currentUser?.assigned_branch?.name]);
+    }, [allResidents]);
 
     const renderResidentCard = (resident) => {
-        const isActive = resident?.is_active === true || resident?.is_active === 1 || resident?.is_active === '1';
         const fullName = [resident.first_name, resident.middle_names, resident.last_name].filter(Boolean).join(' ');
-        const branchName = resident?.branch?.name ?? 'Unassigned';
+        const branchNameRes = resident?.branch?.name ?? 'Unassigned';
+        const ageYears = calculateAgeFromPacificBirthDate(resident.date_of_birth);
+        const room = resident.room_number || resident.room;
+
+        const profilePath = `/my-residents/${resident.id}`;
+        const medicationHubPath = `/my-residents/${resident.id}/medications/overview`;
 
         return (
-            <article
+            <EntityCardShell
                 key={resident.id}
-                className="group flex flex-col rounded-2xl border border-transparent bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-xl hover:border-[var(--theme-primary-light)]"
+                className="cursor-pointer"
+                aria-label={`Open resident record for ${fullName || 'resident'}`}
+                onClick={(e) => {
+                    if (e.target.closest('button')) return;
+                    navigate(profilePath);
+                }}
             >
-                <div className="flex items-start gap-4">
-                    <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-full border border-[var(--theme-primary-light)] bg-[var(--theme-primary)] text-white">
-                        {resident.profile_image_url || resident.profile_image ? (
-                            <img
-                                src={resident.profile_image_url || `/storage/${resident.profile_image}`}
-                                alt={fullName || 'Resident profile'}
-                                className="h-full w-full object-cover"
-                                onError={(event) => {
-                                    event.currentTarget.style.display = 'none';
-                                    event.currentTarget.nextElementSibling.style.display = 'flex';
-                                }}
-                            />
-                        ) : null}
-                        <div
-                            className={`absolute inset-0 ${(resident.profile_image_url || resident.profile_image) ? 'hidden' : 'flex'} items-center justify-center bg-[var(--theme-primary)] text-lg font-semibold uppercase text-white`}
-                        >
-                            {getInitials(resident.first_name, resident.last_name) || <Users className="h-6 w-6" />}
+                <EntityCardHeader
+                    left={
+                        <div className="flex flex-wrap items-start gap-3">
+                            <ResidentAvatarInline resident={resident} className="h-10 w-10 text-xs" />
+                            <div className="space-y-1.5">
+                                <ResidentStatusBadges resident={resident} showCensus />
+                                <div className="flex flex-wrap gap-1.5">
+                                    {room && (
+                                        <span className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50 px-2.5 py-0.5 text-[10px] font-semibold text-gray-600">
+                                            <DoorOpen className="h-3 w-3" aria-hidden="true" />
+                                            Room {room}
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                    <div className="flex-1">
-                        <div className="flex items-center gap-3">
-                            <h3 className="text-lg font-semibold text-gray-900">{fullName || 'Unnamed Resident'}</h3>
-                            <span
-                                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                                    isActive
-                                        ? 'bg-[var(--theme-primary-bg)] text-[var(--theme-primary)] ring-1 ring-inset ring-[var(--theme-primary-light)]'
-                                        : 'bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200'
-                                }`}
-                            >
-                                {isActive ? 'Active' : 'Inactive'}
-                            </span>
-                        </div>
-                        <p className="mt-1 text-sm text-gray-500">Resident since {formatDate(resident.admission_date)}</p>
-                    </div>
+                    }
+                    right={
+                        <>
+                            {canEditResidents ? (
+                                <Tooltip content="Edit resident" position="top">
+                                    <CardIconButton
+                                        variant="edit"
+                                        icon={Edit}
+                                        aria-label="Edit resident"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setEditing(resident);
+                                            setShowForm(true);
+                                        }}
+                                    />
+                                </Tooltip>
+                            ) : null}
+                            <Tooltip content="Medication hub" position="top">
+                                <CardIconButton
+                                    variant="resolve"
+                                    icon={Pill}
+                                    aria-label="Open medication hub"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        navigate(medicationHubPath);
+                                    }}
+                                />
+                            </Tooltip>
+                            <Tooltip content="View profile" position="top">
+                                <CardIconButton
+                                    variant="view"
+                                    icon={Eye}
+                                    aria-label="View profile"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        navigate(profilePath);
+                                    }}
+                                />
+                            </Tooltip>
+                        </>
+                    }
+                />
+
+                <h3 className="text-lg font-bold leading-snug text-slate-900 sm:text-xl">
+                    {fullName || 'Unnamed Resident'}
+                </h3>
+                <p className="mt-1 text-sm text-slate-500">
+                    Resident since {formatPacificCalendarMedium(resident.admission_date)}
+                </p>
+
+                <div className="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                    <DataPill icon={MapPin}>
+                        <span className="font-normal text-slate-600">{branchNameRes}</span>
+                    </DataPill>
+                    <DataPill icon={Calendar}>
+                        <span className="font-normal text-slate-600">
+                            {formatPacificCalendarMedium(resident.date_of_birth)}
+                            {ageYears !== null ? ` · ${ageYears} yrs` : ''}
+                        </span>
+                    </DataPill>
+                    <DataPill icon={Phone}>
+                        <span className="font-normal text-slate-600">
+                            {resident.phone || resident.emergency_contact_phone || 'N/A'}
+                        </span>
+                    </DataPill>
+                    <DataPill icon={Users}>
+                        <span className="font-normal text-slate-600 truncate">
+                            {resident.emergency_contact_name || 'Not provided'}
+                        </span>
+                    </DataPill>
                 </div>
 
-                <dl className="mt-6 grid grid-cols-1 gap-4 text-sm text-gray-600 sm:grid-cols-2">
-                    <div className="flex items-center gap-2 rounded-xl border border-gray-100 bg-gray-50/60 px-3 py-2">
-                        <MapPin className="h-4 w-4 text-[var(--theme-primary)]" />
-                        <div>
-                            <dt className="text-xs uppercase tracking-wide text-gray-500">Branch</dt>
-                            <dd className="font-medium text-gray-900">{branchName}</dd>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-2 rounded-xl border border-gray-100 bg-gray-50/60 px-3 py-2">
-                        <Calendar className="h-4 w-4 text-[var(--theme-primary)]" />
-                        <div>
-                            <dt className="text-xs uppercase tracking-wide text-gray-500">Date of Birth</dt>
-                            <dd className="font-medium text-gray-900">{formatDate(resident.date_of_birth)}</dd>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-2 rounded-xl border border-gray-100 bg-gray-50/60 px-3 py-2">
-                        <Phone className="h-4 w-4 text-[var(--theme-primary)]" />
-                        <div>
-                            <dt className="text-xs uppercase tracking-wide text-gray-500">Primary Phone</dt>
-                            <dd className="font-medium text-gray-900">{resident.phone || resident.emergency_contact_phone || 'N/A'}</dd>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-2 rounded-xl border border-gray-100 bg-gray-50/60 px-3 py-2">
-                        <Users className="h-4 w-4 text-[var(--theme-primary)]" />
-                        <div>
-                            <dt className="text-xs uppercase tracking-wide text-gray-500">Emergency Contact</dt>
-                            <dd className="font-medium text-gray-900">
-                                {resident.emergency_contact_name || 'Not provided'}
-                            </dd>
-                        </div>
-                    </div>
-                </dl>
+                <p className="mt-4 text-xs text-slate-400">
+                    Last updated {formatPacificDateTimeShort(resident.updated_at)}
+                </p>
+            </EntityCardShell>
+        );
+    };
 
-                <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-                    <div className="text-xs text-gray-400">
-                        Last updated {formatDate(resident.updated_at)}
+    const renderResidentRow = (resident) => {
+        const fullName = [resident.first_name, resident.middle_names, resident.last_name].filter(Boolean).join(' ');
+        const branchNameRes = resident?.branch?.name ?? 'Unassigned';
+        const ageYears = calculateAgeFromPacificBirthDate(resident.date_of_birth);
+        const room = resident.room_number || resident.room;
+
+        const profilePath = `/my-residents/${resident.id}`;
+        const medicationHubPath = `/my-residents/${resident.id}/medications/overview`;
+
+        return (
+            <tr
+                key={resident.id}
+                className="group cursor-pointer border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors"
+                onClick={(e) => {
+                    if (e.target.closest('button')) return;
+                    navigate(profilePath);
+                }}
+            >
+                <td className="py-3 pl-4 pr-3">
+                    <div className="flex items-center gap-3">
+                        <ResidentAvatarInline resident={resident} className="h-8 w-8 text-[10px] flex-shrink-0" />
+                        <div>
+                            <p className="font-semibold text-sm text-gray-900">{fullName || 'Unnamed'}</p>
+                            <p className="text-xs text-gray-500">{branchNameRes}</p>
+                        </div>
                     </div>
-                    <div className="flex gap-2">
-                        <button
-                            type="button"
-                            onClick={() => navigate(`/my-residents/${resident.id}`)}
-                            className="inline-flex items-center rounded-lg bg-[var(--theme-primary)] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[var(--theme-primary-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--theme-primary)]"
-                        >
-                            View Details
-                        </button>
+                </td>
+                <td className="py-3 px-3 text-sm text-gray-600">{room ? `Room ${room}` : '—'}</td>
+                <td className="py-3 px-3 text-sm text-gray-600">
+                    {formatPacificCalendarMedium(resident.date_of_birth)}
+                    {ageYears !== null ? <span className="ml-1 text-xs text-gray-400">{ageYears} yrs</span> : null}
+                </td>
+                <td className="py-3 px-3">
+                    <ResidentStatusBadges resident={resident} size="xs" showCensus />
+                </td>
+                <td className="py-3 pl-3 pr-4 text-right">
+                    <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {canEditResidents && (
+                            <Tooltip content="Edit" position="top">
+                                <CardIconButton variant="edit" icon={Edit} aria-label="Edit resident" onClick={(e) => { e.stopPropagation(); setEditing(resident); setShowForm(true); }} />
+                            </Tooltip>
+                        )}
+                        <Tooltip content="Medication hub" position="top">
+                            <CardIconButton variant="resolve" icon={Pill} aria-label="Open medication hub" onClick={(e) => { e.stopPropagation(); navigate(medicationHubPath); }} />
+                        </Tooltip>
+                        <Tooltip content="View profile" position="top">
+                            <CardIconButton variant="view" icon={Eye} aria-label="View profile" onClick={(e) => { e.stopPropagation(); navigate(profilePath); }} />
+                        </Tooltip>
                     </div>
-                </div>
-            </article>
+                </td>
+            </tr>
         );
     };
 
@@ -205,70 +292,66 @@ export default function MyResidentsPage() {
 
     return (
         <div className="space-y-6">
-            <header className="rounded-2xl bg-gradient-to-r from-[var(--theme-primary)] via-[var(--theme-primary-light)] to-[var(--theme-primary-lighter)] p-6 text-white shadow-lg">
-                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                    <div>
-                        <p className="text-sm font-medium uppercase tracking-wide text-white/90">Caregiver Console</p>
-                        <h1 className="text-2xl font-semibold md:text-3xl">My Residents</h1>
-                        <p className="mt-2 max-w-xl text-sm text-white/90">
-                            Review key details for the residents assigned to you. Quickly navigate to a resident&apos;s full
-                            profile to view care plans, medication records, vitals, and more.
-                        </p>
-                    </div>
-                    <div className="rounded-xl bg-white/10 px-4 py-3 text-sm text-white shadow-inner backdrop-blur">
-                        <span className="text-2xl font-semibold">{residents.length}</span>{' '}
-                        <span className="text-white/90">total residents</span>
-                    </div>
-                </div>
-                <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    {stats.map(({ key, label, icon: Icon, value }) => (
-                        <div
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+                <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filter by status">
+                    {[
+                        { key: 'all', label: `All (${allResidents.length})` },
+                        { key: 'active', label: `Active (${stats.find(s => s.key === 'active')?.value ?? 0})` },
+                        { key: 'inactive', label: `Non-active (${stats.find(s => s.key === 'inactive')?.value ?? 0})` },
+                    ].map(({ key, label }) => (
+                        <button
                             key={key}
-                            className="rounded-2xl border border-white/10 bg-white/15 p-4 shadow-sm backdrop-blur transition hover:bg-white/20"
+                            type="button"
+                            onClick={() => setStatusFilter(key)}
+                            aria-pressed={statusFilter === key}
+                            className={`rounded-full border px-3.5 py-1 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--theme-primary)] ${
+                                statusFilter === key
+                                    ? 'border-[var(--theme-primary)] bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)]'
+                                    : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50'
+                            }`}
                         >
-                            <div className="flex items-center justify-between">
-                                <dt className="text-sm font-medium text-white/90">{label}</dt>
-                                <span className="rounded-full bg-white/20 p-2">
-                                    <Icon className="h-4 w-4 text-white" />
-                                </span>
-                            </div>
-                            <dd className="mt-3 text-2xl font-semibold text-white">{value}</dd>
-                        </div>
+                            {label}
+                        </button>
                     ))}
-                    {branchName ? (
-                        <div className="rounded-2xl border border-white/10 bg-white/15 p-4 shadow-sm backdrop-blur transition hover:bg-white/20">
-                            <div className="flex items-center justify-between">
-                                <dt className="text-sm font-medium text-white/90">Branch</dt>
-                                <span className="rounded-full bg-white/20 p-2">
-                                    <MapPin className="h-4 w-4 text-white" />
-                                </span>
-                            </div>
-                            <dd className="mt-3 text-xl font-semibold text-white">{branchName}</dd>
-                        </div>
-                    ) : null}
                 </div>
-            </header>
-
-            <section className="rounded-2xl bg-white p-6 shadow-sm">
-                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                    <div>
-                        <h2 className="text-lg font-semibold text-gray-900">Resident Directory</h2>
-                        <p className="text-sm text-gray-500">
-                            Search by name, room, or contact information to quickly find a resident.
-                        </p>
+                <div className="flex items-center gap-2 sm:shrink-0">
+                    <div className="flex items-center rounded-lg border border-gray-200 p-0.5 bg-white">
+                        <Tooltip content="Grid view" position="top">
+                            <button
+                                type="button"
+                                onClick={() => setViewMode('grid')}
+                                aria-pressed={viewMode === 'grid'}
+                                aria-label="Grid view"
+                                className={`rounded p-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--theme-primary)] ${viewMode === 'grid' ? 'bg-gray-50 shadow-sm text-[var(--theme-primary)]' : 'text-gray-400 hover:text-gray-600'}`}
+                            >
+                                <LayoutGrid className="h-4 w-4" aria-hidden="true" />
+                            </button>
+                        </Tooltip>
+                        <Tooltip content="List view" position="top">
+                            <button
+                                type="button"
+                                onClick={() => setViewMode('list')}
+                                aria-pressed={viewMode === 'list'}
+                                aria-label="List view"
+                                className={`rounded p-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--theme-primary)] ${viewMode === 'list' ? 'bg-gray-50 shadow-sm text-[var(--theme-primary)]' : 'text-gray-400 hover:text-gray-600'}`}
+                            >
+                                <List className="h-4 w-4" aria-hidden="true" />
+                            </button>
+                        </Tooltip>
                     </div>
-                    <div className="relative w-full md:w-72">
-                        <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+                    <div className="relative w-full min-w-[12rem] sm:w-64">
+                        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" aria-hidden="true" />
                         <input
                             type="search"
                             value={search}
                             onChange={(event) => setSearch(event.target.value)}
-                            placeholder="Search residents..."
-                            className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-11 pr-4 text-sm shadow-sm focus:border-[var(--theme-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary-bg)]"
+                            placeholder="Search residents…"
+                            aria-label="Search residents by name, room, or contact"
+                            className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-4 text-sm shadow-sm focus:border-[var(--theme-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary-bg)]"
                         />
                     </div>
                 </div>
-            </section>
+            </div>
 
             {error ? (
                 <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">
@@ -280,18 +363,73 @@ export default function MyResidentsPage() {
                 <div className="flex min-h-[200px] items-center justify-center rounded-2xl bg-white shadow-sm">
                     <div className="flex flex-col items-center gap-4">
                         <div className="h-10 w-10 animate-spin rounded-full border-2 border-[var(--theme-primary-bg)] border-t-[var(--theme-primary)]" />
-                        <p className="text-sm text-gray-500">Loading residents...</p>
+                        <p className="text-sm text-gray-500">Loading residents…</p>
                     </div>
                 </div>
             ) : residents.length === 0 ? (
                 renderResidentsEmptyState(
-                    'No residents found',
-                    'Residents assigned to your branch will appear here. Try adjusting your search query.'
+                    statusFilter === 'all' ? 'No residents found' : `No ${statusFilter} residents`,
+                    statusFilter === 'all'
+                        ? 'Residents assigned to your branch will appear here. Try adjusting your search query.'
+                        : `There are no ${statusFilter} residents matching your current filters.`
                 )
-            ) : (
-                <section className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-                    {residents.map(renderResidentCard)}
+            ) : displayedResidents.length === 0 ? (
+                renderResidentsEmptyState(
+                    'No matching resident',
+                    scopeId
+                        ? 'The selected resident is not in this filtered list. Try another status filter or clear the resident chip in the header.'
+                        : 'Try adjusting your filters.',
+                )
+            ) : viewMode === 'list' ? (
+                <section className="rounded-2xl bg-white shadow-sm overflow-hidden">
+                    <table className="w-full text-left text-sm" aria-label="Resident list">
+                        <thead className="border-b border-gray-100 bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                            <tr>
+                                <th className="py-3 pl-4 pr-3">Resident</th>
+                                <th className="py-3 px-3">Room</th>
+                                <th className="py-3 px-3">Date of Birth</th>
+                                <th className="py-3 px-3">Status</th>
+                                <th className="py-3 pl-3 pr-4 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-50">
+                            {displayedResidents.map(renderResidentRow)}
+                        </tbody>
+                    </table>
                 </section>
+            ) : (
+                <section className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3" aria-label="Resident cards">
+                    {displayedResidents.map(renderResidentCard)}
+                </section>
+            )}
+
+            {canEditResidents && (
+                <Modal
+                    isOpen={showForm}
+                    onClose={() => {
+                        setShowForm(false);
+                        setEditing(null);
+                    }}
+                    title={editing ? 'Edit Resident' : 'Add Resident'}
+                    size="xl"
+                >
+                    <ResidentForm
+                        key={editing?.id ?? 'new'}
+                        record={editing}
+                        branches={branchesData?.data || []}
+                        selectedBranchId={currentUser?.assigned_branch_id}
+                        inModal
+                        onClose={() => {
+                            setShowForm(false);
+                            setEditing(null);
+                        }}
+                        onSuccess={() => {
+                            setShowForm(false);
+                            setEditing(null);
+                            queryClient.invalidateQueries(['my-residents']);
+                        }}
+                    />
+                </Modal>
             )}
         </div>
     );

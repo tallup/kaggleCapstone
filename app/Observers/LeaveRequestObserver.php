@@ -5,6 +5,7 @@ namespace App\Observers;
 use App\Models\LeaveRequest;
 use App\Models\Notification;
 use App\Models\User;
+use App\Services\NotificationService;
 use Carbon\Carbon;
 
 class LeaveRequestObserver
@@ -30,6 +31,8 @@ class LeaveRequestObserver
             
             Notification::create([
                 'user_id' => $admin->id,
+                'facility_id' => $leaveRequest->facility_id ?? null,
+                'branch_id' => $leaveRequest->branch_id ?? $leaveRequest->assigned_branch_id ?? null,
                 'type' => 'leave_request',
                 'title' => 'New Leave Request',
                 'message' => "{$staffName} has submitted a leave request from {$startDate} to {$endDate} ({$duration} days)",
@@ -42,6 +45,10 @@ class LeaveRequestObserver
                 ],
             ]);
         }
+
+        // Send email notifications
+        $notificationService = app(NotificationService::class);
+        $notificationService->sendLeaveRequestEmail($leaveRequest, $admins, 'created');
     }
 
     /**
@@ -72,6 +79,8 @@ class LeaveRequestObserver
                     
                     Notification::create([
                         'user_id' => $staff->id,
+                        'facility_id' => $leaveRequest->facility_id ?? null,
+                        'branch_id' => $leaveRequest->branch_id ?? $leaveRequest->assigned_branch_id ?? null,
                         'type' => $currentStatus === 'approved' ? 'leave_approved' : 'leave_rejected',
                         'title' => $title,
                         'message' => "Your leave request has been {$statusText} by {$approvedByName}",
@@ -81,12 +90,16 @@ class LeaveRequestObserver
                         'metadata' => [
                             'leave_request_id' => $leaveRequest->id,
                             'status' => $currentStatus,
-                        ],
-                    ]);
-                }
+                    ],
+                ]);
             }
+
+            // Send email notification to staff member
+            $notificationService = app(NotificationService::class);
+            $notificationService->sendLeaveRequestEmail($leaveRequest, collect([$staff]), $currentStatus === 'approved' ? 'approved' : 'declined');
         }
     }
+}
 }
 
 

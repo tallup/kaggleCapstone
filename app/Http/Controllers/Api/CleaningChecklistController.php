@@ -14,6 +14,9 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\CleaningTaskCompletedNotification;
+use App\Models\Branch; // For finding facility
 
 class CleaningChecklistController extends BaseApiController
 {
@@ -139,9 +142,9 @@ class CleaningChecklistController extends BaseApiController
 
         if ($status === 'completed') {
             $this->completeAssignmentsForTask($task, $scheduledDate, $user);
-            $this->notifyAdminsOfTaskUpdate($task, $user, $scheduledDate, 'completed');
+            $this->notifyAdminsOfTaskUpdate($task, $user, $scheduledDate, 'completed', $data['notes'] ?? null);
         } elseif ($status === 'skipped') {
-            $this->notifyAdminsOfTaskUpdate($task, $user, $scheduledDate, 'skipped');
+            $this->notifyAdminsOfTaskUpdate($task, $user, $scheduledDate, 'skipped', $data['notes'] ?? null);
         }
 
         return response()->json([
@@ -166,11 +169,11 @@ class CleaningChecklistController extends BaseApiController
                 'acknowledged_at' => $assignment->acknowledged_at ?? now(),
             ]);
         }
-
-        $this->notifyAdminsOfCompletion($task, $caregiver, $scheduledDate);
+        
+        // Notification is handled in store() to avoid duplicates
     }
 
-    private function notifyAdminsOfTaskUpdate(CleaningTask $task, $caregiver, string $scheduledDate, string $status): void
+    private function notifyAdminsOfTaskUpdate(CleaningTask $task, $caregiver, string $scheduledDate, string $status, ?string $notes = null): void
     {
         // Get admins - try roles relationship first, fallback to role column
         $admins = collect();
@@ -191,6 +194,7 @@ class CleaningChecklistController extends BaseApiController
         $type = $status === 'completed' ? 'housekeeping_task_completed' : 'housekeeping_task_skipped';
 
         foreach ($admins as $admin) {
+            // Create in-app notification
             Notification::create([
                 'user_id' => $admin->id,
                 'type' => $type,
@@ -212,6 +216,33 @@ class CleaningChecklistController extends BaseApiController
                     'status' => $status,
                 ],
             ]);
+
+            // Send Email Notification for completed tasks
+            if ($status === 'completed' && $admin->email) {
+                // Determine facility for the email context
+                // User may not be assigned to the facility where the task happened, 
+                // but usually admins are relevant to the facility.
+                // We'll try to get the facility from the task's area -> branch.
+                $facility = null;
+                if ($task->area && $task->area->branch_id) {
+                     $branch = Branch::find($task->area->branch_id);
+                     $facility = $branch?->facility;
+                }
+                
+                try {
+                    Mail::to($admin)->send(new CleaningTaskCompletedNotification(
+                        $task,
+                        $caregiver,
+                        $scheduledDate,
+                        $notes,
+                        now()->setTimezone($admin->timezone ?? 'UTC')->format('H:i'), // Try to use admin timezone if available, else system
+                        $facility
+                    ));
+                } catch (\Exception $e) {
+                    // Log error but don't fail the request
+                    \Log::error("Failed to send task completion email to {$admin->email}: " . $e->getMessage());
+                }
+            }
         }
     }
 

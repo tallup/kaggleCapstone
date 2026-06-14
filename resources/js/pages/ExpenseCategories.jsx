@@ -12,6 +12,10 @@ import FormCheckbox from '../components/forms/FormCheckbox';
 import { useToastContext } from '../contexts/ToastContext';
 import ModuleProtectedRoute from '../components/ModuleProtectedRoute';
 import EmptyState from '../components/ui/EmptyState';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
+import Modal from '../components/ui/Modal';
+import Tooltip from '../components/ui/Tooltip';
+import CardIconButton from '../components/ui/CardIconButton';
 
 function ExpenseCategories() {
   const queryClient = useQueryClient();
@@ -19,6 +23,7 @@ function ExpenseCategories() {
   const [typeFilter, setTypeFilter] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['expense-categories', search, typeFilter],
@@ -42,21 +47,24 @@ function ExpenseCategories() {
     setEditing(null);
   };
 
-  if (showForm) {
-    return (
-      <div>
-        <ExpenseCategoryForm
-          record={editing}
-          onClose={handleCloseForm}
-          onSuccess={() => { handleCloseForm(); queryClient.invalidateQueries(['expense-categories']); }}
-        />
-      </div>
-    );
-  }
-
   const categories = data?.data || [];
 
   return (
+    <>
+      <ConfirmDialog
+        isOpen={deleteConfirmId != null}
+        onClose={() => !deleteMutation.isPending && setDeleteConfirmId(null)}
+        onConfirm={() => {
+          if (deleteConfirmId == null) return;
+          deleteMutation.mutate(deleteConfirmId, { onSuccess: () => setDeleteConfirmId(null) });
+        }}
+        title="Delete this category?"
+        description="This category will be permanently removed."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        isPending={deleteMutation.isPending}
+      />
     <div>
       <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
@@ -141,21 +149,27 @@ function ExpenseCategories() {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="flex items-center justify-end space-x-2">
-                          <button
-                            onClick={() => { setEditing(category); setShowForm(true); }}
-                            className="p-2 bg-[var(--theme-primary)] text-[var(--theme-text-on-primary)] hover:bg-[var(--theme-primary-hover)] rounded-lg transition-all"
-                            title="Edit"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => window.confirm('Delete category?') && deleteMutation.mutate(category.id)}
-                            className="p-2 bg-red-600 text-white hover:bg-red-700 rounded-lg transition-all"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                        <div className="flex items-center justify-end gap-2">
+                          <Tooltip content="Edit" position="top">
+                            <CardIconButton
+                              variant="edit"
+                              type="button"
+                              onClick={() => { setEditing(category); setShowForm(true); }}
+                              aria-label="Edit"
+                            >
+                              <Edit className="h-4 w-4" strokeWidth={2.5} />
+                            </CardIconButton>
+                          </Tooltip>
+                          <Tooltip content="Delete" position="top">
+                            <CardIconButton
+                              variant="delete"
+                              type="button"
+                              onClick={() => setDeleteConfirmId(category.id)}
+                              aria-label="Delete"
+                            >
+                              <Trash2 className="h-4 w-4" strokeWidth={2.5} />
+                            </CardIconButton>
+                          </Tooltip>
                         </div>
                       </td>
                     </tr>
@@ -177,6 +191,22 @@ function ExpenseCategories() {
         </div>
       )}
     </div>
+
+      <Modal
+        isOpen={showForm}
+        onClose={handleCloseForm}
+        title={editing ? 'Edit Category' : 'Add Category'}
+        size="xl"
+      >
+        <ExpenseCategoryForm
+          key={editing?.id ?? 'new'}
+          inModal
+          record={editing}
+          onClose={handleCloseForm}
+          onSuccess={() => { handleCloseForm(); queryClient.invalidateQueries(['expense-categories']); }}
+        />
+      </Modal>
+    </>
   );
 }
 
@@ -187,7 +217,7 @@ const categorySchema = z.object({
   is_active: z.boolean().default(true),
 });
 
-function ExpenseCategoryForm({ record, onClose, onSuccess }) {
+function ExpenseCategoryForm({ record, onClose, onSuccess, inModal = false }) {
   const toast = useToastContext();
   const [submitting, setSubmitting] = useState(false);
 
@@ -206,10 +236,10 @@ function ExpenseCategoryForm({ record, onClose, onSuccess }) {
     try {
       if (record) {
         await api.put(`/billing/expense-categories/${record.id}`, data);
-        toast.success('Category updated successfully');
+        toast.success('Category updated successfully', '', { isFormSubmission: true });
       } else {
         await api.post('/billing/expense-categories', data);
-        toast.success('Category created successfully');
+        toast.success('Category created successfully', '', { isFormSubmission: true });
       }
       onSuccess();
     } catch (error) {
@@ -220,12 +250,14 @@ function ExpenseCategoryForm({ record, onClose, onSuccess }) {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
+    <div className={inModal ? '' : 'bg-white rounded-lg shadow p-6'}>
+      {!inModal && (
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-semibold text-gray-900">
           {record ? 'Edit Category' : 'Add Category'}
         </h2>
         <button
+          type="button"
           onClick={onClose}
           className="text-gray-400 hover:text-gray-600"
         >
@@ -233,6 +265,7 @@ function ExpenseCategoryForm({ record, onClose, onSuccess }) {
           ×
         </button>
       </div>
+      )}
 
       <FormProvider {...methods}>
         <form onSubmit={methods.handleSubmit(onSubmit)} className="space-y-4">

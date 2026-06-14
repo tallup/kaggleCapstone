@@ -185,10 +185,10 @@ export default function PublicStaffClockIn() {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+        <div className="min-h-screen bg-gradient-to-br from-brand-primary to-brand-primary flex items-center justify-center p-4">
             <div className="max-w-md w-full bg-white rounded-xl shadow-2xl p-8">
                 <div className="text-center mb-8">
-                    <div className="inline-flex items-center justify-center w-20 h-20 bg-blue-600 rounded-full mb-4">
+                    <div className="inline-flex items-center justify-center w-20 h-20 bg-brand-primary-dark rounded-full mb-4">
                         <Clock className="w-10 h-10 text-white" />
                     </div>
                     <h1 className="text-3xl font-bold text-gray-900 mb-2">Staff Clock-In</h1>
@@ -245,9 +245,9 @@ export default function PublicStaffClockIn() {
 
                 {/* Current Status */}
                 {currentStatus && (
-                    <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                        <p className="text-sm font-medium text-blue-900">Current Status:</p>
-                        <p className="text-xs text-blue-700">
+                    <div className="mb-4 p-4 bg-brand-primary/30 border border-brand-sky/30 rounded-lg">
+                        <p className="text-sm font-medium text-brand-primary-dark">Current Status:</p>
+                        <p className="text-xs text-gray-700">
                             Clocked in at {new Date(currentStatus.clock_in_at).toLocaleString()}
                         </p>
                     </div>
@@ -264,7 +264,7 @@ export default function PublicStaffClockIn() {
                             value={employeeIdentifier}
                             onChange={(e) => setEmployeeIdentifier(e.target.value)}
                             placeholder="Enter your email or employee ID"
-                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-sky focus:border-transparent"
                             disabled={loading}
                         />
                     </div>
@@ -279,7 +279,7 @@ export default function PublicStaffClockIn() {
                                 value={clockPin}
                                 onChange={(e) => setClockPin(e.target.value)}
                                 placeholder="Enter your PIN"
-                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-sky focus:border-transparent"
                                 disabled={loading}
                             />
                         </div>
@@ -289,7 +289,7 @@ export default function PublicStaffClockIn() {
                         <button
                             onClick={handleClockIn}
                             disabled={loading || !location || isClockedIn}
-                            className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+                            className="flex-1 px-6 py-3 bg-brand-primary-dark text-white rounded-lg font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
                         >
                             <Clock className="w-5 h-5" />
                             Clock In

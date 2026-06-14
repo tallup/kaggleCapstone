@@ -10,7 +10,16 @@ import api from '../../services/api';
 /**
  * UpcomingEventsWidget - Displays upcoming events from all modules
  */
-export default function UpcomingEventsWidget({ limit = 10 }) {
+const cardShell = (dense) =>
+    `bg-white ${dense ? 'rounded-lg shadow-sm' : 'rounded-2xl shadow-lg'} border border-gray-100 overflow-hidden`;
+
+const headerRow = (dense) =>
+    `${dense ? 'px-4 py-2.5' : 'px-6 py-4'} border-b border-gray-200`;
+
+const titleCls = (dense) =>
+    `${dense ? 'text-base' : 'text-lg'} font-bold text-[var(--theme-primary)]`;
+
+export default function UpcomingEventsWidget({ limit = 10, dense = false }) {
     const navigate = useNavigate();
 
     const { data: events, isLoading, error } = useQuery({
@@ -84,12 +93,12 @@ export default function UpcomingEventsWidget({ limit = 10 }) {
 
     if (isLoading) {
         return (
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-200">
-                    <h2 className="text-lg font-bold text-[var(--theme-primary)]">Upcoming Events</h2>
+            <div className={cardShell(dense)}>
+                <div className={headerRow(dense)}>
+                    <h2 className={titleCls(dense)}>Upcoming Events</h2>
                 </div>
-                <div className="p-6">
-                    <div className="flex items-center justify-center py-8">
+                <div className={dense ? 'p-4' : 'p-6'}>
+                    <div className={`flex items-center justify-center ${dense ? 'py-6' : 'py-8'}`}>
                         <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-[var(--theme-primary)]"></div>
                     </div>
                 </div>
@@ -99,12 +108,12 @@ export default function UpcomingEventsWidget({ limit = 10 }) {
 
     if (error) {
         return (
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-200">
-                    <h2 className="text-lg font-bold text-[var(--theme-primary)]">Upcoming Events</h2>
+            <div className={cardShell(dense)}>
+                <div className={headerRow(dense)}>
+                    <h2 className={titleCls(dense)}>Upcoming Events</h2>
                 </div>
-                <div className="p-6">
-                    <div className="flex items-center justify-center py-8 text-gray-500">
+                <div className={dense ? 'p-4' : 'p-6'}>
+                    <div className={`flex items-center justify-center text-gray-500 ${dense ? 'py-6' : 'py-8'}`}>
                         <AlertCircle className="w-5 h-5 mr-2" />
                         <span className="text-sm">Failed to load events</span>
                     </div>
@@ -115,15 +124,15 @@ export default function UpcomingEventsWidget({ limit = 10 }) {
 
     if (!events || events.length === 0) {
         return (
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-200">
+            <div className={cardShell(dense)}>
+                <div className={headerRow(dense)}>
                     <div className="flex items-center justify-between">
-                        <h2 className="text-lg font-bold text-[var(--theme-primary)]">Upcoming Events</h2>
+                        <h2 className={titleCls(dense)}>Upcoming Events</h2>
                     </div>
                 </div>
-                <div className="p-6">
-                    <div className="text-center py-8 text-gray-500">
-                        <Clock className="w-12 h-12 mx-auto mb-3 text-gray-400" />
+                <div className={dense ? 'p-4' : 'p-6'}>
+                    <div className={`text-center text-gray-500 ${dense ? 'py-6' : 'py-8'}`}>
+                        <Clock className={`${dense ? 'w-8 h-8 mb-2' : 'w-12 h-12 mb-3'} mx-auto text-gray-400`} />
                         <p className="text-sm">No upcoming events</p>
                         <p className="text-xs mt-1">All caught up!</p>
                     </div>
@@ -133,16 +142,16 @@ export default function UpcomingEventsWidget({ limit = 10 }) {
     }
 
     return (
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200">
-                <div className="flex items-center justify-between">
-                    <h2 className="text-lg font-bold text-[var(--theme-primary)]">Upcoming Events</h2>
-                    <span className="text-xs text-gray-500">From all modules</span>
+        <div className={cardShell(dense)}>
+            <div className={headerRow(dense)}>
+                <div className="flex items-center justify-between gap-2">
+                    <h2 className={titleCls(dense)}>Upcoming Events</h2>
+                    <span className={`text-gray-500 shrink-0 ${dense ? 'text-[10px]' : 'text-xs'}`}>From all modules</span>
                 </div>
             </div>
-            <div className="p-4">
-                <div className="space-y-3">
-                    {events.map((event) => {
+            <div className={dense ? 'p-3' : 'p-4'}>
+                <div className={dense ? 'space-y-2' : 'space-y-3'}>
+                    {events.slice(0, dense ? 4 : 3).map((event) => {
                         const Icon = getIcon(event.icon);
                         const colorClasses = getColorClasses(event.color);
                         
@@ -150,7 +159,7 @@ export default function UpcomingEventsWidget({ limit = 10 }) {
                             <div
                                 key={event.id}
                                 onClick={() => event.link && navigate(event.link)}
-                                className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all hover:shadow-md ${colorClasses}`}
+                                className={`flex items-start rounded-lg border cursor-pointer transition-all hover:shadow-md ${colorClasses} ${dense ? 'gap-2 p-2.5' : 'gap-3 p-3'}`}
                             >
                                 <div className={`flex-shrink-0 p-2 rounded-lg ${colorClasses.split(' ')[0]}`}>
                                     <Icon className="w-4 h-4" />

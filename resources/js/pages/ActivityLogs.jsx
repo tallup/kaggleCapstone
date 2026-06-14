@@ -318,7 +318,7 @@ export default function ActivityLogsPage() {
                                                 </div>
                                                 {log.subject_type && (
                                                     <div className="text-xs text-gray-500 mt-1">
-                                                        {log.subject_type.split('\\').pop()} #{log.subject_id}
+                                                        {log.subject_type.split('\\').pop()} {log.subject_id}
                                                     </div>
                                                 )}
                                             </td>

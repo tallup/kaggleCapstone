@@ -4,6 +4,7 @@
 /public/hot
 .env
 .env.*
+!.env.example
 /storage/*.key
 /storage/app/*
 !/storage/app/public
@@ -15,7 +16,6 @@
 /storage/logs/*
 /bootstrap/cache/*.php
 .phpunit.result.cache
-composer.lock
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

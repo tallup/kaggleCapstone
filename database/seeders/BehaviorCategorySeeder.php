@@ -14,16 +14,9 @@ class BehaviorCategorySeeder extends Seeder
     {
         // Create basic behavior categories
         $categoryNames = [
-            'Aggressive Behavior',
-            'Wandering',
-            'Sleep Disturbance',
-            'Anxiety',
-            'Depression',
-            'Confusion',
-            'Resistance to Care',
-            'Social Withdrawal',
-            'Repetitive Behavior',
-            'Hallucinations'
+            'Resistive',
+            'Behavior',
+            'Others'
         ];
 
         foreach ($categoryNames as $name) {

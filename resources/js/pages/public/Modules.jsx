@@ -110,7 +110,7 @@ export default function Modules() {
       <PublicNavigation />
 
       {/* Hero Section */}
-      <section className="pt-20 pb-12 bg-gradient-to-br from-blue-50 to-cyan-50">
+      <section className="pt-20 pb-12 bg-gradient-to-br from-brand-primary to-brand-primary">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">Complete Module Suite</h1>
           <p className="text-base sm:text-lg lg:text-xl text-gray-600 max-w-3xl mx-auto">
@@ -128,7 +128,7 @@ export default function Modules() {
                 key={index}
                 className="bg-white p-6 rounded-xl border border-gray-200 hover:shadow-lg transition-all"
               >
-                <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center mb-4">
+                <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-brand-primary-dark to-brand-sky flex items-center justify-center mb-4">
                   <module.icon className="w-6 h-6 text-white" />
                 </div>
                 <h3 className="text-xl font-bold text-gray-900 mb-2">{module.name}</h3>
@@ -138,7 +138,7 @@ export default function Modules() {
                   <ul className="space-y-1">
                     {module.features.map((feature, featureIndex) => (
                       <li key={featureIndex} className="text-sm text-gray-600 flex items-start space-x-2">
-                        <span className="text-blue-500 mt-1">•</span>
+                        <span className="text-brand-sky mt-1">•</span>
                         <span>{feature}</span>
                       </li>
                     ))}
@@ -151,15 +151,15 @@ export default function Modules() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 bg-gradient-to-r from-blue-500 to-cyan-500">
+      <section className="py-20 bg-gradient-to-r from-brand-primary-dark to-brand-sky">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-4xl font-bold text-white mb-4">Ready to Access All Modules?</h2>
-          <p className="text-xl text-blue-100 mb-8">
+          <p className="text-xl text-brand-primary mb-8">
             Start your free trial and get access to all modules immediately.
           </p>
           <button
             onClick={() => navigate('/register-facility')}
-            className="bg-white text-blue-600 px-8 py-4 rounded-lg font-semibold text-lg hover:bg-gray-100 transition-all shadow-lg"
+            className="bg-white text-brand-primary-dark px-8 py-4 rounded-lg font-semibold text-lg hover:bg-gray-100 transition-all shadow-lg"
           >
             Start Free Trial
           </button>
