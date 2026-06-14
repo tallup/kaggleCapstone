@@ -10,6 +10,7 @@ import {
     ChevronLeft,
     ChevronRight,
     PenLine,
+    Eye,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../services/api';
@@ -279,22 +280,26 @@ export default function FaxSentPage() {
                                         <td className="px-4 py-3 text-gray-700 text-xs">{formatDateTime(row.sent_at)}</td>
                                         <td className="px-4 py-3 text-gray-700">{senderName(row)}</td>
                                         <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
-                                            <div className="inline-flex items-center justify-end gap-2">
+                                            <div className="inline-flex items-center justify-end gap-1">
                                                 <button
                                                     type="button"
                                                     onClick={() => setActiveFaxId(row.id)}
-                                                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-300 bg-white text-gray-900 text-xs font-semibold shadow-sm hover:bg-gray-50"
+                                                    aria-label="View fax details"
+                                                    title="View fax details"
+                                                    className="inline-flex items-center justify-center p-1.5 rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
                                                 >
-                                                    View
+                                                    <Eye className="w-4 h-4" aria-hidden="true" />
                                                 </button>
                                                 {failed && (
                                                     <button
                                                         type="button"
                                                         onClick={() => retryMutation.mutate(row.id)}
                                                         disabled={retryMutation.isPending}
-                                                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-red-600 bg-red-600 text-white text-xs font-semibold shadow-sm hover:bg-red-700 disabled:opacity-50"
+                                                        aria-label="Retry fax"
+                                                        title="Retry fax"
+                                                        className="inline-flex items-center justify-center p-1.5 rounded-md border border-red-600 bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
                                                     >
-                                                        <RotateCw className="w-3 h-3" /> Retry
+                                                        <RotateCw className="w-4 h-4" aria-hidden="true" />
                                                     </button>
                                                 )}
                                             </div>

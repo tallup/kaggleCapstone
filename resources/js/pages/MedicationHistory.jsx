@@ -133,8 +133,8 @@ function MissedDoseActionBar({
                     </>
                 )}
             </p>
-            <div className="flex flex-wrap gap-2">
-                {missedResolveActions.map(({ status, label, shortLabel, icon: Icon, className }) => (
+            <div className="flex flex-wrap gap-1.5">
+                {missedResolveActions.map(({ status, label, icon: Icon, className }) => (
                     <button
                         key={status}
                         type="button"
@@ -143,10 +143,11 @@ function MissedDoseActionBar({
                             void onResolve(status);
                         }}
                         disabled={isResolving}
-                        className={`inline-flex items-center justify-center gap-1.5 shrink-0 rounded-lg border px-3 py-2 text-xs font-bold !text-white shadow-sm disabled:opacity-50 [&_svg]:!text-white ${className} ${compact ? '' : 'sm:text-sm'}`}
+                        aria-label={label}
+                        title={label}
+                        className={`inline-flex items-center justify-center shrink-0 rounded-md border p-1.5 !text-white shadow-sm disabled:opacity-50 [&_svg]:!text-white ${className}`}
                     >
                         <Icon className="w-4 h-4" aria-hidden="true" />
-                        {compact ? shortLabel : label}
                     </button>
                 ))}
             </div>
