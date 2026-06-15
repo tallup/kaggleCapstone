@@ -43,7 +43,7 @@ import UpcomingEventsWidget from '../components/dashboard/UpcomingEventsWidget';
 import CaregiverDashboard from '../components/dashboard/CaregiverDashboard';
 import DashboardLoadingSplash from '../components/dashboard/DashboardLoadingSplash';
 import { useUserNotifications, useFacilityUpdates, useStaffClockUpdates } from '../hooks/useRealtimeUpdates';
-import { getPacificNow } from '../utils/pacificTime';
+import { usePacificGreeting } from '../hooks/usePacificGreeting';
 
 // Register Chart.js components
 ChartJS.register(
@@ -385,8 +385,7 @@ export default function Dashboard() {
         }
     };
 
-    const currentHour = getPacificNow().getUTCHours();
-    const greeting = currentHour < 12 ? 'Good Morning' : currentHour < 18 ? 'Good Afternoon' : 'Good Evening';
+    const greeting = usePacificGreeting();
 
     // Define stat cards based on user type with gradients and modern styling
     // Ensure values are numbers
@@ -1239,7 +1238,7 @@ function ModulesOverview({ stats, moduleStats, navigate, dense = false }) {
             name: 'Reports',
             icon: FileText,
             path: '/reports',
-            count: 0,
+            count: null,
             color: 'from-[var(--theme-primary)] to-[var(--theme-primary-light)]',
             bgColor: 'bg-[var(--theme-primary-bg-light)]',
             iconColor: 'text-[var(--theme-primary)]',
@@ -1276,7 +1275,9 @@ function ModulesOverview({ stats, moduleStats, navigate, dense = false }) {
                                     </div>
                                     <div className="flex-1 w-full">
                                         <p className={`font-semibold text-gray-900 ${dense ? 'text-[11px] sm:text-xs mb-0' : 'text-xs sm:text-sm mb-1'}`}>{module.name}</p>
-                                        <p className={`font-bold text-[var(--theme-primary)] tabular-nums ${dense ? 'text-sm sm:text-base' : 'text-lg sm:text-xl'}`}>{module.count}</p>
+                                        {module.count != null && (
+                                            <p className={`font-bold text-[var(--theme-primary)] tabular-nums ${dense ? 'text-sm sm:text-base' : 'text-lg sm:text-xl'}`}>{module.count}</p>
+                                        )}
                                         <p className={`text-gray-500 line-clamp-2 ${dense ? 'text-[10px] mt-0.5' : 'text-xs mt-1'}`}>{module.description}</p>
                                     </div>
                                 </div>

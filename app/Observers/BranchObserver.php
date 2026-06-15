@@ -5,7 +5,8 @@ namespace App\Observers;
 use App\Models\Branch;
 use App\Models\Notification;
 use App\Models\User;
-use Carbon\Carbon;
+use App\Services\DashboardService;
+use Illuminate\Support\Facades\Log;
 
 class BranchObserver
 {
@@ -14,6 +15,8 @@ class BranchObserver
      */
     public function created(Branch $branch): void
     {
+        $this->clearDashboardCache($branch);
+
         // Load relationships
         $branch->load(['facility']);
 
@@ -25,7 +28,7 @@ class BranchObserver
         foreach ($admins as $admin) {
             $branchName = $branch->name ?? 'New Branch';
             $facilityName = $branch->facility?->name ?? 'Unknown Facility';
-            
+
             Notification::create([
                 'user_id' => $admin->id,
                 'facility_id' => $branch->facility_id ?? null,
@@ -43,5 +46,31 @@ class BranchObserver
             ]);
         }
     }
-}
 
+    /**
+     * Handle the Branch "updated" event.
+     */
+    public function updated(Branch $branch): void
+    {
+        if ($branch->wasChanged(['resident_capacity', 'is_active', 'facility_id', 'name'])) {
+            $this->clearDashboardCache($branch);
+        }
+    }
+
+    private function clearDashboardCache(Branch $branch): void
+    {
+        if (! $branch->facility_id) {
+            return;
+        }
+
+        try {
+            app(DashboardService::class)->clearCacheForFacility($branch->facility_id);
+        } catch (\Exception $e) {
+            Log::warning('BranchObserver: Failed to clear dashboard cache', [
+                'branch_id' => $branch->id,
+                'facility_id' => $branch->facility_id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+}

@@ -412,6 +412,18 @@ export const formatPacificTime = (date) => {
 
 export const getPacificNow = () => getPacificDate();
 
+/** Time-of-day greeting from the same Pacific wall clock used by the header uptime display. */
+export const getPacificGreeting = (date) => {
+    const { hour } = getPacificParts(date);
+    if (hour < 12) {
+        return 'Good Morning';
+    }
+    if (hour < 18) {
+        return 'Good Afternoon';
+    }
+    return 'Good Evening';
+};
+
 const createPacificInstant = (year, month, day, hour = 0, minute = 0, second = 0) => {
     // Create a UTC date directly - in our system, UTC components = Pacific components
     return new Date(Date.UTC(year, month - 1, day, hour, minute, second));

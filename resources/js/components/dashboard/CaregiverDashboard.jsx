@@ -12,7 +12,7 @@ import { useQuery } from '@tanstack/react-query';
 import SectionCard from '../SectionCard';
 import { slideInUpNoFade, shouldAnimate } from '../../utils/animationPresets';
 import api from '../../services/api';
-import { getPacificNow, formatPacificTime, formatPacificDate } from '../../utils/pacificTime';
+import { getPacificNow, formatPacificTime, formatPacificDate, getPacificGreeting } from '../../utils/pacificTime';
 
 const ACTIONABLE_ICONS = {
     assessment: ClipboardList,
@@ -99,8 +99,7 @@ export default function CaregiverDashboard({
 }) {
     const navigate = useNavigate();
     const now = useLiveClock();
-    const currentHour = now.getUTCHours();
-    const greeting = currentHour < 12 ? 'Good Morning' : currentHour < 18 ? 'Good Afternoon' : 'Good Evening';
+    const greeting = getPacificGreeting(now);
     const firstName = deriveFirstName(user);
 
     // ── Fetch active residents (shared for birthday widget + quick-access strip) ─

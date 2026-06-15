@@ -99,6 +99,38 @@ class DashboardService
     }
 
     /**
+     * Clear dashboard cache for all users tied to a facility (occupancy, counts, etc.).
+     */
+    public function clearCacheForFacility(?int $facilityId): void
+    {
+        if (! $facilityId) {
+            return;
+        }
+
+        $branchIds = \App\Models\Branch::withoutGlobalScopes()
+            ->where('facility_id', $facilityId)
+            ->pluck('id');
+
+        \App\Models\User::withoutGlobalScopes()
+            ->where(function ($query) use ($facilityId, $branchIds) {
+                $query->where('facility_id', $facilityId);
+                if ($branchIds->isNotEmpty()) {
+                    $query->orWhereIn('assigned_branch_id', $branchIds);
+                }
+            })
+            ->select('id', 'role', 'facility_id', 'assigned_branch_id')
+            ->chunkById(100, function ($users) {
+                foreach ($users as $user) {
+                    $this->clearCacheForUser($user);
+                }
+            });
+
+        Log::info('DashboardService: Cleared cache for facility', [
+            'facility_id' => $facilityId,
+        ]);
+    }
+
+    /**
      * Get empty stats structure for error cases
      */
     private function getEmptyStats(User $user, ?string $errorMessage = null): array
@@ -1234,7 +1266,7 @@ class DashboardService
             $metrics['occupancy_rate'] = min(100, round(($totalResidents / $totalCapacity) * 100, 1));
         }
 
-        // 2. Compliance Score: completed assessments / assessments due in last 30 days (by assessment_date)
+        // 2. Compliance Score: completed / (assessments in last 30 days OR still incomplete/overdue)
         $rangeStart = now()->subDays(30)->startOfDay();
         $rangeEnd = now()->endOfDay();
         $assessmentBaseQuery = Assessment::withoutGlobalScopes()
@@ -1248,7 +1280,8 @@ class DashboardService
                     ->orWhere(function ($fallback) use ($rangeStart, $rangeEnd) {
                         $fallback->whereNull('assessment_date')
                             ->whereBetween('created_at', [$rangeStart, $rangeEnd]);
-                    });
+                    })
+                    ->orWhereNotIn('status', ['approved', 'completed', 'archived']);
             });
 
         $totalAssessments = (clone $assessmentBaseQuery)->count();
@@ -1267,18 +1300,23 @@ class DashboardService
             $metrics['medication_adherence_rate'] = $adherence;
         }
 
-        // 4. Average Incident Response Time: average hours from creation to resolution (last 30 days)
-        $resolvedIncidents = \App\Models\Incident::withoutGlobalScopes()
+        // 4. Average Incident Response Time: resolved/closed incidents in last 30 days
+        $resolvedIncidents = Incident::withoutGlobalScopes()
             ->whereHas('branch', function ($q) use ($facilityId) {
                 $q->where('facility_id', $facilityId);
             })
             ->whereBetween('created_at', [$rangeStart, now()])
-            ->whereNotNull('resolved_at')
+            ->where(function ($q) {
+                $q->whereNotNull('resolved_at')
+                    ->orWhereIn('status', [Incident::STATUS_RESOLVED, Incident::STATUS_CLOSED]);
+            })
             ->get();
 
         if ($resolvedIncidents->count() > 0) {
             $totalResponseTime = $resolvedIncidents->sum(function ($incident) {
-                return abs($incident->created_at->diffInHours($incident->resolved_at));
+                $resolvedAt = $incident->resolved_at ?? $incident->updated_at ?? $incident->created_at;
+
+                return abs($incident->created_at->diffInHours($resolvedAt));
             });
             $metrics['average_incident_response_time'] = round($totalResponseTime / $resolvedIncidents->count(), 1);
         }

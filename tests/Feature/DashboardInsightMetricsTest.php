@@ -66,6 +66,33 @@ class DashboardInsightMetricsTest extends TestCase
         $this->assertEquals(50.0, $metrics['compliance_score']);
     }
 
+    public function test_compliance_includes_overdue_incomplete_assessments_outside_thirty_day_window(): void
+    {
+        $resident = $this->createResident();
+
+        Assessment::withoutGlobalScopes()->create([
+            'resident_id' => $resident->id,
+            'branch_id' => $this->branch->id,
+            'assessor_id' => User::factory()->create(['facility_id' => $this->facility->id])->id,
+            'assessment_type' => 'annual',
+            'assessment_date' => now()->subDays(90)->toDateString(),
+            'status' => 'draft',
+        ]);
+
+        Assessment::withoutGlobalScopes()->create([
+            'resident_id' => $resident->id,
+            'branch_id' => $this->branch->id,
+            'assessor_id' => User::factory()->create(['facility_id' => $this->facility->id])->id,
+            'assessment_type' => 'quarterly',
+            'assessment_date' => now()->subDays(75)->toDateString(),
+            'status' => 'in_progress',
+        ]);
+
+        $metrics = $this->insightMetrics();
+
+        $this->assertEquals(0.0, $metrics['compliance_score']);
+    }
+
     public function test_medication_adherence_uses_scheduled_slots_and_returns_null_without_schedule(): void
     {
         $metrics = $this->insightMetrics();
@@ -134,5 +161,35 @@ class DashboardInsightMetricsTest extends TestCase
         $metrics = $this->insightMetrics();
 
         $this->assertEquals(4.0, $metrics['average_incident_response_time']);
+    }
+
+    public function test_average_incident_response_time_uses_status_when_resolved_at_missing(): void
+    {
+        $resident = $this->createResident();
+        $createdAt = now()->subDays(4)->setTime(9, 0);
+
+        $incident = Incident::withoutGlobalScopes()->create([
+            'resident_id' => $resident->id,
+            'branch_id' => $this->branch->id,
+            'reported_by' => User::factory()->create([
+                'facility_id' => $this->facility->id,
+                'assigned_branch_id' => $this->branch->id,
+            ])->id,
+            'incident_type' => 'fall',
+            'severity' => 'low',
+            'description' => 'Legacy resolved incident',
+            'incident_date' => $createdAt,
+            'status' => 'resolved',
+            'resolved_at' => null,
+        ]);
+
+        $incident->forceFill([
+            'created_at' => $createdAt,
+            'updated_at' => $createdAt->copy()->addHours(2),
+        ])->saveQuietly();
+
+        $metrics = $this->insightMetrics();
+
+        $this->assertEquals(2.0, $metrics['average_incident_response_time']);
     }
 }

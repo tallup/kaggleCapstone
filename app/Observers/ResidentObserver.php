@@ -2,10 +2,12 @@
 
 namespace App\Observers;
 
-use App\Models\Resident;
 use App\Models\Notification;
+use App\Models\Resident;
 use App\Models\User;
+use App\Services\DashboardService;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
 
 class ResidentObserver
 {
@@ -14,6 +16,8 @@ class ResidentObserver
      */
     public function created(Resident $resident): void
     {
+        $this->clearDashboardCache($resident);
+
         // Load relationships
         $resident->load(['branch']);
 
@@ -23,13 +27,13 @@ class ResidentObserver
             ->get();
 
         foreach ($admins as $admin) {
-            $residentName = trim(($resident->first_name ?? '') . ' ' . ($resident->last_name ?? ''));
+            $residentName = trim(($resident->first_name ?? '').' '.($resident->last_name ?? ''));
             $branchName = $resident->branch?->name ?? 'Unknown Branch';
             $admissionDate = $resident->admission_date ? Carbon::parse($resident->admission_date)->format('M d, Y') : 'TBD';
-            
+
             // Get facility_id from branch
             $facilityId = $resident->branch?->facility_id ?? null;
-            
+
             Notification::create([
                 'user_id' => $admin->id,
                 'facility_id' => $resident->facility_id ?? null,
@@ -48,6 +52,41 @@ class ResidentObserver
             ]);
         }
     }
+
+    /**
+     * Handle the Resident "updated" event.
+     */
+    public function updated(Resident $resident): void
+    {
+        if ($resident->wasChanged(['is_active', 'branch_id', 'status'])) {
+            $this->clearDashboardCache($resident);
+        }
+    }
+
+    /**
+     * Handle the Resident "deleted" event.
+     */
+    public function deleted(Resident $resident): void
+    {
+        $this->clearDashboardCache($resident);
+    }
+
+    private function clearDashboardCache(Resident $resident): void
+    {
+        $facilityId = $resident->branch?->facility_id ?? $resident->facility_id;
+
+        if (! $facilityId) {
+            return;
+        }
+
+        try {
+            app(DashboardService::class)->clearCacheForFacility($facilityId);
+        } catch (\Exception $e) {
+            Log::warning('ResidentObserver: Failed to clear dashboard cache', [
+                'resident_id' => $resident->id,
+                'facility_id' => $facilityId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
 }
-
-

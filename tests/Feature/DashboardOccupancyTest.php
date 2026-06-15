@@ -117,4 +117,15 @@ class DashboardOccupancyTest extends TestCase
 
         $this->assertSame(100.0, $this->fetchOccupancyRate());
     }
+
+    public function test_occupancy_updates_after_branch_capacity_change_clears_cache(): void
+    {
+        $this->createResident();
+
+        $this->assertSame(0.0, $this->fetchOccupancyRate());
+
+        $this->branch->update(['resident_capacity' => 10]);
+
+        $this->assertSame(10.0, $this->fetchOccupancyRate());
+    }
 }
