@@ -6,6 +6,7 @@ use Tests\TestCase;
 use Tests\Traits\SetupFacility;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Hash;
 use Laravel\Sanctum\Sanctum;
 
@@ -16,6 +17,7 @@ class AuthenticationTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->withoutMiddleware(ThrottleRequests::class);
         $this->createFacilityAndBranch();
     }
 
