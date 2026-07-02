@@ -34,9 +34,9 @@ return new class extends Migration
             $table->timestamp('transaction_date');
             $table->timestamps();
 
-            $table->index(['branch_id', 'drug_id', 'transaction_date']);
-            $table->index(['transaction_type', 'transaction_date']);
-            $table->index(['pharmacy_inventory_id', 'transaction_date']);
+            $table->index(['branch_id', 'drug_id', 'transaction_date'], 'pst_branch_drug_txndate_index');
+            $table->index(['transaction_type', 'transaction_date'], 'pst_type_txndate_index');
+            $table->index(['pharmacy_inventory_id', 'transaction_date'], 'pst_inventory_txndate_index');
         });
     }
 
