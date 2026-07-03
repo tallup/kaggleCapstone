@@ -29,9 +29,8 @@ class ChartAssistantService
                     'Content-Type' => 'application/json',
                 ])
                 ->post('https://api.anthropic.com/v1/messages', [
-                    'model' => 'claude-3-5-sonnet-20241022',
+                    'model' => 'claude-opus-4-8',
                     'max_tokens' => 800,
-                    'temperature' => 0.2,
                     'messages' => [[
                         'role' => 'user',
                         'content' => $this->buildAnthropicPrompt($payload, $prompt),
@@ -39,7 +38,11 @@ class ChartAssistantService
                 ]);
 
             if ($response->failed()) {
-                throw new \RuntimeException('Anthropic request failed');
+                throw new \RuntimeException(sprintf(
+                    'Anthropic request failed (HTTP %d): %s',
+                    $response->status(),
+                    $response->body()
+                ));
             }
 
             $content = $response->json('content.0.text');
@@ -54,7 +57,7 @@ class ChartAssistantService
                 return array_merge($heuristicResult, [
                     'prompt' => $resolvedPrompt,
                     'mode' => 'anthropic',
-                    'model' => 'claude-3-5-sonnet-20241022',
+                    'model' => 'claude-opus-4-8',
                     'summary' => $decodedSummary,
                     'insights' => $this->normalizeList($decoded['insights'] ?? $heuristicResult['insights']),
                     'recommendations' => $this->normalizeList($decoded['recommendations'] ?? $heuristicResult['recommendations']),
