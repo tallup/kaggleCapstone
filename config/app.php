@@ -30,6 +30,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Auto Login Email
+    |--------------------------------------------------------------------------
+    |
+    | When set, unauthenticated visitors are silently signed in as this user
+    | instead of being shown the login page. Leave unset to fall back to the
+    | first active super admin / administrator found.
+    |
+    */
+
+    'auto_login_email' => env('AUTO_LOGIN_EMAIL'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Debug Mode
     |--------------------------------------------------------------------------
     |

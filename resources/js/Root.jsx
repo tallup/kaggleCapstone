@@ -126,8 +126,6 @@ function lazyWithRetry(importFn, retries = 3) {
     return lazy(() => retryLazyImport(importFn, retries));
 }
 
-// Critical components - load immediately (Login, Layout)
-import Login from './pages/Login';
 const ForgotPassword = lazyWithRetry(() => import('./pages/ForgotPassword'));
 const ResetPassword = lazyWithRetry(() => import('./pages/ResetPassword'));
 
@@ -308,7 +306,7 @@ function App() {
         <Routes>
             {/* Public routes - must be defined before catch-all */}
             <Route path="/" element={<Suspense fallback={<PageLoader />}><Welcome /></Suspense>} />
-            <Route path="/login" element={<Login />} />
+            <Route path="/login" element={<Navigate to="/dashboard" replace />} />
             {/* Family portal invite - must be before path="portal" and path="/*" so it isn't caught by protected routes */}
             <Route path="/portal/accept-invite" element={<Suspense fallback={<PageLoader />}><AcceptInvite /></Suspense>} />
             <Route path="/forgot-password" element={<Suspense fallback={<PageLoader />}><ForgotPassword /></Suspense>} />
@@ -568,7 +566,7 @@ function App() {
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Route>
             {/* Keep public routes before catch-all to prevent redirects */}
-            <Route path="*" element={<Navigate to="/login" replace />} />
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
     );
 }

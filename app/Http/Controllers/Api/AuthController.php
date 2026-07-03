@@ -263,6 +263,71 @@ class AuthController extends Controller
         ], 401);
     }
 
+    /**
+     * Silently authenticate a visitor without credentials so the app can skip
+     * the login page and open directly on the dashboard.
+     */
+    public function autoLogin(Request $request): JsonResponse
+    {
+        $email = config('app.auto_login_email');
+
+        $user = $email
+            ? \App\Models\User::where('email', $email)->where('is_active', true)->first()
+            : null;
+
+        if (!$user) {
+            $user = \App\Models\User::whereIn('role', ['super_admin', 'administrator', 'admin'])
+                ->where('is_active', true)
+                ->orderBy('id')
+                ->first();
+        }
+
+        if (!$user) {
+            return response()->json([
+                'message' => 'No account available for automatic sign-in.',
+            ], 404);
+        }
+
+        if ($user->facility_id) {
+            $facility = Facility::find($user->facility_id);
+            if (!$facility || !$facility->is_active) {
+                return response()->json([
+                    'message' => 'This facility is no longer active.',
+                ], 403);
+            }
+        }
+
+        $token = $user->createToken('api-token')->plainTextToken;
+
+        try {
+            ActivityLogService::login($user, [
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+                'auto_login' => true,
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('Activity log auto-login failed', [
+                'user_id' => $user->id,
+                'message' => $e->getMessage(),
+            ]);
+        }
+
+        try {
+            $userPayload = $this->transformUser($user);
+        } catch (\Throwable $e) {
+            Log::error('transformUser failed during auto-login', [
+                'user_id' => $user->id,
+                'message' => $e->getMessage(),
+            ]);
+            $userPayload = $this->minimalLoginUserPayload($user);
+        }
+
+        return response()->json([
+            'user' => $userPayload,
+            'token' => $token,
+        ]);
+    }
+
     public function logout(Request $request): JsonResponse
     {
         $user = $request->user();

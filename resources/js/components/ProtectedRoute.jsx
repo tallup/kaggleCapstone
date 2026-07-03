@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Navigate } from 'react-router-dom';
-import api from '../services/api';
+import api, { storeAuthToken } from '../services/api';
 
 const VALIDATED_KEY = 'token_validated_at';
 const VALIDATION_TTL_MS = 5 * 60 * 1000;
@@ -15,20 +14,38 @@ export default function ProtectedRoute({ children }) {
     const token = localStorage.getItem('auth_token');
     const skipValidation = token && !needsValidation();
     // Optimistic: render protected UI immediately when a token exists; validate in the
-    // background and redirect to login only if the token is invalid (no full-screen gate).
-    const [status, setStatus] = useState(!token ? 'unauthenticated' : 'authenticated');
+    // background. If no token exists (or it's invalid), silently auto-login instead of
+    // showing a login page.
+    const [status, setStatus] = useState(!token ? 'pending' : 'authenticated');
     const didValidate = useRef(false);
+    const didAutoLogin = useRef(false);
 
     useEffect(() => {
+        let cancelled = false;
+
+        const autoLogin = async () => {
+            if (didAutoLogin.current) return;
+            didAutoLogin.current = true;
+
+            try {
+                const response = await api.post('/auto-login');
+                if (cancelled) return;
+                storeAuthToken(response.data.token);
+                sessionStorage.setItem(VALIDATED_KEY, String(Date.now()));
+                setStatus('authenticated');
+            } catch (err) {
+                if (cancelled) return;
+                setStatus('unavailable');
+            }
+        };
+
         if (!token) {
-            setStatus('unauthenticated');
-            return;
+            autoLogin();
+            return () => { cancelled = true; };
         }
 
         if (skipValidation || didValidate.current) return;
         didValidate.current = true;
-
-        let cancelled = false;
 
         api.post('/token/validate')
             .then(() => {
@@ -39,14 +56,25 @@ export default function ProtectedRoute({ children }) {
             .catch(() => {
                 if (cancelled) return;
                 sessionStorage.removeItem(VALIDATED_KEY);
-                setStatus('unauthenticated');
+                autoLogin();
             });
 
         return () => { cancelled = true; };
     }, [token, skipValidation]);
 
-    if (status === 'unauthenticated') {
-        return <Navigate to="/login" replace />;
+    if (status === 'unavailable') {
+        return (
+            <div className="flex h-screen items-center justify-center text-center px-6">
+                <div>
+                    <p className="text-lg font-medium text-gray-800">Unable to open the dashboard automatically.</p>
+                    <p className="text-sm text-gray-500 mt-1">No account is available for automatic sign-in. Contact an administrator.</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (status === 'pending') {
+        return null;
     }
 
     return children;

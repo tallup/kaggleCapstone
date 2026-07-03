@@ -104,10 +104,10 @@ const SYSTEM_HUB_PREFIXES = ['/administration'];
  */
 const caregiverNavigation = [
     { name: 'Dashboard',  icon: LayoutDashboard, path: '/dashboard',    children: null, section: 'Home' },
+    { name: 'AI Assistant', icon: Command, path: '/chart-assistant-test', children: null, section: 'Home', activePathPrefixes: ['/chart-assistant-test'], highlight: true },
     { name: 'Residents',  icon: Users,           path: '/my-residents', children: null, section: HUB_SECTION, activePathPrefixes: RESIDENT_HUB_PREFIXES, activePathRegex: RESIDENT_LEGACY_DETAIL },
     { name: 'Clinical',   icon: Stethoscope,     path: '/clinical',     children: null, section: HUB_SECTION, activePathPrefixes: CLINICAL_HUB_PREFIXES },
     { name: 'Operations', icon: Wrench,          path: '/operations',   children: null, section: HUB_SECTION, activePathPrefixes: OPERATIONS_HUB_PREFIXES },
-    { name: 'AI Assistant', icon: Command, path: '/chart-assistant-test', children: null, section: HUB_SECTION, activePathPrefixes: ['/chart-assistant-test'] },
     {
         name: 'Reports',
         icon: FileText,
@@ -123,6 +123,7 @@ const caregiverNavigation = [
  */
 const facilityStaffHubNavigation = [
     { name: 'Dashboard',          icon: LayoutDashboard, path: '/dashboard',      children: null, section: 'Home' },
+    { name: 'AI Assistant', icon: Command, path: '/chart-assistant-test', children: null, section: 'Home', activePathPrefixes: ['/chart-assistant-test'], highlight: true },
     { name: 'Residents',          icon: Users,           path: '/my-residents',   children: null, section: HUB_SECTION, activePathPrefixes: RESIDENT_HUB_PREFIXES, activePathRegex: RESIDENT_LEGACY_DETAIL },
     { name: 'Clinical',           icon: Stethoscope,     path: '/clinical',       children: null, section: HUB_SECTION, activePathPrefixes: CLINICAL_HUB_PREFIXES },
     { name: 'Operations',         icon: Wrench,          path: '/operations',     children: null, section: HUB_SECTION, activePathPrefixes: OPERATIONS_HUB_PREFIXES },
@@ -130,7 +131,6 @@ const facilityStaffHubNavigation = [
     { name: 'Organization',       icon: Building2,      path: '/organization',   children: null, section: HUB_SECTION, activePathPrefixes: ORGANIZATION_HUB_PREFIXES },
     { name: 'Team & compliance', icon: UsersRound,      path: '/team',            children: null, section: HUB_SECTION, activePathPrefixes: TEAM_HUB_PREFIXES },
     { name: 'System',             icon: Settings,        path: '/administration', children: null, section: HUB_SECTION, activePathPrefixes: SYSTEM_HUB_PREFIXES },
-    { name: 'AI Assistant', icon: Command, path: '/chart-assistant-test', children: null, section: HUB_SECTION, activePathPrefixes: ['/chart-assistant-test'] },
     {
         name: 'Reports',
         icon: FileText,
@@ -435,14 +435,15 @@ export default function Layout() {
                     icon: Command,
                     path: '/chart-assistant-test',
                     children: null,
-                    section: HUB_SECTION,
+                    section: 'Home',
                     activePathPrefixes: ['/chart-assistant-test'],
+                    highlight: true,
                 };
-                const reportsIndex = items.findIndex((item) => item.path === '/reports' || item.name === 'Reports');
-                if (reportsIndex >= 0) {
-                    items.splice(reportsIndex, 0, aiAssistantItem);
+                const dashboardIndex = items.findIndex((item) => item.path === '/dashboard' || item.name === 'Dashboard');
+                if (dashboardIndex >= 0) {
+                    items.splice(dashboardIndex + 1, 0, aiAssistantItem);
                 } else {
-                    items.push(aiAssistantItem);
+                    items.unshift(aiAssistantItem);
                 }
             }
         }
@@ -818,6 +819,11 @@ function NavItem({ item, location, expandedMenus, setExpandedMenus, navigationIt
 
     const activeClass = 'bg-white shadow-sm text-[var(--theme-text-on-white)]';
     const inactiveClass = 'text-[var(--theme-text-on-primary)] hover:bg-[var(--theme-primary-light)]';
+    const highlightActiveClass = 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-md ring-2 ring-white/50';
+    const highlightInactiveClass = 'bg-gradient-to-r from-violet-500 to-indigo-500 text-white shadow-sm hover:from-violet-600 hover:to-indigo-600';
+    const itemClass = item.highlight
+        ? (isActive ? highlightActiveClass : highlightInactiveClass)
+        : (isActive ? activeClass : inactiveClass);
 
     // ── Collapsed: icon-only with tooltip ──────────────────────────────────────
     if (collapsed) {
@@ -830,7 +836,7 @@ function NavItem({ item, location, expandedMenus, setExpandedMenus, navigationIt
                     onClick={onLinkClick}
                     aria-label={item.name}
                     aria-current={isActive ? 'page' : undefined}
-                    className={`flex items-center justify-center w-full min-h-[2.5rem] py-2 rounded-lg transition-colors ${isActive ? activeClass : inactiveClass}`}
+                    className={`flex items-center justify-center w-full min-h-[2.5rem] py-2 rounded-lg transition-colors ${itemClass}`}
                 >
                     <Icon className="w-5 h-5 flex-shrink-0" strokeWidth={2.25} aria-hidden="true" />
                 </Link>
@@ -846,7 +852,7 @@ function NavItem({ item, location, expandedMenus, setExpandedMenus, navigationIt
                     type="button"
                     onClick={() => setExpandedMenus({ ...expandedMenus, [item.name]: !isExpanded })}
                     aria-expanded={isExpanded}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-colors text-sm ${isActive ? activeClass : inactiveClass}`}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-colors text-sm ${itemClass}`}
                 >
                     <div className="flex items-center gap-3">
                         <Icon className="w-4 h-4 flex-shrink-0" strokeWidth={2.25} aria-hidden="true" />
@@ -882,7 +888,7 @@ function NavItem({ item, location, expandedMenus, setExpandedMenus, navigationIt
         <Link
             to={item.path}
             onClick={onLinkClick}
-            className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm w-full ${isActive ? activeClass : inactiveClass}`}
+            className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm w-full ${itemClass}`}
             aria-current={isActive ? 'page' : undefined}
         >
             <Icon className="w-4 h-4 flex-shrink-0" strokeWidth={2.25} aria-hidden="true" />
