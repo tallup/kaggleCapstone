@@ -27,10 +27,6 @@ export default function ChartAssistantTestPage() {
         setResidentName([selectedResident?.first_name, selectedResident?.middle_names, selectedResident?.last_name].filter(Boolean).join(' '));
     };
 
-    const handleLoad = (event) => {
-        event.preventDefault();
-    };
-
     return (
         <div className="max-w-6xl mx-auto p-6 space-y-6">
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -39,11 +35,11 @@ export default function ChartAssistantTestPage() {
                     Select a resident to load the assistant panel and test the resident chart analysis flow immediately.
                 </p>
 
-                <form onSubmit={handleLoad} className="mt-4 grid gap-3 md:grid-cols-[1fr_auto]">
+                <div className="mt-4">
                     <select
                         value={residentId}
                         onChange={handleResidentChange}
-                        className="rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)]"
+                        className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)]"
                         disabled={residentsLoading}
                     >
                         <option value="">{residentsLoading ? 'Loading residents...' : 'Select a resident'}</option>
@@ -56,14 +52,7 @@ export default function ChartAssistantTestPage() {
                             );
                         })}
                     </select>
-                    <button
-                        type="submit"
-                        disabled={!residentId}
-                        className="rounded-xl bg-[var(--theme-primary)] px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                        Load assistant
-                    </button>
-                </form>
+                </div>
             </div>
 
             <ChartAssistantPanel residentId={residentId ? Number(residentId) : null} residentName={residentName || undefined} />
