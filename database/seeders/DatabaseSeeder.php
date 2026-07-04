@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder
             CompleteDatabaseSeeder::class,
             FacilitySettingsSeeder::class,
             FaxModuleSeeder::class,
+            DemoDataBackfillSeeder::class,
         ]);
 
         // Alternative: Use ComprehensiveSeeder for development (creates more test data)
