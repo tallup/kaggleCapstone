@@ -2,11 +2,17 @@
 
 namespace Database\Seeders;
 
+use App\Models\ExpenseCategory;
 use App\Models\Facility;
 use App\Models\Fax;
 use App\Models\FaxContact;
+use App\Models\FireDrill;
+use App\Models\GroceryStatusUpdate;
 use App\Models\Medication;
 use App\Models\MedicationAdministration;
+use App\Models\MedicationDelivery;
+use App\Models\PharmacyInventory;
+use App\Models\PharmacySupplier;
 use App\Models\Resident;
 use App\Models\User;
 use Carbon\Carbon;
@@ -30,7 +36,37 @@ class DemoDataBackfillSeeder extends Seeder
         $this->backfillMedications();
         $this->backfillFaxes();
 
+        // Reference/operational data whose seeders exist but were never
+        // wired into the production seed chain, or that skip branches
+        // created after the original seed run.
+        $this->call(HousekeepingSeeder::class);
+        $this->call(BehaviorDefinitionSeeder::class);
+        $this->call(BackfillBranchResidentsSeeder::class);
+
+        $this->backfillIfEmpty(FireDrill::class, FireDrillSeeder::class);
+        $this->backfillIfEmpty(GroceryStatusUpdate::class, GroceryStatusUpdateSeeder::class);
+        $this->backfillIfEmpty(ExpenseCategory::class, ExpenseCategorySeeder::class);
+        $this->backfillIfEmpty(PharmacySupplier::class, PharmacySupplierSeeder::class);
+        $this->backfillIfEmpty(PharmacyInventory::class, PharmacyInventorySeeder::class);
+        // Runs after backfillMedications() so residents that just got a
+        // medication above are eligible for a delivery record too.
+        $this->backfillIfEmpty(MedicationDelivery::class, MedicationDeliverySeeder::class);
+
         $this->command->info('Demo data backfill complete.');
+    }
+
+    /**
+     * These underlying seeders use plain create() calls (not firstOrCreate),
+     * so re-running them would duplicate rows. Only seed once per table.
+     */
+    private function backfillIfEmpty(string $modelClass, string $seederClass): void
+    {
+        if ($modelClass::count() > 0) {
+            $this->command->info(class_basename($modelClass).' already has data; skipping '.class_basename($seederClass).'.');
+            return;
+        }
+
+        $this->call($seederClass);
     }
 
     private function backfillMedications(): void
