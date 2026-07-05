@@ -33,8 +33,12 @@ class VitalSignSeeder extends Seeder
             return;
         }
 
-        // Set date range: September 1st of current year to today
-        $startDate = Carbon::parse('September 1, ' . date('Y'));
+        // Set date range: trailing 4 months up to today. (Previously anchored
+        // to a hardcoded "September 1st of current year", which produced a
+        // start date *after* today whenever the seeder ran before September,
+        // making the loop below a no-op and leaving every resident with 0
+        // vital signs.)
+        $startDate = Carbon::now()->subMonths(4);
         $endDate = Carbon::now();
         
         $this->command->line("   Date range: {$startDate->format('M d, Y')} to {$endDate->format('M d, Y')}");
