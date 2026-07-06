@@ -54,19 +54,21 @@ class ChartAssistantService
                 throw new \RuntimeException('Anthropic response was empty');
             }
 
-            $decoded = json_decode($content, true);
-            if (is_array($decoded)) {
-                $decodedSummary = (string) ($decoded['summary'] ?? $heuristicResult['summary']);
-
-                return array_merge($heuristicResult, [
-                    'prompt' => $resolvedPrompt,
-                    'mode' => 'anthropic',
-                    'model' => 'claude-opus-4-8',
-                    'summary' => $decodedSummary,
-                    'insights' => $this->normalizeList($decoded['insights'] ?? $heuristicResult['insights']),
-                    'recommendations' => $this->normalizeList($decoded['recommendations'] ?? $heuristicResult['recommendations']),
-                ]);
+            $decoded = json_decode($this->extractJson($content), true);
+            if (! is_array($decoded)) {
+                throw new \RuntimeException('Anthropic response was not valid JSON: '.substr($content, 0, 500));
             }
+
+            $decodedSummary = (string) ($decoded['summary'] ?? $heuristicResult['summary']);
+
+            return array_merge($heuristicResult, [
+                'prompt' => $resolvedPrompt,
+                'mode' => 'anthropic',
+                'model' => 'claude-opus-4-8',
+                'summary' => $decodedSummary,
+                'insights' => $this->normalizeList($decoded['insights'] ?? $heuristicResult['insights']),
+                'recommendations' => $this->normalizeList($decoded['recommendations'] ?? $heuristicResult['recommendations']),
+            ]);
         } catch (\Throwable $e) {
             Log::warning('Chart assistant Anthropic fallback triggered', [
                 'message' => $e->getMessage(),
@@ -479,6 +481,23 @@ class ChartAssistantService
             'resident' => ['name' => $residentName],
             'window' => $window,
         ];
+    }
+
+    private function extractJson(string $content): string
+    {
+        $trimmed = trim($content);
+
+        // Strip ```json ... ``` or ``` ... ``` code fences some models wrap JSON in.
+        if (preg_match('/```(?:json)?\s*(\{.*\})\s*```/s', $trimmed, $matches)) {
+            return $matches[1];
+        }
+
+        // Otherwise fall back to the first {...} block found in the text.
+        if (preg_match('/\{.*\}/s', $trimmed, $matches)) {
+            return $matches[0];
+        }
+
+        return $trimmed;
     }
 
     private function normalizeList(mixed $value): array
